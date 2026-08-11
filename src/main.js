@@ -149,9 +149,21 @@ async function select(id) {
     return;
   }
 
+  // Over HTTP, not convertFileSrc. The page is the same either way; what
+  // differs is that a real origin can answer the page's own /api/* fetches,
+  // so the Telemetry and Loaded panels show data instead of advising a
+  // `:DocMap serve` that would not have helped. If the server cannot start,
+  // fall back to the asset protocol rather than showing nothing: a readable
+  // map with two panels that report "no host" beats a blank window.
   els.placeholder.hidden = true;
   els.frame.hidden = false;
-  els.frame.src = convertFileSrc(status.index_path);
+  let served = null;
+  try {
+    served = await invoke("serve_project", { id });
+  } catch (e) {
+    say(String(e));
+  }
+  els.frame.src = served ?? convertFileSrc(status.index_path);
   say(`${p.root} · ${status.modules ?? "?"} modules`);
   renderEngine();
 }

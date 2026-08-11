@@ -9,6 +9,8 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod server;
+
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -595,6 +597,38 @@ async fn generate(app: tauri::AppHandle, root: String) -> Result<GenerateResult,
     .map_err(|e| format!("generation task failed: {e}"))?
 }
 
+/// Serve one project's map over HTTP and return the URL to point the iframe
+/// at.
+///
+/// Replaces `convertFileSrc` for the view. The page is identical either way;
+/// what changes is that `/api/*` now has something on the other end, so the
+/// Telemetry and Loaded panels can show real data instead of advising a
+/// `:DocMap serve` that would not have helped. See `server.rs`'s own header
+/// for why the asset protocol made that failure look like a working server.
+#[tauri::command]
+fn serve_project(app: tauri::AppHandle, id: String) -> Result<String, String> {
+    let ws = read_workspace(&app)?;
+    let project = ws
+        .projects
+        .iter()
+        .find(|p| p.id == id)
+        .ok_or_else(|| format!("no such project: {id}"))?;
+
+    // Resolved per call rather than captured once at startup: the engine can
+    // be located, or grammars pointed at, after the window is already open,
+    // and a server holding the values from before would answer with a
+    // fidelity the sidebar says has since changed.
+    let info = engine_info(app.clone())?;
+
+    let port = server::start(server::ServeConfig {
+        root: project.root.clone(),
+        map_dir: project.map_dir.clone(),
+        engine: info.path,
+        grammars: info.grammars,
+    })?;
+    Ok(server::url(port))
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -611,7 +645,8 @@ fn main() {
             nvim_info,
             set_nvim_path,
             set_nvim_config_dir,
-            import_from_nvim_config
+            import_from_nvim_config,
+            serve_project
         ])
         .run(tauri::generate_context!())
         .expect("docmap-desktop failed to start");
