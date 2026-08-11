@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>docmap</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!--
+      No framework, on purpose. The thing this window mostly shows is a page
+      it did not write: a self-contained 1.5 MB artifact that renders itself.
+      Around it there is a list and two buttons. A framework here would be
+      more machinery than subject.
+    -->
+    <aside id="sidebar">
+      <header>
+        <h1>docmap</h1>
+        <p class="sub">module maps, by project</p>
+      </header>
+
+      <div class="actions">
+        <button id="add" type="button">Add project…</button>
+      </div>
+
+      <ul id="projects" aria-label="Projects"></ul>
+
+      <p id="empty" class="empty" hidden>
+        No projects yet. <strong>Add project…</strong> points this at a
+        repository; it does not have to have a map already.
+      </p>
+
+      <footer id="status"></footer>
+    </aside>
+
+    <main id="view">
+      <!-- The map is loaded in here. An iframe rather than a second window:
+           switching projects should replace what is on screen, not spawn
+           something to manage. -->
+      <iframe id="map" title="Module map" hidden></iframe>
+
+      <div id="placeholder" class="placeholder">
+        <h2>Nothing selected</h2>
+        <p>Pick a project on the left.</p>
+      </div>
+    </main>
+
+    <script type="module" src="main.js"></script>
+  </body>
+</html>

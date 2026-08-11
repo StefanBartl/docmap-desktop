@@ -1,0 +1,208 @@
+/* Deliberately close to the generated map's own palette: this window is a
+   frame around that page, and a frame that fights its content reads as two
+   programs stapled together. Both light and dark, following the OS. */
+
+:root {
+  --bg: #ffffff;
+  --panel: #f7f7f8;
+  --ink: #1a1a1c;
+  --muted: #6b6b73;
+  --line: #e2e2e6;
+  --accent: #2f6fd0;
+  --accent-soft: #dbe7fa;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16171a;
+    --panel: #1d1e22;
+    --ink: #e6e6ea;
+    --muted: #9a9aa4;
+    --line: #2c2d33;
+    --accent: #7aa7f0;
+    --accent-soft: #22304a;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+  /* The sidebar is a chrome surface, not content: no text selection drag,
+     no rubber-band scroll past the ends. */
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------- sidebar */
+
+#sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+}
+
+#sidebar header {
+  padding: 16px 16px 8px;
+}
+
+#sidebar h1 {
+  margin: 0;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+}
+
+.sub {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.actions {
+  padding: 8px 12px 12px;
+}
+
+button {
+  font: inherit;
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent-soft);
+  outline-offset: 2px;
+}
+
+.actions button {
+  width: 100%;
+}
+
+/* One tab stop for the list, arrows within it — the same roving-tabindex
+   shape the generated page uses for its own long lists, for the same
+   reason: a project list should not put N presses between the button above
+   it and the content. */
+#projects {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0 8px 8px;
+  list-style: none;
+}
+
+#projects:focus-visible {
+  outline: 2px solid var(--accent-soft);
+  outline-offset: -2px;
+}
+
+.proj {
+  padding: 8px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.proj:hover {
+  background: var(--accent-soft);
+}
+
+.proj:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.proj.sel {
+  background: var(--accent-soft);
+}
+
+.proj .nm {
+  display: block;
+  font-weight: 600;
+}
+
+.proj .meta {
+  display: block;
+  font-size: 11.5px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.proj .nomap {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.empty {
+  margin: 0 16px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+#status {
+  padding: 8px 16px 12px;
+  font-size: 11.5px;
+  color: var(--muted);
+  min-height: 1.5em;
+}
+
+/* ---------------------------------------------------------------- view */
+
+#view {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+
+#map {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+.placeholder {
+  display: grid;
+  place-content: center;
+  height: 100%;
+  text-align: center;
+  color: var(--muted);
+}
+
+.placeholder h2 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  color: var(--ink);
+}
+
+.placeholder p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.placeholder code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+}

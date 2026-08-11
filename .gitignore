@@ -1,0 +1,19 @@
+# Rust / Tauri
+/src-tauri/target/
+/src-tauri/gen/
+
+# Node (only used by the Tauri CLI, never at runtime)
+/node_modules/
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+*.swp
+tags
+
+# Generated from app-icon source by `cargo tauri icon`; regenerate rather
+# than review a diff of binary pixels.
+# `cargo tauri icon` also emits android/ and ios/ sets; this is a desktop
+# program and they are regenerable noise in a diff.
+/src-tauri/icons/android/
+/src-tauri/icons/ios/

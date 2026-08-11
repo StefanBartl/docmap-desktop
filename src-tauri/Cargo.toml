@@ -1,0 +1,38 @@
+[package]
+name = "docmap-desktop"
+version = "0.1.0"
+edition = "2021"
+description = "Desktop workspace for documentation.nvim's module maps"
+authors = ["Stefan Bartl"]
+license = "MIT"
+# The binary is named after the product rather than the crate default so the
+# installed executable reads `docmap-desktop.exe`, not `app.exe`.
+default-run = "docmap-desktop"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# `protocol-asset` is what lets the webview load a file off disk. The map is
+# an ordinary `index.html` in the scanned repository, and a webview refuses
+# `file://` inside an iframe on an app-protocol page; the asset protocol is
+# the sanctioned way through, paired with `assetProtocol.scope` in
+# tauri.conf.json. Without the feature the build fails outright rather than
+# silently producing a window that cannot show anything, which is the right
+# way round.
+tauri = { version = "2", features = ["protocol-asset"] }
+# The folder picker for "Add project". A native dialog rather than a text
+# field: the thing being named is a directory that must exist, and letting the
+# OS answer that is both less code and less wrong.
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+# A viewer that ships as a download: size is worth more here than the last
+# few percent of speed, and the expensive work happens in a separate process
+# anyway (see docs/ROADMAP.md — the analysis is documentation.nvim's binary).
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
