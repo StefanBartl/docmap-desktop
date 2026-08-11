@@ -1,0 +1,73 @@
+# Builds an installer per platform and attaches them to a GitHub Release,
+# so "get the app" means "open Releases and download one file" instead of
+# "clone this and run cargo tauri build yourself".
+#
+# Triggered by pushing a version tag (`vX.Y.Z`), not by every push to main —
+# a release is a deliberate act, not something that should fire on every
+# commit. `tauri-apps/tauri-action` is the project's own official action: it
+# runs `cargo tauri build`, uploads the platform-specific installer/bundle it
+# produces, and creates (or updates) the GitHub Release for the pushed tag.
+#
+# `frontendDist` in tauri.conf.json points straight at `../src` — no bundler,
+# no package.json, nothing to `npm install` — so this workflow only ever
+# needs the Rust toolchain plus each OS's native webview dependencies.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: "macos-latest"
+            args: "--target aarch64-apple-darwin"
+          - platform: "macos-latest"
+            args: "--target x86_64-apple-darwin"
+          - platform: "ubuntu-22.04"
+            args: ""
+          - platform: "windows-latest"
+            args: ""
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # WebKitGTK is Linux's WebView2/WKWebView equivalent — README.md's own
+      # "one runtime dependency worth knowing about" — and the *build*
+      # headers are a separate package from the runtime library Tauri links
+      # against here.
+      - name: install Linux webview dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "docmap-desktop ${{ github.ref_name }}"
+          # Draft, not published outright: a build succeeding on every
+          # platform is not the same guarantee as someone having opened the
+          # result, and a draft lets that happen before the release goes
+          # public.
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}

@@ -120,3 +120,45 @@ generated verdict is allowed to claim. The second matters more: this
 ecosystem's whole posture is that a confident wrong answer is worse than an
 incomplete one, and a machine-written checklist verdict is precisely where
 that could go wrong quietly.
+
+## Idea, not scheduled — the analysis itself, not just the engine
+
+Everything this app runs today is still, underneath, `documentation.nvim`
+and `runtime-analysis.nvim` — a subprocess for the first, a live editor
+process supplying the second. "Does not need Neovim" so far means *this
+window* does not; a project still needs an actual Neovim session, with
+both plugins installed and telemetry running, for the data those two
+panels show to exist at all.
+
+The idea is the harder version of the same goal: reimplement what each
+plugin *does* — the module scan and drift checks `core/scan.lua` and
+friends already do statelessly, and the call-counting instrumentation
+`runtime-analysis.telemetry`'s `wrap()` does at the Lua level — directly in
+this app, so a project can be scanned and its runtime behaviour observed
+without a Neovim process anywhere, ever. Full standalone, not
+standalone-*engine*.
+
+**Why this is not scheduled, and not a small step from here:**
+
+- The scan half is the closer one — `documentation.nvim`'s own
+  `standalone/` build already proves the analysis has no *structural*
+  dependency on Neovim, only on Lua. The remaining gap is instrumenting
+  *this app's own* runtime, not someone else's Lua project — a different
+  problem than the one `standalone/docmap.lua` solves.
+- The telemetry half is the harder one. `runtime-analysis.telemetry`
+  counts calls by wrapping functions *inside a running Lua process*
+  (`wrap()`, `auto()`) — there is no equivalent notion for an arbitrary
+  target project unless something actually executes that project's code
+  under instrumentation. That is not a viewer feature; it is closer to a
+  second, general-purpose runtime.
+- Even if both existed, this app would then own two independent
+  reimplementations to keep behaviourally identical to their Neovim-side
+  originals — exactly the "two hosts computing the same join separately"
+  failure `core/api.lua` was built to avoid for the *data*, now at the
+  scale of the whole analysis.
+
+Recorded because it is the honest end state of "does not need Neovim," not
+because there is a plan to get there. The nearer, already-scheduled version
+of "no Neovim" is #1 in `docs/HANDOVER.md`: not needing Neovim *running*
+while the app is open, while still depending on it (or the standalone
+binary it produces) to have generated the data in the first place.

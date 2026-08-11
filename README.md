@@ -14,6 +14,18 @@ project — a list you load from, not one window per thing.
 **This is not a Neovim plugin and does not need Neovim.** It is a separate
 program, in a separate repository, with a separate toolchain — deliberately.
 
+## Get the app
+
+[**Download the latest release**](https://github.com/StefanBartl/docmap-desktop/releases/latest)
+— an installer per platform (Windows `.msi`, macOS `.dmg`, Linux `.deb`/
+`.AppImage`), no Rust toolchain required. Built by
+[`.github/workflows/release.yml`](.github/workflows/release.yml) from a
+pushed `vX.Y.Z` tag; see [Build](#build) below to build one yourself
+instead.
+
+You will also need `documentation.nvim`'s standalone engine binary — this
+app runs it, it does not replace it. See [The engine](#the-engine).
+
 ## Why this exists as its own program
 
 `documentation.nvim` answers "which project am I looking at" the best way
