@@ -12,7 +12,7 @@ Rest zu zeigen. Was gebaut wurde und warum, steht danach im jeweiligen Repo
 |---|---|---|---|
 | `E:\repos\documentation.nvim` | main | `5e47094` | 5/5 grün |
 | `E:\repos\runtime-analysis.nvim` | main | `42d1418` | 4/4 grün |
-| `E:\repos\docmap-desktop` | main | `12b2b1f` | kein CI |
+| `E:\repos\docmap-desktop` | main | `49ba4bb` | kein CI |
 
 Installiert, dauerhaft:
 
@@ -120,13 +120,6 @@ Schnittstelle, statt zweimal dasselbe zu erraten.
 Funktion in der App, die die Neovim-Installations-Spec liest, die dort
 aktivierten `documentation.nvim`-Projekte ermittelt und gleich als Projekte
 hinzufügt. Baut auf der JSON-Schnittstelle aus #3 auf.
-
-### 5. Doku für die Desktop-App
-
-Vorbild ist das nvim-Projekt. **Mit Referenzen statt Duplikaten**, wo
-möglich — die Formate `docs/FEATURES/`, `docs/CHECKLIST/` und
-`FEATURES_FORMAT.md` existieren bereits in `documentation.nvim` und sollten
-verlinkt, nicht abgeschrieben werden.
 
 ### 6. Repo-URL-Import (Slice 3 der App-Roadmap)
 
