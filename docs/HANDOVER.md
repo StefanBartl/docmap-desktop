@@ -12,7 +12,8 @@ Rest zu zeigen. Was gebaut wurde und warum, steht danach im jeweiligen Repo
 |---|---|---|---|
 | `E:\repos\documentation.nvim` | main | `5e47094` | 5/5 grün |
 | `E:\repos\runtime-analysis.nvim` | main | `42d1418` | 4/4 grün |
-| `E:\repos\docmap-desktop` | main | `49ba4bb` | kein CI |
+| `E:\repos\docmap-desktop` | main | `5abb3ac` | kein CI |
+| `C:\Users\bartl\AppData\Local\nvim` (persönliche Config) | main | `8e9280f` | kein CI |
 
 Installiert, dauerhaft:
 
@@ -103,23 +104,34 @@ kann keinen Prozess starten. Das ist dieselbe Kategorie, die
 `:DocMap full` bei Hierarchy → Types. Setzt #1 voraus (ohne Host-Kanal gibt
 es nichts, wohin die Seite melden könnte).
 
-### 3. Neovim-Usrcmd: alle eingetragenen Projekte erzeugen
-
-Ein Kommando, das alle in der Config aktivierten `documentation.nvim`-Projekte
-`full` erzeugt, möglichst gleich mit RA-Telemetry (in der User-Config bereits
-aktiviert).
-
-**Befund zum Zuschnitt:** `lua/plugins/personal/source.lua` (nvim-Config) ist
-*Policy in Lua* — Modus pro Repo (`disabled`/`dir`/`remote`). Aus Rust zu
-parsen wäre spröde. Sauberer ist eine Exportfunktion in Neovim, die die
-aktivierten Projekte als JSON ausgibt; #3 und #4 teilen sich dann dieselbe
-Schnittstelle, statt zweimal dasselbe zu erraten.
-
 ### 4. Spec-Import in die App
 
 Funktion in der App, die die Neovim-Installations-Spec liest, die dort
 aktivierten `documentation.nvim`-Projekte ermittelt und gleich als Projekte
-hinzufügt. Baut auf der JSON-Schnittstelle aus #3 auf.
+hinzufügt.
+
+**Die Schnittstelle dafür existiert bereits, gebaut mit #3:**
+`plugins.personal.export.projects()` (nvim-Config,
+`lua/plugins/personal/export.lua`) liefert `{name, repo, dir}[]` — jedes
+aktivierte, lokal ausgecheckte Plugin, nicht aus dem rohen `source.lua`
+geraten, sondern über dieselbe driftfreie Liste, die `:MyPlugins`
+und die Statusline bereits lesen. Der headless Export dazu:
+
+```
+nvim --headless -c "luafile scripts/docmap_projects.lua" -c "qa"
+```
+
+**Wichtig für die Rust-Seite:** nicht `-l scripts/docmap_projects.lua` —
+gemessen, nicht angenommen: `-l` lädt diese Config gar nicht (findet nicht
+einmal `lib.nvim`), weil es kein `init.lua` und kein Lazy-Bootstrap
+durchläuft. Nur `-c "luafile ..." -c "qa"` geht durch den echten Start.
+stdout trägt genau eine Zeile reines JSON; bei Fehlern schreibt das Skript
+auf stderr und beendet sich mit Exit-Code ≠ 0.
+
+Aufgabe für #4 selbst: diesen Subprozess aus Rust aufrufen (Pfad zur
+`nvim`-Binary und zum Config-Verzeichnis müssen konfigurierbar sein — nicht
+jede Maschine hat dieselbe Config unter demselben Pfad), das JSON parsen,
+für jeden Eintrag `add_project` aufrufen.
 
 ### 6. Repo-URL-Import (Slice 3 der App-Roadmap)
 
