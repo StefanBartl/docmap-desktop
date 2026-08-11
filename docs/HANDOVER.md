@@ -12,7 +12,7 @@ Rest zu zeigen. Was gebaut wurde und warum, steht danach im jeweiligen Repo
 |---|---|---|---|
 | `E:\repos\documentation.nvim` | main | `5e47094` | 5/5 grün |
 | `E:\repos\runtime-analysis.nvim` | main | `42d1418` | 4/4 grün |
-| `E:\repos\docmap-desktop` | main | `5abb3ac` | kein CI |
+| `E:\repos\docmap-desktop` | main | `55e175c` | kein CI |
 | `C:\Users\bartl\AppData\Local\nvim` (persönliche Config) | main | `8e9280f` | kein CI |
 
 Installiert, dauerhaft:
@@ -103,35 +103,6 @@ kann keinen Prozess starten. Das ist dieselbe Kategorie, die
 **Gewünschte Aktionen:** „Telemetry jetzt erzeugen" beim Telemetry-Panel,
 `:DocMap full` bei Hierarchy → Types. Setzt #1 voraus (ohne Host-Kanal gibt
 es nichts, wohin die Seite melden könnte).
-
-### 4. Spec-Import in die App
-
-Funktion in der App, die die Neovim-Installations-Spec liest, die dort
-aktivierten `documentation.nvim`-Projekte ermittelt und gleich als Projekte
-hinzufügt.
-
-**Die Schnittstelle dafür existiert bereits, gebaut mit #3:**
-`plugins.personal.export.projects()` (nvim-Config,
-`lua/plugins/personal/export.lua`) liefert `{name, repo, dir}[]` — jedes
-aktivierte, lokal ausgecheckte Plugin, nicht aus dem rohen `source.lua`
-geraten, sondern über dieselbe driftfreie Liste, die `:MyPlugins`
-und die Statusline bereits lesen. Der headless Export dazu:
-
-```
-nvim --headless -c "luafile scripts/docmap_projects.lua" -c "qa"
-```
-
-**Wichtig für die Rust-Seite:** nicht `-l scripts/docmap_projects.lua` —
-gemessen, nicht angenommen: `-l` lädt diese Config gar nicht (findet nicht
-einmal `lib.nvim`), weil es kein `init.lua` und kein Lazy-Bootstrap
-durchläuft. Nur `-c "luafile ..." -c "qa"` geht durch den echten Start.
-stdout trägt genau eine Zeile reines JSON; bei Fehlern schreibt das Skript
-auf stderr und beendet sich mit Exit-Code ≠ 0.
-
-Aufgabe für #4 selbst: diesen Subprozess aus Rust aufrufen (Pfad zur
-`nvim`-Binary und zum Config-Verzeichnis müssen konfigurierbar sein — nicht
-jede Maschine hat dieselbe Config unter demselben Pfad), das JSON parsen,
-für jeden Eintrag `add_project` aufrufen.
 
 ### 6. Repo-URL-Import (Slice 3 der App-Roadmap)
 
