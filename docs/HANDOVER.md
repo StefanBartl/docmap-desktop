@@ -10,9 +10,9 @@ Rest zu zeigen. Was gebaut wurde und warum, steht danach im jeweiligen Repo
 
 | Repo | Branch | HEAD | CI |
 |---|---|---|---|
-| `E:\repos\documentation.nvim` | main | `e50219e` | grün |
+| `E:\repos\documentation.nvim` | main | `eb7844e` | grün |
 | `E:\repos\runtime-analysis.nvim` | main | `5f51de8` | grün |
-| `E:\repos\docmap-desktop` | main | `a1c665b` | kein CI-Gate; Release-Workflow (Tag-getriggert) neu |
+| `E:\repos\docmap-desktop` | main | `4c0b063` | kein CI-Gate; Release-Workflow (Tag-getriggert) |
 | `C:\Users\bartl\AppData\Local\nvim` (persönliche Config) | main | `707b3ed6` | kein CI |
 
 Installiert, dauerhaft:
@@ -66,35 +66,46 @@ verhält sich die App also korrekt statt destruktiv: Telemetry- und
 Loaded-Panel melden „ältere Engine ohne --api", nichts wird überschrieben.
 
 **Aufgabe:** Engine mit dem Rebuild-Befehl oben neu bauen und
-`C:\tools\docmap.exe` ersetzen. Danach ist #1 wirklich fertig und die
-beiden Panels zeigen echte Daten (die Routen selbst sind gegen echte
-Telemetry geprüft: 158 gejointe Zeilen für `documentation.nvim` selbst).
+`C:\tools\docmap.exe` ersetzen. Danach ist #1 wirklich fertig — alle sechs
+Routen (`telemetry`, `telemetry/snapshots`, `loaded`, `loaded/snapshots`,
+`checklist`, `commits`, plus `commit/<sha>`) sind inzwischen in `core/api.lua`
+gebaut, nicht mehr nur die ersten vier. Telemetry/Loaded sind gegen echte
+Daten geprüft (158 gejointe Zeilen für `documentation.nvim` selbst);
+`commits`/`commit/<sha>`/`checklist` gegen die echte Commit-Historie
+desselben Repos (`TESTS/api_spec.lua`) — beides über einen echten `git`,
+nicht gemockt. Die Rust-Seite (`server.rs`) kennt alle Routen bereits und
+kompiliert/testet grün, konnte aber mangels neuer Binary noch nicht
+end-to-end gegen einen echten Engine-Aufruf laufen.
+
+**Die git-gestützten Routen brauchten einen echten Architekturschritt, nicht
+nur eine Erweiterung:** `standalone/vim_shim.lua` hatte nie `vim.system` —
+bewusst, siehe `docmap.lua`s eigener Kopf zum `--full`-Ausschluss. `core/api`
+nimmt Git-Zugriff jetzt als Abhängigkeit (`opts.git`) statt ihn anzunehmen;
+jeder Host reicht seine eigene Funktion herein (`vim.system` im Editor,
+`io.popen` im Standalone). **Gemessen statt angenommen**, weil hier
+mangels PUC Lua auf dieser Maschine nur eine Neovim-LuaJIT-Sonde als Proxy
+zur Verfügung stand: `file:close()` liefert unter Windows **keinen**
+Exit-Code, weder bei Erfolg noch bei echtem Git-Fehler — anders als
+`vim.system(...):wait().code`. Der Standalone-Pfad erkennt einen
+fehlgeschlagenen Git-Aufruf deshalb heuristisch (führende
+`fatal:`/`error:`/`usage:`-Zeile in der gemergten stderr/stdout-Ausgabe),
+dokumentiert als Heuristik, nicht als Garantie — aber keines der hier
+tatsächlich angeforderten Formate (Sha, Steuerzeichen, `diff --git`) kann
+zufällig so beginnen.
 
 **Auf dieser Maschine nicht prüfbar:** es gibt kein PUC Lua 5.4 auf PATH,
 deshalb wurde das `standalone`-Gate in `scripts/ci.lua` bei jedem Lauf
 *übersprungen* und der gebündelte Pfad ist nur begründet und geprobt, nicht
-ausgeführt. `scripts/bundle_manifest.lua` hat dafür eine dritte Probe
-bekommen (den `--api=`-Modus), weil das Manifest gemessen wird und ein
-Scan-Lauf `core/api`, `core/artifact` und `core/loaded_diff` nie lädt —
-ohne diese Probe stirbt die neue Binary beim ersten Telemetry-Abruf mit
-„module not found".
+ausgeführt. `scripts/bundle_manifest.lua` hat dafür jetzt drei Ergänzungen
+im `--api=`-Probendurchlauf: die vier ursprünglichen Routen, `checklist`
++ `commits`, und `commit/<HEAD-Sha>` (real per `git rev-parse` aufgelöst) —
+letzteres zieht `core/history` nach, gemessen, nicht vermutet, und keine
+der anderen sechs Proben lädt es mit.
 
 **Regel des Nutzers, weiterhin gültig:** Telemetry- und Loaded-Tab **immer
 sichtbar** lassen. Daten zeigen wenn vorhanden, sonst der Hinweis, dass man
 `runtime-analysis.nvim` in Neovim laufen lassen muss. Nicht ausgrauen, nicht
 verstecken.
-
-### 1b. Die git-gestützten Routen fehlen noch
-
-`core/api.lua` beantwortet heute `telemetry`, `telemetry/snapshots`,
-`loaded`, `loaded/snapshots`. Die drei git-gestützten Routen der History-
-und Checklist-Panels (`commits`, `commit/<sha>`, `checklist`) liegen noch
-ausschließlich in `editor/serve.lua`, weil sie einen Subprozess brauchen und
-`standalone/vim_shim.lua` kein `vim.system` hat. Der saubere Schnitt dafür
-ist absehbar: `core/api` bekommt die Git-Funktion als Parameter, jeder Host
-reicht seine eigene herein (`vim.system` im Editor, `io.popen` im
-Standalone). Die Sha-Whitelist (`serve.lua`s `safe_sha`) muss dabei
-mitwandern — sie ist die Sicherheitseigenschaft der Route, nicht Deko.
 
 ### 2. Aktions-Knöpfe in der App-Leiste, kontextabhängig
 
