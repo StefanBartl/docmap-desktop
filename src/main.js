@@ -6,8 +6,43 @@
 // this — it hands out a URL the webview will accept for a path the app is
 // allowed to read (`assetProtocol.scope` in tauri.conf.json).
 
-const { invoke } = window.__TAURI__.core;
-const { convertFileSrc } = window.__TAURI__.core;
+// A window that renders and then does nothing is the worst failure mode
+// available here, and it is the one that happened: `window.__TAURI__` only
+// exists when `app.withGlobalTauri` is set, so without it this module threw
+// on its first line. The HTML and CSS still painted — a complete-looking
+// sidebar with a button that ignored every click, and nothing anywhere
+// saying why.
+//
+// So: say why, in the window. Every path below that can fail now ends up
+// visible instead of in a console nobody has open.
+function fatal(what, err) {
+  const box = document.getElementById("placeholder");
+  const frame = document.getElementById("map");
+  if (frame) frame.hidden = true;
+  if (!box) return;
+  box.hidden = false;
+  box.innerHTML = "<h2></h2><p></p><p class='detail'></p>";
+  box.querySelector("h2").textContent = what;
+  box.querySelector("p").textContent =
+    "This is a bug in docmap-desktop, not in the project you opened.";
+  box.querySelector(".detail").textContent = String(err);
+}
+
+window.addEventListener("error", (ev) => fatal("Something failed", ev.message));
+window.addEventListener("unhandledrejection", (ev) => fatal("Something failed", ev.reason));
+
+if (!window.__TAURI__) {
+  // Reached when the page is opened outside the app, and when
+  // `withGlobalTauri` is off. Naming both beats a TypeError three frames in.
+  fatal(
+    "Not running inside the app",
+    "window.__TAURI__ is undefined. Either this page was opened directly in a " +
+      "browser, or app.withGlobalTauri is not set in tauri.conf.json."
+  );
+  throw new Error("no tauri bridge");
+}
+
+const { invoke, convertFileSrc } = window.__TAURI__.core;
 const { open } = window.__TAURI__.dialog;
 
 const els = {
@@ -108,13 +143,17 @@ async function refresh(next) {
 }
 
 els.add.addEventListener("click", async () => {
-  const dir = await open({ directory: true, multiple: false, title: "Add project" });
-  if (!dir) return;
   try {
+    const dir = await open({ directory: true, multiple: false, title: "Add project" });
+    if (!dir) return;
     await refresh(await invoke("add_project", { root: dir }));
     say(`Added ${dir}`);
   } catch (e) {
+    // Inside the try on purpose: `open` itself rejects when the dialog
+    // permission is missing from capabilities/, and that used to look
+    // identical to a button that was not wired up at all.
     say(String(e));
+    fatal("Could not add a project", e);
   }
 });
 

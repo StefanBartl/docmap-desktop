@@ -13,20 +13,27 @@
         "width": 1400,
         "height": 900,
         "minWidth": 900,
-        "minHeight": 600
+        "minHeight": 600,
+        "label": "main"
       }
     ],
     "security": {
       "csp": null,
       "assetProtocol": {
         "enable": true,
-        "scope": ["**"]
+        "scope": [
+          "**"
+        ]
       }
-    }
+    },
+    "withGlobalTauri": true
   },
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": ["icons/icon.ico", "icons/icon.png"]
+    "icon": [
+      "icons/icon.ico",
+      "icons/icon.png"
+    ]
   }
 }
