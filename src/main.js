@@ -53,6 +53,7 @@ const els = {
   frame: document.getElementById("map"),
   placeholder: document.getElementById("placeholder"),
   gen: document.getElementById("gen"),
+  genAll: document.getElementById("gen-all"),
   engine: document.getElementById("engine"),
   engineSummary: document.getElementById("engine-summary"),
   engineState: document.getElementById("engine-state"),
@@ -150,14 +151,40 @@ async function select(id) {
 async function refresh(next) {
   projects = next ?? (await invoke("list_projects"));
   await render();
+  syncActions();
+}
+
+/// Generate straight after adding — but only when there is nothing to lose.
+///
+/// A project with no map yet opens on an empty view, which is useless and
+/// makes the reader press a button whose outcome was never in doubt. One
+/// with a map already is a different case: generation writes into
+/// `docs/map` **inside the user's repository**, so regenerating unasked
+/// would produce git changes they did not request, on a tree they may have
+/// added just to look at. That one shows what is already there and leaves
+/// the button to them.
+async function autoGenerate(p) {
+  if (!engine.path) return;
+  const status = await invoke("map_status", { mapDir: p.map_dir });
+  if (status.exists) {
+    await select(p.id);
+    return;
+  }
+  await generateFor(p.id);
 }
 
 els.add.addEventListener("click", async () => {
   try {
     const dir = await open({ directory: true, multiple: false, title: "Add project" });
     if (!dir) return;
+    // Identify the new project by which id appeared, not by matching `dir`
+    // against `root`: the Rust side normalises separators, so the string
+    // that went in is not always the string that comes back.
+    const before = new Set(projects.map((x) => x.id));
     await refresh(await invoke("add_project", { root: dir }));
     say(`Added ${dir}`);
+    const added = projects.find((x) => !before.has(x.id));
+    if (added) await autoGenerate(added);
   } catch (e) {
     // Inside the try on purpose: `open` itself rejects when the dialog
     // permission is missing from capabilities/, and that used to look
@@ -256,7 +283,15 @@ function renderEngine() {
     els.engine.open = true;
   }
 
+  syncActions();
+}
+
+/** Both generate buttons depend on the engine; only one also needs a
+    selection. Shared so the two can never disagree about whether the engine
+    is usable. */
+function syncActions() {
   els.gen.disabled = !engine.path || !selectedId;
+  els.genAll.disabled = !engine.path || projects.length === 0;
 }
 
 async function loadEngine() {
@@ -341,6 +376,59 @@ function appendLog(text, bad) {
 }
 
 els.gen.addEventListener("click", () => selectedId && generateFor(selectedId));
+
+/// Regenerate every project, one after another.
+///
+/// **Sequential on purpose.** Each run is a separate engine process doing
+/// CPU-bound parsing; starting a dozen at once would finish no sooner and
+/// would make the machine unusable while it happened. The counter in the
+/// button is there because the honest alternative to a progress indication
+/// on a minutes-long job is a window that looks hung.
+///
+/// Unlike `autoGenerate` this *does* overwrite existing maps, and that is
+/// the point rather than an oversight: pressing a button named "Generate
+/// all" is the explicit request that the automatic path deliberately is
+/// not.
+els.genAll.addEventListener("click", async () => {
+  if (!engine.path || projects.length === 0) return;
+
+  const list = projects.slice();
+  const label = els.genAll.textContent;
+  const failed = [];
+  let ok = 0;
+
+  els.genAll.disabled = true;
+  els.gen.disabled = true;
+  showPlaceholder("Generating all projects", "Running the engine over " + list.length + " project(s).");
+
+  for (let i = 0; i < list.length; i++) {
+    const p = list[i];
+    els.genAll.textContent = "Generating " + (i + 1) + "/" + list.length + "…";
+    say("Generating " + p.name + " (" + (i + 1) + "/" + list.length + ")");
+    try {
+      const res = await invoke("generate", { root: p.root });
+      if (res.ok) {
+        ok++;
+      } else {
+        failed.push(p.name);
+      }
+    } catch (e) {
+      // One unreachable project must not abandon the rest — the report at
+      // the end names which ones failed.
+      failed.push(p.name);
+    }
+  }
+
+  els.genAll.textContent = label;
+  await refresh();
+  if (selectedId) await select(selectedId);
+  renderEngine();
+  say(
+    failed.length
+      ? ok + " generated, " + failed.length + " failed: " + failed.join(", ")
+      : ok + " project(s) generated"
+  );
+});
 
 (async function start() {
   try {
