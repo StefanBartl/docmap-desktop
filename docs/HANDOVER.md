@@ -10,16 +10,16 @@ Rest zu zeigen. Was gebaut wurde und warum, steht danach im jeweiligen Repo
 
 | Repo | Branch | HEAD | CI |
 |---|---|---|---|
-| `E:\repos\documentation.nvim` | main | `5e47094` | 5/5 grün |
+| `E:\repos\documentation.nvim` | main | `99c19e4` | grün |
 | `E:\repos\runtime-analysis.nvim` | main | `42d1418` | 4/4 grün |
-| `E:\repos\docmap-desktop` | main | `1465637` | kein CI |
+| `E:\repos\docmap-desktop` | main | `d372953` | kein CI |
 | `C:\Users\bartl\AppData\Local\nvim` (persönliche Config) | main | `8e9280f` | kein CI |
 
 Installiert, dauerhaft:
 
 | Pfad | Inhalt |
 |---|---|
-| `C:\tools\docmap.exe` | voll-fidele Engine, 1,74 MB, kann Lua + JS/TS/TSX |
+| `C:\tools\docmap.exe` | voll-fidele Engine, 1,74 MB, kann Lua + JS/TS/TSX — **veraltet, siehe unten** |
 | `C:\tools\docmap-grammars\` | `lua.dll`, `javascript.dll`, `typescript.dll`, `tsx.dll` |
 | `C:\tools\docmap-libs\` | `lfs.a`, `lua_tree_sitter.a` — damit ein Engine-Rebuild nicht drei Repos neu klonen muss |
 
@@ -47,47 +47,54 @@ gemessene Lauf tatsächlich lud.
 
 ## Offen
 
-### 1. Die App als vierter Host — eigener Server, Logik bleibt in Lua
+### 1a. Engine neu bauen — blockiert alles, was #1 gebaut hat
 
-**Entschieden** (2026-08-11, mit dem Nutzer): die App startet einen kleinen
-HTTP-Server in Rust, der das Karten-Verzeichnis ausliefert **und** `/api/*`
-beantwortet, indem er die Engine aufruft. Rust ist nur Transport; die
-Join-Logik bleibt einmalig in Lua.
+Der Server ist gebaut und die Lua-Seite auch (`docmap-desktop` `d372953`,
+`documentation.nvim` `39765ac`+`99c19e4`). Was fehlt, ist die **Binary**:
+`C:\tools\docmap.exe` stammt von *vor* `--api=` und kennt den Modus nicht.
 
-**Warum überhaupt:** die App lädt die Karte heute über Tauris
-Asset-Protokoll (`convertFileSrc`, `src/main.js`) und bedient keinen einzigen
-`/api/*`-Pfad. Ein `:DocMap serve` in Neovim ist ein *anderer* Server mit
-einer *anderen* Kopie — es gibt keine Verbindung. Auf Windows liefert
-`convertFileSrc` zudem `http://asset.localhost/…`, weshalb die Seite
-`historyAvailable()` mit *true* beantwortet, dann ins Leere greift und rät,
-man solle `:DocMap serve` ausführen — was schon geschehen war. Das ist die
-konkrete Fehlermeldung, die diesen Punkt ausgelöst hat.
+**Nicht ungefährlich, gemessen:** eine alte Engine lehnt `--api=telemetry`
+nicht ab — sie behandelt es als gewöhnliches Argument und **erzeugt die
+Karte neu**, schreibt also ins Repository des Aufrufers und endet mit
+Exit 0 und Nicht-JSON. Genau das ist beim ersten Test passiert und hat die
+committete Karte von `documentation.nvim` überschrieben.
 
-**Ein Weg ist versperrt:** die App kann nicht einfach `docmap serve` starten.
-Die Standalone-Engine kennt kein `serve`; `editor/serve.lua` liegt in der
-Editor-Hälfte, die die Layer-Regel bewusst aus dem Bundle hält.
+Deshalb prüft die App die Engine jetzt vorher mit `docmap --capabilities`
+(Flag in *Root*-Position — das lehnt eine alte Binary mit Exit 2 ab, bevor
+sie irgendetwas tut; gegen die installierte verifiziert). Bis zum Rebuild
+verhält sich die App also korrekt statt destruktiv: Telemetry- und
+Loaded-Panel melden „ältere Engine ohne --api", nichts wird überschrieben.
 
-**Gute Nachricht:** die Seite braucht **keine** Änderung. Sie ruft `/api/*`
-bereits auf und funktioniert, sobald jemand antwortet. Und alle Joins
-(`telemetry_join`, `loaded_diff`, `history`) liegen in `core/`, sind für die
-Standalone-Engine also erreichbar.
+**Aufgabe:** Engine mit dem Rebuild-Befehl oben neu bauen und
+`C:\tools\docmap.exe` ersetzen. Danach ist #1 wirklich fertig und die
+beiden Panels zeigen echte Daten (die Routen selbst sind gegen echte
+Telemetry geprüft: 158 gejointe Zeilen für `documentation.nvim` selbst).
 
-**Aufgabe:**
-- In `standalone/docmap.lua` einen Modus, der die JSON *einer* Route
-  ausgibt (z. B. `--api=telemetry`, `--api=loaded&snapshot=…`,
-  `--api=commits`). Vorbild ist `lua/documentation/editor/serve.lua` —
-  dieselben Routen, dieselben „available:false + reason"-Antworten.
-- Im Rust-Teil ein HTTP-Server auf `127.0.0.1` mit OS-vergebenem Port, der
-  statische Dateien aus `docs/map` ausliefert und `/api/*` an die Engine
-  weiterreicht.
-- `iframe.src` auf diesen Server statt auf `convertFileSrc`.
-- Bindung strikt auf `127.0.0.1` — die Begründung dafür steht in
-  `editor/serve.lua`s eigenem Kopf und gilt hier unverändert.
+**Auf dieser Maschine nicht prüfbar:** es gibt kein PUC Lua 5.4 auf PATH,
+deshalb wurde das `standalone`-Gate in `scripts/ci.lua` bei jedem Lauf
+*übersprungen* und der gebündelte Pfad ist nur begründet und geprobt, nicht
+ausgeführt. `scripts/bundle_manifest.lua` hat dafür eine dritte Probe
+bekommen (den `--api=`-Modus), weil das Manifest gemessen wird und ein
+Scan-Lauf `core/api`, `core/artifact` und `core/loaded_diff` nie lädt —
+ohne diese Probe stirbt die neue Binary beim ersten Telemetry-Abruf mit
+„module not found".
 
-**Regel des Nutzers, ausdrücklich:** Telemetry- und Loaded-Tab **immer
+**Regel des Nutzers, weiterhin gültig:** Telemetry- und Loaded-Tab **immer
 sichtbar** lassen. Daten zeigen wenn vorhanden, sonst der Hinweis, dass man
 `runtime-analysis.nvim` in Neovim laufen lassen muss. Nicht ausgrauen, nicht
 verstecken.
+
+### 1b. Die git-gestützten Routen fehlen noch
+
+`core/api.lua` beantwortet heute `telemetry`, `telemetry/snapshots`,
+`loaded`, `loaded/snapshots`. Die drei git-gestützten Routen der History-
+und Checklist-Panels (`commits`, `commit/<sha>`, `checklist`) liegen noch
+ausschließlich in `editor/serve.lua`, weil sie einen Subprozess brauchen und
+`standalone/vim_shim.lua` kein `vim.system` hat. Der saubere Schnitt dafür
+ist absehbar: `core/api` bekommt die Git-Funktion als Parameter, jeder Host
+reicht seine eigene herein (`vim.system` im Editor, `io.popen` im
+Standalone). Die Sha-Whitelist (`serve.lua`s `safe_sha`) muss dabei
+mitwandern — sie ist die Sicherheitseigenschaft der Route, nicht Deko.
 
 ### 2. Aktions-Knöpfe in der App-Leiste, kontextabhängig
 
@@ -101,8 +108,13 @@ kann keinen Prozess starten. Das ist dieselbe Kategorie, die
 `pcall(require, …)` a Neovim plugin — not a gap, a category error").
 
 **Gewünschte Aktionen:** „Telemetry jetzt erzeugen" beim Telemetry-Panel,
-`:DocMap full` bei Hierarchy → Types. Setzt #1 voraus (ohne Host-Kanal gibt
-es nichts, wohin die Seite melden könnte).
+`:DocMap full` bei Hierarchy → Types.
+
+**Die Vorbedingung ist jetzt erfüllt:** die Seite läuft nicht mehr über das
+Asset-Protokoll, sondern über einen echten Origin
+(`http://127.0.0.1:<port>/`, `src-tauri/src/server.rs`), es gibt also einen
+Host-Kanal, an den `postMessage` überhaupt gehen kann. Vorher gab es nichts,
+wohin die Seite hätte melden können.
 
 ### 7. Bundling der Engine
 
