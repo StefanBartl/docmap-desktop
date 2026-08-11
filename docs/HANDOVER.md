@@ -12,7 +12,7 @@ Rest zu zeigen. Was gebaut wurde und warum, steht danach im jeweiligen Repo
 |---|---|---|---|
 | `E:\repos\documentation.nvim` | main | `5e47094` | 5/5 grün |
 | `E:\repos\runtime-analysis.nvim` | main | `42d1418` | 4/4 grün |
-| `E:\repos\docmap-desktop` | main | `55e175c` | kein CI |
+| `E:\repos\docmap-desktop` | main | `1465637` | kein CI |
 | `C:\Users\bartl\AppData\Local\nvim` (persönliche Config) | main | `8e9280f` | kein CI |
 
 Installiert, dauerhaft:
@@ -103,12 +103,6 @@ kann keinen Prozess starten. Das ist dieselbe Kategorie, die
 **Gewünschte Aktionen:** „Telemetry jetzt erzeugen" beim Telemetry-Panel,
 `:DocMap full` bei Hierarchy → Types. Setzt #1 voraus (ohne Host-Kanal gibt
 es nichts, wohin die Seite melden könnte).
-
-### 6. Repo-URL-Import (Slice 3 der App-Roadmap)
-
-`git clone` in ein Cache-Verzeichnis, dann Slice-2-Erzeugung. Bewusst
-getrennt gehalten, weil Klonen eigene Fehlerfälle hat (Auth, Größe, Netz).
-**Der Nutzer will das nach den Punkten oben angehen.**
 
 ### 7. Bundling der Engine
 
