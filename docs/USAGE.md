@@ -18,6 +18,30 @@ not, and an engine is configured, generation starts automatically — but
 all" below for why that condition matters and does not extend to a project
 that already has a map.
 
+## Importing from Neovim
+
+**Import from Neovim…** adds every project in one step instead of one
+folder picker per plugin: it runs the personal Neovim config headless, asks
+it which `documentation.nvim`-mappable plugins are enabled and checked out
+locally, and adds each one exactly as **Add project…** would. It reads the
+same `plugins.personal.export.projects()` list `:MyPlugins` and the
+statusline already use — not a guess at `source.lua`'s policy table, the
+real, currently-active list.
+
+The status line afterward reports what happened: how many were found, how
+many were newly added, how many were already in the list, and how many
+failed (with the specific reason per project, shown under the view). A
+project already present is not an error — importing twice is a no-op, the
+same way adding the same folder twice is.
+
+This needs two things resolved, shown in the **Neovim** panel next to
+**Engine**: the `nvim` binary itself (found on `PATH`, or **Locate nvim…**)
+and the config directory to run it against (the OS-conventional location by
+default — `%LOCALAPPDATA%\nvim` on Windows, `~/.config/nvim` elsewhere — or
+**Locate config…** if it lives somewhere else). Like the engine panel, a
+configured path that stops existing falls back to searching again rather
+than failing later with a raw error.
+
 ## The engine indicator
 
 **Engine**, the collapsible panel at the bottom of the sidebar. It answers
@@ -80,11 +104,12 @@ The project list is one tab stop, not one per project:
 ## Where things live
 
 Nothing here is stored inside a project you add. The project list, the
-engine path and the grammar path all live in one file,
-`workspace.json`, in the OS's own per-app config directory — not beside
-the executable, so an installed copy and a portable one both find the
-same list on the same machine, and an installed app never needs write
-access to its own install directory.
+engine path, the grammar path, and the `nvim`/config paths behind
+**Import from Neovim…** all live in one file, `workspace.json`, in the
+OS's own per-app config directory — not beside the executable, so an
+installed copy and a portable one both find the same list on the same
+machine, and an installed app never needs write access to its own install
+directory.
 
 ## What this app is not documenting
 

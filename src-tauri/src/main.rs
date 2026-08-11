@@ -44,6 +44,10 @@ struct Project {
 /// function-level data; without one it still produces a complete module
 /// tree and says so. Passing it through as `DOCMAP_TS_DIR` is the whole
 /// integration.
+///
+/// `nvim_path`/`nvim_config_dir` back the spec-import feature: not every
+/// machine has the same Neovim config in the same place, so both are
+/// configurable the same way `engine`/`grammars` are, rather than assumed.
 #[derive(Debug, Default, Serialize, Deserialize)]
 struct Workspace {
     projects: Vec<Project>,
@@ -51,6 +55,10 @@ struct Workspace {
     engine: Option<String>,
     #[serde(default)]
     grammars: Option<String>,
+    #[serde(default)]
+    nvim_path: Option<String>,
+    #[serde(default)]
+    nvim_config_dir: Option<String>,
 }
 
 /// Where the project list lives.
@@ -249,6 +257,210 @@ fn set_grammars(app: tauri::AppHandle, path: Option<String>) -> Result<EngineInf
     engine_info(app)
 }
 
+/// Look for `nvim` on `PATH`, the same way `engine_on_path` looks for the
+/// docmap engine.
+fn nvim_on_path() -> Option<String> {
+    let names: &[&str] = if cfg!(windows) { &["nvim.exe", "nvim"] } else { &["nvim"] };
+    let path = std::env::var_os("PATH")?;
+    for dir in std::env::split_paths(&path) {
+        for name in names {
+            let candidate = dir.join(name);
+            if candidate.is_file() {
+                return Some(candidate.to_string_lossy().replace('\\', "/"));
+            }
+        }
+    }
+    None
+}
+
+/// The one place Neovim itself would look by default on this OS — not a
+/// search, just the conventional location, so a first run usually needs no
+/// manual configuration at all. Only returned when it actually exists;
+/// a configured path always wins over this guess.
+fn default_nvim_config_dir() -> Option<String> {
+    let guess = if cfg!(windows) {
+        std::env::var_os("LOCALAPPDATA").map(|d| Path::new(&d).join("nvim"))
+    } else {
+        std::env::var_os("HOME").map(|d| Path::new(&d).join(".config/nvim"))
+    }?;
+    if guess.is_dir() {
+        Some(guess.to_string_lossy().replace('\\', "/"))
+    } else {
+        None
+    }
+}
+
+#[derive(Debug, Serialize)]
+struct NvimInfo {
+    /// The configured `nvim` binary, or one found on PATH, or none.
+    path: Option<String>,
+    from_path: bool,
+    /// The configured Neovim config directory, or the platform default if
+    /// that default actually exists on disk, or none.
+    config_dir: Option<String>,
+    config_dir_from_default: bool,
+}
+
+#[tauri::command]
+fn nvim_info(app: tauri::AppHandle) -> Result<NvimInfo, String> {
+    let ws = read_workspace(&app)?;
+
+    let (path, from_path) = match ws.nvim_path.clone() {
+        Some(p) if Path::new(&p).is_file() => (Some(p), false),
+        // A configured path that no longer exists falls back to detection,
+        // same reasoning as `engine_info`.
+        _ => (nvim_on_path(), true),
+    };
+
+    let (config_dir, config_dir_from_default) = match ws.nvim_config_dir.clone() {
+        Some(p) if Path::new(&p).is_dir() => (Some(p), false),
+        _ => (default_nvim_config_dir(), true),
+    };
+
+    Ok(NvimInfo { path, from_path, config_dir, config_dir_from_default })
+}
+
+#[tauri::command]
+fn set_nvim_path(app: tauri::AppHandle, path: Option<String>) -> Result<NvimInfo, String> {
+    let mut ws = read_workspace(&app)?;
+    if let Some(ref p) = path {
+        if !Path::new(p).is_file() {
+            return Err(format!("{p} is not a file"));
+        }
+    }
+    ws.nvim_path = path;
+    write_workspace(&app, &ws)?;
+    nvim_info(app)
+}
+
+#[tauri::command]
+fn set_nvim_config_dir(app: tauri::AppHandle, path: Option<String>) -> Result<NvimInfo, String> {
+    let mut ws = read_workspace(&app)?;
+    if let Some(ref p) = path {
+        if !Path::new(p).is_dir() {
+            return Err(format!("{p} is not a directory"));
+        }
+    }
+    ws.nvim_config_dir = path;
+    write_workspace(&app, &ws)?;
+    nvim_info(app)
+}
+
+/// One entry in `scripts/docmap_projects.lua`'s own JSON contract (nvim
+/// config repo) — see that script's header for the full shape guarantee.
+#[derive(Debug, Deserialize)]
+struct NvimProjectEntry {
+    name: String,
+    #[allow(dead_code)]
+    repo: String,
+    dir: String,
+}
+
+#[derive(Debug, Serialize)]
+struct ImportResult {
+    /// How many entries the Neovim export returned, before dedup.
+    found: usize,
+    /// Newly added projects only — not ones that were already present.
+    added: Vec<Project>,
+    already_present: usize,
+    /// One line per entry that failed to add, name-prefixed.
+    errors: Vec<String>,
+}
+
+/// Import every enabled, locally-checked-out personal plugin from the
+/// user's Neovim configuration.
+///
+/// Delegates entirely to `plugins.personal.export.projects()` (nvim config,
+/// `lua/plugins/personal/export.lua`) via the headless entry point
+/// `scripts/docmap_projects.lua` — this program never parses
+/// `source.lua`'s own policy table itself, which would be brittle in a way
+/// neither side should have to maintain. Must invoke with `-c "luafile
+/// ..." -c "qa"`, not `-l`: measured, not assumed — `-l` is a bare
+/// Lua-script runner that skips `init.lua` and lazy.nvim's bootstrap
+/// entirely, so it cannot see this config's real, fully-resolved plugin
+/// policy. See that script's own header for the full story.
+///
+/// `async` + `spawn_blocking`, same reasoning as `generate`: a real Neovim
+/// startup takes real time, and a command that blocks freezes the window
+/// it was invoked from.
+#[tauri::command]
+async fn import_from_nvim_config(app: tauri::AppHandle) -> Result<ImportResult, String> {
+    let info = nvim_info(app.clone())?;
+    let nvim_path = info.path.ok_or_else(|| {
+        "No nvim binary configured. Put it on PATH, or point at it in the sidebar.".to_string()
+    })?;
+    let config_dir = info.config_dir.ok_or_else(|| {
+        "No Neovim config directory configured, and none found at the default location."
+            .to_string()
+    })?;
+
+    // Absolute path to the script rather than a relative one plus a
+    // matching cwd: one fewer thing that can silently point at the wrong
+    // directory.
+    let script = format!("{config_dir}/scripts/docmap_projects.lua");
+    if !Path::new(&script).is_file() {
+        return Err(format!(
+            "{script} does not exist. It ships with the nvim config's own \
+             plugins.personal.export -- see that repo's docs/HANDOVER.md."
+        ));
+    }
+
+    let out = tauri::async_runtime::spawn_blocking(move || {
+        let mut cmd = std::process::Command::new(&nvim_path);
+        cmd.args(["--headless", "-c", &format!("luafile {script}"), "-c", "qa"]);
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            cmd.creation_flags(CREATE_NO_WINDOW);
+        }
+        cmd.output().map_err(|e| format!("could not run {nvim_path}: {e}"))
+    })
+    .await
+    .map_err(|e| format!("import task failed: {e}"))??;
+
+    if !out.status.success() {
+        return Err(format!(
+            "nvim exited with code {}: {}",
+            out.status.code().unwrap_or(-1),
+            String::from_utf8_lossy(&out.stderr).trim()
+        ));
+    }
+
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let found: Vec<NvimProjectEntry> = serde_json::from_str(stdout.trim()).map_err(|e| {
+        format!("could not parse nvim's output as JSON: {e}\noutput was: {stdout}")
+    })?;
+
+    let existing_ids: std::collections::HashSet<String> =
+        read_workspace(&app)?.projects.iter().map(|p| p.id.clone()).collect();
+    let mut seen_ids = existing_ids;
+    let mut added = Vec::new();
+    let mut already_present = 0usize;
+    let mut errors = Vec::new();
+
+    for entry in &found {
+        match add_project(app.clone(), entry.dir.clone()) {
+            Ok(projects) => {
+                // Identify the one just added by which id is new, not by
+                // matching `entry.dir` against `root`: the Rust side
+                // normalises separators, so the string that went in is not
+                // always the string that comes back.
+                match projects.iter().find(|p| !seen_ids.contains(&p.id)) {
+                    Some(proj) => {
+                        seen_ids.insert(proj.id.clone());
+                        added.push(proj.clone());
+                    }
+                    None => already_present += 1,
+                }
+            }
+            Err(e) => errors.push(format!("{}: {e}", entry.name)),
+        }
+    }
+
+    Ok(ImportResult { found: found.len(), added, already_present, errors })
+}
+
 #[derive(Debug, Serialize)]
 struct GenerateResult {
     ok: bool,
@@ -316,7 +528,11 @@ fn main() {
             engine_info,
             set_engine,
             set_grammars,
-            generate
+            generate,
+            nvim_info,
+            set_nvim_path,
+            set_nvim_config_dir,
+            import_from_nvim_config
         ])
         .run(tauri::generate_context!())
         .expect("docmap-desktop failed to start");

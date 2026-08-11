@@ -59,9 +59,16 @@ const els = {
   engineState: document.getElementById("engine-state"),
   pickEngine: document.getElementById("pick-engine"),
   pickGrammars: document.getElementById("pick-grammars"),
+  importNvim: document.getElementById("import-nvim"),
+  nvim: document.getElementById("nvim"),
+  nvimSummary: document.getElementById("nvim-summary"),
+  nvimState: document.getElementById("nvim-state"),
+  pickNvim: document.getElementById("pick-nvim"),
+  pickNvimConfig: document.getElementById("pick-nvim-config"),
 };
 
 let engine = { path: null, from_path: true, grammars: null };
+let nvim = { path: null, from_path: true, config_dir: null, config_dir_from_default: true };
 
 let projects = [];
 let selectedId = null;
@@ -323,6 +330,100 @@ els.pickGrammars.addEventListener("click", async () => {
   }
 });
 
+// -------------------------------------------------------------- neovim
+
+function renderNvim() {
+  const e = els.nvimState;
+  const s = els.nvimSummary;
+  if (!nvim.path || !nvim.config_dir) {
+    e.className = "engine-state missing";
+    e.textContent = !nvim.path
+      ? "nvim not found. Put it on PATH, or Locate… it."
+      : "No Neovim config directory found. Locate… it.";
+    s.textContent = "not found";
+  } else {
+    e.className = "engine-state";
+    e.textContent =
+      shortPath(nvim.path) +
+      (nvim.from_path ? " (found on PATH)" : "") +
+      " · config: " +
+      shortPath(nvim.config_dir) +
+      (nvim.config_dir_from_default ? " (default location)" : "");
+    s.textContent = "ready";
+  }
+  s.className = "engine-summary" + (nvim.path && nvim.config_dir ? "" : " missing");
+  e.title = [nvim.path, nvim.config_dir].filter(Boolean).join("\n");
+
+  // Same escalate-never-collapse rule as the engine panel.
+  if (!nvim.path || !nvim.config_dir) {
+    els.nvim.open = true;
+  }
+}
+
+async function loadNvim() {
+  nvim = await invoke("nvim_info");
+  renderNvim();
+}
+
+els.pickNvim.addEventListener("click", async () => {
+  try {
+    const file = await open({ multiple: false, title: "Locate the nvim binary" });
+    if (!file) return;
+    nvim = await invoke("set_nvim_path", { path: file });
+    renderNvim();
+    say("nvim set");
+  } catch (e) {
+    say(String(e));
+  }
+});
+
+els.pickNvimConfig.addEventListener("click", async () => {
+  try {
+    const dir = await open({ directory: true, multiple: false, title: "Locate the Neovim config directory" });
+    if (!dir) return;
+    nvim = await invoke("set_nvim_config_dir", { path: dir });
+    renderNvim();
+    say("Neovim config directory set");
+  } catch (e) {
+    say(String(e));
+  }
+});
+
+/// Import every enabled, locally-checked-out personal plugin from the
+/// user's Neovim config as a project. A real `nvim --headless` run, same
+/// order of latency as one `generate` call, so it gets the same
+/// placeholder-while-running treatment rather than a silent freeze.
+els.importNvim.addEventListener("click", async () => {
+  els.importNvim.disabled = true;
+  const label = els.importNvim.textContent;
+  els.importNvim.textContent = "Importing…";
+  say("Importing projects from Neovim…");
+
+  try {
+    const res = await invoke("import_from_nvim_config");
+    await refresh();
+    if (res.added.length && !selectedId) await select(res.added[0].id);
+
+    const parts = [res.added.length + " added"];
+    if (res.already_present) parts.push(res.already_present + " already present");
+    if (res.errors.length) parts.push(res.errors.length + " failed");
+    say(res.found + " found in Neovim · " + parts.join(", "));
+    if (res.errors.length) {
+      showPlaceholder(
+        "Import finished with errors",
+        res.added.length + " of " + res.found + " project(s) were added."
+      );
+      appendLog(res.errors.join("\n"), true);
+    }
+  } catch (e) {
+    say(String(e));
+    fatal("Could not import from Neovim", e);
+  } finally {
+    els.importNvim.textContent = label;
+    els.importNvim.disabled = false;
+  }
+});
+
 // ---------------------------------------------------------- generation
 
 async function generateFor(id) {
@@ -433,6 +534,7 @@ els.genAll.addEventListener("click", async () => {
 (async function start() {
   try {
     await loadEngine();
+    await loadNvim();
     await refresh();
     const last = localStorage.getItem(LAST_KEY);
     if (last && projects.some((p) => p.id === last)) await select(last);
