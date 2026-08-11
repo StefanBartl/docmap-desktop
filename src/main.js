@@ -60,6 +60,7 @@ const els = {
   pickEngine: document.getElementById("pick-engine"),
   pickGrammars: document.getElementById("pick-grammars"),
   importNvim: document.getElementById("import-nvim"),
+  importUrl: document.getElementById("import-url"),
   nvim: document.getElementById("nvim"),
   nvimSummary: document.getElementById("nvim-summary"),
   nvimState: document.getElementById("nvim-state"),
@@ -198,6 +199,36 @@ els.add.addEventListener("click", async () => {
     // identical to a button that was not wired up at all.
     say(String(e));
     fatal("Could not add a project", e);
+  }
+});
+
+/// A prompt rather than a real input field: this app has no text-entry UI
+/// anywhere yet, and a one-off URL is exactly the case a native prompt
+/// exists for — no framework, on purpose, same reasoning as the rest of
+/// this file's own header comment.
+els.importUrl.addEventListener("click", async () => {
+  const url = window.prompt("Repository URL to clone:");
+  if (!url) return;
+
+  els.importUrl.disabled = true;
+  const label = els.importUrl.textContent;
+  els.importUrl.textContent = "Cloning…";
+  say("Cloning " + url + "…");
+
+  try {
+    // Same "identify the new one by which id appeared" rule as `add`'s own
+    // handler, for the same reason.
+    const before = new Set(projects.map((x) => x.id));
+    await refresh(await invoke("import_from_url", { url }));
+    const added = projects.find((x) => !before.has(x.id));
+    say(added ? "Added " + added.root : "Already in the list");
+    if (added) await autoGenerate(added);
+  } catch (e) {
+    say(String(e));
+    fatal("Could not import from URL", e);
+  } finally {
+    els.importUrl.textContent = label;
+    els.importUrl.disabled = false;
   }
 });
 

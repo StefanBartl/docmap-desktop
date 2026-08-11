@@ -148,6 +148,84 @@ fn remove_project(app: tauri::AppHandle, id: String) -> Result<Vec<Project>, Str
     Ok(ws.projects)
 }
 
+/// Where cloned repositories land. A subdirectory of the same app-config
+/// directory `workspace.json` lives in, not the system temp dir: a clone
+/// this app made is something to keep and reopen, not scratch space.
+fn repos_cache_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let dir = app
+        .path()
+        .app_config_dir()
+        .map_err(|e| format!("no config directory: {e}"))?
+        .join("repos");
+    fs::create_dir_all(&dir).map_err(|e| format!("cannot create {}: {e}", dir.display()))?;
+    Ok(dir)
+}
+
+/// The directory name a clone of `url` should land in: the URL's last path
+/// segment, minus a trailing `.git`. Not validated beyond that — git itself
+/// is the authority on whether `url` is actually clonable.
+fn repo_dir_name(url: &str) -> Option<String> {
+    let trimmed = url.trim_end_matches('/');
+    let last = trimmed.rsplit(['/', ':']).next()?;
+    let name = last.strip_suffix(".git").unwrap_or(last);
+    if name.is_empty() { None } else { Some(name.to_string()) }
+}
+
+/// Clone a repository into the cache directory and add it as a project.
+///
+/// `git clone` via a plain subprocess, the same way `generate` and
+/// `import_from_nvim_config` shell out to their own subprocess: this
+/// program does not speak git itself, and does not touch credentials
+/// either — whatever authentication the URL needs (an HTTPS credential
+/// helper, an SSH agent) is exactly what a user's own `git clone` in a
+/// terminal would use, unchanged. A failure surfaces git's own stderr
+/// rather than a guess at what went wrong.
+///
+/// `--depth 1`: this app only ever reads a project's current working tree
+/// (map generation, `add_project`), never its history, and a shallow clone
+/// is materially smaller — the "Größe" failure mode this feature was kept
+/// separate from folder-adding specifically to isolate.
+///
+/// Cloning into an already-populated destination is a no-op, same
+/// reasoning as `add_project`'s own duplicate check: re-entering a URL
+/// that was already imported should not be an error.
+#[tauri::command]
+async fn import_from_url(app: tauri::AppHandle, url: String) -> Result<Vec<Project>, String> {
+    let name = repo_dir_name(&url).ok_or_else(|| format!("could not derive a folder name from {url}"))?;
+    let dest = repos_cache_dir(&app)?.join(&name);
+
+    if dest.is_dir() {
+        return add_project(app, dest.to_string_lossy().replace('\\', "/"));
+    }
+
+    let dest_str = dest.to_string_lossy().replace('\\', "/");
+    let url_owned = url.clone();
+    let dest_for_cleanup = dest.clone();
+    let out = tauri::async_runtime::spawn_blocking(move || {
+        let mut cmd = std::process::Command::new("git");
+        cmd.args(["clone", "--depth", "1", &url_owned, &dest_str]);
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            cmd.creation_flags(CREATE_NO_WINDOW);
+        }
+        cmd.output().map_err(|e| format!("could not run git: {e}"))
+    })
+    .await
+    .map_err(|e| format!("clone task failed: {e}"))??;
+
+    if !out.status.success() {
+        // A partial clone would otherwise permanently occupy `dest`, so
+        // every retry after a failure would hit "directory already exists"
+        // instead of trying again.
+        let _ = fs::remove_dir_all(&dest_for_cleanup);
+        return Err(format!("git clone failed: {}", String::from_utf8_lossy(&out.stderr).trim()));
+    }
+
+    add_project(app, dest.to_string_lossy().replace('\\', "/"))
+}
+
 /// What the view needs to know before it tries to show anything.
 #[derive(Debug, Serialize)]
 struct MapStatus {
@@ -524,6 +602,7 @@ fn main() {
             list_projects,
             add_project,
             remove_project,
+            import_from_url,
             map_status,
             engine_info,
             set_engine,

@@ -42,6 +42,21 @@ default — `%LOCALAPPDATA%\nvim` on Windows, `~/.config/nvim` elsewhere — or
 configured path that stops existing falls back to searching again rather
 than failing later with a raw error.
 
+## Importing from a URL
+
+**Import from URL…** asks for a repository URL, clones it (shallow —
+history is not needed, only the current tree), and adds the result the same
+way **Add project…** would. Clones land in a cache directory inside the
+app's own config directory, not somewhere temporary, so reopening the app
+later still finds them. Entering a URL that was already cloned is a no-op:
+the existing checkout is reused and added again rather than re-cloned.
+
+This app does not handle credentials for the clone itself — whatever a
+plain `git clone` of that URL would need on this machine (an HTTPS
+credential helper, an SSH agent) is exactly what runs here too, unchanged.
+A clone that fails shows git's own error message, not a guess at what went
+wrong.
+
 ## The engine indicator
 
 **Engine**, the collapsible panel at the bottom of the sidebar. It answers
@@ -109,7 +124,8 @@ engine path, the grammar path, and the `nvim`/config paths behind
 OS's own per-app config directory — not beside the executable, so an
 installed copy and a portable one both find the same list on the same
 machine, and an installed app never needs write access to its own install
-directory.
+directory. A repository cloned via **Import from URL…** lives in a
+`repos/` subdirectory of that same config directory.
 
 ## What this app is not documenting
 
