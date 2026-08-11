@@ -105,6 +105,20 @@ Either way, the engine's own report — counts, coverage, drift findings —
 is shown under the view verbatim, not summarized. It already says what it
 found.
 
+## The note that appears over some panels
+
+The generated page reports which panel it is showing, and two of them ask
+for something this app's engine cannot ever do, no matter how it is
+configured — a note explains why instead of offering a button that would
+fail:
+
+| Panel | Why this app can't | What it needs instead |
+|---|---|---|
+| Analysis → Telemetry | Telemetry only exists if real code ran inside a live Neovim session with `runtime-analysis.nvim` collecting it. There is no process here that could make that data exist. | Open the project in Neovim, use it, then come back — the panel reads whatever was collected there. |
+| Hierarchy → Types | Type data comes from `lua-language-server`. The engine this app runs is `documentation.nvim`'s Neovim-free build, which has no equivalent of that — not "not installed," structurally absent. | Run `:DocMap full` inside Neovim, then reopen the project here — the map it writes already carries the type data. |
+
+Every other panel needs no explanation and shows none.
+
 ## Keyboard navigation
 
 The project list is one tab stop, not one per project:

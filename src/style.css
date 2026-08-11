@@ -183,6 +183,25 @@ button:focus-visible {
   display: block;
 }
 
+/* Overlays the top of the iframe rather than pushing it down: it comes and
+   goes with whatever panel the page itself reports, and reflowing the
+   iframe's height on every such change would visibly jump the content
+   underneath for no reason the reader asked for. */
+.context-note {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  padding: 8px 16px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.08);
+}
+
 .placeholder {
   display: grid;
   place-content: center;

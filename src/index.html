@@ -88,6 +88,26 @@
            something to manage. -->
       <iframe id="map" title="Module map" hidden></iframe>
 
+      <!-- The page posts which panel it is showing (postMessage — an
+           iframe of a different origin has no other way out, and a button
+           *inside* that panel could not reach this app's own process
+           either way). Two panels ask for something this app's engine
+           cannot do at all, ever, regardless of configuration:
+
+             * Telemetry needs a live Neovim session actually running the
+               code — nothing this app runs can make that data exist.
+             * Hierarchy -> Types needs `lua-language-server`, wired
+               through `vim.system`, which the standalone engine has no
+               equivalent of.
+
+           So this is a note, not a button: a control that looked like it
+           would do the thing and then failed would be worse than no
+           control, the same reasoning `no grammars`/`older engine without
+           --api` already follow elsewhere in this app. Hidden by default,
+           shown only for the two panels that need explaining, and cleared
+           the moment the page reports anything else. -->
+      <div id="context-note" class="context-note" hidden></div>
+
       <div id="placeholder" class="placeholder">
         <h2>Nothing selected</h2>
         <p>Pick a project on the left.</p>

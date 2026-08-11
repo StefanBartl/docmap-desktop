@@ -64,6 +64,7 @@ const els = {
   nvim: document.getElementById("nvim"),
   nvimSummary: document.getElementById("nvim-summary"),
   nvimState: document.getElementById("nvim-state"),
+  contextNote: document.getElementById("context-note"),
   pickNvim: document.getElementById("pick-nvim"),
   pickNvimConfig: document.getElementById("pick-nvim-config"),
 };
@@ -90,6 +91,9 @@ function showPlaceholder(title, body) {
     "<h2></h2><p></p>";
   els.placeholder.querySelector("h2").textContent = title;
   els.placeholder.querySelector("p").innerHTML = body;
+  // Overlays the iframe specifically; nothing to explain about a panel
+  // that is not even on screen.
+  els.contextNote.hidden = true;
 }
 
 async function render() {
@@ -130,6 +134,12 @@ async function select(id) {
     // A workspace that cannot remember the last selection still works.
     void e;
   }
+
+  // The outgoing page's last-reported panel would otherwise linger on
+  // screen for the instant before the new one loads and posts its own —
+  // a note about the *previous* project's panel, shown over the next
+  // one's map.
+  els.contextNote.hidden = true;
 
   const p = projects.find((x) => x.id === id);
   await render();
@@ -572,6 +582,53 @@ els.genAll.addEventListener("click", async () => {
       ? ok + " generated, " + failed.length + " failed: " + failed.join(", ")
       : ok + " project(s) generated"
   );
+});
+
+// -------------------------------------------------------- context note
+
+/// What the loaded page reports (documentation.nvim, `core/render/html.lua`'s
+/// embedded `postContext()`) when the reader switches panels: `{ source: "docmap",
+/// tab, atool, view }`. Two of those combinations ask for something this
+/// app's engine cannot do at all, regardless of configuration -- not
+/// "not set up yet" the way a missing engine path is:
+///
+///   * Telemetry needs a live Neovim session actually running the code
+///     under `runtime-analysis.nvim`; nothing this app runs can make
+///     that data exist.
+///   * Hierarchy -> Types needs `lua-language-server` via `vim.system`,
+///     which the standalone engine has no equivalent of (measured:
+///     `standalone/vim_shim.lua` has no `vim.fn.executable`, which
+///     `documentation.nvim`'s own `core/luals.lua` calls first).
+///
+/// So this is a note explaining why, not a button that would fail --
+/// the same "say why, don't silently fail" rule `no grammars` and
+/// "older engine without --api" already follow elsewhere in this
+/// sidebar. `null` for every other panel: most of them need no
+/// explanation at all.
+function contextNoteFor(ctx) {
+  if (ctx.tab === "analysis" && ctx.atool === "telemetry") {
+    return (
+      "Telemetry data comes from a live Neovim session running " +
+      "<code>runtime-analysis.nvim</code>. This app only displays what has " +
+      "already been collected there — nothing here can generate it."
+    );
+  }
+  if (ctx.tab === "hierarchy" && ctx.view === "types") {
+    return (
+      "Type data comes from <code>lua-language-server</code> " +
+      "(<code>:DocMap full</code>, inside Neovim). The standalone engine " +
+      "this app runs has no equivalent of that and cannot produce it."
+    );
+  }
+  return null;
+}
+
+window.addEventListener("message", (ev) => {
+  const data = ev.data;
+  if (!data || data.source !== "docmap") return;
+  const note = contextNoteFor(data);
+  els.contextNote.innerHTML = note || "";
+  els.contextNote.hidden = !note;
 });
 
 (async function start() {
