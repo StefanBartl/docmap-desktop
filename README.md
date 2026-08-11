@@ -46,6 +46,14 @@ dozen files.
 Early, but usable: add projects, generate their maps, look at them, switch
 between them. See [docs/ROADMAP.md](docs/ROADMAP.md) for what is next.
 
+## Documentation
+
+| Document | Covers |
+|---|---|
+| [docs/USAGE.md](docs/USAGE.md) | Using it: what each button and indicator does, Generate vs Generate all, keyboard navigation, where the workspace file lives. |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | What is built, what is next, and the reasoning behind each design decision. |
+| [docs/HANDOVER.md](docs/HANDOVER.md) | Cross-repo handoff state for continuing the work in a new session. |
+
 ### The engine
 
 Generation runs `documentation.nvim`'s standalone binary — no Neovim and no
