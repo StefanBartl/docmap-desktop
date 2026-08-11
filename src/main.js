@@ -52,7 +52,13 @@ const els = {
   status: document.getElementById("status"),
   frame: document.getElementById("map"),
   placeholder: document.getElementById("placeholder"),
+  gen: document.getElementById("gen"),
+  engineState: document.getElementById("engine-state"),
+  pickEngine: document.getElementById("pick-engine"),
+  pickGrammars: document.getElementById("pick-grammars"),
 };
+
+let engine = { path: null, from_path: true, grammars: null };
 
 let projects = [];
 let selectedId = null;
@@ -122,12 +128,13 @@ async function select(id) {
   if (!status.exists) {
     showPlaceholder(
       "No map in this project yet",
-      "Nothing has generated <code>docs/map/index.html</code> here. " +
-        "Generating one from inside this app is the next thing being built; " +
-        "until then <code>:DocMap</code> in Neovim, or " +
-        "<code>documentation.nvim</code>'s standalone binary, produces it."
+      engine.path
+        ? "Press <strong>Generate map</strong> to build one."
+        : "Locate the engine in the sidebar first — it is " +
+          "<code>documentation.nvim</code>'s standalone binary."
     );
     say(p.root);
+    renderEngine();
     return;
   }
 
@@ -135,6 +142,7 @@ async function select(id) {
   els.frame.hidden = false;
   els.frame.src = convertFileSrc(status.index_path);
   say(`${p.root} · ${status.modules ?? "?"} modules`);
+  renderEngine();
 }
 
 async function refresh(next) {
@@ -204,8 +212,121 @@ els.list.addEventListener("keydown", (ev) => {
   }
 });
 
+// ------------------------------------------------------------- engine
+
+function shortPath(p) {
+  // Enough to recognise, not enough to wrap three lines in a 260px sidebar.
+  const parts = String(p).split("/");
+  return parts.length <= 3 ? p : ".../" + parts.slice(-2).join("/");
+}
+
+function renderEngine() {
+  const e = els.engineState;
+  if (!engine.path) {
+    e.className = "engine-state missing";
+    e.textContent =
+      "Not found. This is documentation.nvim's standalone binary — put it on PATH, or Locate… it.";
+  } else {
+    e.className = "engine-state";
+    e.textContent =
+      shortPath(engine.path) +
+      (engine.from_path ? " (found on PATH)" : "") +
+      (engine.grammars
+        ? " · grammars: " + shortPath(engine.grammars)
+        : " · no grammars — module tree only, no per-function data");
+  }
+  e.title = engine.path
+    ? engine.path + (engine.grammars ? "\ngrammars: " + engine.grammars : "")
+    : "";
+  els.gen.disabled = !engine.path || !selectedId;
+}
+
+async function loadEngine() {
+  engine = await invoke("engine_info");
+  renderEngine();
+}
+
+els.pickEngine.addEventListener("click", async () => {
+  try {
+    const file = await open({ multiple: false, title: "Locate the docmap engine" });
+    if (!file) return;
+    engine = await invoke("set_engine", { path: file });
+    renderEngine();
+    say("Engine set");
+  } catch (e) {
+    say(String(e));
+  }
+});
+
+els.pickGrammars.addEventListener("click", async () => {
+  try {
+    const dir = await open({ directory: true, multiple: false, title: "Tree-sitter grammars" });
+    if (!dir) return;
+    engine = await invoke("set_grammars", { path: dir });
+    renderEngine();
+    say("Grammars set");
+  } catch (e) {
+    say(String(e));
+  }
+});
+
+// ---------------------------------------------------------- generation
+
+async function generateFor(id) {
+  const p = projects.find((x) => x.id === id);
+  if (!p) return;
+
+  els.gen.disabled = true;
+  const label = els.gen.textContent;
+  els.gen.textContent = "Generating…";
+  // Replace the view while it runs: leaving the previous project's map on
+  // screen during a rebuild is the same "wrong panel's data" problem the
+  // generated page itself had to fix in its own fetch-backed panels.
+  showPlaceholder("Generating…", "Running the engine over <code>" + p.root + "</code>.");
+  say("Generating " + p.name);
+
+  try {
+    const res = await invoke("generate", { root: p.root });
+    // The engine reports on stdout even when it succeeds, and its report is
+    // the useful part — counts, coverage, findings. Show it either way.
+    const log = [res.stdout, res.stderr].filter(Boolean).join("\n").trim();
+    if (res.ok) {
+      await refresh();
+      await select(id);
+      if (log) appendLog(log, false);
+      say("Generated " + p.name);
+    } else {
+      showPlaceholder(
+        "Generation failed",
+        "The engine exited with code " + res.code + "."
+      );
+      appendLog(log || "(no output)", true);
+      say("Failed: " + p.name);
+    }
+  } catch (e) {
+    showPlaceholder("Could not run the engine", String(e));
+    say(String(e));
+  } finally {
+    els.gen.textContent = label;
+    renderEngine();
+  }
+}
+
+/** Put the engine's own words under whatever is on screen. */
+function appendLog(text, bad) {
+  const host = els.placeholder.hidden ? null : els.placeholder;
+  if (!host) return;
+  const pre = document.createElement("div");
+  pre.className = "gen-log" + (bad ? " bad" : "");
+  pre.textContent = text;
+  host.appendChild(pre);
+}
+
+els.gen.addEventListener("click", () => selectedId && generateFor(selectedId));
+
 (async function start() {
   try {
+    await loadEngine();
     await refresh();
     const last = localStorage.getItem(LAST_KEY);
     if (last && projects.some((p) => p.id === last)) await select(last);

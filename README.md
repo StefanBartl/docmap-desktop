@@ -43,8 +43,19 @@ dozen files.
 
 ## Status
 
-Early. See [docs/ROADMAP.md](docs/ROADMAP.md) for what is built and what is
-next.
+Early, but usable: add projects, generate their maps, look at them, switch
+between them. See [docs/ROADMAP.md](docs/ROADMAP.md) for what is next.
+
+### The engine
+
+Generation runs `documentation.nvim`'s standalone binary — no Neovim and no
+Lua install needed on your machine. The app looks for `docmap` on `PATH`
+and otherwise lets you point at it; the sidebar says which of the two it
+found. Build one with that repository's `scripts/package.lua`.
+
+Pointing the app at a directory of compiled tree-sitter grammars is
+optional and changes fidelity, not success: with them you get
+function-level data, without them a complete module tree that says so.
 
 ## Build
 

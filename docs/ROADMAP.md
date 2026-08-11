@@ -7,9 +7,14 @@ and anything that starts to reimplement them is a wrong turn.
 
 ## Built
 
-Nothing yet. The repository is being scaffolded.
+**Slice 1 — the shell.** A window with a project list; add a folder, select
+it, see its map. The list and the last selection survive a restart.
 
-## Next — the shell (slice 1)
+**Slice 2 — generation.** A selected project can be built from the app:
+one process call to the engine, its own report shown verbatim, the view
+refreshed on success.
+
+## The shell (slice 1)
 
 The smallest version that is genuinely usable, and the one that proves the
 three unknowns at once:
@@ -25,16 +30,37 @@ exists answers the questions that decide the architecture — can the webview
 load a self-contained page off disk, how does state persist, does switching
 feel instant — without also depending on a build pipeline.
 
-## Then — generation (slice 2)
+## Generation (slice 2)
 
-**Add project** should not require the project to have a map already. The
-engine is `documentation.nvim`'s standalone binary, shipped alongside this
-app as a Tauri sidecar: one process call per project, no Neovim, no Lua
-install on the user's machine.
+The engine is `documentation.nvim`'s standalone binary — no Neovim, no Lua
+install. The app runs `<engine> <root>` and nothing more: `source` is
+detected by the engine itself, verified against three unrelated
+repositories, so passing a guess would only be a way to be wrong.
 
-Open question to settle when this is built: whether the binary is bundled
-per platform, or located on `PATH`, or both. Bundling is the better user
-experience and the larger release problem.
+**The open question was settled the smaller way, on purpose.** It was
+"bundle per platform, or find on `PATH`?" — and bundling is both the better
+experience and a release problem (a binary per target, plus grammars per
+target). So: found on `PATH`, or pointed at, with the sidebar saying which
+of the two happened. A configured path that no longer exists falls back to
+detection rather than failing later with an OS error.
+
+Bundling stays the right end state and is now a packaging question rather
+than a blocking one.
+
+**Grammars are optional and decide fidelity, not success.** Pointed at a
+directory of compiled tree-sitter grammars, the engine produces
+function-level data; without one it still produces a complete module tree
+and says so. The app passes the directory through as `DOCMAP_TS_DIR`; that
+is the whole integration.
+
+Two smaller decisions worth keeping:
+
+- Generation runs on a blocking task, not on the command thread. It takes
+  seconds on a large tree, and a window that stops repainting while it works
+  looks broken in exactly the way the work is meant to prevent.
+- The engine's own report is shown verbatim rather than summarised. It
+  already says what it found — counts, coverage, findings — and a summary
+  would be this program inventing an opinion about someone else's output.
 
 ## Then — a repository URL
 

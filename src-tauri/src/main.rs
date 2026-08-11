@@ -31,9 +31,26 @@ struct Project {
     map_dir: String,
 }
 
+/// Settings live beside the project list rather than in a second file: there
+/// is one workspace, and splitting it would mean two things to keep in step.
+///
+/// `engine` is a path to `documentation.nvim`'s standalone binary. Not
+/// bundled yet, and that is the open question this slice deliberately does
+/// not answer — shipping it per platform is the better experience and the
+/// larger release problem. Until then: found on `PATH`, or pointed at.
+///
+/// `grammars` is optional and decides fidelity, not success. With a
+/// directory of compiled tree-sitter grammars the engine produces
+/// function-level data; without one it still produces a complete module
+/// tree and says so. Passing it through as `DOCMAP_TS_DIR` is the whole
+/// integration.
 #[derive(Debug, Default, Serialize, Deserialize)]
 struct Workspace {
     projects: Vec<Project>,
+    #[serde(default)]
+    engine: Option<String>,
+    #[serde(default)]
+    grammars: Option<String>,
 }
 
 /// Where the project list lives.
@@ -160,6 +177,134 @@ fn map_status(map_dir: String) -> MapStatus {
     MapStatus { exists, index_path: index, modules, files }
 }
 
+/// Look for the engine on `PATH`, the way a shell would.
+///
+/// Written out rather than shelling to `where`/`which`: one fewer subprocess,
+/// and the answer is a path this program then has to hold anyway.
+fn engine_on_path() -> Option<String> {
+    let names: &[&str] = if cfg!(windows) {
+        &["docmap.exe", "docmap"]
+    } else {
+        &["docmap"]
+    };
+    let path = std::env::var_os("PATH")?;
+    for dir in std::env::split_paths(&path) {
+        for name in names {
+            let candidate = dir.join(name);
+            if candidate.is_file() {
+                return Some(candidate.to_string_lossy().replace('\\', "/"));
+            }
+        }
+    }
+    None
+}
+
+#[derive(Debug, Serialize)]
+struct EngineInfo {
+    /// The configured path, or one found on PATH, or none.
+    path: Option<String>,
+    /// True when it came from PATH rather than from a setting — worth showing,
+    /// because it explains why it might disappear on another machine.
+    from_path: bool,
+    grammars: Option<String>,
+}
+
+#[tauri::command]
+fn engine_info(app: tauri::AppHandle) -> Result<EngineInfo, String> {
+    let ws = read_workspace(&app)?;
+    if let Some(p) = ws.engine.clone() {
+        if Path::new(&p).is_file() {
+            return Ok(EngineInfo { path: Some(p), from_path: false, grammars: ws.grammars });
+        }
+        // A configured path that no longer exists is worse than none: it
+        // would fail at generation time with a confusing OS error. Fall
+        // through to detection and let the caller see `from_path`.
+    }
+    Ok(EngineInfo { path: engine_on_path(), from_path: true, grammars: ws.grammars })
+}
+
+#[tauri::command]
+fn set_engine(app: tauri::AppHandle, path: Option<String>) -> Result<EngineInfo, String> {
+    let mut ws = read_workspace(&app)?;
+    if let Some(ref p) = path {
+        if !Path::new(p).is_file() {
+            return Err(format!("{p} is not a file"));
+        }
+    }
+    ws.engine = path;
+    write_workspace(&app, &ws)?;
+    engine_info(app)
+}
+
+#[tauri::command]
+fn set_grammars(app: tauri::AppHandle, path: Option<String>) -> Result<EngineInfo, String> {
+    let mut ws = read_workspace(&app)?;
+    if let Some(ref p) = path {
+        if !Path::new(p).is_dir() {
+            return Err(format!("{p} is not a directory"));
+        }
+    }
+    ws.grammars = path;
+    write_workspace(&app, &ws)?;
+    engine_info(app)
+}
+
+#[derive(Debug, Serialize)]
+struct GenerateResult {
+    ok: bool,
+    code: i32,
+    stdout: String,
+    stderr: String,
+}
+
+/// Run the engine over one project.
+///
+/// `async` plus `spawn_blocking`, not a plain synchronous command: this takes
+/// seconds on a large tree, and a Tauri command that blocks freezes the
+/// window it was invoked from. A viewer that stops repainting while it works
+/// looks broken in exactly the way the work is meant to prevent.
+///
+/// Output is returned whole rather than streamed. The engine's own report is
+/// a dozen lines at the end, not a running log, so streaming would add a
+/// channel and a subscription for something that arrives at once anyway.
+#[tauri::command]
+async fn generate(app: tauri::AppHandle, root: String) -> Result<GenerateResult, String> {
+    let info = engine_info(app)?;
+    let engine = info.path.ok_or_else(|| {
+        "No docmap engine configured. It is documentation.nvim's standalone binary —          put it on PATH, or point at it in the sidebar."
+            .to_string()
+    })?;
+
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut cmd = std::process::Command::new(&engine);
+        // Just the root: the engine detects `source` itself, verified against
+        // three unrelated repositories. Passing a guess would be worse than
+        // letting it look.
+        cmd.arg(&root);
+        if let Some(g) = info.grammars {
+            cmd.env("DOCMAP_TS_DIR", g);
+        }
+        #[cfg(windows)]
+        {
+            // Without this a console window flashes up on every generation.
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            cmd.creation_flags(CREATE_NO_WINDOW);
+        }
+        let out = cmd
+            .output()
+            .map_err(|e| format!("could not run {engine}: {e}"))?;
+        Ok(GenerateResult {
+            ok: out.status.success(),
+            code: out.status.code().unwrap_or(-1),
+            stdout: String::from_utf8_lossy(&out.stdout).to_string(),
+            stderr: String::from_utf8_lossy(&out.stderr).to_string(),
+        })
+    })
+    .await
+    .map_err(|e| format!("generation task failed: {e}"))?
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -167,7 +312,11 @@ fn main() {
             list_projects,
             add_project,
             remove_project,
-            map_status
+            map_status,
+            engine_info,
+            set_engine,
+            set_grammars,
+            generate
         ])
         .run(tauri::generate_context!())
         .expect("docmap-desktop failed to start");

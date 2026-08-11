@@ -217,3 +217,64 @@ button:focus-visible {
   max-width: 60ch;
   user-select: text;
 }
+
+/* ------------------------------------------------------------- engine */
+
+#engine {
+  padding: 10px 16px 4px;
+  border-top: 1px solid var(--line);
+}
+
+#engine h2 {
+  margin: 0 0 4px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.engine-state {
+  margin: 0 0 8px;
+  font-size: 11.5px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.engine-state.missing {
+  color: var(--ink);
+}
+
+.engine-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.engine-actions button {
+  flex: 1;
+  padding: 5px 8px;
+  font-size: 12px;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Generation output: the engine's own report, shown verbatim rather than
+   summarised — it already says exactly what it found. */
+.gen-log {
+  margin: 12px auto 0;
+  max-width: 70ch;
+  text-align: left;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  color: var(--muted);
+  user-select: text;
+}
+
+.gen-log.bad {
+  color: var(--ink);
+}
