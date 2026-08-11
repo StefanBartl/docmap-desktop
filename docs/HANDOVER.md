@@ -10,9 +10,9 @@ Rest zu zeigen. Was gebaut wurde und warum, steht danach im jeweiligen Repo
 
 | Repo | Branch | HEAD | CI |
 |---|---|---|---|
-| `E:\repos\documentation.nvim` | main | `eb7844e` | grün |
+| `E:\repos\documentation.nvim` | main | `1b72ff3` | grün |
 | `E:\repos\runtime-analysis.nvim` | main | `5f51de8` | grün |
-| `E:\repos\docmap-desktop` | main | `4c0b063` | kein CI-Gate; Release-Workflow (Tag-getriggert) |
+| `E:\repos\docmap-desktop` | main | `6632332` | kein CI-Gate; Release-Workflow (Tag-getriggert) |
 | `C:\Users\bartl\AppData\Local\nvim` (persönliche Config) | main | `707b3ed6` | kein CI |
 
 Installiert, dauerhaft:
@@ -106,26 +106,6 @@ der anderen sechs Proben lädt es mit.
 sichtbar** lassen. Daten zeigen wenn vorhanden, sonst der Hinweis, dass man
 `runtime-analysis.nvim` in Neovim laufen lassen muss. Nicht ausgrauen, nicht
 verstecken.
-
-### 2. Aktions-Knöpfe in der App-Leiste, kontextabhängig
-
-**Entschieden:** Knopf in der App-Oberfläche *außerhalb* des iframes; die
-Seite meldet per `postMessage`, welches Panel offen ist, damit der Knopf zum
-Kontext passt.
-
-**Warum nicht in der Seite selbst:** ein Knopf *im* Panel der erzeugten Seite
-kann keinen Prozess starten. Das ist dieselbe Kategorie, die
-`docs/ECOSYSTEM.md` bereits als Absage führt („A browser page cannot
-`pcall(require, …)` a Neovim plugin — not a gap, a category error").
-
-**Gewünschte Aktionen:** „Telemetry jetzt erzeugen" beim Telemetry-Panel,
-`:DocMap full` bei Hierarchy → Types.
-
-**Die Vorbedingung ist jetzt erfüllt:** die Seite läuft nicht mehr über das
-Asset-Protokoll, sondern über einen echten Origin
-(`http://127.0.0.1:<port>/`, `src-tauri/src/server.rs`), es gibt also einen
-Host-Kanal, an den `postMessage` überhaupt gehen kann. Vorher gab es nichts,
-wohin die Seite hätte melden können.
 
 ### 7. Bundling der Engine
 
