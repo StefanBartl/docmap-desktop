@@ -53,6 +53,8 @@ const els = {
   frame: document.getElementById("map"),
   placeholder: document.getElementById("placeholder"),
   gen: document.getElementById("gen"),
+  engine: document.getElementById("engine"),
+  engineSummary: document.getElementById("engine-summary"),
   engineState: document.getElementById("engine-state"),
   pickEngine: document.getElementById("pick-engine"),
   pickGrammars: document.getElementById("pick-grammars"),
@@ -222,10 +224,12 @@ function shortPath(p) {
 
 function renderEngine() {
   const e = els.engineState;
+  const s = els.engineSummary;
   if (!engine.path) {
     e.className = "engine-state missing";
     e.textContent =
       "Not found. This is documentation.nvim's standalone binary — put it on PATH, or Locate… it.";
+    s.textContent = "not found";
   } else {
     e.className = "engine-state";
     e.textContent =
@@ -234,10 +238,24 @@ function renderEngine() {
       (engine.grammars
         ? " · grammars: " + shortPath(engine.grammars)
         : " · no grammars — module tree only, no per-function data");
+    // Fidelity, not the path: with the engine on PATH the path never
+    // changes and is not worth a line, while "will this run produce
+    // per-function data" is the one thing that differs run to run.
+    s.textContent = engine.grammars ? "ready" : "no grammars";
   }
+  s.className = "engine-summary" + (engine.path ? "" : " missing");
   e.title = engine.path
     ? engine.path + (engine.grammars ? "\ngrammars: " + engine.grammars : "")
     : "";
+
+  // Escalate, never collapse. A missing engine is the one state worth
+  // opening the panel for on its own; forcing it *shut* when things are
+  // fine would slam it closed under the user the moment `set_grammars`
+  // re-renders — right after they opened it to press that button.
+  if (!engine.path) {
+    els.engine.open = true;
+  }
+
   els.gen.disabled = !engine.path || !selectedId;
 }
 

@@ -33,15 +33,29 @@
 
       <!-- The engine is a separate program this one runs. Saying which one,
            and where it came from, is the difference between "generation is
-           broken" and "nothing is configured yet". -->
-      <section id="engine">
-        <h2>Engine</h2>
+           broken" and "nothing is configured yet".
+
+           Collapsed, because locating it is a rare act: where `docmap` is on
+           PATH there is nothing to do here, ever. What stays visible is the
+           verdict — the summary always carries "ready" / "no grammars" /
+           "not found", which is what decides whether generation works and at
+           what fidelity. Hiding *that* to save a line would trade a rare
+           convenience for the one thing worth seeing.
+
+           `<details>` rather than a hand-rolled toggle: keyboard operation,
+           the disclosure semantics and the open/closed state come with the
+           element instead of being reimplemented on a div. -->
+      <details id="engine">
+        <summary>
+          <span class="engine-label">Engine</span>
+          <span id="engine-summary" class="engine-summary"></span>
+        </summary>
         <p id="engine-state" class="engine-state"></p>
         <div class="engine-actions">
           <button id="pick-engine" type="button">Locate…</button>
           <button id="pick-grammars" type="button">Grammars…</button>
         </div>
-      </section>
+      </details>
 
       <footer id="status"></footer>
     </aside>
