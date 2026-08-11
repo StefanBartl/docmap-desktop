@@ -5,8 +5,9 @@
 //!
 //! The window used to load the map through Tauri's asset protocol
 //! (`convertFileSrc`). That shows the page but answers no request: the
-//! generated page fetches `/api/telemetry`, `/api/loaded` and their snapshot
-//! lists, and nothing was listening. On Windows it was worse than silent —
+//! generated page fetches `/api/telemetry`, `/api/loaded`, `/api/checklist`,
+//! `/api/commits`, `/api/commit/<sha>` and two snapshot-listing routes, and
+//! nothing was listening. On Windows it was worse than silent —
 //! `convertFileSrc` hands out `http://asset.localhost/…`, so the page's own
 //! "is a server behind this origin" test said *yes*, fetched, got the asset
 //! host's 404, and advised running `:DocMap serve`, which does not help and
@@ -32,8 +33,11 @@
 //!    machine; the network has no business reaching a local repository's
 //!    source.
 //! 2. **Whitelist the route before it reaches the subprocess.** A request
-//!    path is otherwise argument injection into the engine. The check is a
-//!    fixed list, not an escape.
+//!    path is otherwise argument injection into the engine. Fixed-name
+//!    routes go through a literal list; `commit/<sha>` goes through
+//!    `safe_sha`, the same `^[0-9a-f]{7,40}$` shape check
+//!    `documentation.core.api.safe_sha` enforces on the Lua side. Both are
+//!    whitelists, not escapes.
 //! 3. **No path parameter can leave the map directory.** Static serving takes
 //!    a bare filename; anything with a separator or a `..` is refused before
 //!    it becomes a path.
@@ -65,7 +69,9 @@ pub struct Server {
 /// project, so a second server would only be a socket nobody reads.
 static CURRENT: Mutex<Option<Server>> = Mutex::new(None);
 
-/// Routes the engine is allowed to be asked for.
+/// Fixed-name routes the engine is allowed to be asked for. `commit/<sha>`
+/// is not in here — see `handle`'s own dispatch — because its name carries
+/// the sha, which cannot be a fixed list entry.
 ///
 /// Mirrors `documentation.core.api`'s own `routes` table. Duplicated here on
 /// purpose and kept short: this is the whitelist that stands between a
@@ -76,7 +82,21 @@ const ROUTES: &[&str] = &[
     "telemetry/snapshots",
     "loaded",
     "loaded/snapshots",
+    "checklist",
+    "commits",
 ];
+
+/// A commit-ish the caller supplied, or `None` if it is not one.
+///
+/// Mirrors `documentation.core.api.safe_sha` exactly (`^[0-9a-f]{7,40}$`) —
+/// this is the second lock on the same door, checked here so an invalid sha
+/// never even reaches the subprocess call, and again by the engine itself
+/// once it does.
+fn safe_sha(s: &str) -> bool {
+    let n = s.len();
+    // Lua's `%x` pattern class matches both cases, so this does too.
+    (7..=40).contains(&n) && s.bytes().all(|b| b.is_ascii_hexdigit())
+}
 
 /// A request path segment is servable only if it is a bare filename.
 ///
@@ -169,7 +189,13 @@ fn engine_supports_api(engine: &str) -> bool {
 }
 
 /// Ask the engine for one route's JSON.
-fn engine_api(cfg: &ServeConfig, route: &str, snapshot: Option<&str>) -> Result<String, String> {
+///
+/// `param` is `standalone/docmap.lua`'s single `--snapshot=` flag, read by
+/// whichever route asked for it as a snapshot name (telemetry/loaded) or a
+/// commit count (commits) — the same one-flag-many-meanings shape
+/// `core/api.lua`'s own `M.answer(name, opts, param)` already uses, kept
+/// consistent on this side rather than inventing a second flag per route.
+fn engine_api(cfg: &ServeConfig, route: &str, param: Option<&str>) -> Result<String, String> {
     let engine = cfg
         .engine
         .as_ref()
@@ -184,8 +210,8 @@ fn engine_api(cfg: &ServeConfig, route: &str, snapshot: Option<&str>) -> Result<
 
     let mut cmd = std::process::Command::new(engine);
     cmd.arg(&cfg.root).arg(format!("--api={route}"));
-    if let Some(s) = snapshot {
-        cmd.arg(format!("--snapshot={s}"));
+    if let Some(p) = param {
+        cmd.arg(format!("--snapshot={p}"));
     }
     if let Some(g) = &cfg.grammars {
         cmd.env("DOCMAP_TS_DIR", g);
@@ -250,14 +276,35 @@ fn handle(cfg: &ServeConfig, stream: &mut TcpStream) {
     }
 
     if let Some(name) = path.strip_prefix("/api/") {
+        // `commit/<sha>` first, same reason `core.api.answer` checks it
+        // before its own fixed route table: the sha varies, so it cannot
+        // be a `ROUTES` entry, and it needs its own validation rather than
+        // falling through to the "no such endpoint" branch below.
+        if let Some(sha) = name.strip_prefix("commit/") {
+            if !safe_sha(sha) {
+                return respond_json_error(stream, 400, "not a commit hash");
+            }
+            return match engine_api(cfg, name, None) {
+                Ok(body) => respond(stream, 200, "application/json", body.as_bytes()),
+                Err(e) => respond_json_error(stream, 500, &e),
+            };
+        }
+
         if !ROUTES.contains(&name) {
             // Deliberately not echoed back: refusing to repeat an
             // unvalidated value is free, and this is the input that would
             // otherwise reach a subprocess.
             return respond_json_error(stream, 404, "no such endpoint");
         }
-        let snapshot = query.split('&').find_map(|kv| kv.strip_prefix("snapshot="));
-        return match engine_api(cfg, name, snapshot) {
+        // `snapshot=` (telemetry/loaded) and `n=` (commits) never both
+        // apply to the same route, mirroring `editor/serve.lua`'s own
+        // `respond_api` — trying both and taking whichever is present
+        // needs no per-route branch here either.
+        let param = query
+            .split('&')
+            .find_map(|kv| kv.strip_prefix("snapshot="))
+            .or_else(|| query.split('&').find_map(|kv| kv.strip_prefix("n=")));
+        return match engine_api(cfg, name, param) {
             // Passed through verbatim: the engine already produced the exact
             // JSON the page expects, including its `available:false` +
             // `reason` shape for "nothing to show". Re-encoding it here would
@@ -324,4 +371,40 @@ pub fn start(cfg: ServeConfig) -> Result<u16, String> {
 /// Where a served project's page lives.
 pub fn url(port: u16) -> String {
     format!("http://127.0.0.1:{port}/")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::safe_sha;
+
+    // The one function here worth a real test even in a crate with no
+    // CI: it is the whole security property standing between a request
+    // path and a subprocess argument, and `documentation.core.api`'s own
+    // `safe_sha`'s doc comment says exactly why that kind of function does
+    // not get tested unless something actually exercises it — this is
+    // that something, for the Rust half.
+    #[test]
+    fn accepts_real_shas() {
+        assert!(safe_sha("abc1234"));
+        assert!(safe_sha(&"a".repeat(40)));
+        assert!(safe_sha("ABC1234"));
+    }
+
+    #[test]
+    fn refuses_shapes_that_are_not_a_sha() {
+        assert!(!safe_sha("abc123")); // 6 chars, one short of the 7 minimum
+        assert!(!safe_sha(&"a".repeat(41))); // one over the 40 maximum
+        assert!(!safe_sha("")); // empty
+        assert!(!safe_sha("HEAD")); // a real revision, but not this route's shape
+        assert!(!safe_sha("g1234567")); // 'g' is not a hex digit
+    }
+
+    #[test]
+    fn refuses_injection_shaped_input() {
+        // The exact class of value `safe_sha` exists to keep away from a
+        // subprocess argument.
+        assert!(!safe_sha("abc1234; rm -rf /"));
+        assert!(!safe_sha("abc1234 --upload-pack=evil"));
+        assert!(!safe_sha("abc1234\" & calc.exe & \""));
+    }
 }
