@@ -11,7 +11,7 @@ Rest zu zeigen. Was gebaut wurde und warum, steht danach im jeweiligen Repo
 | Repo | Branch | HEAD | CI |
 |---|---|---|---|
 | `E:\repos\documentation.nvim` | main | `e50219e` | grün |
-| `E:\repos\runtime-analysis.nvim` | main | `69a8c0f` | kein separates Gate, README-only |
+| `E:\repos\runtime-analysis.nvim` | main | `5f51de8` | grün |
 | `E:\repos\docmap-desktop` | main | `a1c665b` | kein CI-Gate; Release-Workflow (Tag-getriggert) neu |
 | `C:\Users\bartl\AppData\Local\nvim` (persönliche Config) | main | `707b3ed6` | kein CI |
 
