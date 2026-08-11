@@ -10,10 +10,10 @@ Rest zu zeigen. Was gebaut wurde und warum, steht danach im jeweiligen Repo
 
 | Repo | Branch | HEAD | CI |
 |---|---|---|---|
-| `E:\repos\documentation.nvim` | main | `99c19e4` | grün |
-| `E:\repos\runtime-analysis.nvim` | main | `42d1418` | 4/4 grün |
-| `E:\repos\docmap-desktop` | main | `d372953` | kein CI |
-| `C:\Users\bartl\AppData\Local\nvim` (persönliche Config) | main | `8e9280f` | kein CI |
+| `E:\repos\documentation.nvim` | main | `e50219e` | grün |
+| `E:\repos\runtime-analysis.nvim` | main | `69a8c0f` | kein separates Gate, README-only |
+| `E:\repos\docmap-desktop` | main | `a1c665b` | kein CI-Gate; Release-Workflow (Tag-getriggert) neu |
+| `C:\Users\bartl\AppData\Local\nvim` (persönliche Config) | main | `707b3ed6` | kein CI |
 
 Installiert, dauerhaft:
 
@@ -120,6 +120,12 @@ wohin die Seite hätte melden können.
 
 Binary + Grammatiken pro Plattform als Tauri-Sidecar. Bessere Erfahrung, aber
 ein Release-Problem — eine Packaging-Frage, nichts Blockierendes.
+
+**Nicht zu verwechseln mit der App-Distribution, die jetzt existiert**
+(`.github/workflows/release.yml`, `a1c665b`): ein gepushter `vX.Y.Z`-Tag
+baut die **App selbst** pro Plattform und hängt Installer an ein Release.
+Das löst „wie kommt jemand an die App" — #7 hier ist „wie kommt die Engine
+*mit* in diese Installer", eine andere Frage, weiterhin offen.
 
 ---
 
