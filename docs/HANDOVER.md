@@ -10,102 +10,73 @@ Rest zu zeigen. Was gebaut wurde und warum, steht danach im jeweiligen Repo
 
 | Repo | Branch | HEAD | CI |
 |---|---|---|---|
-| `E:\repos\documentation.nvim` | main | `1b72ff3` | grün |
+| `E:\repos\documentation.nvim` | main | `0335e05` | grün, `standalone`-Gate läuft jetzt real |
 | `E:\repos\runtime-analysis.nvim` | main | `5f51de8` | grün |
-| `E:\repos\docmap-desktop` | main | `6632332` | kein CI-Gate; Release-Workflow (Tag-getriggert) |
+| `E:\repos\docmap-desktop` | main | `15b7d0d` | kein CI-Gate; Release-Workflow (Tag-getriggert) |
 | `C:\Users\bartl\AppData\Local\nvim` (persönliche Config) | main | `707b3ed6` | kein CI |
 
 Installiert, dauerhaft:
 
 | Pfad | Inhalt |
 |---|---|
-| `C:\tools\docmap.exe` | voll-fidele Engine, 1,74 MB, kann Lua + JS/TS/TSX — **veraltet, siehe unten** |
+| `C:\tools\docmap.exe` | voll-fidele Engine, 1,83 MB, kann Lua + JS/TS/TSX, **neu gebaut 2026-08-12 mit `--api=`-Unterstützung** — alte Version liegt als `C:\tools\docmap.exe.bak-20260812` daneben |
 | `C:\tools\docmap-grammars\` | `lua.dll`, `javascript.dll`, `typescript.dll`, `tsx.dll` |
 | `C:\tools\docmap-libs\` | `lfs.a`, `lua_tree_sitter.a` — damit ein Engine-Rebuild nicht drei Repos neu klonen muss |
+| `C:\Program Files (x86)\Lua\5.4\src\lua.exe` | echtes PUC Lua 5.4.8 — **war die ganze Zeit schon da**, nur nicht auf PATH und luarocks nicht darauf konfiguriert |
+| `C:\tools\lua5.4.exe` | Kopie davon, PATH-erreichbar — `scripts/ci.lua`s `standalone`-Gate sucht `lua5.4`/`lua5.3`/`lua` per Name auf PATH |
+| `C:\Users\bartl\.luarocks\` | `luafilesystem`, `dkjson`, `luastatic`, `lua-tree-sitter` (alle für Lua 5.4) — installiert 2026-08-12 |
+| `C:\tools\lua-tree-sitter-src\` | `--recurse-submodules`-Klon von `xcb-xwii/lua-tree-sitter`, `incdirs`-Fix im Rockspec bereits angewendet — für einen künftigen Rebuild der Runtime-Rock aufgehoben, nicht nur der bereits vorhandenen statischen `lua_tree_sitter.a` |
 
 `DOCMAP_TS_DIR` ist als **Benutzervariable** gesetzt. Windows liest sie beim
 Prozessstart: ein laufendes Neovim oder eine laufende App sieht sie erst nach
 Neustart.
 
 Engine neu bauen (aus `documentation.nvim`, unter PUC Lua 5.4, **nicht**
-Neovim):
+Neovim) — mit den jetzt bekannten echten Pfaden:
 
 ```
-LUA_INCDIR=…/Lua/5.4/src  LUA_LIBA=…/Lua/5.4/src/liblua.a
+LUA_PATH="C:\Users\bartl\.luarocks\share\lua\5.4\?.lua;C:\Users\bartl\.luarocks\share\lua\5.4\?\init.lua;.\?.lua;.\?\init.lua"
+LUA_CPATH="C:\Users\bartl\.luarocks\lib\lua\5.4\?.dll;.\?.dll"
+LUA_INCDIR="C:/Program Files (x86)/Lua/5.4/src"
+LUA_LIBA="C:/Program Files (x86)/Lua/5.4/src/liblua.a"
 DOCMAP_STATIC_LIBS=C:\tools\docmap-libs  CC=gcc
-LUASTATIC=…/luarocks/…/luastatic/0.0.12-1/bin/luastatic
+LUASTATIC="C:\Users\bartl\.luarocks\lib\luarocks\rocks-5.4\luastatic\0.0.12-1\bin\luastatic"
 DOCMAP_TS_DIR=C:\tools\docmap-grammars
-lua scripts/package.lua
+"C:\Program Files (x86)\Lua\5.4\src\lua.exe" scripts/package.lua --out=build --keep
 ```
 
 `DOCMAP_TS_DIR` beim Bauen ist **nicht** optional — siehe
 `documentation.nvim/docs/ROADMAP/V1_EXTENSION/PORTABILITY.md`, Abschnitt zur
 Manifest-Closure: das Manifest wird *gemessen*, und es misst nur, was der
-gemessene Lauf tatsächlich lud.
+gemessene Lauf tatsächlich lud. Volle Herleitung, inklusive der beiden
+`lua-tree-sitter`-Packaging-Fixes (ICU-Header fehlen im veröffentlichten
+Rock, `incdirs` fehlt `tree-sitter/lib/src`) und was `--capabilities`/
+`checklist`/`commits`/`commit/<sha>` gegen echte Daten bestätigt haben:
+PORTABILITY.md, Step 5 (2026-08-12).
 
 ---
 
 ## Offen
 
-### 1a. Engine neu bauen — blockiert alles, was #1 gebaut hat
+### Kleinigkeit: Telemetry/Loaded aus der Standalone-Binary lesen
 
-Der Server ist gebaut und die Lua-Seite auch (`docmap-desktop` `d372953`,
-`documentation.nvim` `39765ac`+`99c19e4`). Was fehlt, ist die **Binary**:
-`C:\tools\docmap.exe` stammt von *vor* `--api=` und kennt den Modus nicht.
+`--api=telemetry`/`--api=loaded` melden gegen die echte (neu gebaute)
+Engine ehrlich `available:false, reason:"no data"` statt zu lügen oder
+abzustürzen — aber es ist tatsächlich falsch, wenn echte Telemetriedaten
+vorliegen (gemessen: 63 KB echte Daten lagen daneben, wurden aber nicht
+gefunden). Ursache bis auf den Grund verfolgt und in
+`documentation.nvim/standalone/docmap.lua`s `ensure_soft`-Doc-Kommentar
+sowie `PORTABILITY.md` Step 5 (2026-08-12) festgehalten:
+`runtime-analysis.telemetry` lädt, zieht aber `lib.nvim.autocmd` →
+`lib.lua.lazy` nach — ein anderer `lib.*`-Namensraum als `lib.nvim.*`, den
+`scripts/bundle_manifest.lua`s `bucket()` nicht erkennt (nur `^lib%.nvim`).
+Deshalb wird dieses Modul nie in die kompilierte Binary gestaged, selbst
+wenn der Probendurchlauf es findet.
 
-**Nicht ungefährlich, gemessen:** eine alte Engine lehnt `--api=telemetry`
-nicht ab — sie behandelt es als gewöhnliches Argument und **erzeugt die
-Karte neu**, schreibt also ins Repository des Aufrufers und endet mit
-Exit 0 und Nicht-JSON. Genau das ist beim ersten Test passiert und hat die
-committete Karte von `documentation.nvim` überschrieben.
-
-Deshalb prüft die App die Engine jetzt vorher mit `docmap --capabilities`
-(Flag in *Root*-Position — das lehnt eine alte Binary mit Exit 2 ab, bevor
-sie irgendetwas tut; gegen die installierte verifiziert). Bis zum Rebuild
-verhält sich die App also korrekt statt destruktiv: Telemetry- und
-Loaded-Panel melden „ältere Engine ohne --api", nichts wird überschrieben.
-
-**Aufgabe:** Engine mit dem Rebuild-Befehl oben neu bauen und
-`C:\tools\docmap.exe` ersetzen. Danach ist #1 wirklich fertig — alle sechs
-Routen (`telemetry`, `telemetry/snapshots`, `loaded`, `loaded/snapshots`,
-`checklist`, `commits`, plus `commit/<sha>`) sind inzwischen in `core/api.lua`
-gebaut, nicht mehr nur die ersten vier. Telemetry/Loaded sind gegen echte
-Daten geprüft (158 gejointe Zeilen für `documentation.nvim` selbst);
-`commits`/`commit/<sha>`/`checklist` gegen die echte Commit-Historie
-desselben Repos (`TESTS/api_spec.lua`) — beides über einen echten `git`,
-nicht gemockt. Die Rust-Seite (`server.rs`) kennt alle Routen bereits und
-kompiliert/testet grün, konnte aber mangels neuer Binary noch nicht
-end-to-end gegen einen echten Engine-Aufruf laufen.
-
-**Die git-gestützten Routen brauchten einen echten Architekturschritt, nicht
-nur eine Erweiterung:** `standalone/vim_shim.lua` hatte nie `vim.system` —
-bewusst, siehe `docmap.lua`s eigener Kopf zum `--full`-Ausschluss. `core/api`
-nimmt Git-Zugriff jetzt als Abhängigkeit (`opts.git`) statt ihn anzunehmen;
-jeder Host reicht seine eigene Funktion herein (`vim.system` im Editor,
-`io.popen` im Standalone). **Gemessen statt angenommen**, weil hier
-mangels PUC Lua auf dieser Maschine nur eine Neovim-LuaJIT-Sonde als Proxy
-zur Verfügung stand: `file:close()` liefert unter Windows **keinen**
-Exit-Code, weder bei Erfolg noch bei echtem Git-Fehler — anders als
-`vim.system(...):wait().code`. Der Standalone-Pfad erkennt einen
-fehlgeschlagenen Git-Aufruf deshalb heuristisch (führende
-`fatal:`/`error:`/`usage:`-Zeile in der gemergten stderr/stdout-Ausgabe),
-dokumentiert als Heuristik, nicht als Garantie — aber keines der hier
-tatsächlich angeforderten Formate (Sha, Steuerzeichen, `diff --git`) kann
-zufällig so beginnen.
-
-**Auf dieser Maschine nicht prüfbar:** es gibt kein PUC Lua 5.4 auf PATH,
-deshalb wurde das `standalone`-Gate in `scripts/ci.lua` bei jedem Lauf
-*übersprungen* und der gebündelte Pfad ist nur begründet und geprobt, nicht
-ausgeführt. `scripts/bundle_manifest.lua` hat dafür jetzt drei Ergänzungen
-im `--api=`-Probendurchlauf: die vier ursprünglichen Routen, `checklist`
-+ `commits`, und `commit/<HEAD-Sha>` (real per `git rev-parse` aufgelöst) —
-letzteres zieht `core/history` nach, gemessen, nicht vermutet, und keine
-der anderen sechs Proben lädt es mit.
-
-**Regel des Nutzers, weiterhin gültig:** Telemetry- und Loaded-Tab **immer
-sichtbar** lassen. Daten zeigen wenn vorhanden, sonst der Hinweis, dass man
-`runtime-analysis.nvim` in Neovim laufen lassen muss. Nicht ausgrauen, nicht
-verstecken.
+**Aufgabe:** `bucket()` auf `^lib%.` erweitern (oder gezielt `lib.lua`
+ergänzen), plus beim Bau `RUNTIME_ANALYSIS_NVIM_DIR` gesetzt lassen, damit
+der Manifest-Probendurchlauf den vollen Abhängigkeitsbaum sieht. Klein,
+lokalisiert, aber nicht heute erledigt.
 
 ### 7. Bundling der Engine
 
