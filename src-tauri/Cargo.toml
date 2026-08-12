@@ -25,8 +25,20 @@ tauri = { version = "2", features = ["protocol-asset"] }
 # field: the thing being named is a directory that must exist, and letting the
 # OS answer that is both less code and less wrong.
 tauri-plugin-dialog = "2"
+# The engine as a bundled sidecar (see #7 in docs/HANDOVER.md): a fallback
+# for when nothing is configured and nothing is on PATH, so the app works
+# out of the box instead of sending a first-run user to build
+# documentation.nvim's standalone binary themselves before anything works.
+tauri-plugin-shell = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+[dev-dependencies]
+# `tauri::test::mock_app()` — a real AppHandle without a real window, so
+# the sidecar/resource resolution in engine_info() can be exercised by
+# `cargo test` instead of only by eye through a GUI this environment
+# cannot see.
+tauri = { version = "2", features = ["test"] }
 
 [profile.release]
 # A viewer that ships as a download: size is worth more here than the last

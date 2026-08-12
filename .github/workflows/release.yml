@@ -11,6 +11,20 @@
 # `frontendDist` in tauri.conf.json points straight at `../src` — no bundler,
 # no package.json, nothing to `npm install` — so this workflow only ever
 # needs the Rust toolchain plus each OS's native webview dependencies.
+#
+# The engine sidecar (docs/HANDOVER.md, #7): downloaded from
+# documentation.nvim's own `standalone-latest` rolling release before
+# `tauri-action` runs, staged under src-tauri/binaries|resources exactly
+# where tauri.windows.conf.json/tauri.linux.conf.json's `externalBin`/
+# `resources` expect them. Skipped on macOS on purpose, not by oversight —
+# documentation.nvim does not publish a macOS build of the engine (see
+# that repository's docs/ROADMAP/V1_EXTENSION/PORTABILITY.md: the
+# standalone path is proven on Linux and Windows, macOS untested and out
+# of scope). A macOS build of this app still succeeds without it —
+# engine_sidecar() in main.rs already resolves to None when the file
+# is not there, the same "resolve, then verify" rule the rest of engine
+# discovery already follows — it just starts with no bundled fallback,
+# identical to every build of this app before this feature existed.
 
 name: Release
 
@@ -29,12 +43,16 @@ jobs:
         include:
           - platform: "macos-latest"
             args: "--target aarch64-apple-darwin"
+            engine_triple: ""
           - platform: "macos-latest"
             args: "--target x86_64-apple-darwin"
+            engine_triple: ""
           - platform: "ubuntu-22.04"
             args: ""
+            engine_triple: "x86_64-unknown-linux-gnu"
           - platform: "windows-latest"
             args: ""
+            engine_triple: "x86_64-pc-windows-msvc"
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -57,6 +75,31 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: "./src-tauri -> target"
+
+      # `gh` rather than a raw curl+API call: preinstalled on every
+      # GitHub-hosted runner, and `release download` already handles
+      # asset-name matching and auth via $GITHUB_TOKEN without this
+      # workflow reimplementing either. The engine binary keeps its
+      # published name, `docmap-<triple>[.exe]` — exactly the filename
+      # tauri.{windows,linux}.conf.json's `externalBin: ["binaries/docmap"]`
+      # resolves at build time (Tauri appends the target triple itself),
+      # so no rename step is needed between download and where it must sit.
+      - name: download the engine sidecar
+        if: matrix.engine_triple != ''
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p src-tauri/binaries src-tauri/resources/grammars
+          gh release download standalone-latest \
+            --repo StefanBartl/documentation.nvim \
+            --pattern "docmap-${{ matrix.engine_triple }}*" \
+            --pattern "grammars-${{ matrix.engine_triple }}.tar.gz" \
+            --dir /tmp/engine-dl --clobber
+          mv /tmp/engine-dl/docmap-${{ matrix.engine_triple }}* src-tauri/binaries/
+          chmod +x src-tauri/binaries/docmap-${{ matrix.engine_triple }}* || true
+          tar xzf /tmp/engine-dl/grammars-${{ matrix.engine_triple }}.tar.gz -C src-tauri/resources/grammars
 
       - uses: tauri-apps/tauri-action@v0
         env:

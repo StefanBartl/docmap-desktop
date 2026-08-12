@@ -2,6 +2,15 @@
 /src-tauri/target/
 /src-tauri/gen/
 
+# The bundled engine sidecar and its grammars (#7, docs/HANDOVER.md) --
+# real binaries, platform-specific, tens of MB. release.yml builds and
+# stages these fresh on each platform's own CI runner right before
+# `cargo tauri build`; a local dev build wanting the sidecar path places
+# them here itself, the same way `docmap-libs`/`docmap-grammars` already
+# live outside any repo rather than committed into one.
+/src-tauri/binaries/
+/src-tauri/resources/
+
 # Node (only used by the Tauri CLI, never at runtime)
 /node_modules/
 

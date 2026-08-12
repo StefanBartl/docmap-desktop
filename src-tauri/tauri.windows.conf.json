@@ -1,0 +1,10 @@
+{
+  "bundle": {
+    "externalBin": [
+      "binaries/docmap"
+    ],
+    "resources": {
+      "resources/grammars/*": "grammars/"
+    }
+  }
+}
