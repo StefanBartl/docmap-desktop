@@ -10,7 +10,7 @@ Rest zu zeigen. Was gebaut wurde und warum, steht danach im jeweiligen Repo
 
 | Repo | Branch | HEAD | CI |
 |---|---|---|---|
-| `E:\repos\documentation.nvim` | main | `cbe0437` | grün, 5/5 Gates. **`release-engine.yml` neu, grün** — publiziert die Engine + 4 Grammatiken als GitHub-Release `standalone-latest` |
+| `E:\repos\documentation.nvim` | main | `42d8cae` | grün, 5/5 Gates. `release-engine.yml` publiziert die Engine + 4 Grammatiken als GitHub-Release `standalone-latest`, **jetzt inklusive `runtime-analysis.nvim`** |
 | `E:\repos\runtime-analysis.nvim` | main | `5f51de8` | grün |
 | `E:\repos\docmap-desktop` | main | `053bf5e` | kein CI-Gate; Release-Workflow (Tag-getriggert), **lädt jetzt die Engine von `standalone-latest` vor `cargo tauri build`** |
 | `C:\Users\bartl\AppData\Local\nvim` (persönliche Config) | main | `707b3ed6` | kein CI |
@@ -19,7 +19,7 @@ Installiert, dauerhaft:
 
 | Pfad | Inhalt |
 |---|---|
-| `C:\tools\docmap.exe` | voll-fidele Engine, 1,83 MB, kann Lua + JS/TS/TSX, **neu gebaut 2026-08-12 mit `--api=`-Unterstützung** — alte Version liegt als `C:\tools\docmap.exe.bak-20260812` daneben |
+| `C:\tools\docmap.exe` | voll-fidele Engine, 1,98 MB, kann Lua + JS/TS/TSX, **liest jetzt echte Telemetriedaten** (`--api=telemetry`/`loaded`, verifiziert gegen echte 63 KB Daten) — vorherige Versionen als `C:\tools\docmap.exe.bak-20260812`/`.bak-20260812b` daneben |
 | `C:\tools\docmap-grammars\` | `lua.dll`, `javascript.dll`, `typescript.dll`, `tsx.dll` |
 | `C:\tools\docmap-libs\` | `lfs.a`, `lua_tree_sitter.a` — damit ein Engine-Rebuild nicht drei Repos neu klonen muss |
 | `C:\Program Files (x86)\Lua\5.4\src\lua.exe` | echtes PUC Lua 5.4.8 — **war die ganze Zeit schon da**, nur nicht auf PATH und luarocks nicht darauf konfiguriert |
@@ -58,25 +58,8 @@ PORTABILITY.md, Step 5 (2026-08-12).
 
 ## Offen
 
-### Kleinigkeit: Telemetry/Loaded aus der Standalone-Binary lesen
-
-`--api=telemetry`/`--api=loaded` melden gegen die echte (neu gebaute)
-Engine ehrlich `available:false, reason:"no data"` statt zu lügen oder
-abzustürzen — aber es ist tatsächlich falsch, wenn echte Telemetriedaten
-vorliegen (gemessen: 63 KB echte Daten lagen daneben, wurden aber nicht
-gefunden). Ursache bis auf den Grund verfolgt und in
-`documentation.nvim/standalone/docmap.lua`s `ensure_soft`-Doc-Kommentar
-sowie `PORTABILITY.md` Step 5 (2026-08-12) festgehalten:
-`runtime-analysis.telemetry` lädt, zieht aber `lib.nvim.autocmd` →
-`lib.lua.lazy` nach — ein anderer `lib.*`-Namensraum als `lib.nvim.*`, den
-`scripts/bundle_manifest.lua`s `bucket()` nicht erkennt (nur `^lib%.nvim`).
-Deshalb wird dieses Modul nie in die kompilierte Binary gestaged, selbst
-wenn der Probendurchlauf es findet.
-
-**Aufgabe:** `bucket()` auf `^lib%.` erweitern (oder gezielt `lib.lua`
-ergänzen), plus beim Bau `RUNTIME_ANALYSIS_NVIM_DIR` gesetzt lassen, damit
-der Manifest-Probendurchlauf den vollen Abhängigkeitsbaum sieht. Klein,
-lokalisiert, aber nicht heute erledigt.
+Nichts Umsetzbares im Moment — siehe „Blockiert" unten für die beiden
+Punkte, die auf externen Input warten.
 
 ---
 
@@ -163,3 +146,19 @@ brauchen die exakte, isolierte Umgebung einer echten Runner-Aktion
 (`msys2/setup-msys2` z. B.), die lokal nicht sauber nachstellbar ist. Push,
 CI beobachten, den *nächsten* echten Fehler beheben, wiederholen — nicht
 beim ersten lokalen Erfolg aufhören und CI-Grün nur behaupten.
+
+**„Erkannt, aber nicht platziert" ist ein eigener Fehlermodus, getrennt von
+„gar nicht erkannt" — und beide müssen einzeln geprüft werden.** Die
+Telemetry-Kleinigkeit brauchte am Ende drei getrennte Fixes, nicht einen:
+`bucket()` erkannte `lib.lua.*` nicht (Symptom: Modul wird gemessen, aber
+nie gestaged); `staged_name()` kannte den `lib/lua/`-Zweig nicht, selbst
+nachdem `bucket()` ihn erkannte (Symptom: „gemessen, aber nirgendwo zum
+Ablegen"); und `bucket()` kannte `runtime-analysis.*` **selbst** überhaupt
+nicht, unabhängig von seinen Abhängigkeiten (Symptom: das Hauptmodul fehlt
+komplett, still von `pcall` geschluckt). Jeder Fix allein reichte nicht —
+`--api=telemetry` blieb `"no data"`, bis alle drei behoben waren. Beweis
+kam erst durch `strings build/docmap.exe | grep <bekannter Bezeichner>`:
+ein „erfolgreicher" Build kann ein Modul dem Namen nach kennen (eigene
+Kommentare erwähnen es), ohne dessen echten Quellcode zu enthalten — nur
+das direkte Greppen der kompilierten Binary unterscheidet die beiden Fälle
+zuverlässig.
