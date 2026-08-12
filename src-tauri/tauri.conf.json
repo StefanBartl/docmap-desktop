@@ -9,7 +9,7 @@
   "app": {
     "windows": [
       {
-        "title": "docmap",
+        "title": "docmap — know your project",
         "width": 1400,
         "height": 900,
         "minWidth": 900,
