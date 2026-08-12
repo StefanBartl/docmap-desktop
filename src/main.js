@@ -69,7 +69,7 @@ const els = {
   pickNvimConfig: document.getElementById("pick-nvim-config"),
 };
 
-let engine = { path: null, from_path: true, grammars: null };
+let engine = { path: null, from_path: true, bundled: false, grammars: null };
 let nvim = { path: null, from_path: true, config_dir: null, config_dir_from_default: true };
 
 let projects = [];
@@ -321,7 +321,7 @@ function renderEngine() {
     e.className = "engine-state";
     e.textContent =
       shortPath(engine.path) +
-      (engine.from_path ? " (found on PATH)" : "") +
+      (engine.bundled ? " (bundled)" : engine.from_path ? " (found on PATH)" : "") +
       (engine.grammars
         ? " · grammars: " + shortPath(engine.grammars)
         : " · no grammars — module tree only, no per-function data");

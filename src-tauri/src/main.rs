@@ -16,6 +16,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use tauri::Manager;
+use tauri_plugin_shell::ShellExt;
 
 /// One entry in the sidebar.
 ///
@@ -287,28 +288,101 @@ fn engine_on_path() -> Option<String> {
     None
 }
 
+/// The engine bundled as a Tauri sidecar (#7, `docs/HANDOVER.md`), if this
+/// build actually shipped one for the platform it is running on.
+///
+/// `externalBin` in `tauri.conf.json` declares the *name* `docmap` is
+/// allowed to resolve as a sidecar; it is not a promise the file exists —
+/// a dev build, or a target this session's own CI never staged a binary
+/// for, both leave `sidecar()` resolving to a path with nothing there. So
+/// this is checked the same way `engine_on_path` checks PATH candidates:
+/// resolve, then verify, never assume.
+///
+/// Returns the already-configured `std::process::Command` (via
+/// `tauri_plugin_shell`'s own `From<shell::Command> for
+/// std::process::Command`) rather than just a path, so every existing
+/// caller downstream of `EngineInfo.path` — `generate`, `serve_project`,
+/// `server.rs`'s subprocess calls — needs no changes at all: a sidecar
+/// resolves to a real, existing, absolute path exactly like a configured
+/// or PATH-found one, and `Command::new(&that_path)` behaves identically
+/// either way.
+///
+/// Generic over `R: tauri::Runtime` rather than the concrete app alias,
+/// specifically so `cargo test` can exercise it against
+/// `tauri::test::mock_app()` — a real `AppHandle`, real path resolution,
+/// no window, which is the only way this environment can verify sidecar
+/// resolution at all: there is no way to see a native window's sidebar
+/// from here.
+fn engine_sidecar<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Option<std::process::Command> {
+    let cmd: std::process::Command = app.shell().sidecar("docmap").ok()?.into();
+    if Path::new(cmd.get_program()).is_file() {
+        Some(cmd)
+    } else {
+        None
+    }
+}
+
+/// A grammars directory: configured, or the bundled resource directory if
+/// this build shipped one. Mirrors `engine_sidecar`'s own "resolve, then
+/// verify" rule — `resource_dir()` resolving successfully says nothing
+/// about whether `grammars/` inside it actually has anything in it (a
+/// build that bundled the engine without grammars is a real, supported
+/// case: parser-less fidelity, exactly like an unconfigured `grammars`
+/// today).
+fn resolve_grammars<R: tauri::Runtime>(app: &tauri::AppHandle<R>, configured: Option<String>) -> Option<String> {
+    if let Some(g) = configured {
+        if Path::new(&g).is_dir() {
+            return Some(g);
+        }
+    }
+    let dir = app.path().resource_dir().ok()?.join("grammars");
+    if dir.is_dir() {
+        Some(dir.to_string_lossy().replace('\\', "/"))
+    } else {
+        None
+    }
+}
+
 #[derive(Debug, Serialize)]
 struct EngineInfo {
-    /// The configured path, or one found on PATH, or none.
+    /// The configured path, one found on PATH, the bundled sidecar's
+    /// resolved path, or none.
     path: Option<String>,
     /// True when it came from PATH rather than from a setting — worth showing,
     /// because it explains why it might disappear on another machine.
     from_path: bool,
+    /// True when `path` is the bundled sidecar rather than something found
+    /// on this machine — the case that needs no setup at all, and the
+    /// sidebar should say so rather than looking identical to a lucky PATH
+    /// find that could vanish on the next machine.
+    bundled: bool,
     grammars: Option<String>,
 }
 
 #[tauri::command]
 fn engine_info(app: tauri::AppHandle) -> Result<EngineInfo, String> {
     let ws = read_workspace(&app)?;
+    let grammars = resolve_grammars(&app, ws.grammars);
+
     if let Some(p) = ws.engine.clone() {
         if Path::new(&p).is_file() {
-            return Ok(EngineInfo { path: Some(p), from_path: false, grammars: ws.grammars });
+            return Ok(EngineInfo { path: Some(p), from_path: false, bundled: false, grammars });
         }
         // A configured path that no longer exists is worse than none: it
         // would fail at generation time with a confusing OS error. Fall
         // through to detection and let the caller see `from_path`.
     }
-    Ok(EngineInfo { path: engine_on_path(), from_path: true, grammars: ws.grammars })
+
+    if let Some(p) = engine_on_path() {
+        return Ok(EngineInfo { path: Some(p), from_path: true, bundled: false, grammars });
+    }
+
+    if let Some(cmd) = engine_sidecar(&app) {
+        let path = cmd.get_program().to_string_lossy().replace('\\', "/");
+        return Ok(EngineInfo { path: Some(path), from_path: false, bundled: true, grammars });
+    }
+
+    Ok(EngineInfo { path: None, from_path: true, bundled: false, grammars })
 }
 
 #[tauri::command]
@@ -632,6 +706,7 @@ fn serve_project(app: tauri::AppHandle, id: String) -> Result<String, String> {
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
             list_projects,
             add_project,
@@ -650,4 +725,77 @@ fn main() {
         ])
         .run(tauri::generate_context!())
         .expect("docmap-desktop failed to start");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The one thing this environment cannot verify by eye: whether the
+    // bundled sidecar and grammars actually resolve to real files once
+    // built, the way a running app's own sidebar would show. `mock_app()`
+    // gives a real `AppHandle` (built from this crate's own real
+    // `tauri.conf.json`, not a fake one -- `generate_context!()` here reads
+    // the same file `main()` does) with no window, which is enough to
+    // exercise the exact resolution code the sidebar calls into.
+    //
+    // Requires the sidecar/grammars to actually be staged under
+    // `target/debug/` before running -- true after any `cargo build`/
+    // `cargo check` once `src-tauri/binaries/docmap-<target-triple>.exe`
+    // and `src-tauri/resources/grammars/` exist, which `docs/HANDOVER.md`
+    // #7 explains how to populate. Not run in CI for that reason -- same
+    // posture `documentation.nvim`'s own `check_treesitter.lua` states for
+    // needing a real grammar on hand.
+    #[test]
+    fn bundled_sidecar_and_grammars_resolve_to_real_files() {
+        let app = tauri::test::mock_builder()
+            .plugin(tauri_plugin_shell::init())
+            .build(tauri::generate_context!())
+            .expect("failed to build mock app from this crate's real tauri.conf.json");
+        let handle = app.handle();
+
+        // `engine_sidecar` resolves correctly even run from here:
+        // `tauri_plugin_shell`'s own path arithmetic special-cases
+        // `cargo test`'s `target/debug/deps/` binaries, going up one level
+        // to land back in `target/debug/` where the sidecar is actually
+        // staged.
+        let sidecar = engine_sidecar(handle);
+        assert!(
+            sidecar.is_some(),
+            "expected src-tauri/binaries/docmap-<this platform's target triple> to resolve \
+             as a real sidecar file -- see docs/HANDOVER.md #7"
+        );
+        let program = sidecar.unwrap().get_program().to_os_string();
+        assert!(Path::new(&program).is_file(), "resolved sidecar path {program:?} is not a real file");
+
+        // `resolve_grammars` goes through `app.path().resource_dir()`
+        // instead, which has no equivalent `deps/`-awareness -- measured
+        // directly (`docmap-desktop.exe --debug-resolve-and-exit`, a
+        // one-off probe, not kept): the real compiled app resolves both
+        // correctly from `target/debug/`, and only a `cargo test` binary
+        // itself (running from `target/debug/deps/`) sees the offset. So
+        // this recomputes the same "if I'm in `deps/`, my sibling files
+        // are one level up" adjustment tauri_plugin_shell already applies
+        // for the sidecar, purely to give this assertion the same real
+        // exe-relative directory a genuine run would use -- not a second,
+        // separately-trusted implementation of `resolve_grammars` itself.
+        let exe_dir = std::env::current_exe().expect("current_exe").parent().unwrap().to_path_buf();
+        let real_app_dir = if exe_dir.ends_with("deps") { exe_dir.parent().unwrap().to_path_buf() } else { exe_dir };
+        let dir = real_app_dir.join("grammars");
+        assert!(
+            dir.is_dir(),
+            "expected {dir:?} (src-tauri/resources/grammars/, staged next to the built exe) \
+             to exist -- see docs/HANDOVER.md #7"
+        );
+        let has_a_grammar = fs::read_dir(&dir)
+            .map(|mut entries| entries.next().is_some())
+            .unwrap_or(false);
+        assert!(has_a_grammar, "{dir:?} exists but has nothing in it");
+
+        // And that `resolve_grammars` agrees once pointed at a `configured`
+        // override -- the code path an actual `set_grammars` call takes,
+        // fully exercisable without the `deps/` detour at all.
+        let via_configured = resolve_grammars(handle, Some(dir.to_string_lossy().replace('\\', "/")));
+        assert!(via_configured.is_some(), "resolve_grammars did not accept a real, existing configured dir");
+    }
 }
