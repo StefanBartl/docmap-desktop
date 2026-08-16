@@ -16,6 +16,16 @@ project — a list you load from, not one window per thing.
 **This is not a Neovim plugin and does not need Neovim.** It is a separate
 program, in a separate repository, with a separate toolchain — deliberately.
 
+Three repositories, one triangle. `documentation.nvim` is the Neovim plugin
+this app's engine is extracted from — the map is identical, browsed with or
+without a window. [`runtime-analysis.nvim`](https://github.com/StefanBartl/runtime-analysis.nvim)
+is `documentation.nvim`'s own sibling plugin, extending it with a live half
+neither `documentation.nvim` nor this app can produce alone: call-count
+telemetry, collected only while real code runs inside a Neovim session. This
+app is the third leg — the same static map always, and the same live
+Telemetry/Loaded panels too, whenever a Neovim session collected the data
+for that project.
+
 ## Table of content
 
 - [Get the app](#get-the-app)
@@ -59,6 +69,7 @@ whole, not reimplemented:
 | The analysis | `documentation.nvim`'s standalone build — a single binary that maps any annotated Lua tree with no Neovim and no Lua install |
 | The view | The generated page itself: self-contained HTML, every tab, no CDN, no build step |
 | Cross-project links | `opts.tag_files`, already resolving one project's map against another's |
+| Live telemetry (optional) | [`runtime-analysis.nvim`](https://github.com/StefanBartl/runtime-analysis.nvim) — the sibling Neovim plugin whose call-count data feeds the Telemetry and Loaded panels, when a Neovim session collected any for that project |
 
 What this repository adds is the part neither of them can have: a window, a
 project list, and the ability to move between projects without opening a
