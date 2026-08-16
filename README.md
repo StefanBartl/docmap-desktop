@@ -6,6 +6,8 @@
                          |_|                                     |_|
 ```
 
+[![Latest release](https://img.shields.io/github/v/release/StefanBartl/docmap-desktop)](https://github.com/StefanBartl/docmap-desktop/releases/latest)
+
 A desktop workspace for the module maps [documentation.nvim](https://github.com/StefanBartl/documentation.nvim)
 generates: add several projects, look at any of them, switch between them
 quickly. The kind of shell Tosca Commander or Blender put in front of a
@@ -13,6 +15,15 @@ project — a list you load from, not one window per thing.
 
 **This is not a Neovim plugin and does not need Neovim.** It is a separate
 program, in a separate repository, with a separate toolchain — deliberately.
+
+## Table of content
+
+- [Get the app](#get-the-app)
+- [Why this exists as its own program](#why-this-exists-as-its-own-program)
+- [What already exists, and what this adds](#what-already-exists-and-what-this-adds)
+- [Status](#status)
+- [Documentation](#documentation)
+- [Build](#build)
 
 ## Get the app
 
