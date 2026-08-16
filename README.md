@@ -105,3 +105,14 @@ is the one runtime dependency worth knowing about: WebView2 on Windows
 (present on Windows 11 and current Windows 10, and the installer can supply
 it), WKWebView on macOS (part of the system), WebKitGTK on Linux (a package
 dependency).
+
+### Tests
+
+`cd src-tauri && cargo test` for the Rust side. The frontend's shared helpers
+(`src/lib/*.js`) have their own tests, run with Node's built-in test runner —
+no `npm install` involved, on purpose, the same reasoning `src/index.html`
+gives for no bundler:
+
+```bash
+node --test src/lib/*.test.js
+```
