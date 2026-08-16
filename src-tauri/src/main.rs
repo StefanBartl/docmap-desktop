@@ -13,6 +13,7 @@ mod server;
 
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
 use tauri::Manager;
@@ -96,6 +97,29 @@ fn write_workspace(app: &tauri::AppHandle, ws: &Workspace) -> Result<(), String>
     fs::write(&path, body).map_err(|e| format!("cannot write {}: {e}", path.display()))
 }
 
+/// Guards every workspace.json read-modify-write cycle. Two commands that
+/// each read, mutate, and write independently (e.g. "Add project" clicked
+/// while "Import from URL" is still cloning) would otherwise race and one
+/// silently drop the other's change.
+static WORKSPACE_LOCK: Mutex<()> = Mutex::new(());
+
+/// Read the workspace, let `f` mutate it, write it back -- one lock held for
+/// the whole cycle. Centralizes the read-modify-write shape every mutating
+/// command below used to repeat by hand, and is what actually closes the
+/// race: the lock, not the shared function.
+fn with_workspace<T>(
+    app: &tauri::AppHandle,
+    f: impl FnOnce(&mut Workspace) -> Result<T, String>,
+) -> Result<T, String> {
+    let _guard = WORKSPACE_LOCK
+        .lock()
+        .map_err(|_| "workspace lock poisoned".to_string())?;
+    let mut ws = read_workspace(app)?;
+    let result = f(&mut ws)?;
+    write_workspace(app, &ws)?;
+    Ok(result)
+}
+
 #[tauri::command]
 fn list_projects(app: tauri::AppHandle) -> Result<Vec<Project>, String> {
     Ok(read_workspace(&app)?.projects)
@@ -126,29 +150,29 @@ fn add_project(app: tauri::AppHandle, root: String) -> Result<Vec<Project>, Stri
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_else(|| canonical.clone());
 
-    let mut ws = read_workspace(&app)?;
-    // Adding the same directory twice is a no-op rather than an error: the
-    // user's intent ("I want this project in the list") is already satisfied,
-    // and a dialog saying so would be noise.
-    if !ws.projects.iter().any(|p| p.id == canonical) {
-        ws.projects.push(Project {
-            id: canonical.clone(),
-            name,
-            root: canonical.clone(),
-            map_dir: format!("{canonical}/docs/map"),
-        });
-        ws.projects.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
-        write_workspace(&app, &ws)?;
-    }
-    Ok(ws.projects)
+    with_workspace(&app, |ws| {
+        // Adding the same directory twice is a no-op rather than an error: the
+        // user's intent ("I want this project in the list") is already satisfied,
+        // and a dialog saying so would be noise.
+        if !ws.projects.iter().any(|p| p.id == canonical) {
+            ws.projects.push(Project {
+                id: canonical.clone(),
+                name,
+                root: canonical.clone(),
+                map_dir: format!("{canonical}/docs/map"),
+            });
+            ws.projects.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        }
+        Ok(ws.projects.clone())
+    })
 }
 
 #[tauri::command]
 fn remove_project(app: tauri::AppHandle, id: String) -> Result<Vec<Project>, String> {
-    let mut ws = read_workspace(&app)?;
-    ws.projects.retain(|p| p.id != id);
-    write_workspace(&app, &ws)?;
-    Ok(ws.projects)
+    with_workspace(&app, |ws| {
+        ws.projects.retain(|p| p.id != id);
+        Ok(ws.projects.clone())
+    })
 }
 
 /// Where cloned repositories land. A subdirectory of the same app-config
@@ -387,27 +411,29 @@ fn engine_info(app: tauri::AppHandle) -> Result<EngineInfo, String> {
 
 #[tauri::command]
 fn set_engine(app: tauri::AppHandle, path: Option<String>) -> Result<EngineInfo, String> {
-    let mut ws = read_workspace(&app)?;
     if let Some(ref p) = path {
         if !Path::new(p).is_file() {
             return Err(format!("{p} is not a file"));
         }
     }
-    ws.engine = path;
-    write_workspace(&app, &ws)?;
+    with_workspace(&app, |ws| {
+        ws.engine = path;
+        Ok(())
+    })?;
     engine_info(app)
 }
 
 #[tauri::command]
 fn set_grammars(app: tauri::AppHandle, path: Option<String>) -> Result<EngineInfo, String> {
-    let mut ws = read_workspace(&app)?;
     if let Some(ref p) = path {
         if !Path::new(p).is_dir() {
             return Err(format!("{p} is not a directory"));
         }
     }
-    ws.grammars = path;
-    write_workspace(&app, &ws)?;
+    with_workspace(&app, |ws| {
+        ws.grammars = path;
+        Ok(())
+    })?;
     engine_info(app)
 }
 
@@ -476,27 +502,29 @@ fn nvim_info(app: tauri::AppHandle) -> Result<NvimInfo, String> {
 
 #[tauri::command]
 fn set_nvim_path(app: tauri::AppHandle, path: Option<String>) -> Result<NvimInfo, String> {
-    let mut ws = read_workspace(&app)?;
     if let Some(ref p) = path {
         if !Path::new(p).is_file() {
             return Err(format!("{p} is not a file"));
         }
     }
-    ws.nvim_path = path;
-    write_workspace(&app, &ws)?;
+    with_workspace(&app, |ws| {
+        ws.nvim_path = path;
+        Ok(())
+    })?;
     nvim_info(app)
 }
 
 #[tauri::command]
 fn set_nvim_config_dir(app: tauri::AppHandle, path: Option<String>) -> Result<NvimInfo, String> {
-    let mut ws = read_workspace(&app)?;
     if let Some(ref p) = path {
         if !Path::new(p).is_dir() {
             return Err(format!("{p} is not a directory"));
         }
     }
-    ws.nvim_config_dir = path;
-    write_workspace(&app, &ws)?;
+    with_workspace(&app, |ws| {
+        ws.nvim_config_dir = path;
+        Ok(())
+    })?;
     nvim_info(app)
 }
 
