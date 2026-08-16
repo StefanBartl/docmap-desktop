@@ -15,6 +15,12 @@
 //
 // So: say why, in the window. Every path below that can fail now ends up
 // visible instead of in a console nobody has open.
+
+// Both side-effect-free, so hoisting them above the `window.__TAURI__`
+// guard below changes nothing about what that guard catches.
+import { withBusyButton } from "./lib/busy-button.js";
+import { mapStatus, invalidate } from "./lib/status-cache.js";
+
 function fatal(what, err) {
   const box = document.getElementById("placeholder");
   const frame = document.getElementById("map");
@@ -101,7 +107,7 @@ async function render() {
   els.empty.hidden = projects.length > 0;
 
   for (const p of projects) {
-    const status = await invoke("map_status", { mapDir: p.map_dir });
+    const status = await mapStatus(invoke, p.map_dir);
 
     const li = document.createElement("li");
     li.className = "proj" + (p.id === selectedId ? " sel" : "");
@@ -145,7 +151,7 @@ async function select(id) {
   await render();
   if (!p) return;
 
-  const status = await invoke("map_status", { mapDir: p.map_dir });
+  const status = await mapStatus(invoke, p.map_dir);
   if (!status.exists) {
     showPlaceholder(
       "No map in this project yet",
@@ -195,7 +201,7 @@ async function refresh(next) {
 /// the button to them.
 async function autoGenerate(p) {
   if (!engine.path) return;
-  const status = await invoke("map_status", { mapDir: p.map_dir });
+  const status = await mapStatus(invoke, p.map_dir);
   if (status.exists) {
     await select(p.id);
     return;
@@ -232,25 +238,21 @@ els.importUrl.addEventListener("click", async () => {
   const url = window.prompt("Repository URL to clone:");
   if (!url) return;
 
-  els.importUrl.disabled = true;
-  const label = els.importUrl.textContent;
-  els.importUrl.textContent = "Cloning…";
   say("Cloning " + url + "…");
 
   try {
-    // Same "identify the new one by which id appeared" rule as `add`'s own
-    // handler, for the same reason.
-    const before = new Set(projects.map((x) => x.id));
-    await refresh(await invoke("import_from_url", { url }));
-    const added = projects.find((x) => !before.has(x.id));
-    say(added ? "Added " + added.root : "Already in the list");
-    if (added) await autoGenerate(added);
+    await withBusyButton(els.importUrl, "Cloning…", async () => {
+      // Same "identify the new one by which id appeared" rule as `add`'s own
+      // handler, for the same reason.
+      const before = new Set(projects.map((x) => x.id));
+      await refresh(await invoke("import_from_url", { url }));
+      const added = projects.find((x) => !before.has(x.id));
+      say(added ? "Added " + added.root : "Already in the list");
+      if (added) await autoGenerate(added);
+    });
   } catch (e) {
     say(String(e));
     fatal("Could not import from URL", e);
-  } finally {
-    els.importUrl.textContent = label;
-    els.importUrl.disabled = false;
   }
 });
 
@@ -447,33 +449,29 @@ els.pickNvimConfig.addEventListener("click", async () => {
 /// order of latency as one `generate` call, so it gets the same
 /// placeholder-while-running treatment rather than a silent freeze.
 els.importNvim.addEventListener("click", async () => {
-  els.importNvim.disabled = true;
-  const label = els.importNvim.textContent;
-  els.importNvim.textContent = "Importing…";
   say("Importing projects from Neovim…");
 
   try {
-    const res = await invoke("import_from_nvim_config");
-    await refresh();
-    if (res.added.length && !selectedId) await select(res.added[0].id);
+    await withBusyButton(els.importNvim, "Importing…", async () => {
+      const res = await invoke("import_from_nvim_config");
+      await refresh();
+      if (res.added.length && !selectedId) await select(res.added[0].id);
 
-    const parts = [res.added.length + " added"];
-    if (res.already_present) parts.push(res.already_present + " already present");
-    if (res.errors.length) parts.push(res.errors.length + " failed");
-    say(res.found + " found in Neovim · " + parts.join(", "));
-    if (res.errors.length) {
-      showPlaceholder(
-        "Import finished with errors",
-        res.added.length + " of " + res.found + " project(s) were added."
-      );
-      appendLog(res.errors.join("\n"), true);
-    }
+      const parts = [res.added.length + " added"];
+      if (res.already_present) parts.push(res.already_present + " already present");
+      if (res.errors.length) parts.push(res.errors.length + " failed");
+      say(res.found + " found in Neovim · " + parts.join(", "));
+      if (res.errors.length) {
+        showPlaceholder(
+          "Import finished with errors",
+          res.added.length + " of " + res.found + " project(s) were added."
+        );
+        appendLog(res.errors.join("\n"), true);
+      }
+    });
   } catch (e) {
     say(String(e));
     fatal("Could not import from Neovim", e);
-  } finally {
-    els.importNvim.textContent = label;
-    els.importNvim.disabled = false;
   }
 });
 
@@ -483,38 +481,45 @@ async function generateFor(id) {
   const p = projects.find((x) => x.id === id);
   if (!p) return;
 
-  els.gen.disabled = true;
-  const label = els.gen.textContent;
-  els.gen.textContent = "Generating…";
   // Replace the view while it runs: leaving the previous project's map on
   // screen during a rebuild is the same "wrong panel's data" problem the
   // generated page itself had to fix in its own fetch-backed panels.
   showPlaceholder("Generating…", "Running the engine over <code>" + p.root + "</code>.");
   say("Generating " + p.name);
 
+  // `restoreDisabled: false`: whether this button ends up enabled depends on
+  // engine and selection state, not on the run having finished, so the
+  // trailing `renderEngine()` keeps owning that.
   try {
-    const res = await invoke("generate", { root: p.root });
-    // The engine reports on stdout even when it succeeds, and its report is
-    // the useful part — counts, coverage, findings. Show it either way.
-    const log = [res.stdout, res.stderr].filter(Boolean).join("\n").trim();
-    if (res.ok) {
-      await refresh();
-      await select(id);
-      if (log) appendLog(log, false);
-      say("Generated " + p.name);
-    } else {
-      showPlaceholder(
-        "Generation failed",
-        "The engine exited with code " + res.code + "."
-      );
-      appendLog(log || "(no output)", true);
-      say("Failed: " + p.name);
-    }
+    await withBusyButton(
+      els.gen,
+      "Generating…",
+      async () => {
+        const res = await invoke("generate", { root: p.root });
+        // The engine reports on stdout even when it succeeds, and its report
+        // is the useful part — counts, coverage, findings. Show it either way.
+        const log = [res.stdout, res.stderr].filter(Boolean).join("\n").trim();
+        if (res.ok) {
+          invalidate(p.map_dir);
+          await refresh();
+          await select(id);
+          if (log) appendLog(log, false);
+          say("Generated " + p.name);
+        } else {
+          showPlaceholder(
+            "Generation failed",
+            "The engine exited with code " + res.code + "."
+          );
+          appendLog(log || "(no output)", true);
+          say("Failed: " + p.name);
+        }
+      },
+      { restoreDisabled: false }
+    );
   } catch (e) {
     showPlaceholder("Could not run the engine", String(e));
     say(String(e));
   } finally {
-    els.gen.textContent = label;
     renderEngine();
   }
 }
@@ -562,6 +567,7 @@ els.genAll.addEventListener("click", async () => {
     try {
       const res = await invoke("generate", { root: p.root });
       if (res.ok) {
+        invalidate(p.map_dir);
         ok++;
       } else {
         failed.push(p.name);
