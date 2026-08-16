@@ -1,0 +1,79 @@
+# Runs the test suites on every push and pull request: cargo test (Rust)
+# and node --test (the shared frontend helpers under src/lib/). Deliberately
+# separate from release.yml, which builds real installers from a real
+# downloaded engine sidecar and only runs on a pushed vX.Y.Z tag -- this one
+# only needs the Rust/JS code itself to be correct, on every push, without
+# waiting for a release.
+#
+# cargo build/test still goes through build.rs's own resource checks
+# (tauri.{windows,linux}.conf.json's externalBin/resources -- see main.rs's
+# engine_sidecar()/resolve_grammars()), so Linux and Windows each stage a
+# placeholder sidecar binary and a placeholder grammars file first: empty
+# files, not a real engine. That is enough for the build script's
+# existence checks and for the one test that exercises sidecar
+# *resolution* (does the configured path resolve to a real file at all) --
+# a different question from "does the engine actually work", which belongs
+# to documentation.nvim's own CI, not this one. macOS needs neither
+# placeholder: tauri.conf.json's base config has no externalBin/resources
+# at all, only the Windows/Linux platform overrides do (see release.yml's
+# own engine_triple: "" for macOS, same reasoning).
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-22.04
+            engine_triple: x86_64-unknown-linux-gnu
+          - platform: windows-latest
+            engine_triple: x86_64-pc-windows-msvc
+          - platform: macos-latest
+            engine_triple: ""
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # WebKitGTK build headers, same package release.yml already installs
+      # for the same reason (Linux's WebView2/WKWebView equivalent).
+      - name: install Linux webview dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: stage a placeholder engine sidecar
+        if: matrix.engine_triple != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p src-tauri/binaries src-tauri/resources/grammars
+          suffix=""
+          [ "${{ matrix.platform }}" = "windows-latest" ] && suffix=".exe"
+          touch "src-tauri/binaries/docmap-${{ matrix.engine_triple }}${suffix}"
+          touch src-tauri/resources/grammars/placeholder.dll
+
+      - name: cargo test
+        working-directory: src-tauri
+        run: cargo test
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: node --test
+        shell: bash
+        run: node --test src/lib/*.test.js
