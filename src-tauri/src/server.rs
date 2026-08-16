@@ -45,7 +45,9 @@
 use std::io::{BufRead, BufReader, Write};
 use std::net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream};
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 /// Everything one running server answers for.
 #[derive(Debug, Clone)]
@@ -63,6 +65,10 @@ pub struct ServeConfig {
 pub struct Server {
     pub port: u16,
     pub root: String,
+    /// Set to tell this server's accept loop to exit -- see `start`'s own
+    /// polling loop for why a plain `TcpListener::incoming()` can't just be
+    /// interrupted from outside.
+    stop: Arc<AtomicBool>,
 }
 
 /// The one running server, if any. There is one window and one selected
@@ -337,6 +343,12 @@ pub fn start(cfg: ServeConfig) -> Result<u16, String> {
         if running.root == cfg.root {
             return Ok(running.port);
         }
+        // Switching projects: tell the previous listener's accept loop
+        // (below) to exit on its next poll instead of leaking it -- it
+        // would otherwise keep a thread and a bound socket alive for the
+        // rest of the app's lifetime, once per distinct project ever
+        // viewed in the session.
+        running.stop.store(true, Ordering::Relaxed);
     }
 
     // Port 0: the OS picks a free one. A hardcoded port would collide with
@@ -344,26 +356,52 @@ pub fn start(cfg: ServeConfig) -> Result<u16, String> {
     // same thing done worse.
     let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
     let listener = TcpListener::bind(addr).map_err(|e| format!("bind failed: {e}"))?;
+    // Non-blocking so the accept loop can poll `stop` instead of blocking in
+    // `incoming()` forever -- std's TcpListener has no other way to cancel
+    // an in-progress accept from outside the thread that owns it.
+    listener
+        .set_nonblocking(true)
+        .map_err(|e| format!("cannot set non-blocking: {e}"))?;
     let port = listener
         .local_addr()
         .map_err(|e| format!("no local address: {e}"))?
         .port();
 
-    let shared = Arc::new(cfg.clone());
+    let stop = Arc::new(AtomicBool::new(false));
+    let shared_cfg = Arc::new(cfg.clone());
+    let shared_stop = Arc::clone(&stop);
     std::thread::spawn(move || {
         for stream in listener.incoming() {
-            let Ok(mut stream) = stream else { continue };
-            let cfg = Arc::clone(&shared);
-            // One thread per connection: `Connection: close`, a handful of
-            // requests per project, and an engine call that takes real time
-            // and must not block the next request behind it.
-            std::thread::spawn(move || handle(&cfg, &mut stream));
+            if shared_stop.load(Ordering::Relaxed) {
+                break;
+            }
+            match stream {
+                Ok(mut stream) => {
+                    // Accepted sockets don't reliably inherit the listener's
+                    // non-blocking mode across platforms -- set it back
+                    // explicitly so `handle`'s blocking reads/writes behave
+                    // the same as before this loop became pollable.
+                    if stream.set_nonblocking(false).is_err() {
+                        continue;
+                    }
+                    let cfg = Arc::clone(&shared_cfg);
+                    // One thread per connection: `Connection: close`, a handful
+                    // of requests per project, and an engine call that takes
+                    // real time and must not block the next request behind it.
+                    std::thread::spawn(move || handle(&cfg, &mut stream));
+                }
+                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    std::thread::sleep(Duration::from_millis(50));
+                }
+                Err(_) => std::thread::sleep(Duration::from_millis(50)),
+            }
         }
     });
 
     *current = Some(Server {
         port,
         root: cfg.root.clone(),
+        stop,
     });
     Ok(port)
 }
