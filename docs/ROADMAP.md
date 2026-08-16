@@ -7,6 +7,7 @@ and anything that starts to reimplement them is a wrong turn.
 
 ## Table of content
 
+  - [NEW](#new)
   - [Built](#built)
   - [The shell (slice 1)](#the-shell-slice-1)
   - [Generation (slice 2)](#generation-slice-2)
@@ -14,6 +15,12 @@ and anything that starts to reimplement them is a wrong turn.
   - [The panels that need a host](#the-panels-that-need-a-host)
   - [Idea, not scheduled — executing the checklist](#idea-not-scheduled-executing-the-checklist)
   - [Idea, not scheduled — the analysis itself, not just the engine](#idea-not-scheduled-the-analysis-itself-not-just-the-engine)
+
+---
+
+## NEW
+
+- Fullstack-Webapp version von docmap-desktop
 
 ---
 
