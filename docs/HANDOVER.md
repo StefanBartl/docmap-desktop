@@ -76,7 +76,7 @@ angefangen.
 
 | Repo | Branch | Enthält |
 |---|---|---|
-| `documentation.nvim` | `feat/lookup-layer` | 3 Commits: Planung (Doku), `lang_registry.report()` + `languages` in `--capabilities`, Keyword-Hover im Snippet. Alle 5 Gates grün, Karte regeneriert |
+| `documentation.nvim` | `feat/lookup-layer` | 4 Commits: Planung (Doku), `lang_registry.report()` + `languages` in `--capabilities`, Keyword-Hover im Snippet, **Quellwurzel-Erkennung pro Sprache**. Alle 5 Gates grün, Karte regeneriert |
 | `docmap-desktop` | `claude/doc-apps-convergence-plan-b8c69f` | 4 Commits: `scan_languages` (Zählen), `engine_languages` (Fähigkeiten lesen), Join beider, ehrliches Engine-Verdikt. `cargo test` 12/12, `node --test` 31/31 |
 
 **Nichts ist gepusht.** Beide Branches sind lokal.
@@ -153,6 +153,26 @@ hat wandert dorthin, wo es in `documentation.nvim` auch passt.
   `Object.prototype` herein (die Suche geht über `hasOwnProperty`);
   `android` matcht nicht `and`; `.rs` dekoriert gar nichts.
 - **Nicht angesehen:** die Karte selbst. Kein Screenshot in dieser Umgebung.
+- **Stufe 1 ist gemessen, und der Verdacht lag an der falschen Stelle.** Der
+  Walk ist in Ordnung. Kaputt war ein Schritt davor: `config.detect_source`
+  war eine reine Lua-Heuristik und gab für *jeden* nicht erkannten Baum
+  `"lua"` zurück — ein reines JS/TS-Projekt starb an `scan.lua`s Assert
+  (`source directory not found: <root>/lua`). Die Engine liest seit Phase 1
+  JavaScript, und **kein JavaScript-Projekt konnte überhaupt gescannt
+  werden.** Behoben: die Backends beantworten es selbst (Lua besitzt
+  `lua/<plugin>`, ECMA `src`/`lib`/`app`), jedes lehnt ab statt zu raten,
+  und der Walk hat jetzt die Vendor-Skip-Liste, die eine `src`-oder-Wurzel
+  als `source` nötig macht. Gegengeprüft: die Karte dieses Repos ist
+  byte-identisch, und ein JS/TS-Projekt liefert mit geladenen Grammatiken
+  echte Funktionsdaten (`split/2`, `join/2`) — **ohne dass zwischen den
+  beiden Läufen irgendetwas umgestellt wurde.**
+- **Noch offen, und ein Entwurfsproblem statt eines Bugs:** ein Baum mit
+  Lua *und* JS in verschiedenen Verzeichnissen. `source` ist **ein**
+  Verzeichnis, also gewinnt das zuerst antwortende Backend — verifiziert an
+  einem Lua+JS+TS-Fixture: ein Lua-Modul, `src/` nie angesehen. Die zwei
+  ehrlichen Optionen stehen in `MULTILANG.md` Stufe 1. **Vor Stufe 4
+  entscheiden** — ein C-Backend landet genau in dieser Form (`src/` neben
+  `include/`).
 - **Noch nicht gemessen:** ob `scan.lua`s Walk wirklich polyglott ist. Er
   fragt die Registry pro Datei (Z. 415) und pro Verzeichnis (Z. 310), also
   *sollte* ein gemischter Baum funktionieren. Das ist genau die Art
