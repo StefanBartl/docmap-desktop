@@ -67,6 +67,7 @@ angefangen.
 
 | Dokument | Inhalt |
 |---|---|
+| `documentation.nvim/docs/ROADMAP/WORKPLAN.md` | **Der Wiedereinstiegspunkt.** Alles Besprochene, auch das nicht Gebaute, in einer Datei — geschrieben, damit die Arbeit einen Kaltstart in einer neuen Session übersteht. Dieser Abschnitt hier ist die Desktop-Hälfte davon |
 | `documentation.nvim/docs/ROADMAP/IDEAS/MULTILANG.md`, **Part 4** | Stufenplan 1–8. Ersetzt Part 2s Reihenfolge und folgt dabei Part 3s eigener Empfehlung: **C vor Python**, weil C weder Owning-Scope noch Ein-File-viele-Module braucht und deshalb *neben* den geteilten Nähten landen kann, wie JS/TS damals |
 | `documentation.nvim/docs/ROADMAP/IDEAS/I18N.md` | Neu. Drei Flächen, davon `render/html.lua` ~85 % der Arbeit (7 433 Zeilen gegen 14 `vim.notify`-Stellen im ganzen Plugin) |
 | `documentation.nvim/docs/ROADMAP/IDEAS/ReferenceTab.md`, Abschnitt „The lookup layer" | Keyword-Hover und Verwandtes. Eine Registry, vier Auslöseflächen |
