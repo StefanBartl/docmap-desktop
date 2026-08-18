@@ -20,11 +20,10 @@
       </header>
 
       <div class="actions">
-        <button id="add" data-help="Pick a folder to add. It does not need a map yet — if it has none and an engine is configured, one is generated right away, because there is nothing to overwrite." type="button">Add project…</button>
+        <button id="add" type="button"
+          data-help="Add a project three ways: a folder on this machine, every plugin your Neovim config declares, or a repository URL — including a pick-list of your own GitHub repositories.">Add project…</button>
         <button id="gen" data-help="Rebuild the selected project's map, overwriting what is there. Writes into that repository's docs/map." type="button" disabled>Generate map</button>
         <button id="gen-all" data-help="Rebuild every project in the list, one after another. The only button that writes to repositories you did not select — the label counts progress while it runs." type="button" disabled>Generate all</button>
-        <button id="import-nvim" data-help="Read your Neovim config's plugin specs, clone every plugin that is not here yet, and add each one as Add project… would." type="button">Import from Neovim…</button>
-        <button id="import-url" data-help="Clone a repository URL (shallow) into the app's own cache and add it. Uses whatever credentials a plain git clone would." type="button">Import from URL…</button>
       </div>
 
       <ul id="projects" aria-label="Projects"></ul>
@@ -49,7 +48,7 @@
            the disclosure semantics and the open/closed state come with the
            element instead of being reimplemented on a div. -->
       <details id="engine">
-        <summary>
+        <summary data-help="documentation.nvim's standalone binary — this app runs it, it does not replace it. The word beside the label is the verdict that decides whether generation works, and at what fidelity.">
           <span class="engine-label">Engine</span>
           <span id="engine-summary" class="engine-summary"></span>
         </summary>
@@ -68,7 +67,7 @@
            the platform-conventional config location) and never need this
            panel open. -->
       <details id="nvim">
-        <summary>
+        <summary data-help="Which nvim binary and which config directory the plugin-spec import reads. Only needed when either is somewhere unusual — most machines resolve both on their own.">
           <span class="engine-label">Neovim</span>
           <span id="nvim-summary" class="engine-summary"></span>
         </summary>
@@ -121,6 +120,78 @@
          cheaper option and was turned down for one reason — it never appears
          on keyboard focus, so the controls a keyboard user reaches would be
          the only ones with no explanation. -->
+    <!-- Adding a project, three ways, one door.
+         `<dialog>` rather than a hand-rolled overlay: focus trapping, Escape,
+         the backdrop and inertness of the page behind it all come from the
+         element. Exactly the reasoning that made the Engine panel a
+         `<details>` — the platform already implements the hard half, and a
+         reimplementation would only be a worse copy of it. -->
+    <dialog id="addbox" class="addbox">
+      <form method="dialog" class="addbox-close-form">
+        <button class="addbox-x" value="cancel" aria-label="Close">&times;</button>
+      </form>
+
+      <h2 class="addbox-title">Add a project</h2>
+
+      <!-- Tabs, not a wizard: the three are alternatives, not steps, and
+           numbering them would imply an order none of them has. -->
+      <div class="addbox-tabs" role="tablist">
+        <button class="addbox-tab on" role="tab" data-pane="pane-folder" type="button">Folder</button>
+        <button class="addbox-tab" role="tab" data-pane="pane-nvim" type="button">Neovim config</button>
+        <button class="addbox-tab" role="tab" data-pane="pane-url" type="button">URL</button>
+      </div>
+
+      <section id="pane-folder" class="addbox-pane on" role="tabpanel">
+        <p class="addbox-lead">
+          Any directory on this machine. It does not need a
+          <code>docs/map</code> yet — if it has none and an engine is
+          configured, one is generated straight away, because there is
+          nothing to overwrite.
+        </p>
+        <button id="pick-folder" class="addbox-go" type="button">Choose a folder…</button>
+      </section>
+
+      <section id="pane-nvim" class="addbox-pane" role="tabpanel">
+        <p class="addbox-lead">
+          Reads the <strong>plugin specs your Neovim config declares</strong>
+          and adds every plugin as its own project, cloning the ones that are
+          not on this machine yet. It does not read anything else about the
+          config, and it changes nothing in it.
+        </p>
+        <p class="addbox-note">
+          Which <code>nvim</code> and which config directory it uses is what
+          the sidebar's <strong>Neovim</strong> panel shows — open it if this
+          fails.
+        </p>
+        <button id="run-nvim-import" class="addbox-go" type="button">Read the config…</button>
+      </section>
+
+      <section id="pane-url" class="addbox-pane" role="tabpanel">
+        <p class="addbox-lead">
+          A repository URL, cloned shallow into this app's own cache and then
+          added like any folder. Whatever a plain <code>git clone</code> of
+          that URL needs on this machine is what runs here — this app holds
+          no credentials of its own.
+        </p>
+        <div class="addbox-row">
+          <input id="url-input" type="url" placeholder="https://github.com/owner/repo" autocomplete="off" />
+          <button id="run-url-import" class="addbox-go" type="button">Clone</button>
+        </div>
+
+        <!-- The pick-list is opt-in. Listing repositories is a network call
+             against someone's account, and a dialog that made one just for
+             being opened would be doing something nobody asked for. -->
+        <div class="addbox-repos">
+          <div class="addbox-row">
+            <button id="load-repos" class="addbox-secondary" type="button">List my GitHub repositories</button>
+            <input id="repo-filter" type="search" placeholder="Filter…" autocomplete="off" hidden />
+          </div>
+          <p id="repo-state" class="addbox-note"></p>
+          <ul id="repo-list" class="addbox-list" hidden></ul>
+        </div>
+      </section>
+    </dialog>
+
     <div id="help" class="help" role="tooltip" hidden></div>
 
     <script type="module" src="main.js"></script>
