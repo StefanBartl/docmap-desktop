@@ -7,6 +7,26 @@ first.
 
 ## Adding a project
 
+**Add project…** opens one dialog with three tabs, because the three are
+alternatives rather than steps: a **Folder** on this machine, the plugin
+specs your **Neovim config** declares, or a **URL**. They were three sidebar
+buttons until 2026-08-18; nothing about what they do changed, only that a
+reader no longer compares three labels before doing the thing they came for.
+
+The Neovim tab is named for what it reads. "Import from Neovim" never said
+*what* was being imported — it is the config's **plugin specs**, and nothing
+else about the config is read or changed.
+
+The URL tab can also list **your own GitHub repositories** to pick from,
+behind a button rather than on open: listing them is a network call against
+your account, and a dialog that made one just for being looked at would be
+doing something you did not ask for. It goes through the **GitHub CLI**
+(`gh`), so this app never holds a credential — the same position it already
+takes on cloning. Without `gh`, or without being signed in, the list says
+which of the two it is and the URL field beside it keeps working exactly as
+before.
+
+
 **Add project…** opens a folder picker. Pick any directory — it does not
 need a `docs/map` already. The project is identified by its **canonical,
 resolved path**, so adding the same directory twice (even via a different

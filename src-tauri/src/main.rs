@@ -9,6 +9,7 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod github;
 mod languages;
 mod server;
 
@@ -289,6 +290,27 @@ fn map_status(map_dir: String) -> MapStatus {
     }
 
     MapStatus { exists, index_path: index, modules, files }
+}
+
+/// The signed-in user's GitHub repositories, for the URL tab's picker.
+///
+/// Delegated to `gh` rather than the API on purpose — see `github.rs` for
+/// why this program must not hold a credential. Never called when the dialog
+/// opens: listing repositories is a network call against someone's account,
+/// and a dialog that makes one just for being looked at is doing something
+/// the reader did not ask for.
+#[tauri::command]
+async fn list_github_repos() -> github::RepoList {
+    // On a blocking task for the same reason `generate` is: this shells out
+    // and waits on the network, and a window that stops repainting while it
+    // does looks broken.
+    tauri::async_runtime::spawn_blocking(|| github::list(200))
+        .await
+        .unwrap_or_else(|_| github::RepoList {
+            repos: vec![],
+            problem: Some(github::ListProblem::Failed),
+            message: Some("the listing task did not finish".into()),
+        })
 }
 
 /// What languages a directory is written in, counted from file extensions.
@@ -845,6 +867,7 @@ fn main() {
             import_from_url,
             map_status,
             scan_languages,
+            list_github_repos,
             engine_info,
             engine_languages,
             set_engine,

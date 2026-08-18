@@ -74,8 +74,6 @@ const els = {
   engineState: document.getElementById("engine-state"),
   pickEngine: document.getElementById("pick-engine"),
   pickGrammars: document.getElementById("pick-grammars"),
-  importNvim: document.getElementById("import-nvim"),
-  importUrl: document.getElementById("import-url"),
   nvim: document.getElementById("nvim"),
   nvimSummary: document.getElementById("nvim-summary"),
   nvimState: document.getElementById("nvim-state"),
@@ -370,52 +368,11 @@ async function autoGenerate(p) {
   await generateFor(p.id);
 }
 
-els.add.addEventListener("click", async () => {
-  try {
-    const dir = await open({ directory: true, multiple: false, title: "Add project" });
-    if (!dir) return;
-    // Identify the new project by which id appeared, not by matching `dir`
-    // against `root`: the Rust side normalises separators, so the string
-    // that went in is not always the string that comes back.
-    const before = new Set(projects.map((x) => x.id));
-    await refresh(await invoke("add_project", { root: dir }));
-    say(`Added ${dir}`);
-    const added = projects.find((x) => !before.has(x.id));
-    if (added) await autoGenerate(added);
-  } catch (e) {
-    // Inside the try on purpose: `open` itself rejects when the dialog
-    // permission is missing from capabilities/, and that used to look
-    // identical to a button that was not wired up at all.
-    say(String(e));
-    fatal("Could not add a project", e);
-  }
-});
 
 /// A prompt rather than a real input field: this app has no text-entry UI
 /// anywhere yet, and a one-off URL is exactly the case a native prompt
 /// exists for — no framework, on purpose, same reasoning as the rest of
 /// this file's own header comment.
-els.importUrl.addEventListener("click", async () => {
-  const url = window.prompt("Repository URL to clone:");
-  if (!url) return;
-
-  say("Cloning " + url + "…");
-
-  try {
-    await withBusyButton(els.importUrl, "Cloning…", async () => {
-      // Same "identify the new one by which id appeared" rule as `add`'s own
-      // handler, for the same reason.
-      const before = new Set(projects.map((x) => x.id));
-      await refresh(await invoke("import_from_url", { url }));
-      const added = projects.find((x) => !before.has(x.id));
-      say(added ? "Added " + added.root : "Already in the list");
-      if (added) await autoGenerate(added);
-    });
-  } catch (e) {
-    say(String(e));
-    fatal("Could not import from URL", e);
-  }
-});
 
 // Roving tabindex over the list: one tab stop on the container, arrows
 // within it. Same reasoning as the generated page's own long lists — a
@@ -648,32 +605,6 @@ els.pickNvimConfig.addEventListener("click", async () => {
 /// user's Neovim config as a project. A real `nvim --headless` run, same
 /// order of latency as one `generate` call, so it gets the same
 /// placeholder-while-running treatment rather than a silent freeze.
-els.importNvim.addEventListener("click", async () => {
-  say("Importing projects from Neovim…");
-
-  try {
-    await withBusyButton(els.importNvim, "Importing…", async () => {
-      const res = await invoke("import_from_nvim_config");
-      await refresh();
-      if (res.added.length && !selectedId) await select(res.added[0].id);
-
-      const parts = [res.added.length + " added"];
-      if (res.already_present) parts.push(res.already_present + " already present");
-      if (res.errors.length) parts.push(res.errors.length + " failed");
-      say(res.found + " found in Neovim · " + parts.join(", "));
-      if (res.errors.length) {
-        showPlaceholder(
-          "Import finished with errors",
-          res.added.length + " of " + res.found + " project(s) were added."
-        );
-        appendLog(res.errors.join("\n"), true);
-      }
-    });
-  } catch (e) {
-    say(String(e));
-    fatal("Could not import from Neovim", e);
-  }
-});
 
 // ---------------------------------------------------------- generation
 
@@ -850,3 +781,199 @@ window.addEventListener("message", (ev) => {
     say(String(e));
   }
 })();
+
+// =====================================================================
+// Add a project — one door, three ways
+//
+// Folder, Neovim config and URL were three sidebar buttons. They are three
+// answers to one question ("where is the project"), and a sidebar that lists
+// them separately makes the reader compare three labels before doing the
+// thing they came to do. Tabs rather than a wizard: alternatives, not steps.
+//
+// Every action below is the same command the old buttons called. Nothing
+// about adding, importing or cloning changed — only how they are reached.
+// =====================================================================
+const addbox = {
+  el: document.getElementById("addbox"),
+  tabs: [...document.querySelectorAll(".addbox-tab")],
+  panes: [...document.querySelectorAll(".addbox-pane")],
+  url: document.getElementById("url-input"),
+  loadRepos: document.getElementById("load-repos"),
+  repoFilter: document.getElementById("repo-filter"),
+  repoState: document.getElementById("repo-state"),
+  repoList: document.getElementById("repo-list"),
+};
+
+/** Repositories as last listed, so filtering never re-runs the network call. */
+let repos = null;
+
+function showPane(id) {
+  addbox.tabs.forEach((t) => t.classList.toggle("on", t.dataset.pane === id));
+  addbox.panes.forEach((p) => p.classList.toggle("on", p.id === id));
+}
+
+addbox.tabs.forEach((tab) => {
+  tab.addEventListener("click", () => showPane(tab.dataset.pane));
+});
+
+els.add.addEventListener("click", () => {
+  showPane("pane-folder");
+  addbox.el.showModal();
+});
+
+/** Close, then run `fn` — the dialog must not sit over the result. */
+async function closeThen(fn) {
+  addbox.el.close();
+  try {
+    await fn();
+  } catch (e) {
+    // The same surface every other failure in this window uses. A dialog
+    // action that fails silently is worse here than elsewhere: the reader
+    // just asked for something specific.
+    say(String(e));
+  }
+}
+
+document.getElementById("pick-folder").addEventListener("click", () =>
+  closeThen(async () => {
+    const dir = await open({ directory: true, multiple: false, title: "Add project" });
+    if (!dir) return;
+    const before = new Set(projects.map((x) => x.id));
+    await refresh(await invoke("add_project", { root: dir }));
+    say(`Added ${dir}`);
+    const added = projects.find((x) => !before.has(x.id));
+    if (added) await autoGenerate(added);
+  })
+);
+
+document.getElementById("run-nvim-import").addEventListener("click", () =>
+  closeThen(async () => {
+    say("Reading the Neovim config…");
+    const res = await invoke("import_from_nvim_config");
+    await refresh();
+    say(
+      res.added.length +
+        " of " +
+        res.found +
+        " project(s) were added."
+    );
+  })
+);
+
+/** Clone whatever the URL field holds. Shared by the button and the list. */
+async function cloneUrl(url) {
+  if (!url) return;
+  await closeThen(async () => {
+    say(`Cloning ${url}…`);
+    await refresh(await invoke("import_from_url", { url }));
+    say(`Added ${url}`);
+  });
+}
+
+document
+  .getElementById("run-url-import")
+  .addEventListener("click", () => cloneUrl(addbox.url.value.trim()));
+addbox.url.addEventListener("keydown", (ev) => {
+  if (ev.key === "Enter") {
+    ev.preventDefault();
+    cloneUrl(addbox.url.value.trim());
+  }
+});
+
+// ---------------------------------------------------------------------
+// The GitHub pick-list
+//
+// Opt-in, never on open: listing repositories is a network call against
+// someone's account. Delegated to `gh`, so this program never holds a
+// credential — see `src-tauri/src/github.rs`.
+// ---------------------------------------------------------------------
+
+/** What to say for each way the listing can fail to produce a list. */
+const REPO_PROBLEMS = {
+  not_installed:
+    "GitHub CLI (gh) is not on PATH. Install it to pick from your repositories, " +
+    "or paste a URL above — that works either way.",
+  not_authenticated:
+    "GitHub CLI is installed but not signed in. Run `gh auth login` once, " +
+    "then try again. Pasting a URL above works either way.",
+  failed: "GitHub CLI could not list your repositories.",
+};
+
+function renderRepos() {
+  const q = (addbox.repoFilter.value || "").toLowerCase().trim();
+  const shown = (repos || []).filter(
+    (r) =>
+      !q ||
+      r.name_with_owner.toLowerCase().includes(q) ||
+      (r.description || "").toLowerCase().includes(q)
+  );
+
+  addbox.repoList.innerHTML = "";
+  shown.forEach((r) => {
+    const li = document.createElement("li");
+    li.className = "repo";
+
+    const name = document.createElement("span");
+    name.className = "repo-name";
+    name.textContent = r.name_with_owner;
+
+    const meta = document.createElement("span");
+    meta.className = "repo-meta";
+    // GitHub's own primary-language guess, labelled as theirs rather than
+    // presented as this app's answer — `scan_languages` counts a local tree
+    // itself, and conflating the two would make one look as measured as the
+    // other.
+    meta.textContent = [r.is_private ? "private" : null, r.language]
+      .filter(Boolean)
+      .join(" · ");
+
+    li.append(name, meta);
+    if (r.description) {
+      const d = document.createElement("span");
+      d.className = "repo-desc";
+      d.textContent = r.description;
+      li.append(d);
+    }
+
+    li.addEventListener("click", () => cloneUrl(r.url));
+    addbox.repoList.append(li);
+  });
+
+  addbox.repoList.hidden = shown.length === 0;
+  if (repos && shown.length === 0) {
+    addbox.repoState.textContent = q
+      ? `No repository matches “${q}”.`
+      : "That account has no repositories.";
+  } else if (repos) {
+    addbox.repoState.textContent = `${shown.length} of ${repos.length} repositories — click one to clone it.`;
+  }
+}
+
+addbox.loadRepos.addEventListener("click", async () => {
+  addbox.repoState.textContent = "Asking gh…";
+  addbox.loadRepos.disabled = true;
+  try {
+    const res = await invoke("list_github_repos");
+    if (res.problem) {
+      repos = null;
+      addbox.repoList.hidden = true;
+      addbox.repoFilter.hidden = true;
+      // `gh`'s own message, appended rather than replaced: the sentence
+      // above says what to do, and gh's says what happened.
+      addbox.repoState.textContent =
+        (REPO_PROBLEMS[res.problem] || REPO_PROBLEMS.failed) +
+        (res.message ? " — " + res.message : "");
+      return;
+    }
+    repos = res.repos;
+    addbox.repoFilter.hidden = false;
+    renderRepos();
+  } catch (e) {
+    addbox.repoState.textContent = String(e);
+  } finally {
+    addbox.loadRepos.disabled = false;
+  }
+});
+
+addbox.repoFilter.addEventListener("input", renderRepos);
+
