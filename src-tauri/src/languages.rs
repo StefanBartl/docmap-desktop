@@ -38,10 +38,23 @@ use std::path::Path;
 use serde::Serialize;
 
 /// One language found in a tree, with how many files carried it.
+///
+/// `grammar` is the join key against the engine's own `--capabilities`
+/// answer, and it is a tree-sitter grammar name rather than an engine
+/// backend name on purpose. The engine calls its TypeScript backend `ts`;
+/// nothing outside the engine knows that, and hardcoding it here would be
+/// the capability duplication this module's header refuses. A grammar name
+/// is a third-party vocabulary both sides already speak independently --
+/// the same class of fact as the extension-to-name table, and it rots the
+/// same way that one does, which is to say not at all.
+///
+/// `None` for a language with no tree-sitter grammar worth naming here. The
+/// frontend renders that as unknown rather than unsupported.
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct LanguageCount {
     pub name: String,
     pub files: u32,
+    pub grammar: Option<String>,
 }
 
 /// The whole verdict for one directory.
@@ -145,48 +158,49 @@ const SKIP_DIRS: &[&str] = &[
 /// reader is asking about (`.h` is C here; `.hpp` is C++), and stay apart
 /// where it is (JavaScript vs. TypeScript, which are separate engine backends
 /// and separate answers to "can this be mapped").
-fn language_for(ext: &str) -> Option<&'static str> {
-    Some(match ext {
-        "lua" => "Lua",
-        "js" | "mjs" | "cjs" => "JavaScript",
-        "jsx" => "JSX",
-        "ts" | "mts" | "cts" => "TypeScript",
-        "tsx" => "TSX",
-        "py" | "pyi" => "Python",
-        "rs" => "Rust",
-        "go" => "Go",
-        "c" | "h" => "C",
-        "cc" | "cpp" | "cxx" | "hpp" | "hh" | "hxx" => "C++",
-        "cs" => "C#",
-        "java" => "Java",
-        "kt" | "kts" => "Kotlin",
-        "swift" => "Swift",
-        "m" | "mm" => "Objective-C",
-        "rb" => "Ruby",
-        "php" => "PHP",
-        "pl" | "pm" => "Perl",
-        "sh" | "bash" | "zsh" => "Shell",
-        "ps1" | "psm1" => "PowerShell",
-        "vim" => "Vimscript",
-        "el" => "Emacs Lisp",
-        "ex" | "exs" => "Elixir",
-        "erl" | "hrl" => "Erlang",
-        "hs" => "Haskell",
-        "ml" | "mli" => "OCaml",
-        "scala" | "sc" => "Scala",
-        "clj" | "cljs" | "cljc" => "Clojure",
-        "dart" => "Dart",
-        "zig" => "Zig",
-        "nim" => "Nim",
-        "jl" => "Julia",
-        "r" => "R",
-        "sql" => "SQL",
-        "vue" => "Vue",
-        "svelte" => "Svelte",
-        "css" | "scss" | "sass" | "less" => "CSS",
-        "html" | "htm" => "HTML",
+fn language_for(ext: &str) -> Option<(&'static str, Option<&'static str>)> {
+    let (name, grammar) = match ext {
+        "lua" => ("Lua", "lua"),
+        "js" | "mjs" | "cjs" => ("JavaScript", "javascript"),
+        "jsx" => ("JSX", "javascript"),
+        "ts" | "mts" | "cts" => ("TypeScript", "typescript"),
+        "tsx" => ("TSX", "tsx"),
+        "py" | "pyi" => ("Python", "python"),
+        "rs" => ("Rust", "rust"),
+        "go" => ("Go", "go"),
+        "c" | "h" => ("C", "c"),
+        "cc" | "cpp" | "cxx" | "hpp" | "hh" | "hxx" => ("C++", "cpp"),
+        "cs" => ("C#", "c_sharp"),
+        "java" => ("Java", "java"),
+        "kt" | "kts" => ("Kotlin", "kotlin"),
+        "swift" => ("Swift", "swift"),
+        "m" | "mm" => ("Objective-C", "objc"),
+        "rb" => ("Ruby", "ruby"),
+        "php" => ("PHP", "php"),
+        "pl" | "pm" => ("Perl", "perl"),
+        "sh" | "bash" | "zsh" => ("Shell", "bash"),
+        "ps1" | "psm1" => ("PowerShell", "powershell"),
+        "vim" => ("Vimscript", "vim"),
+        "el" => ("Emacs Lisp", "elisp"),
+        "ex" | "exs" => ("Elixir", "elixir"),
+        "erl" | "hrl" => ("Erlang", "erlang"),
+        "hs" => ("Haskell", "haskell"),
+        "ml" | "mli" => ("OCaml", "ocaml"),
+        "scala" | "sc" => ("Scala", "scala"),
+        "clj" | "cljs" | "cljc" => ("Clojure", "clojure"),
+        "dart" => ("Dart", "dart"),
+        "zig" => ("Zig", "zig"),
+        "nim" => ("Nim", "nim"),
+        "jl" => ("Julia", "julia"),
+        "r" => ("R", "r"),
+        "sql" => ("SQL", "sql"),
+        "vue" => ("Vue", "vue"),
+        "svelte" => ("Svelte", "svelte"),
+        "css" | "scss" | "sass" | "less" => ("CSS", "css"),
+        "html" | "htm" => ("HTML", "html"),
         _ => return None,
-    })
+    };
+    Some((name, Some(grammar)))
 }
 
 /// Is this directory its own repository, rather than part of the one being
@@ -234,7 +248,7 @@ pub fn scan(root: &Path, map_dir: Option<&Path>) -> Result<LanguageScan, String>
         .map(|p| p.to_path_buf())
         .unwrap_or_else(|| root.join("docs").join("map"));
 
-    let mut counts: HashMap<&'static str, u32> = HashMap::new();
+    let mut counts: HashMap<&'static str, (u32, Option<&'static str>)> = HashMap::new();
     let mut visited = 0usize;
     let mut truncated = false;
     let mut stack = vec![root.to_path_buf()];
@@ -282,8 +296,9 @@ pub fn scan(root: &Path, map_dir: Option<&Path>) -> Result<LanguageScan, String>
                 Some((_, ext)) if !ext.is_empty() => ext.to_lowercase(),
                 _ => continue,
             };
-            if let Some(lang) = language_for(&ext) {
-                *counts.entry(lang).or_insert(0) += 1;
+            if let Some((lang, grammar)) = language_for(&ext) {
+                let slot = counts.entry(lang).or_insert((0, grammar));
+                slot.0 += 1;
             }
         }
 
@@ -292,12 +307,13 @@ pub fn scan(root: &Path, map_dir: Option<&Path>) -> Result<LanguageScan, String>
         }
     }
 
-    let total: u32 = counts.values().sum();
+    let total: u32 = counts.values().map(|(n, _)| n).sum();
     let mut languages: Vec<LanguageCount> = counts
         .into_iter()
-        .map(|(name, files)| LanguageCount {
+        .map(|(name, (files, grammar))| LanguageCount {
             name: name.to_string(),
             files,
+            grammar: grammar.map(str::to_string),
         })
         .collect();
 
@@ -318,6 +334,18 @@ pub fn scan(root: &Path, map_dir: Option<&Path>) -> Result<LanguageScan, String>
 mod tests {
     use super::*;
     use std::fs;
+
+    /// One expected row. Spelling the grammar out at every call site rather
+    /// than deriving it from `language_for` -- a test that computed the
+    /// expected value the same way the code does would pass with the join
+    /// key wrong, which is the one thing these assertions exist to catch.
+    fn lc(name: &str, files: u32, grammar: &str) -> LanguageCount {
+        LanguageCount {
+            name: name.into(),
+            files,
+            grammar: Some(grammar.into()),
+        }
+    }
 
     /// A throwaway tree under the OS temp dir. Named per test so two tests
     /// running in parallel (which `cargo test` does by default) cannot see
@@ -344,9 +372,9 @@ mod tests {
         assert_eq!(
             scan.languages,
             vec![
-                LanguageCount { name: "Python".into(), files: 3 },
-                LanguageCount { name: "Rust".into(), files: 2 },
-                LanguageCount { name: "Lua".into(), files: 1 },
+                lc("Python", 3, "python"),
+                lc("Rust", 2, "rust"),
+                lc("Lua", 1, "lua"),
             ]
         );
         assert_eq!(scan.total, 6);
@@ -381,7 +409,7 @@ mod tests {
         // partly "HTML" the moment it was generated.
         assert_eq!(
             scan.languages,
-            vec![LanguageCount { name: "Rust".into(), files: 1 }]
+            vec![lc("Rust", 1, "rust")]
         );
     }
 
@@ -398,8 +426,8 @@ mod tests {
         assert_eq!(
             scan.languages,
             vec![
-                LanguageCount { name: "HTML".into(), files: 1 },
-                LanguageCount { name: "Lua".into(), files: 1 },
+                lc("HTML", 1, "html"),
+                lc("Lua", 1, "lua"),
             ]
         );
     }
@@ -418,7 +446,7 @@ mod tests {
         let scan = scan(&root, None).unwrap();
         assert_eq!(
             scan.languages,
-            vec![LanguageCount { name: "Lua".into(), files: 1 }]
+            vec![lc("Lua", 1, "lua")]
         );
     }
 

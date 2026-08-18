@@ -330,6 +330,11 @@ button:focus-visible {
   font-size: 11.5px;
   color: var(--muted);
   overflow-wrap: anywhere;
+  /* The language list is a second line, set as a newline in textContent
+     rather than a second element: it is the same sentence about the same
+     engine, and `pre-line` keeps the break without letting the long paths
+     above it stop wrapping. */
+  white-space: pre-line;
 }
 
 .engine-state.missing {

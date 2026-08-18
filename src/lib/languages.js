@@ -83,15 +83,29 @@ export function badgeText(scan) {
  *
  * Returns a string rather than DOM so both callers can decide where to put
  * it, and so this stays testable without a document.
+ *
+ * `support` is optional: without it the line reports what is there, with it
+ * the line also reports what the engine will do about it. Omitted rather
+ * than required so the count is still shown while the engine probe is in
+ * flight or has failed -- a partial answer beats no line at all.
  */
-export function summaryText(scan) {
+export function summaryText(scan, support) {
   if (!scan) return "";
   if (!scan.total) {
     return "No recognised source files — nothing here for the engine to map.";
   }
 
   const { shares, rest } = topShares(scan, { max: 6, minPercent: 1 });
-  const parts = shares.map((s) => `${s.percent} % ${s.name} (${s.files})`);
+  const parts = shares.map((s) => {
+    // Only the two states that change what the reader should expect are
+    // marked. Annotating "full" too would put a tag on every entry of a
+    // normal project and turn the line into a legend -- the note exists for
+    // the exception, not as a per-language verdict.
+    const state = support?.get(s.name);
+    const note =
+      state === "none" ? " — no backend" : state === "degraded" ? " — no grammar" : "";
+    return `${s.percent} % ${s.name} (${s.files})${note}`;
+  });
   if (rest > 0) parts.push(`${rest} more`);
 
   let line = parts.join(" · ");
@@ -102,4 +116,78 @@ export function summaryText(scan) {
     line += " — counted from a partial walk of a very large tree";
   }
   return line;
+}
+
+/**
+ * What the engine can do with each language the count found.
+ *
+ * Joined on the tree-sitter grammar name, which both sides know
+ * independently — the engine reports it in `--capabilities`, the counter
+ * carries it per language, and neither had to be told the other's
+ * vocabulary. Joining on backend names instead would mean this file knowing
+ * that the engine calls TypeScript `ts`, which is exactly the capability
+ * duplication the Rust side refuses to commit.
+ *
+ * Four states, and the fourth is the one worth spelling out:
+ *
+ *   "full"      a backend, and its grammar loaded — function-level data
+ *   "degraded"  a backend whose grammar is missing — module tree only
+ *   "none"      no backend for this language at all
+ *   "unknown"   this engine cannot be asked (predates the field)
+ *
+ * `unknown` is not `none`. An older engine that reads Lua perfectly well
+ * would be reported as unable to read anything, and the advice that follows
+ * from the two is opposite: one is "this will not work", the other is "this
+ * works, it just cannot explain itself".
+ */
+export function supportFor(scan, engineLanguages) {
+  const known = engineLanguages?.languages ?? null;
+  const out = new Map();
+  if (!scan) return out;
+
+  for (const lang of scan.languages) {
+    if (!known) {
+      out.set(lang.name, "unknown");
+      continue;
+    }
+    // A backend can be registered under several names for one grammar, and
+    // a language can in principle map to none — `find` over a handful of
+    // entries is cheaper than building an index for a list this short.
+    const backend = lang.grammar
+      ? known.find((b) => b.grammar === lang.grammar)
+      : undefined;
+    if (!backend) {
+      out.set(lang.name, "none");
+    } else {
+      // `grammar_loaded === false` is a real answer; `null`/absent means the
+      // backend needs no parser, which is full fidelity, not a degradation.
+      out.set(lang.name, backend.grammar_loaded === false ? "degraded" : "full");
+    }
+  }
+  return out;
+}
+
+/**
+ * The engine's own backend list, for the Engine panel.
+ *
+ * Grouped rather than annotated per entry. Repeating "(no grammar — module
+ * tree only)" after each of three backends says one thing three times and
+ * pushes the line past the panel width; the caveat is a property of a set
+ * here, not of each member.
+ */
+export function engineLanguageText(engineLanguages) {
+  const known = engineLanguages?.languages ?? null;
+  if (!known) {
+    return "This engine is older than the language list — it cannot say which languages it reads.";
+  }
+  if (!known.length) return "This engine reports no language backends at all.";
+
+  // `grammar_loaded === false` is the only degraded state: `null` means the
+  // backend needs no parser, which is full fidelity.
+  const full = known.filter((b) => b.grammar_loaded !== false).map((b) => b.name);
+  const missing = known.filter((b) => b.grammar_loaded === false).map((b) => b.name);
+
+  if (!missing.length) return full.join(" · ");
+  const tail = `no grammar for ${missing.join(", ")} — module tree only`;
+  return full.length ? `${full.join(" · ")} · ${tail}` : tail;
 }
