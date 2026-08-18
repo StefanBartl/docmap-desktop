@@ -76,8 +76,10 @@ angefangen.
 
 | Repo | Branch | Enthält |
 |---|---|---|
-| `documentation.nvim` | `feat/lookup-layer` | 1 Commit, nur Doku. Alle 5 Gates grün, Karte regeneriert |
-| `docmap-desktop` | `claude/doc-apps-convergence-plan-b8c69f` | Doku + `scan_languages` (Rust + JS + UI), `cargo test` 12/12, `node --test` 18/18 |
+| `documentation.nvim` | `feat/lookup-layer` | 2 Commits: Planung (Doku) und `lang_registry.report()` + `languages` in `--capabilities`. Alle 5 Gates grün, Karte regeneriert |
+| `docmap-desktop` | `claude/doc-apps-convergence-plan-b8c69f` | 3 Commits: `scan_languages` (Zählen), `engine_languages` (Fähigkeiten lesen), Join beider. `cargo test` 12/12, `node --test` 27/27 |
+
+**Nichts ist gepusht.** Beide Branches sind lokal.
 
 ### Was als Nächstes dran ist, in dieser Reihenfolge
 
@@ -89,13 +91,21 @@ hat wandert dorthin, wo es in `documentation.nvim` auch passt.
    Kanten-Popup weiter unten. Konkret zu prüfen: bricht die dritte Zeile in
    der Projektliste die Zeilenhöhe, und ist der `title`-Tooltip mit der
    vollen Aufschlüsselung erreichbar.
-2. **`--capabilities` um `languages` erweitern** (Engine, klein: die Liste
-   aus der Registry lesen, wie `routes` aus `core/api.routes` gelesen wird).
-   Danach kann das Engine-Panel sagen, *welche* Sprache eine Grammatik
-   vermisst, statt „ready / no grammars". Erst damit kann der Desktop
-   „68 % Python — dafür gibt es kein Backend" sagen; heute zählt er nur.
-   Rückwärtskompatibel: fehlendes Feld = ältere Engine, dieselbe
-   Unterscheidung, die `server.rs` für `--api` schon trifft.
+2. ~~`--capabilities` um `languages` erweitern~~ — **gebaut.** Der Join
+   steht: Zählung (Desktop) mal Backend-Liste (Engine), verbunden über den
+   **Tree-sitter-Grammatiknamen**, nicht über den Backend-Namen. Die Engine
+   nennt ihr TypeScript-Backend `ts`; das weiß außerhalb der Engine niemand,
+   und es hier zu wissen wäre genau die Duplizierung, die `languages.rs`
+   verweigert. Vier Zustände, und die zwei leicht zu verwechselnden sind die
+   wichtigen: `degraded` (Backend da, Grammatik fehlt — nur Modulbaum) ist
+   nicht `none` (gar kein Backend), und `unknown` (ältere Engine) ist auch
+   nicht `none` — eine alte Engine liest Lua einwandfrei, und „kein Backend"
+   würde den Nutzer etwas reparieren schicken, das funktioniert.
+
+   **Was aber noch fehlt: eine Engine, die das Feld hat.** `C:	ools\docmap.exe`
+   ist älter und antwortet ohne `languages` — verifiziert, das ist der
+   `unknown`-Pfad. Voller Nutzen erst nach einem Engine-Rebuild (Rezept
+   weiter oben in diesem Dokument) oder einem neuen `standalone-latest`.
 3. **Grammatik-Manager** im Desktop: Liste plus Download aus
    `standalone-latest`. Ersetzt den Handarbeits-Abschnitt in diesem
    Dokument.
@@ -115,6 +125,12 @@ hat wandert dorthin, wo es in `documentation.nvim` auch passt.
   jetzt jedes Unterverzeichnis, das ein eigener Checkout ist (`.git`
   *existiert*, nicht *ist ein Verzeichnis* — in Worktree und Submodul ist es
   eine Datei).
+- **Der Fähigkeits-Join ist Ende zu Ende geprüft, ohne Engine-Rebuild.**
+  Echtes JSON aus der neuen Registry (unter Neovim erzeugt) durch die neue
+  Frontend-Schicht: Engine-Panel „lua · no grammar for js, ts, tsx — module
+  tree only", Tooltip für dieses Repo „54 % JavaScript (7) — no grammar ·
+  31 % Rust (4) — no backend". Beides wahr, beides vorher unsichtbar.
+  Dieses Neovim hat die Lua-Grammatik und die drei ECMA-Grammatiken nicht.
 - **Noch nicht gemessen:** ob `scan.lua`s Walk wirklich polyglott ist. Er
   fragt die Registry pro Datei (Z. 415) und pro Verzeichnis (Z. 310), also
   *sollte* ein gemischter Baum funktionieren. Das ist genau die Art
