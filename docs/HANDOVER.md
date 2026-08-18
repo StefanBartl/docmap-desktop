@@ -102,7 +102,7 @@ hat wandert dorthin, wo es in `documentation.nvim` auch passt.
    nicht `none` — eine alte Engine liest Lua einwandfrei, und „kein Backend"
    würde den Nutzer etwas reparieren schicken, das funktioniert.
 
-   **Was aber noch fehlt: eine Engine, die das Feld hat.** `C:	ools\docmap.exe`
+   **Was aber noch fehlt: eine Engine, die das Feld hat.** `C:\tools\docmap.exe`
    ist älter und antwortet ohne `languages` — verifiziert, das ist der
    `unknown`-Pfad. Voller Nutzen erst nach einem Engine-Rebuild (Rezept
    weiter oben in diesem Dokument) oder einem neuen `standalone-latest`.
