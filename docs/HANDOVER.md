@@ -76,8 +76,8 @@ angefangen.
 
 | Repo | Branch | Enthält |
 |---|---|---|
-| `documentation.nvim` | `feat/lookup-layer` | 2 Commits: Planung (Doku) und `lang_registry.report()` + `languages` in `--capabilities`. Alle 5 Gates grün, Karte regeneriert |
-| `docmap-desktop` | `claude/doc-apps-convergence-plan-b8c69f` | 3 Commits: `scan_languages` (Zählen), `engine_languages` (Fähigkeiten lesen), Join beider. `cargo test` 12/12, `node --test` 27/27 |
+| `documentation.nvim` | `feat/lookup-layer` | 3 Commits: Planung (Doku), `lang_registry.report()` + `languages` in `--capabilities`, Keyword-Hover im Snippet. Alle 5 Gates grün, Karte regeneriert |
+| `docmap-desktop` | `claude/doc-apps-convergence-plan-b8c69f` | 4 Commits: `scan_languages` (Zählen), `engine_languages` (Fähigkeiten lesen), Join beider, ehrliches Engine-Verdikt. `cargo test` 12/12, `node --test` 31/31 |
 
 **Nichts ist gepusht.** Beide Branches sind lokal.
 
@@ -106,14 +106,27 @@ hat wandert dorthin, wo es in `documentation.nvim` auch passt.
    ist älter und antwortet ohne `languages` — verifiziert, das ist der
    `unknown`-Pfad. Voller Nutzen erst nach einem Engine-Rebuild (Rezept
    weiter oben in diesem Dokument) oder einem neuen `standalone-latest`.
-3. **Grammatik-Manager** im Desktop: Liste plus Download aus
-   `standalone-latest`. Ersetzt den Handarbeits-Abschnitt in diesem
-   Dokument.
-4. **Keyword-Hover**, gebaut in `render/html.lua`, geprüft im
-   Desktop-Fenster. Nicht im Desktop *gebaut* — der Schnipsel gehört dem
-   Artefakt, und eine App, die selbst Quellcode rendert, wäre die
-   Fehlabbiegung, vor der `docs/ROADMAP.md`s erster Absatz warnt.
-5. **Stufe 1 des Multilang-Plans** (Polyglot-Verifikation) — noch offen,
+3. ~~Grammatik-Manager~~ — **verworfen, mit Begründung.** Der Download-Teil
+   lädt native Shared Libraries nach, die die Engine per `dlopen` ausführt,
+   und zwar von einem rollenden Tag (`gh release delete standalone-latest`
+   dann `create`) ohne veröffentlichte Prüfsumme: was heute dort liegt, ist
+   nicht, was gestern dort lag, und es gibt keine Version zum Festnageln. Im
+   CI in Ordnung, als Knopf in einer installierten App ein stiller
+   Update-Kanal für ungeprüften ausführbaren Code. Dazu: `release.yml` bündelt
+   die Grammatiken ohnehin in jeden Installer (`resolve_grammars` fällt auf
+   das Ressourcenverzeichnis zurück), die Zielgruppe wäre also fast leer.
+
+   **Was davon offen bleibt und sich lohnt: die Diagnose-Hälfte** — welche
+   Grammatikdatei fehlt in welchem Verzeichnis. Kein Netz, keine neue
+   Abhängigkeit.
+4. ~~Keyword-Hover~~ — **gebaut** in `render/html.lua`, gegen zwölf echte
+   Eingaben gemessen (Keywords in Strings, Kommentaren, Long-Strings,
+   Template-Literalen bleiben undekoriert; `.rs` dekoriert gar nichts).
+   **Im Desktop-Fenster noch nicht angesehen** — das ist der eigentliche
+   nächste Schritt, zusammen mit Punkt 1.
+5. **Grammatik-Diagnose** (siehe 3) im Desktop: Liste plus Download aus
+   `standalone-latest` **entfällt** — nur noch: welche Datei fehlt wo.
+6. **Stufe 1 des Multilang-Plans** (Polyglot-Verifikation) — noch offen,
    und die Voraussetzung für jedes weitere Backend.
 
 ### Was schon gemessen ist
@@ -131,6 +144,15 @@ hat wandert dorthin, wo es in `documentation.nvim` auch passt.
   tree only", Tooltip für dieses Repo „54 % JavaScript (7) — no grammar ·
   31 % Rust (4) — no backend". Beides wahr, beides vorher unsichtbar.
   Dieses Neovim hat die Lua-Grammatik und die drei ECMA-Grammatiken nicht.
+- **Der Keyword-Tokenizer ist gegen zwölf echte Eingaben gemessen**, aus der
+  *generierten Seite* herausgezogen statt aus der Quelle nachgebaut: Keywords
+  in Strings, Zeilen- und Blockkommentaren, Lua-Long-Strings und
+  Template-Literalen bleiben undekoriert, während die umgebenden echten
+  Keywords gefunden werden; ein escapetes Anführungszeichen beendet den
+  String nicht zu früh; `constructor`/`toString` fallen nicht auf
+  `Object.prototype` herein (die Suche geht über `hasOwnProperty`);
+  `android` matcht nicht `and`; `.rs` dekoriert gar nichts.
+- **Nicht angesehen:** die Karte selbst. Kein Screenshot in dieser Umgebung.
 - **Noch nicht gemessen:** ob `scan.lua`s Walk wirklich polyglott ist. Er
   fragt die Registry pro Datei (Z. 415) und pro Verzeichnis (Z. 310), also
   *sollte* ein gemischter Baum funktionieren. Das ist genau die Art
