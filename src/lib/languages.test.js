@@ -9,6 +9,7 @@ import {
   summaryText,
   supportFor,
   engineLanguageText,
+  engineVerdict,
 } from "./languages.js";
 
 /** A fake `invoke` that returns queued results/errors and records its args. */
@@ -236,4 +237,36 @@ test("engineLanguageText with nothing loaded at all leads with the caveat", () =
     engineLanguageText(engine([["js", "javascript", false]])),
     "no grammar for js — module tree only"
   );
+});
+
+test("engineVerdict reports a partly-equipped engine as such, not as ready", () => {
+  // The bug this replaced: the verdict came from whether a grammars
+  // directory resolved, so a directory holding only lua.dll read "ready".
+  const eng = { path: "/bin/docmap", grammars: "/g" };
+  assert.equal(
+    engineVerdict(eng, engine([
+      ["lua", "lua", true],
+      ["js", "javascript", false],
+      ["ts", "typescript", false],
+      ["tsx", "tsx", false],
+    ])),
+    "1 of 4 grammars"
+  );
+});
+
+test("engineVerdict is ready only when nothing is missing", () => {
+  const eng = { path: "/bin/docmap", grammars: "/g" };
+  assert.equal(engineVerdict(eng, engine([["lua", "lua", true]])), "ready");
+  // A backend needing no parser is not a missing grammar.
+  assert.equal(engineVerdict(eng, engine([["lua", "lua", null]])), "ready");
+  assert.equal(engineVerdict(eng, engine([["js", "javascript", false]])), "no grammars");
+});
+
+test("engineVerdict falls back to the directory proxy for an engine that cannot be asked", () => {
+  assert.equal(engineVerdict({ path: "/bin/docmap", grammars: "/g" }, { languages: null }), "ready");
+  assert.equal(engineVerdict({ path: "/bin/docmap", grammars: null }, { languages: null }), "no grammars");
+});
+
+test("engineVerdict says not found before anything else", () => {
+  assert.equal(engineVerdict({ path: null }, engine([["lua", "lua", true]])), "not found");
 });

@@ -27,6 +27,7 @@ import {
   summaryText,
   supportFor,
   engineLanguageText,
+  engineVerdict,
 } from "./lib/languages.js";
 
 function fatal(what, err) {
@@ -401,7 +402,7 @@ function renderEngine() {
     e.className = "engine-state missing";
     e.textContent =
       "Not found. This is documentation.nvim's standalone binary — put it on PATH, or Locate… it.";
-    s.textContent = "not found";
+    s.textContent = engineVerdict(engine, engineLangs);
   } else {
     e.className = "engine-state";
     e.textContent =
@@ -413,7 +414,11 @@ function renderEngine() {
     // Fidelity, not the path: with the engine on PATH the path never
     // changes and is not worth a line, while "will this run produce
     // per-function data" is the one thing that differs run to run.
-    s.textContent = engine.grammars ? "ready" : "no grammars";
+    //
+    // Asked of the engine rather than inferred from the grammars directory
+    // -- see `engineVerdict` for the failure that inference had: a
+    // directory holding one grammar out of four read "ready".
+    s.textContent = engineVerdict(engine, engineLangs);
 
     // Which languages, on the line below the path. Inside the panel, which
     // is collapsed by default -- the summary above still carries the

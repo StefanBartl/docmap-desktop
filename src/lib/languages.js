@@ -191,3 +191,35 @@ export function engineLanguageText(engineLanguages) {
   const tail = `no grammar for ${missing.join(", ")} — module tree only`;
   return full.length ? `${full.join(" · ")} · ${tail}` : tail;
 }
+
+/**
+ * The one-word verdict in the Engine panel's summary, which stays visible
+ * when the panel is collapsed.
+ *
+ * Previously computed from whether a grammars *directory* resolved, which
+ * is a proxy for the question and not the question. A directory holding
+ * only `lua.dll` resolved, so the summary read "ready" while three of four
+ * backends silently produced module-tree-only data — the exact silent
+ * degradation this ecosystem treats as its most expensive failure mode,
+ * sitting in the indicator meant to prevent it.
+ *
+ * Now: ask the engine, and fall back to the directory proxy only when the
+ * engine is too old to be asked. The fallback is not an improvement on the
+ * old behaviour and is not meant to be — it *is* the old behaviour, kept
+ * for the case where nothing better is available, rather than reporting
+ * "unknown" at a machine where the proxy was right all along.
+ */
+export function engineVerdict(engine, engineLanguages) {
+  if (!engine?.path) return "not found";
+
+  const known = engineLanguages?.languages ?? null;
+  if (!known || !known.length) return engine.grammars ? "ready" : "no grammars";
+
+  const wanting = known.filter((b) => b.grammar_loaded === false).length;
+  if (!wanting) return "ready";
+  if (wanting === known.length) return "no grammars";
+  // Named as a count rather than "partial": the reader's next question is
+  // "how much is missing", and a word that hides the number would only make
+  // them open the panel to find out.
+  return `${known.length - wanting} of ${known.length} grammars`;
+}
