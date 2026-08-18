@@ -56,10 +56,101 @@ PORTABILITY.md, Step 5 (2026-08-12).
 
 ---
 
-## Offen
+## Offen — Sprachachsen, Stand 2026-08-18
 
-Nichts Umsetzbares im Moment — siehe „Blockiert" unten für die beiden
-Punkte, die auf externen Input warten.
+Zwei Vorhaben, die den gleichen Wortstamm teilen und sonst nichts:
+**Multilang** (welche Programmiersprachen die Engine *liest*) und **i18n**
+(welche Oberflächensprache sie *spricht*). Beide sind geplant, eines hat
+angefangen.
+
+**Die Pläne, kanonisch, nicht doppelt gepflegt:**
+
+| Dokument | Inhalt |
+|---|---|
+| `documentation.nvim/docs/ROADMAP/IDEAS/MULTILANG.md`, **Part 4** | Stufenplan 1–8. Ersetzt Part 2s Reihenfolge und folgt dabei Part 3s eigener Empfehlung: **C vor Python**, weil C weder Owning-Scope noch Ein-File-viele-Module braucht und deshalb *neben* den geteilten Nähten landen kann, wie JS/TS damals |
+| `documentation.nvim/docs/ROADMAP/IDEAS/I18N.md` | Neu. Drei Flächen, davon `render/html.lua` ~85 % der Arbeit (7 433 Zeilen gegen 14 `vim.notify`-Stellen im ganzen Plugin) |
+| `documentation.nvim/docs/ROADMAP/IDEAS/ReferenceTab.md`, Abschnitt „The lookup layer" | Keyword-Hover und Verwandtes. Eine Registry, vier Auslöseflächen |
+| `docmap-desktop/docs/ROADMAP.md`, Abschnitte „Languages" / „Interface languages" | Nur die Hüllen-Hälfte |
+
+**Branches:**
+
+| Repo | Branch | Enthält |
+|---|---|---|
+| `documentation.nvim` | `feat/lookup-layer` | 1 Commit, nur Doku. Alle 5 Gates grün, Karte regeneriert |
+| `docmap-desktop` | `claude/doc-apps-convergence-plan-b8c69f` | Doku + `scan_languages` (Rust + JS + UI), `cargo test` 12/12, `node --test` 18/18 |
+
+### Was als Nächstes dran ist, in dieser Reihenfolge
+
+Vereinbart: **Desktop zuerst**, ausdebuggen, und erst was sich dort bewährt
+hat wandert dorthin, wo es in `documentation.nvim` auch passt.
+
+1. **Sprach-Badges am echten Fenster ansehen.** Gebaut, aber **nicht visuell
+   geprüft** — dieselbe Schuld wie beim eingeklappten Engine-Panel und dem
+   Kanten-Popup weiter unten. Konkret zu prüfen: bricht die dritte Zeile in
+   der Projektliste die Zeilenhöhe, und ist der `title`-Tooltip mit der
+   vollen Aufschlüsselung erreichbar.
+2. **`--capabilities` um `languages` erweitern** (Engine, klein: die Liste
+   aus der Registry lesen, wie `routes` aus `core/api.routes` gelesen wird).
+   Danach kann das Engine-Panel sagen, *welche* Sprache eine Grammatik
+   vermisst, statt „ready / no grammars". Erst damit kann der Desktop
+   „68 % Python — dafür gibt es kein Backend" sagen; heute zählt er nur.
+   Rückwärtskompatibel: fehlendes Feld = ältere Engine, dieselbe
+   Unterscheidung, die `server.rs` für `--api` schon trifft.
+3. **Grammatik-Manager** im Desktop: Liste plus Download aus
+   `standalone-latest`. Ersetzt den Handarbeits-Abschnitt in diesem
+   Dokument.
+4. **Keyword-Hover**, gebaut in `render/html.lua`, geprüft im
+   Desktop-Fenster. Nicht im Desktop *gebaut* — der Schnipsel gehört dem
+   Artefakt, und eine App, die selbst Quellcode rendert, wäre die
+   Fehlabbiegung, vor der `docs/ROADMAP.md`s erster Absatz warnt.
+5. **Stufe 1 des Multilang-Plans** (Polyglot-Verifikation) — noch offen,
+   und die Voraussetzung für jedes weitere Backend.
+
+### Was schon gemessen ist
+
+- **Der Sprachzähler stimmt gegen Handzählung.** `documentation.nvim`: 142
+  Lua-Dateien = 98 (`lua/`) + 33 (`TESTS`) + 4 (`standalone`) + 6
+  (`scripts`) + 1 (`docs`). Erster Lauf meldete 448 — 306 davon waren
+  Kopien des Repos unter `.claude/worktrees/`. Deshalb überspringt der Walk
+  jetzt jedes Unterverzeichnis, das ein eigener Checkout ist (`.git`
+  *existiert*, nicht *ist ein Verzeichnis* — in Worktree und Submodul ist es
+  eine Datei).
+- **Noch nicht gemessen:** ob `scan.lua`s Walk wirklich polyglott ist. Er
+  fragt die Registry pro Datei (Z. 415) und pro Verzeichnis (Z. 310), also
+  *sollte* ein gemischter Baum funktionieren. Das ist genau die Art
+  Behauptung, die Part 2 des Multilang-Dokuments selbst zu prüfen verlangt,
+  statt sie zu glauben.
+
+### Entscheidungen, die noch offen sind
+
+1. **Hat die Engine inzwischen Nutzer?** Falls ja, wird die
+   Schema-Versionierung (Stufe 3.1) von einer Nebenaufgabe zur harten
+   Anforderung — die IR-Änderungen sind brechend.
+2. **Referenz-Links im Keyword-Hover.** Die Erklärung selbst ist offline und
+   veraltet nicht; der Link kann es. Entschieden: eine Basis-URL pro
+   Sprache mit abgeleiteten Ankern statt hunderter Einzel-URLs, Lua auf 5.1
+   gepinnt (Neovim läuft LuaJIT — die 5.4-Doku führt bei `goto`,
+   Integer-Division und `<close>` aktiv in die Irre). Ungeprüft ist, ob
+   MDNs URL-Struktur für JS/TS dasselbe hergibt.
+3. **Cross-Language-Kanten (Stufe 7)** sind der originellste Punkt der
+   Planung und der, der am ehesten Bedeutung erfindet, wo nur
+   Namensgleichheit ist.
+
+### Gates, unverändert
+
+`documentation.nvim`: `nvim --headless -l scripts/ci.lua` — 5 Gates. Eine
+Doku-Änderung macht die Karte stale; danach
+`nvim --headless -l scripts/gen_map.lua` und das Ergebnis mitcommitten.
+
+`docmap-desktop`: `cargo test` in `src-tauri/` und `node --test src/lib/*.test.js`.
+`cargo test` braucht vorher die Platzhalter, die CI auch anlegt (beide sind
+`.gitignore`d):
+
+```
+mkdir -p src-tauri/binaries src-tauri/resources/grammars
+touch src-tauri/binaries/docmap-x86_64-pc-windows-msvc.exe
+touch src-tauri/resources/grammars/placeholder.dll
+```
 
 ---
 
