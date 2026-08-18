@@ -74,6 +74,21 @@ jobs:
         with:
           node-version: "22"
 
+      # `node --test` only ever loads what a test imports, and nothing
+      # imports `src/main.js` — it needs `window.__TAURI__`, so it cannot be
+      # unit-tested as it stands. That left the ~700 lines that *are* the
+      # user interface with no syntax gate whatsoever, and a shipped,
+      # unterminated string literal in `renderEngine` proved it: the module
+      # failed to parse, so every control in the sidebar did nothing, and the
+      # Rust and lib tests stayed green through all of it.
+      - name: node --check (the frontend actually parses)
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in src/*.js src/lib/*.js; do
+            node --check "$f"
+          done
+
       - name: node --test
         shell: bash
         run: node --test src/lib/*.test.js

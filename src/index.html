@@ -20,11 +20,11 @@
       </header>
 
       <div class="actions">
-        <button id="add" type="button">Add project…</button>
-        <button id="gen" type="button" disabled>Generate map</button>
-        <button id="gen-all" type="button" disabled>Generate all</button>
-        <button id="import-nvim" type="button">Import from Neovim…</button>
-        <button id="import-url" type="button">Import from URL…</button>
+        <button id="add" data-help="Pick a folder to add. It does not need a map yet — if it has none and an engine is configured, one is generated right away, because there is nothing to overwrite." type="button">Add project…</button>
+        <button id="gen" data-help="Rebuild the selected project's map, overwriting what is there. Writes into that repository's docs/map." type="button" disabled>Generate map</button>
+        <button id="gen-all" data-help="Rebuild every project in the list, one after another. The only button that writes to repositories you did not select — the label counts progress while it runs." type="button" disabled>Generate all</button>
+        <button id="import-nvim" data-help="Read your Neovim config's plugin specs, clone every plugin that is not here yet, and add each one as Add project… would." type="button">Import from Neovim…</button>
+        <button id="import-url" data-help="Clone a repository URL (shallow) into the app's own cache and add it. Uses whatever credentials a plain git clone would." type="button">Import from URL…</button>
       </div>
 
       <ul id="projects" aria-label="Projects"></ul>
@@ -55,8 +55,8 @@
         </summary>
         <p id="engine-state" class="engine-state"></p>
         <div class="engine-actions">
-          <button id="pick-engine" type="button">Locate…</button>
-          <button id="pick-grammars" type="button">Grammars…</button>
+          <button id="pick-engine" data-help="Point at documentation.nvim's standalone binary. Only needed when it is not on PATH — the line above says which one was found." type="button">Locate…</button>
+          <button id="pick-grammars" data-help="Point at a directory of compiled tree-sitter grammars. Decides fidelity, not success: without them you get a complete module tree and no per-function data." type="button">Grammars…</button>
         </div>
       </details>
 
@@ -74,8 +74,8 @@
         </summary>
         <p id="nvim-state" class="engine-state"></p>
         <div class="engine-actions">
-          <button id="pick-nvim" type="button">Locate nvim…</button>
-          <button id="pick-nvim-config" type="button">Locate config…</button>
+          <button id="pick-nvim" data-help="Point at the nvim binary used for importing plugin specs. Only needed when it is not on PATH." type="button">Locate nvim…</button>
+          <button id="pick-nvim-config" data-help="Point at the Neovim config directory to read plugin specs from, when it is not in the platform-conventional place." type="button">Locate config…</button>
         </div>
       </details>
 
@@ -113,6 +113,15 @@
         <p>Pick a project on the left.</p>
       </div>
     </main>
+
+    <!-- One help bubble, reused by every control that carries `data-help`.
+         Same rules as the generated page's keyword card, deliberately: it
+         waits for a deliberate hover rather than appearing as the pointer
+         crosses a button, and it answers to Escape. A native `title` was the
+         cheaper option and was turned down for one reason — it never appears
+         on keyboard focus, so the controls a keyboard user reaches would be
+         the only ones with no explanation. -->
+    <div id="help" class="help" role="tooltip" hidden></div>
 
     <script type="module" src="main.js"></script>
   </body>
