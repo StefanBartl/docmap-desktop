@@ -20,6 +20,7 @@
 // guard below changes nothing about what that guard catches.
 import { withBusyButton } from "./lib/busy-button.js";
 import { mapStatus, invalidate } from "./lib/status-cache.js";
+import { scanLanguages, invalidateLanguages, badgeText, summaryText } from "./lib/languages.js";
 
 function fatal(what, err) {
   const box = document.getElementById("placeholder");
@@ -84,6 +85,18 @@ let selectedId = null;
 /** Last selection, so a restart lands where the last session left off. */
 const LAST_KEY = "docmap.lastProject";
 
+/** Text into an `innerHTML` string, since `showPlaceholder` takes markup.
+ *
+ * Language names come from a fixed table in Rust, so nothing hostile can
+ * reach here today -- this exists so that stays true if the breakdown ever
+ * carries a path or a filename, which the summary line is one small change
+ * away from wanting to include. */
+function escapeHtml(text) {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+}
+
 function say(msg) {
   els.status.textContent = msg || "";
 }
@@ -126,7 +139,33 @@ async function render() {
       ? `${status.modules ?? "?"} modules · ${status.files ?? "?"} files`
       : "no map generated yet";
 
-    li.append(nm, meta);
+    // Which languages, filled in after the row is already on screen.
+    //
+    // Not awaited with the two above: this one walks the project directory,
+    // and blocking the whole list on a filesystem walk per project would
+    // trade a rendered sidebar for a blank one. A row that gains a language
+    // line a moment later is strictly better than a list that appears late.
+    const langs = document.createElement("span");
+    langs.className = "meta langs";
+    langs.hidden = true;
+
+    scanLanguages(invoke, p.root, p.map_dir)
+      .then((scan) => {
+        const text = badgeText(scan);
+        if (!text) return;
+        langs.textContent = text;
+        // The full breakdown on the element itself rather than a fourth
+        // line: depth on demand, no extra chrome in the list.
+        langs.title = summaryText(scan);
+        langs.hidden = false;
+      })
+      .catch(() => {
+        // An unreadable directory costs its own language line and nothing
+        // else -- the project is still selectable, and map_status has its
+        // own error path for the parts that matter more.
+      });
+
+    li.append(nm, meta, langs);
     li.addEventListener("click", () => select(p.id));
     els.list.append(li);
   }
@@ -153,12 +192,23 @@ async function select(id) {
 
   const status = await mapStatus(invoke, p.map_dir);
   if (!status.exists) {
+    // What is in this tree, on the one screen whose entire subject is that
+    // there is nothing to show yet. Appended rather than replacing the
+    // instruction: which button to press is still the more urgent half.
+    let langLine = "";
+    try {
+      langLine = summaryText(await scanLanguages(invoke, p.root, p.map_dir));
+    } catch (e) {
+      void e;
+    }
+
     showPlaceholder(
       "No map in this project yet",
-      engine.path
+      (engine.path
         ? "Press <strong>Generate map</strong> to build one."
         : "Locate the engine in the sidebar first — it is " +
-          "<code>documentation.nvim</code>'s standalone binary."
+          "<code>documentation.nvim</code>'s standalone binary.") +
+        (langLine ? `<br><span class="detail">${escapeHtml(langLine)}</span>` : "")
     );
     say(p.root);
     renderEngine();
@@ -206,6 +256,24 @@ async function autoGenerate(p) {
     await select(p.id);
     return;
   }
+
+  // Say what this tree is written in *before* generating it.
+  //
+  // The engine reads Lua and JS/TS today. Point it at a repository that is
+  // two thirds Python and it returns a perfectly valid, nearly empty map --
+  // success by every signal this app has, and useless. That news costs
+  // nothing here and costs a scan plus a blank view at every later point,
+  // which is the whole argument for putting it at this moment specifically.
+  try {
+    const scan = await scanLanguages(invoke, p.root, p.map_dir);
+    const line = summaryText(scan);
+    if (line) say(`${p.name} — ${line}`);
+  } catch (e) {
+    // Never a reason not to generate: this is context for the result, not a
+    // precondition of producing one.
+    void e;
+  }
+
   await generateFor(p.id);
 }
 
@@ -501,6 +569,7 @@ async function generateFor(id) {
         const log = [res.stdout, res.stderr].filter(Boolean).join("\n").trim();
         if (res.ok) {
           invalidate(p.map_dir);
+          invalidateLanguages(p.root);
           await refresh();
           await select(id);
           if (log) appendLog(log, false);
@@ -568,6 +637,7 @@ els.genAll.addEventListener("click", async () => {
       const res = await invoke("generate", { root: p.root });
       if (res.ok) {
         invalidate(p.map_dir);
+        invalidateLanguages(p.root);
         ok++;
       } else {
         failed.push(p.name);

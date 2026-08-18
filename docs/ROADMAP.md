@@ -13,6 +13,8 @@ and anything that starts to reimplement them is a wrong turn.
   - [Generation (slice 2)](#generation-slice-2)
   - [Then — a repository URL](#then-a-repository-url)
   - [The panels that need a host](#the-panels-that-need-a-host)
+  - [Languages](#languages--saying-which-ones-this-can-read)
+  - [Interface languages](#interface-languages--a-separate-axis-planned-separately)
   - [Idea, not scheduled — executing the checklist](#idea-not-scheduled-executing-the-checklist)
   - [Idea, not scheduled — the analysis itself, not just the engine](#idea-not-scheduled-the-analysis-itself-not-just-the-engine)
 
@@ -123,6 +125,78 @@ rule for these tabs is:
 That is the same shape the page already uses when the plugin is not
 installed, so it is a matter of wiring the data source, not of inventing a
 new message.
+
+---
+
+## Languages — saying which ones this can read
+
+The engine gained a language seam (`core/lang_registry.lua`) and four
+backends: Lua, JavaScript, TypeScript, TSX. Python, Rust, Go and C are
+planned there, staged in
+[`documentation.nvim/docs/ROADMAP/IDEAS/MULTILANG.md`](https://github.com/StefanBartl/documentation.nvim/blob/main/docs/ROADMAP/IDEAS/MULTILANG.md)
+Part 4. **This app currently knows nothing about any of it** — it passes
+`DOCMAP_TS_DIR` through and prints the engine's report verbatim.
+
+That is fine while the answer is always "Lua". It stops being fine the moment
+a project is half Python: the map comes back thin, and nothing on screen says
+why. The work below is the app's half of that question, and it is worth doing
+even if no further backend is ever built — three of these five items apply to
+today's four languages already.
+
+Ordered by how much of the confusion each removes:
+
+1. **Read the engine's language list.** `--capabilities` is already asked
+   before anything else (`server.rs`), and already distinguishes a modern
+   engine from one predating `--api`. The engine grows a `languages` field
+   there (MULTILANG Part 4, Stage 2); this app reads it, and the Engine panel
+   says *which* language is missing a grammar instead of the current
+   all-or-nothing `ready` / `no grammars`.
+
+2. **Language distribution at "Add project…", before the first generate.**
+   "68 % Python, 20 % C" shown when the folder is picked. The unwelcome news
+   costs nothing at that point and costs a 40-second scan and an empty map
+   at every later one. This is a file-extension count, not a parse — it needs
+   no engine support and could land first.
+
+3. **Language badges in the project list.** `Lua · TS` next to the name, from
+   the map's own per-node `language` field once the engine emits one, from
+   the extension count until then. With five backends, "why is this map
+   empty" is nearly always a language question, and the answer belongs in the
+   list rather than in an error after the fact.
+
+4. **A grammar manager.** `lua ✓ · javascript ✓ · typescript ✓ · tsx ✓ ·
+   python ✗` with a button that fetches the artifacts from the engine repo's
+   `standalone-latest` release into the directory `DOCMAP_TS_DIR` already
+   points at. `release-engine.yml` publishes them; only the page that fetches
+   them is missing. This replaces the section of `docs/HANDOVER.md` that
+   currently explains how to do it by hand.
+
+5. **Per-project settings, and somewhere to put them.** Languages on/off,
+   exclude paths, Python's docstring style, Rust's crate root. The two
+   `<details>` panels in the sidebar carry the current two settings fine and
+   will not carry per-language options — this is the point where a real
+   settings surface has to exist, not before.
+
+**Deliberately not here:** any of the extraction itself. Which languages can
+be read is the engine's question, and an app that started answering it would
+be the wrong turn this document's first paragraph warns about.
+
+---
+
+## Interface languages — a separate axis, planned separately
+
+Not the same thing as the section above, despite sharing the word. Reading
+Python and speaking German are unrelated problems; the plan is
+[`documentation.nvim/docs/ROADMAP/IDEAS/I18N.md`](https://github.com/StefanBartl/documentation.nvim/blob/main/docs/ROADMAP/IDEAS/I18N.md),
+covering all three surfaces at once — the generated page (roughly 85 % of the
+work), the plugin's editor messages, and this app.
+
+This app's share is small and lands as that plan's phase I18N-4:
+`src/index.html`, `src/main.js`, and the Rust `Err(String)` messages. The
+Rust half is the one with a real design decision in it — those strings cross
+the IPC boundary as data and are then displayed verbatim, so they have to
+travel as a key plus parameters, exactly like the engine's drift findings,
+rather than as a sentence translated on the Rust side.
 
 ---
 

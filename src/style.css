@@ -155,6 +155,17 @@ button:focus-visible {
   font-style: italic;
 }
 
+/* The language line sits under the counts, quieter than them on purpose:
+   it answers a question the reader only sometimes has ("why is this map
+   thin?"), where the counts answer the one they always have. Same
+   truncation rule as .meta -- a long list ellipses rather than wrapping the
+   row to three lines, and the full breakdown is the element's title. */
+.proj .langs {
+  font-size: 11px;
+  opacity: 0.75;
+  cursor: help;
+}
+
 .empty {
   margin: 0 16px;
   font-size: 12.5px;
