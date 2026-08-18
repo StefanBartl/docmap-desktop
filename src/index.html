@@ -16,19 +16,18 @@
     <aside id="sidebar">
       <header>
         <h1>docmap</h1>
-        <p class="sub">module maps, by project</p>
+         <p class="sub" data-i18n="app.subtitle">module maps, by project</p>
       </header>
 
       <div class="actions">
-        <button id="add" type="button"
-          data-help="Add a project three ways: a folder on this machine, every plugin your Neovim config declares, or a repository URL — including a pick-list of your own GitHub repositories.">Add project…</button>
-        <button id="gen" data-help="Rebuild the selected project's map, overwriting what is there. Writes into that repository's docs/map." type="button" disabled>Generate map</button>
-        <button id="gen-all" data-help="Rebuild every project in the list, one after another. The only button that writes to repositories you did not select — the label counts progress while it runs." type="button" disabled>Generate all</button>
+        <button id="add" type="button" data-i18n-help="help.add" data-i18n="sidebar.add">Add project…</button>
+        <button id="gen" data-i18n-help="help.generate" type="button" disabled data-i18n="sidebar.generate">Generate map</button>
+        <button id="gen-all" data-i18n-help="help.generateAll" type="button" disabled data-i18n="sidebar.generateAll">Generate all</button>
       </div>
 
       <ul id="projects" aria-label="Projects"></ul>
 
-      <p id="empty" class="empty" hidden>
+      <p id="empty" class="empty" data-i18n="sidebar.empty" hidden>
         No projects yet. <strong>Add project…</strong> points this at a
         repository; it does not have to have a map already.
       </p>
@@ -48,14 +47,14 @@
            the disclosure semantics and the open/closed state come with the
            element instead of being reimplemented on a div. -->
       <details id="engine">
-        <summary data-help="documentation.nvim's standalone binary — this app runs it, it does not replace it. The word beside the label is the verdict that decides whether generation works, and at what fidelity.">
-          <span class="engine-label">Engine</span>
+        <summary data-i18n-help="help.engine">
+          <span class="engine-label" data-i18n="engine.label">Engine</span>
           <span id="engine-summary" class="engine-summary"></span>
         </summary>
         <p id="engine-state" class="engine-state"></p>
         <div class="engine-actions">
-          <button id="pick-engine" data-help="Point at documentation.nvim's standalone binary. Only needed when it is not on PATH — the line above says which one was found." type="button">Locate…</button>
-          <button id="pick-grammars" data-help="Point at a directory of compiled tree-sitter grammars. Decides fidelity, not success: without them you get a complete module tree and no per-function data." type="button">Grammars…</button>
+          <button id="pick-engine" data-i18n-help="help.engineLocate" type="button" data-i18n="engine.locate">Locate…</button>
+          <button id="pick-grammars" data-i18n-help="help.grammars" type="button" data-i18n="engine.grammars">Grammars…</button>
         </div>
       </details>
 
@@ -67,16 +66,28 @@
            the platform-conventional config location) and never need this
            panel open. -->
       <details id="nvim">
-        <summary data-help="Which nvim binary and which config directory the plugin-spec import reads. Only needed when either is somewhere unusual — most machines resolve both on their own.">
-          <span class="engine-label">Neovim</span>
+        <summary data-i18n-help="help.nvim">
+          <span class="engine-label" data-i18n="nvim.label">Neovim</span>
           <span id="nvim-summary" class="engine-summary"></span>
         </summary>
         <p id="nvim-state" class="engine-state"></p>
         <div class="engine-actions">
-          <button id="pick-nvim" data-help="Point at the nvim binary used for importing plugin specs. Only needed when it is not on PATH." type="button">Locate nvim…</button>
-          <button id="pick-nvim-config" data-help="Point at the Neovim config directory to read plugin specs from, when it is not in the platform-conventional place." type="button">Locate config…</button>
+          <button id="pick-nvim" data-i18n-help="help.nvimLocate" type="button" data-i18n="nvim.locate">Locate nvim…</button>
+          <button id="pick-nvim-config" data-i18n-help="help.nvimConfig" type="button" data-i18n="nvim.locateConfig">Locate config…</button>
         </div>
       </details>
+
+      <div class="prefs">
+        <select id="theme" aria-label="Theme" data-i18n-help="help.theme">
+          <option value="system" data-i18n="prefs.theme.system">Theme: system</option>
+          <option value="light" data-i18n="prefs.theme.light">Theme: light</option>
+          <option value="dark" data-i18n="prefs.theme.dark">Theme: dark</option>
+        </select>
+        <!-- Locale names are endonyms, never translated into the current
+             language: someone looking for their own language recognises it
+             spelled its own way, not as this window happens to name it. -->
+        <select id="lang" aria-label="Language" data-i18n-help="help.language"></select>
+      </div>
 
       <footer id="status"></footer>
     </aside>
@@ -108,8 +119,8 @@
       <div id="context-note" class="context-note" hidden></div>
 
       <div id="placeholder" class="placeholder">
-        <h2>Nothing selected</h2>
-        <p>Pick a project on the left.</p>
+         <h2 data-i18n="view.nothing">Nothing selected</h2>
+         <p data-i18n="view.pickOne">Pick a project on the left.</p>
       </div>
     </main>
 
@@ -131,51 +142,51 @@
         <button class="addbox-x" value="cancel" aria-label="Close">&times;</button>
       </form>
 
-      <h2 class="addbox-title">Add a project</h2>
+       <h2 class="addbox-title" data-i18n="add.title">Add a project</h2>
 
       <!-- Tabs, not a wizard: the three are alternatives, not steps, and
            numbering them would imply an order none of them has. -->
       <div class="addbox-tabs" role="tablist">
-        <button class="addbox-tab on" role="tab" data-pane="pane-folder" type="button">Folder</button>
-        <button class="addbox-tab" role="tab" data-pane="pane-nvim" type="button">Neovim config</button>
-        <button class="addbox-tab" role="tab" data-pane="pane-url" type="button">URL</button>
+        <button class="addbox-tab on" role="tab" data-pane="pane-folder" type="button" data-i18n="add.tab.folder">Folder</button>
+        <button class="addbox-tab" role="tab" data-pane="pane-nvim" type="button" data-i18n="add.tab.nvim">Neovim config</button>
+        <button class="addbox-tab" role="tab" data-pane="pane-url" type="button" data-i18n="add.tab.url">URL</button>
       </div>
 
       <section id="pane-folder" class="addbox-pane on" role="tabpanel">
-        <p class="addbox-lead">
+        <p class="addbox-lead" data-i18n="add.folder.lead">
           Any directory on this machine. It does not need a
           <code>docs/map</code> yet — if it has none and an engine is
           configured, one is generated straight away, because there is
           nothing to overwrite.
         </p>
-        <button id="pick-folder" class="addbox-go" type="button">Choose a folder…</button>
+        <button id="pick-folder" class="addbox-go" type="button" data-i18n="add.folder.go">Choose a folder…</button>
       </section>
 
       <section id="pane-nvim" class="addbox-pane" role="tabpanel">
-        <p class="addbox-lead">
+        <p class="addbox-lead" data-i18n="add.nvim.lead">
           Reads the <strong>plugin specs your Neovim config declares</strong>
           and adds every plugin as its own project, cloning the ones that are
           not on this machine yet. It does not read anything else about the
           config, and it changes nothing in it.
         </p>
-        <p class="addbox-note">
+        <p class="addbox-note" data-i18n="add.nvim.note">
           Which <code>nvim</code> and which config directory it uses is what
           the sidebar's <strong>Neovim</strong> panel shows — open it if this
           fails.
         </p>
-        <button id="run-nvim-import" class="addbox-go" type="button">Read the config…</button>
+        <button id="run-nvim-import" class="addbox-go" type="button" data-i18n="add.nvim.go">Read the config…</button>
       </section>
 
       <section id="pane-url" class="addbox-pane" role="tabpanel">
-        <p class="addbox-lead">
+        <p class="addbox-lead" data-i18n="add.url.lead">
           A repository URL, cloned shallow into this app's own cache and then
           added like any folder. Whatever a plain <code>git clone</code> of
           that URL needs on this machine is what runs here — this app holds
           no credentials of its own.
         </p>
         <div class="addbox-row">
-          <input id="url-input" type="url" placeholder="https://github.com/owner/repo" autocomplete="off" />
-          <button id="run-url-import" class="addbox-go" type="button">Clone</button>
+          <input id="url-input" type="url" data-i18n-placeholder="add.url.placeholder" placeholder="https://github.com/owner/repo" autocomplete="off" />
+          <button id="run-url-import" class="addbox-go" type="button" data-i18n="add.url.go">Clone</button>
         </div>
 
         <!-- The pick-list is opt-in. Listing repositories is a network call
@@ -183,8 +194,8 @@
              being opened would be doing something nobody asked for. -->
         <div class="addbox-repos">
           <div class="addbox-row">
-            <button id="load-repos" class="addbox-secondary" type="button">List my GitHub repositories</button>
-            <input id="repo-filter" type="search" placeholder="Filter…" autocomplete="off" hidden />
+            <button id="load-repos" class="addbox-secondary" type="button" data-i18n="add.repos.load">List my GitHub repositories</button>
+            <input id="repo-filter" type="search" data-i18n-placeholder="add.repos.filter" placeholder="Filter…" autocomplete="off" hidden />
           </div>
           <p id="repo-state" class="addbox-note"></p>
           <ul id="repo-list" class="addbox-list" hidden></ul>

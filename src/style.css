@@ -12,8 +12,17 @@
   --accent-soft: #dbe7fa;
 }
 
+/* Three states, not two. "System" is the default and has to stay
+   *choosable*, so a reader who overrode it once can hand the decision back
+   to the OS — a two-way toggle can only ever leave them pinned.
+   Nothing stamped on <html> means system; `data-theme` means they decided.
+
+   The dark block is guarded with `:not([data-theme="light"])` so an explicit
+   light choice still wins on a dark-mode machine, and repeated under
+   `[data-theme="dark"]` so an explicit dark choice wins on a light one.
+   Without both, the switch would work in one direction only. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #16171a;
     --panel: #1d1e22;
     --ink: #e6e6ea;
@@ -22,6 +31,16 @@
     --accent: #7aa7f0;
     --accent-soft: #22304a;
   }
+}
+
+:root[data-theme="dark"] {
+  --bg: #16171a;
+  --panel: #1d1e22;
+  --ink: #e6e6ea;
+  --muted: #9a9aa4;
+  --line: #2c2d33;
+  --accent: #7aa7f0;
+  --accent-soft: #22304a;
 }
 
 * {
@@ -548,4 +567,25 @@ button:focus-visible {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Preferences, in the sidebar footer beside the status line: settings a
+   reader changes once and then wants out of the way, not controls competing
+   with the project list. */
+.prefs {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 16px 0;
+  border-top: 1px solid var(--line);
+}
+.prefs select {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 11.5px;
 }
