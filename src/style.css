@@ -375,3 +375,22 @@ button:focus-visible {
 .gen-log.bad {
   color: var(--ink);
 }
+
+/* The button help bubble. Sized for a sentence or two, not a paragraph: if a
+   control needs more than that, the control is the problem. `position:fixed`
+   for the same reason the map's cards use it — the sidebar scrolls, and an
+   absolutely-positioned bubble would scroll away from its own anchor. */
+.help {
+  position: fixed;
+  z-index: 80;
+  max-width: 300px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--ink);
+  pointer-events: none;
+}

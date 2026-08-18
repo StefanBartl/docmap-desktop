@@ -82,6 +82,7 @@ const els = {
   contextNote: document.getElementById("context-note"),
   pickNvim: document.getElementById("pick-nvim"),
   pickNvimConfig: document.getElementById("pick-nvim-config"),
+  help: document.getElementById("help"),
 };
 
 let engine = { path: null, from_path: true, bundled: false, grammars: null };
@@ -129,6 +130,82 @@ function showPlaceholder(title, body) {
   // that is not even on screen.
   els.contextNote.hidden = true;
 }
+
+// =====================================================================
+// Button help
+//
+// Every sidebar control carries a `data-help` sentence saying what it does.
+// The distinctions are the reason it exists at all: Generate map and
+// Generate all differ in *what they overwrite*, not in speed, and Locate…
+// exists only for the case where PATH does not already answer — none of
+// which a five-word label can carry.
+//
+// A native `title` would have been free, and was turned down for one
+// reason: it never appears on keyboard focus, so exactly the controls a
+// keyboard user reaches would be the only ones with no explanation. The
+// texts themselves are lifted from `docs/USAGE.md` rather than reworded, so
+// there is one description of each button rather than two that can drift.
+//
+// Same rules as the generated page's keyword card, so the two surfaces
+// behave alike: a deliberate hover rather than a pointer crossing the
+// button, Escape closes, and it never covers the control it describes.
+// =====================================================================
+const HELP_DWELL = 400;
+let helpTimer = null;
+
+function hideHelp() {
+  if (helpTimer) {
+    clearTimeout(helpTimer);
+    helpTimer = null;
+  }
+  els.help.hidden = true;
+}
+
+function showHelp(el) {
+  const text = el.dataset.help;
+  if (!text) return;
+  els.help.textContent = text;
+  els.help.hidden = false;
+
+  // Measured after it is in the DOM, then placed beside the control rather
+  // than under it: the sidebar is narrow and a bubble below a button covers
+  // the next one, which is the button the reader is most likely comparing
+  // it against.
+  const a = el.getBoundingClientRect();
+  const r = els.help.getBoundingClientRect();
+  const left = Math.min(a.right + 8, window.innerWidth - r.width - 8);
+  const top = Math.max(8, Math.min(a.top, window.innerHeight - r.height - 8));
+  els.help.style.left = left + "px";
+  els.help.style.top = top + "px";
+}
+
+document.addEventListener("mouseover", (ev) => {
+  const el = ev.target.closest && ev.target.closest("[data-help]");
+  if (helpTimer) {
+    clearTimeout(helpTimer);
+    helpTimer = null;
+  }
+  if (el) {
+    helpTimer = setTimeout(() => showHelp(el), HELP_DWELL);
+  } else if (!els.help.hidden) {
+    hideHelp();
+  }
+});
+
+// Keyboard parity — the whole reason this is not a `title`.
+document.addEventListener("focusin", (ev) => {
+  const el = ev.target.closest && ev.target.closest("[data-help]");
+  if (el) showHelp(el);
+  else hideHelp();
+});
+document.addEventListener("focusout", hideHelp);
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "Escape") hideHelp();
+});
+// A bubble positioned against a rectangle that has since moved is worse
+// than none.
+window.addEventListener("resize", hideHelp);
+window.addEventListener("scroll", hideHelp, true);
 
 async function render() {
   els.list.innerHTML = "";
@@ -425,8 +502,7 @@ function renderEngine() {
     // verdict that decides whether generation works at all, and this is the
     // detail behind it, not a second headline.
     if (engineLangs) {
-      e.textContent += "
-reads: " + engineLanguageText(engineLangs);
+      e.textContent += "\nreads: " + engineLanguageText(engineLangs);
     }
   }
   s.className = "engine-summary" + (engine.path ? "" : " missing");
