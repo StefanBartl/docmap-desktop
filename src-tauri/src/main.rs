@@ -426,6 +426,92 @@ fn engine_info(app: tauri::AppHandle) -> Result<EngineInfo, String> {
     Ok(EngineInfo { path: None, from_path: true, bundled: false, grammars })
 }
 
+/// One language backend the engine reports.
+///
+/// `grammar_loaded` is deliberately three-valued and stays that way across
+/// the IPC boundary: `Some(true)` full fidelity, `Some(false)` a backend
+/// that wants a grammar and could not load one, `None` a backend needing no
+/// parser at all. Collapsing the last two would report a healthy backend as
+/// broken -- see `lang_registry.report()` on the engine side, which is where
+/// this distinction is defined.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct EngineLanguage {
+    name: String,
+    grammar: Option<String>,
+    grammar_loaded: Option<bool>,
+}
+
+/// What the engine says it can read.
+///
+/// `languages: None` is not an error and not an empty list -- it means this
+/// engine predates the field. The frontend has to say "unknown", because
+/// "no languages" and "an engine that cannot be asked" lead to opposite
+/// advice: the first is broken, the second works fine and just cannot
+/// explain itself.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct EngineLanguages {
+    languages: Option<Vec<EngineLanguage>>,
+}
+
+/// Ask the engine which language backends it has, and whether each found its
+/// grammar.
+///
+/// A separate command rather than a field on `engine_info` on purpose:
+/// `engine_info` is called on every render and touches no subprocess, and
+/// putting a process spawn behind it would put one in a hot path for an
+/// answer that changes only when the engine or the grammars directory
+/// changes.
+///
+/// `DOCMAP_TS_DIR` is passed exactly as `generate` passes it. Without it the
+/// probe would answer for an environment the real run never happens in, and
+/// report every grammar missing on a machine where generation works --
+/// which is worse than not asking, because it would be confidently wrong.
+///
+/// `--capabilities` is safe against every engine version for the reason
+/// `server.rs`'s `engine_supports_api` documents at length: it sits in the
+/// root-argument position, so an older binary rejects it with exit 2 before
+/// doing any work, rather than treating it as a path and generating a map.
+#[tauri::command]
+fn engine_languages(app: tauri::AppHandle) -> Result<EngineLanguages, String> {
+    let info = engine_info(app)?;
+    let engine = info
+        .path
+        .ok_or_else(|| "no docmap engine configured".to_string())?;
+
+    let mut cmd = std::process::Command::new(&engine);
+    cmd.arg("--capabilities");
+    if let Some(g) = info.grammars {
+        cmd.env("DOCMAP_TS_DIR", g);
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let out = cmd
+        .output()
+        .map_err(|e| format!("could not run {engine}: {e}"))?;
+    if !out.status.success() {
+        // An older engine exits non-zero here. Not an error to show: it is
+        // the "cannot be asked" case, which the frontend renders as unknown.
+        return Ok(EngineLanguages { languages: None });
+    }
+
+    let value: serde_json::Value = serde_json::from_slice(&out.stdout)
+        .map_err(|e| format!("{engine} answered --capabilities with something that is not JSON: {e}"))?;
+
+    // Absent field and unparseable field are both "cannot be asked". A
+    // partially-shaped answer is not worth guessing at -- the engine that
+    // emits this field emits it whole.
+    let languages = value
+        .get("languages")
+        .and_then(|l| serde_json::from_value::<Vec<EngineLanguage>>(l.clone()).ok());
+
+    Ok(EngineLanguages { languages })
+}
+
 #[tauri::command]
 fn set_engine(app: tauri::AppHandle, path: Option<String>) -> Result<EngineInfo, String> {
     if let Some(ref p) = path {
@@ -760,6 +846,7 @@ fn main() {
             map_status,
             scan_languages,
             engine_info,
+            engine_languages,
             set_engine,
             set_grammars,
             generate,

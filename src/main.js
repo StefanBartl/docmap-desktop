@@ -20,7 +20,14 @@
 // guard below changes nothing about what that guard catches.
 import { withBusyButton } from "./lib/busy-button.js";
 import { mapStatus, invalidate } from "./lib/status-cache.js";
-import { scanLanguages, invalidateLanguages, badgeText, summaryText } from "./lib/languages.js";
+import {
+  scanLanguages,
+  invalidateLanguages,
+  badgeText,
+  summaryText,
+  supportFor,
+  engineLanguageText,
+} from "./lib/languages.js";
 
 function fatal(what, err) {
   const box = document.getElementById("placeholder");
@@ -77,6 +84,13 @@ const els = {
 };
 
 let engine = { path: null, from_path: true, bundled: false, grammars: null };
+
+// What the engine says it can read. `null` until the probe has answered
+// once — distinct from `{ languages: null }`, which is a *completed* probe
+// against an engine too old to have the field. Everything downstream treats
+// the two the same way (say nothing about support), but conflating them
+// here would make "not asked yet" unobservable.
+let engineLangs = null;
 let nvim = { path: null, from_path: true, config_dir: null, config_dir_from_default: true };
 
 let projects = [];
@@ -156,7 +170,7 @@ async function render() {
         langs.textContent = text;
         // The full breakdown on the element itself rather than a fourth
         // line: depth on demand, no extra chrome in the list.
-        langs.title = summaryText(scan);
+        langs.title = summaryText(scan, supportFor(scan, engineLangs));
         langs.hidden = false;
       })
       .catch(() => {
@@ -197,7 +211,8 @@ async function select(id) {
     // instruction: which button to press is still the more urgent half.
     let langLine = "";
     try {
-      langLine = summaryText(await scanLanguages(invoke, p.root, p.map_dir));
+      const scan = await scanLanguages(invoke, p.root, p.map_dir);
+      langLine = summaryText(scan, supportFor(scan, engineLangs));
     } catch (e) {
       void e;
     }
@@ -266,7 +281,7 @@ async function autoGenerate(p) {
   // which is the whole argument for putting it at this moment specifically.
   try {
     const scan = await scanLanguages(invoke, p.root, p.map_dir);
-    const line = summaryText(scan);
+    const line = summaryText(scan, supportFor(scan, engineLangs));
     if (line) say(`${p.name} — ${line}`);
   } catch (e) {
     // Never a reason not to generate: this is context for the result, not a
@@ -399,6 +414,15 @@ function renderEngine() {
     // changes and is not worth a line, while "will this run produce
     // per-function data" is the one thing that differs run to run.
     s.textContent = engine.grammars ? "ready" : "no grammars";
+
+    // Which languages, on the line below the path. Inside the panel, which
+    // is collapsed by default -- the summary above still carries the
+    // verdict that decides whether generation works at all, and this is the
+    // detail behind it, not a second headline.
+    if (engineLangs) {
+      e.textContent += "
+reads: " + engineLanguageText(engineLangs);
+    }
   }
   s.className = "engine-summary" + (engine.path ? "" : " missing");
   e.title = engine.path
@@ -426,7 +450,32 @@ function syncActions() {
 
 async function loadEngine() {
   engine = await invoke("engine_info");
+
+  probeEngineLanguages();
   renderEngine();
+}
+
+/// Ask the engine which languages it reads, and repaint when it answers.
+///
+/// Not awaited by its callers, and a failure is swallowed: the language list
+/// is context, never a precondition. A machine with no engine at all still
+/// renders the panel, which then says the more important thing -- that there
+/// is no engine.
+///
+/// Re-run after `set_engine` and `set_grammars` because both change the
+/// answer: a different binary has different backends, and a grammars
+/// directory is precisely what turns `grammar_loaded` from false to true.
+/// This is also why the engine side refuses to cache its own probe.
+function probeEngineLanguages() {
+  invoke("engine_languages")
+    .then((res) => {
+      engineLangs = res;
+      renderEngine();
+      void render();
+    })
+    .catch(() => {
+      engineLangs = null;
+    });
 }
 
 els.pickEngine.addEventListener("click", async () => {
@@ -434,6 +483,7 @@ els.pickEngine.addEventListener("click", async () => {
     const file = await open({ multiple: false, title: "Locate the docmap engine" });
     if (!file) return;
     engine = await invoke("set_engine", { path: file });
+    probeEngineLanguages();
     renderEngine();
     say("Engine set");
   } catch (e) {
@@ -446,6 +496,7 @@ els.pickGrammars.addEventListener("click", async () => {
     const dir = await open({ directory: true, multiple: false, title: "Tree-sitter grammars" });
     if (!dir) return;
     engine = await invoke("set_grammars", { path: dir });
+    probeEngineLanguages();
     renderEngine();
     say("Grammars set");
   } catch (e) {
