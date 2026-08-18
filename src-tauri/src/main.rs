@@ -9,6 +9,7 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod languages;
 mod server;
 
 use std::fs;
@@ -288,6 +289,22 @@ fn map_status(map_dir: String) -> MapStatus {
     }
 
     MapStatus { exists, index_path: index, modules, files }
+}
+
+/// What languages a directory is written in, counted from file extensions.
+///
+/// Deliberately answerable without the engine, without a grammar and without
+/// a generated map: this is what the sidebar shows for a project that has
+/// never been generated, and what the folder picker shows *before* the first
+/// generate. See `languages.rs` for why it counts rather than parses, and
+/// why it does not decide which of the languages it names can actually be
+/// read -- that is the engine's answer, joined in the frontend.
+///
+/// `map_dir` is optional because the caller does not always have one: a
+/// folder being previewed is not a `Project` yet.
+#[tauri::command]
+fn scan_languages(root: String, map_dir: Option<String>) -> Result<languages::LanguageScan, String> {
+    languages::scan(Path::new(&root), map_dir.as_deref().map(Path::new))
 }
 
 /// Look for the engine on `PATH`, the way a shell would.
@@ -741,6 +758,7 @@ fn main() {
             remove_project,
             import_from_url,
             map_status,
+            scan_languages,
             engine_info,
             set_engine,
             set_grammars,
