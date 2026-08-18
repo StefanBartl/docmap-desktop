@@ -77,6 +77,25 @@ credential helper, an SSH agent) is exactly what runs here too, unchanged.
 A clone that fails shows git's own error message, not a guess at what went
 wrong.
 
+## Theme and language
+
+Both sit in the sidebar footer and both are properties of *this machine*, so
+they live in `localStorage` rather than in `workspace.json` — syncing a
+lighting preference between machines would be carrying the wrong thing.
+
+**Theme** has three states, and "system" is one of them: a two-way toggle
+can only ever leave you pinned to a choice you made once, with no way to hand
+the decision back to the OS.
+
+**Language** changes this window and nothing else. The generated map is a
+separate artifact with its own translation — see `documentation.nvim`'s
+`docs/ROADMAP/IDEAS/I18N.md`, where this app is phase I18N-4 and the page is
+roughly 85 % of the remaining work. English is the source language; German
+ships because the author can tell when it is wrong, which is the bar for
+listing a locale unmarked. `?i18n=debug` marks any string still falling back
+to English, so an unfinished locale is countable rather than merely
+embarrassing.
+
 ## The engine indicator
 
 **Engine**, the collapsible panel at the bottom of the sidebar. It answers

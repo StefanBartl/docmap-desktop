@@ -20,6 +20,7 @@
 // guard below changes nothing about what that guard catches.
 import { withBusyButton } from "./lib/busy-button.js";
 import { mapStatus, invalidate } from "./lib/status-cache.js";
+import { t, setLocale, initialLocale, LOCALES } from "./lib/i18n.js";
 import {
   scanLanguages,
   invalidateLanguages,
@@ -127,6 +128,125 @@ function showPlaceholder(title, body) {
   // Overlays the iframe specifically; nothing to explain about a panel
   // that is not even on screen.
   els.contextNote.hidden = true;
+}
+
+// =====================================================================
+// Interface language
+//
+// I18N.md's phase I18N-4 and only that: this window's chrome. The generated
+// map is a separate artifact with its own translation, which is why the
+// language control says so in its own help text.
+//
+// Applied by walking `data-i18n*` attributes rather than by rebuilding the
+// DOM: the markup keeps its English text as the in-file default, so a window
+// whose script never runs is still readable — the same reason the fatal
+// handler exists at all.
+// =====================================================================
+const LANG_KEY = "docmap.locale";
+
+function applyLocale() {
+  document.querySelectorAll("[data-i18n]").forEach((el) => {
+    const text = t(el.dataset.i18n);
+    if (!text) return;
+    // `innerHTML` because several of these carry <strong>/<code> — the
+    // catalog is this program's own source text, not user input, and the one
+    // place user content reaches the UI (project names, gh's messages) goes
+    // through textContent elsewhere.
+    el.innerHTML = text;
+  });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => {
+    const text = t(el.dataset.i18nPlaceholder);
+    if (text) el.placeholder = text;
+  });
+  // Help bubbles read `data-help`, so the catalog is projected onto it.
+  document.querySelectorAll("[data-i18n-help]").forEach((el) => {
+    const text = t(el.dataset.i18nHelp);
+    if (text) el.dataset.help = text;
+  });
+  document.documentElement.lang = locale;
+}
+
+let locale = "en";
+{
+  let saved = null;
+  try {
+    saved = localStorage.getItem(LANG_KEY);
+  } catch (e) {
+    void e;
+  }
+  locale = setLocale(initialLocale(saved, navigator.language), {
+    // Marks every fallback visibly, so an unfinished locale is countable
+    // rather than merely embarrassing.
+    debug: new URLSearchParams(location.search).get("i18n") === "debug",
+  });
+
+  const sel = document.getElementById("lang");
+  LOCALES.forEach((l) => {
+    const o = document.createElement("option");
+    o.value = l.code;
+    // Endonym, and set as text rather than through the catalog: a language
+    // name is not a string to translate.
+    o.textContent = l.label;
+    sel.append(o);
+  });
+  sel.value = locale;
+  sel.addEventListener("change", () => {
+    locale = setLocale(sel.value);
+    try {
+      localStorage.setItem(LANG_KEY, locale);
+    } catch (e) {
+      void e;
+    }
+    applyLocale();
+  });
+  applyLocale();
+}
+
+// =====================================================================
+// Theme
+//
+// Three states, and "system" is one of them: a two-way toggle can only ever
+// leave a reader pinned to a choice they made once, with no way to hand the
+// decision back to the OS. Nothing stamped on <html> means system; a
+// `data-theme` attribute means they decided.
+//
+// Applied before anything else renders, and read from localStorage rather
+// than from the workspace file: this is a property of *this machine's* eyes,
+// not of the project list, and syncing it through workspace.json would carry
+// one machine's lighting preference to another.
+// =====================================================================
+const THEME_KEY = "docmap.theme";
+
+function applyTheme(choice) {
+  if (choice === "light" || choice === "dark") {
+    document.documentElement.setAttribute("data-theme", choice);
+  } else {
+    // Removed, not set to "system": the CSS keys off the attribute's
+    // absence, so a third value would be a state the stylesheet never sees.
+    document.documentElement.removeAttribute("data-theme");
+  }
+}
+
+{
+  let saved = "system";
+  try {
+    saved = localStorage.getItem(THEME_KEY) || "system";
+  } catch (e) {
+    // A window that cannot remember the choice still honours it for this
+    // session, which is strictly better than refusing to apply it.
+    void e;
+  }
+  applyTheme(saved);
+  const sel = document.getElementById("theme");
+  sel.value = saved;
+  sel.addEventListener("change", () => {
+    applyTheme(sel.value);
+    try {
+      localStorage.setItem(THEME_KEY, sel.value);
+    } catch (e) {
+      void e;
+    }
+  });
 }
 
 // =====================================================================
@@ -890,13 +1010,9 @@ addbox.url.addEventListener("keydown", (ev) => {
 
 /** What to say for each way the listing can fail to produce a list. */
 const REPO_PROBLEMS = {
-  not_installed:
-    "GitHub CLI (gh) is not on PATH. Install it to pick from your repositories, " +
-    "or paste a URL above — that works either way.",
-  not_authenticated:
-    "GitHub CLI is installed but not signed in. Run `gh auth login` once, " +
-    "then try again. Pasting a URL above works either way.",
-  failed: "GitHub CLI could not list your repositories.",
+  not_installed: "repos.notInstalled",
+  not_authenticated: "repos.notAuthenticated",
+  failed: "repos.failed",
 };
 
 function renderRepos() {
@@ -943,14 +1059,14 @@ function renderRepos() {
   if (repos && shown.length === 0) {
     addbox.repoState.textContent = q
       ? `No repository matches “${q}”.`
-      : "That account has no repositories.";
+      : t("repos.none");
   } else if (repos) {
     addbox.repoState.textContent = `${shown.length} of ${repos.length} repositories — click one to clone it.`;
   }
 }
 
 addbox.loadRepos.addEventListener("click", async () => {
-  addbox.repoState.textContent = "Asking gh…";
+  addbox.repoState.textContent = t("repos.asking");
   addbox.loadRepos.disabled = true;
   try {
     const res = await invoke("list_github_repos");
@@ -960,8 +1076,11 @@ addbox.loadRepos.addEventListener("click", async () => {
       addbox.repoFilter.hidden = true;
       // `gh`'s own message, appended rather than replaced: the sentence
       // above says what to do, and gh's says what happened.
+      // gh's own message is appended verbatim and never translated: it is
+      // someone else's output, and the sentence before it is the part this
+      // program is responsible for.
       addbox.repoState.textContent =
-        (REPO_PROBLEMS[res.problem] || REPO_PROBLEMS.failed) +
+        t(REPO_PROBLEMS[res.problem] || REPO_PROBLEMS.failed) +
         (res.message ? " — " + res.message : "");
       return;
     }
