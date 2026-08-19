@@ -1696,6 +1696,7 @@ const MENU_ACTIONS = {
     syncMenu();
   },
   "menu.help.feedback": () => openFeedback(),
+  "menu.help.about": () => openAbout(),
   "menu.help.usage": () => openDocs("usage"),
   "menu.help.engine": () => openDocs("engine"),
 };
@@ -1769,6 +1770,64 @@ function openPrefs() {
   renderTelemetry();
   document.getElementById("prefsbox").showModal();
 }
+
+/**
+ * The versions, as text somebody can paste.
+ *
+ * Never translated. This block is read by whoever triages the report, not
+ * by the person writing it — the same rule the feedback dialog's
+ * environment block follows.
+ *
+ * `dirty` is carried through rather than dropped: a binary built from a
+ * modified tree has a commit that does not describe it, and a bug report
+ * quoting that commit sends the reader to the wrong diff.
+ */
+function aboutFacts() {
+  const lines = [];
+  if (aboutInfo) {
+    lines.push("docmap-desktop " + aboutInfo.appVersion);
+    lines.push(aboutInfo.os + " / " + aboutInfo.arch);
+  }
+  lines.push("engine: " + (engine.path || t("about.engineNone")));
+  if (engineLangs && engineLangs.schema !== null && engineLangs.schema !== undefined) {
+    lines.push("schema: " + engineLangs.schema);
+  }
+  const b = engineLangs && engineLangs.build;
+  if (b && b.commit) {
+    lines.push(
+      "build: " + b.commit + (b.committedAt ? " (" + b.committedAt + ")" : "")
+    );
+    if (b.dirty) lines.push("  " + t("about.dirty"));
+  } else {
+    lines.push("build: " + t("about.buildNone"));
+  }
+  lines.push("grammars: " + (engine.grammars || "none"));
+  lines.push("interface: " + locale);
+  return lines.join("\n");
+}
+
+async function openAbout() {
+  if (!aboutInfo) {
+    try {
+      aboutInfo = await invoke("about_info");
+    } catch (e) {
+      void e;
+    }
+  }
+  document.getElementById("about-facts").textContent = aboutFacts();
+  document.getElementById("aboutbox").showModal();
+}
+
+document.getElementById("about-copy").addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(aboutFacts());
+    say(t("about.copied"));
+  } catch (e) {
+    // A clipboard the window is not allowed to touch is not a reason to
+    // lose the text: it is already on screen and selectable.
+    say(String(e));
+  }
+});
 
 async function openDocs(page) {
   try {

@@ -478,6 +478,24 @@ struct EngineLanguage {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct EngineLanguages {
     languages: Option<Vec<EngineLanguage>>,
+    /// The artifact schema this engine writes. `None` from a build that
+    /// predates the field, which is a different fact from any particular
+    /// number and is why it is not defaulted to one.
+    schema: Option<u64>,
+    /// Which build it is: commit, commit date, and whether the tree it was
+    /// built from was clean. `None` for an engine run from a source
+    /// checkout, which stamps nothing rather than claiming a provenance.
+    build: Option<EngineBuild>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct EngineBuild {
+    commit: Option<String>,
+    committed_at: Option<String>,
+    /// `None` when git could not answer at all — which is not the same as
+    /// a clean tree, and the difference is what makes the commit
+    /// trustworthy.
+    dirty: Option<bool>,
 }
 
 /// Ask the engine which language backends it has, and whether each found its
@@ -523,7 +541,11 @@ fn engine_languages(app: tauri::AppHandle) -> Result<EngineLanguages, String> {
     if !out.status.success() {
         // An older engine exits non-zero here. Not an error to show: it is
         // the "cannot be asked" case, which the frontend renders as unknown.
-        return Ok(EngineLanguages { languages: None });
+        return Ok(EngineLanguages {
+            languages: None,
+            schema: None,
+            build: None,
+        });
     }
 
     let value: serde_json::Value = serde_json::from_slice(&out.stdout)
@@ -536,7 +558,13 @@ fn engine_languages(app: tauri::AppHandle) -> Result<EngineLanguages, String> {
         .get("languages")
         .and_then(|l| serde_json::from_value::<Vec<EngineLanguage>>(l.clone()).ok());
 
-    Ok(EngineLanguages { languages })
+    Ok(EngineLanguages {
+        languages,
+        schema: value.get("schema").and_then(|v| v.as_u64()),
+        build: value
+            .get("build")
+            .and_then(|b| serde_json::from_value::<EngineBuild>(b.clone()).ok()),
+    })
 }
 
 #[tauri::command]
