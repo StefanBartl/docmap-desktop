@@ -799,14 +799,44 @@ shipped that the docs and READMEs cover thinly or not at all, and today's
 patches to `USAGE.md` were patches — they fixed what had become false, not
 what had never been written.
 
-- [ ] Treat it as a rewrite with an inventory first: list what exists, then
-      what is documented, then close the gap. `FEATURES/` is the closest
-      thing to that inventory and is itself incomplete.
-- [ ] The README in each repository is the entry point and should survive
-      being read by somebody who has never seen either program.
-- [ ] Include the thing 10.2 exposed: **a generated map is a snapshot of the
-      engine that wrote it.** Page features arrive by regenerating, not by
-      updating the app. Nothing anywhere says this today.
+**This repository's half is done 2026-08-19.** `documentation.nvim`'s is
+tracked in the next bullet and is a larger job, since its docs are a folder
+rather than two files.
+
+- [x] ~~Treat it as a rewrite with an inventory first~~ — done, and the
+      inventory was taken from the code rather than from memory: the menu
+      tree out of `menu.rs`, the settings sections out of `index.html`, the
+      dashboard rule out of `main.js`. **What it found:** `USAGE.md` had a
+      duplicated *Add project* section left from when the three importers
+      were three buttons, a menu table missing five items, and **not one
+      word** about workspaces (§11), the files pane (§9.5), opening a file
+      in an editor (§9.4), the findings tab (§10.8) or the staleness mark
+      (§3) — every one of them shipped that same day. Rewritten whole
+      rather than patched, with a table of contents, because that is the
+      difference this entry was asking for.
+- [x] ~~The README in each repository is the entry point~~ — this one is.
+      Its language line said "any annotated Lua tree" and there are nine
+      backends now; its Status section predates workspaces and the files
+      pane.
+- [x] ~~**A generated map is a snapshot of the engine that wrote it.**~~ —
+      now the *first* section of `USAGE.md` and a paragraph in the README's
+      Status. It is the one fact that makes the app's behaviour predictable
+      rather than mysterious, so it is not filed under a subheading
+      somebody has to already suspect exists.
+- [ ] **`documentation.nvim`'s own docs, the larger half.** Its `docs/` is
+      a folder with `FEATURES/`, `ROADMAP/IDEAS/`, `PIPELINE.md`,
+      `WORKFLOW.md` and more, and `FEATURES/` is the nearest thing to an
+      inventory while being incomplete itself. Same method: inventory from
+      the code, then close the gap, README first.
+
+**One thing the inventory caught that was not a documentation bug.**
+`main.js`'s comment claimed the workspace dashboard appears "on a first run,
+and whenever there is more than one workspace". The code has no first-run
+branch and should not have one — a first run has exactly one workspace, and
+a chooser with one row is the click in front of the thing you wanted that
+the rule exists to avoid. The comment was corrected rather than the code,
+and this entry is why writing documentation from the code finds things
+writing it from memory does not.
 
 ---
 
