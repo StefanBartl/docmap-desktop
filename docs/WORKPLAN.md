@@ -664,6 +664,55 @@ what had never been written.
 
 ---
 
+## 11. Several workspaces, and a dashboard to choose between them
+
+**Requested 2026-08-19, and worth building.** The reason is that it is not
+a new concept: this app already stores its project list in
+`workspace.json`, singular. It has exactly one workspace. Making that
+several extends something that is already named rather than inventing a
+layer — which is the cheap kind of feature.
+
+The shape asked for: a dashboard at startup listing workspaces, each
+holding its own set of projects; a *Don't show me again* checkbox so it can
+be switched off and one workspace always loads.
+
+### Three things to decide before building
+
+1. **A chooser before the content is a cost on every start.** The checkbox
+   mitigates it, and there is a version that needs no checkbox at all:
+   show the dashboard only on a first run and whenever there is more than
+   one workspace. Somebody with one workspace never sees it, which is the
+   same outcome the checkbox buys but without a setting to find.
+   Worth deciding rather than defaulting to the checkbox because it was
+   asked for.
+2. **What belongs to a workspace and what to the machine.** Projects,
+   obviously. But theme, interface language and zoom are deliberately in
+   `localStorage` today, because they are properties of *this machine's
+   eyes* — carrying them per workspace would mean the same person's
+   lighting changes when they switch project sets. Engine and Neovim paths
+   are per machine for the same reason. So a workspace should be projects
+   and nothing else until something argues otherwise.
+3. **The existing workspace must survive.** Whatever the storage becomes,
+   the file somebody already has is workspace number one, migrated in place
+   and not asked about. A feature whose first act is losing your project
+   list is not a feature.
+
+### The work
+
+- [ ] Storage: `workspaces/<name>.json` beside the current file, or one
+      file with a map. The first shape survives a corrupted workspace
+      losing only that one, which is the argument for it.
+- [ ] Create, rename, delete, switch. Deleting needs the same wording care
+      `Remove from workspace` has: it removes a list, never a repository.
+- [ ] The dashboard itself, and the rule for when it appears.
+- [ ] `File → Switch workspace…` — this one *is* a menu item: it is
+      something you do.
+- [ ] The window title should say which workspace, once there can be more
+      than one. It already names the project; `<project> — <workspace> —
+      docmap` is a lot, so this needs a decision rather than an append.
+
+---
+
 ## Carried over, not from this round
 
 **docmap-desktop**
