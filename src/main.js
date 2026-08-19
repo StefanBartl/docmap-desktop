@@ -1864,6 +1864,98 @@ async function syncMenu() {
   }
 }
 
+// =====================================================================
+// The per-project context menu
+//
+// Right-click on the detail block under the picker. Not on the picker
+// itself: a `<select>` answers a right-click with the platform's own menu,
+// and fighting a native control over the one thing it is for is a losing
+// argument. The detail block is where the selected project is named, which
+// is what these commands act on.
+//
+// Every item calls the same function its menu-bar twin calls — the third
+// surface for one implementation, and still no second copy of any of them.
+// =====================================================================
+
+const projmenu = document.getElementById("projmenu");
+
+/** Same ids as the menu bar, so the labels come from the same catalog keys. */
+const PROJECT_CONTEXT = [
+  "menu.project.generate",
+  "menu.project.regenerate",
+  "sep",
+  "menu.file.open_browser",
+  "menu.file.reveal",
+  "sep",
+  "menu.file.remove",
+];
+
+function closeProjMenu() {
+  projmenu.hidden = true;
+}
+
+function openProjMenu(x, y) {
+  if (!selectedId) return;
+  projmenu.innerHTML = "";
+  PROJECT_CONTEXT.forEach((id) => {
+    if (id === "sep") {
+      const li = document.createElement("li");
+      li.className = "sep";
+      li.setAttribute("role", "separator");
+      projmenu.append(li);
+      return;
+    }
+    const li = document.createElement("li");
+    li.setAttribute("role", "none");
+    const b = document.createElement("button");
+    b.type = "button";
+    b.setAttribute("role", "menuitem");
+    b.textContent = t(id);
+    b.addEventListener("click", () => {
+      closeProjMenu();
+      const run = MENU_ACTIONS[id];
+      if (run) run();
+    });
+    li.append(b);
+    projmenu.append(li);
+  });
+
+  // Shown before measuring: a hidden element has no size, so flipping it
+  // away from the edges has to happen after it is on screen.
+  projmenu.hidden = false;
+  projmenu.style.left = "0px";
+  projmenu.style.top = "0px";
+  const r = projmenu.getBoundingClientRect();
+  const left = Math.min(x, window.innerWidth - r.width - 6);
+  const top = Math.min(y, window.innerHeight - r.height - 6);
+  projmenu.style.left = Math.max(6, left) + "px";
+  projmenu.style.top = Math.max(6, top) + "px";
+  const first = projmenu.querySelector("button");
+  if (first) first.focus();
+}
+
+els.detail.addEventListener("contextmenu", (ev) => {
+  if (!selectedId) return;
+  ev.preventDefault();
+  openProjMenu(ev.clientX, ev.clientY);
+});
+
+// Closing, by every route someone would expect: a click anywhere else,
+// Escape, a scroll, and the window losing focus. The map is an iframe and
+// swallows clicks that never reach this document, so its own pointer events
+// are not one of the routes — which is why the window `blur` is.
+document.addEventListener("click", (ev) => {
+  if (!projmenu.hidden && !projmenu.contains(ev.target)) closeProjMenu();
+});
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "Escape" && !projmenu.hidden) {
+    closeProjMenu();
+    els.detail.focus?.();
+  }
+});
+window.addEventListener("blur", closeProjMenu);
+window.addEventListener("resize", closeProjMenu);
+
 {
   const { listen } = window.__TAURI__.event;
   listen("menu", (ev) => {

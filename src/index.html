@@ -386,6 +386,20 @@
         </div>
       </section>
     </dialog>
+    <!-- The per-project context menu.
+
+         It hangs off the detail block under the picker rather than off the
+         picker itself: a right-click on a `<select>` gets the platform's
+         own menu, not ours, and fighting that would be fighting the one
+         thing a native control is for. The detail block is where the
+         selected project is named, which is the thing being acted on.
+
+         Built in the DOM rather than as a native menu: `tauri::menu` can
+         do context menus, but the items are the same four the Project and
+         File menus already carry, and routing them through Rust for a
+         right-click would put the same commands behind two mechanisms. -->
+    <ul id="projmenu" class="ctxmenu" hidden role="menu"></ul>
+
     <script type="module" src="main.js"></script>
     <!-- A status bar, not a sidebar footer. It reports on the thing in the
          main pane, so it belongs under the main pane rather than under the

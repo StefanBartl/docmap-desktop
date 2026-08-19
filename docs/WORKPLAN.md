@@ -451,8 +451,13 @@ per language, not a file count.
 
 **docmap-desktop**
 
-- [ ] Menu stage 3 — a context menu on a project row, sharing the Project
-      submenu's handlers.
+- [x] ~~Menu stage 3 — a context menu~~ — built 2026-08-19, and on a
+      different target than the plan said: there is no project *row* any
+      more, the list became a dropdown (§5). It hangs off the detail block
+      under the picker instead, where the selected project is named. Not
+      off the picker: a `<select>` answers a right-click with the
+      platform's own menu, and fighting a native control over the one
+      thing it is for is a losing argument.
 - [x] ~~Menu stage 4 — **About**~~ — built 2026-08-19. It was blocked on
       the engine having nothing true to say about itself, and the fix went
       into `documentation.nvim` rather than here: a version number would
