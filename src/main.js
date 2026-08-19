@@ -560,7 +560,9 @@ async function select(id) {
   }
   mapBase = served ?? convertFileSrc(status.index_path);
   mapTab = null;
-  els.frame.src = mapUrl(mapBase);
+  const url = mapUrl(mapBase);
+  els.frame.src = url;
+  watchMapLoad(url);
   // The path alone. The module count is already on the project row in the
   // list and again in the map's own header — three copies of one number, and
   // this was the third.
@@ -1022,6 +1024,13 @@ function contextNoteFor(ctx) {
 window.addEventListener("message", (ev) => {
   const data = ev.data;
   if (!data || data.source !== "docmap") return;
+  // The page ran. Whatever else this message says, it is the evidence the
+  // blank-pane watchdog is waiting for.
+  mapLoaded = true;
+  if (mapWatch) {
+    clearTimeout(mapWatch);
+    mapWatch = null;
+  }
   if (data.tab) mapTab = data.tab;
   const note = contextNoteFor(data);
   els.contextNote.innerHTML = note || "";
@@ -1313,6 +1322,38 @@ function mapUrl(base) {
   if (mapTab) url += "#tab=" + encodeURIComponent(mapTab);
   return url;
 }
+
+/**
+ * Watch the frame until the page proves it loaded, and say so if it never
+ * does.
+ *
+ * Reported from the installed build: after a regenerate the main pane went
+ * white. It could not be reproduced here — the harness reloads correctly,
+ * the local server sends `Cache-Control: no-store` so a stale copy is not
+ * it, and the frame ends up visible with a src set. So rather than guess at
+ * a cause, this removes the *silence*: a pane that stays blank now says it
+ * stayed blank, and names the URL it was asked for.
+ *
+ * Liveness comes from the page's own outbound message, which it posts once
+ * on load. That is proof it ran, where `onload` only proves the browser
+ * fetched something.
+ */
+let mapWatch = null;
+
+function watchMapLoad(url) {
+  if (mapWatch) clearTimeout(mapWatch);
+  mapLoaded = false;
+  mapWatch = setTimeout(() => {
+    mapWatch = null;
+    if (mapLoaded || els.frame.hidden) return;
+    showPlaceholder(
+      t("map.blank.title"),
+      t("map.blank.body") + '<br><span class="detail">' + escapeHtml(url) + "</span>"
+    );
+  }, 8000);
+}
+
+let mapLoaded = false;
 
 /** Reload the map with the current theme, if one is showing. */
 function retheme() {
