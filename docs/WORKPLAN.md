@@ -475,6 +475,19 @@ per language, not a file count.
       contract, and `backend_contract_spec.lua` now fails a backend that
       forgets its comment syntax. So a new language is a known amount of
       work rather than an open question.
+- [x] ~~**Zig**~~ — built 2026-08-19, the fifth backend. Chosen first
+      because it is the closest fit, not the most wanted: `//!` documents
+      the file, `///` the declaration below it, and `pub` is visibility —
+      all three part of the language rather than a convention layered on
+      comments. So the backend translates instead of approximating, and
+      visibility is a fact from the grammar rather than the leading-
+      underscore guess every other language here makes.
+
+      **Measured cost, for estimating the rest:** one grammar (cloned and
+      built by the release script), ~230 lines of backend, ~120 of spec,
+      and one existing test that had four backends hardcoded. Half a day,
+      and most of it was deciding the three contract answers rather than
+      writing extraction.
 - [ ] **What "full" costs, per language, measured on the ones that exist:**
       a tree-sitter grammar, `is_source`/`extensions`/`detect_source`, a
       header parser, a function scanner, a glossary for the keyword hover,
