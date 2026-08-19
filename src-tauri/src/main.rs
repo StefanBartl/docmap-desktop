@@ -875,6 +875,18 @@ fn serve_project(app: tauri::AppHandle, id: String) -> Result<String, String> {
     Ok(server::url(port))
 }
 
+/// Write text the page handed over to a path the reader chose.
+///
+/// The bytes come from the map page through its inbound channel, and the
+/// path from a save dialog — so nothing is written anywhere nobody named.
+/// The page's own `<a download>` still exists for a browser; inside this
+/// window it would land wherever the webview decided, which is the reason
+/// this route exists at all.
+#[tauri::command]
+fn save_text(path: String, contents: String) -> Result<(), String> {
+    fs::write(&path, contents).map_err(|e| format!("could not write {path}: {e}"))
+}
+
 /// Neovim's own cache root, asked of Neovim.
 ///
 /// Not guessed from the platform: `stdpath("cache")` answers differently
@@ -1220,7 +1232,8 @@ fn main() {
             about_info,
             map_freshness,
             telemetry_info,
-            set_telemetry
+            set_telemetry,
+            save_text
         ])
         .run(tauri::generate_context!())
         .expect("docmap-desktop failed to start");

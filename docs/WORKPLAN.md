@@ -319,6 +319,43 @@ run:
       once start/stop lands: collection can be *switched on* from here.
 
 ---
+## 8. ~~The inbound page channel~~ — built 2026-08-19, and smaller than expected
+
+Three features were said to be waiting on this. Two of them were not.
+
+- **Theme** was solved with `?theme=` (§1): it has to apply before first
+  paint, and a message cannot arrive that early.
+- **Snapshot selection turns out to already exist**, in the page. It has
+  `tsnap`/`tsnapb` state keys — two captures, for comparing — and fetches
+  `/api/telemetry?snapshot=<name>`, a route this app's own server already
+  whitelists along with `telemetry/snapshots`. So the page picks and
+  compares snapshots today, better than the list in Settings does; that
+  list is a convenience for seeing what exists without opening the map.
+
+That left **one** real consumer, and the channel is shaped for it:
+**questions only, no instructions.** No "go to this tab", no "set this" —
+a host that wants the page somewhere navigates the frame's URL, which it
+already controls. What a host cannot do from outside is *read* a
+cross-origin document, which is exactly what `export-svg` and `state` are
+for.
+
+Unknown verbs get silence rather than an error echoing the input; replies
+go to the asker's own origin, never `"*"`; a `"null"` origin gets no
+answer at all. `core/render/html.lua` carries the reasoning so a later verb
+has to argue against it rather than quietly break it.
+
+`File → Export current view…` (`Ctrl+E`) asks, then offers a save dialog.
+Three outcomes and each says which: no diagram on this tab, no answer from
+the page, or a file written where the reader chose. A cancelled dialog is
+silent — the reader knows what they did.
+
+- [ ] `state` has no caller yet. Added because the page already volunteers
+      exactly that on navigation and asking is strictly cheaper than
+      waiting; if nothing has used it by the next round of this file, it
+      should come out.
+
+---
+
 ## Carried over, not from this round
 
 **docmap-desktop**

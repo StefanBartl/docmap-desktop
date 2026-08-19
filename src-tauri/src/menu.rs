@@ -118,6 +118,7 @@ const GROUPS: &[Group] = &[
             item("menu.file.add", Some("CmdOrCtrl+N"), false),
             item("menu.file.open_browser", Some("CmdOrCtrl+Shift+O"), true),
             item("menu.file.reveal", None, true),
+            item("menu.file.export", Some("CmdOrCtrl+E"), true),
             Node::Separator,
             item("menu.file.remove", Some("Delete"), true),
             Node::Separator,
