@@ -1190,6 +1190,20 @@ function contextNoteFor(ctx) {
 window.addEventListener("message", (ev) => {
   const data = ev.data;
   if (!data || data.source !== "docmap") return;
+
+  // The page asking for something, rather than reporting where it is. Its
+  // one request today is opening a file in an editor; the path is
+  // repo-relative because that is what the artifact stores, and it is
+  // resolved and bounds-checked in Rust rather than trusted here.
+  if (data.kind === "open-file" && data.path && selectedId) {
+    invoke("open_in_editor", {
+      id: selectedId,
+      path: data.path,
+      line: data.line ?? null,
+    }).catch((e) => say(String(e)));
+    return;
+  }
+
   // The page ran. Whatever else this message says, it is the evidence the
   // blank-pane watchdog is waiting for.
   const wasLoading = !mapLoaded;
@@ -1973,6 +1987,13 @@ function chooseLocale(code) {
 function openPrefs() {
   document.getElementById("prefs-engine-state").textContent =
     els.engineState.textContent;
+  // Read on open rather than kept in sync: it is a text field nothing else
+  // writes.
+  invoke("editor_command", { set: null })
+    .then((cmd) => {
+      document.getElementById("editor-cmd").value = cmd || "";
+    })
+    .catch((e) => void e);
   document.getElementById("prefs-nvim-state").textContent =
     els.nvimState.textContent;
   // Asked when the dialog opens rather than kept live: reading it walks a
@@ -2037,6 +2058,10 @@ document.getElementById("about-copy").addEventListener("click", async () => {
     // lose the text: it is already on screen and selectable.
     say(String(e));
   }
+});
+
+document.getElementById("editor-cmd").addEventListener("change", (ev) => {
+  invoke("editor_command", { set: ev.target.value }).catch((e) => say(String(e)));
 });
 
 async function openDocs(page) {

@@ -385,6 +385,20 @@
         <ul id="tel-snaps" class="prefs-snaps" hidden></ul>
       </section>
 
+
+      <section class="prefs-section">
+        <h3 data-i18n="prefs.editor">Editor</h3>
+        <p class="addbox-note" data-i18n="prefs.editor.note">
+          What <strong>Open in editor</strong> runs, from the map's own
+          right-click menu. <code>{file}</code> and <code>{line}</code> are
+          substituted. Leave it empty to hand the file to whatever your
+          desktop opens it with.
+        </p>
+        <input id="editor-cmd" class="fb-field" type="text" autocomplete="off"
+               data-i18n-placeholder="prefs.editor.placeholder"
+               placeholder="code -g {file}:{line}" />
+      </section>
+
       <section class="prefs-section">
         <h3 data-i18n="prefs.nvim">Neovim</h3>
         <p class="addbox-note" data-i18n="prefs.nvim.note">

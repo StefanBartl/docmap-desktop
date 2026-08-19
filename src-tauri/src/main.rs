@@ -93,6 +93,14 @@ struct Workspace {
     nvim_path: Option<String>,
     #[serde(default)]
     nvim_config_dir: Option<String>,
+    /// How to open a source file in an editor, as a command template.
+    ///
+    /// `{file}` and `{line}` are substituted; anything else is passed
+    /// through. `None` means "whatever the desktop opens this file with",
+    /// which is a real answer rather than a missing setting — it is what
+    /// double-clicking the file in a file manager would do.
+    #[serde(default)]
+    editor: Option<String>,
 }
 
 /// Where the project list lives.
@@ -1054,6 +1062,85 @@ async fn set_telemetry(
     }
 }
 
+/// Open a source file in an editor, at a line where one is known.
+///
+/// The path arrives repo-relative from the map page, because that is what
+/// the artifact stores; it is resolved against the project it belongs to
+/// here rather than there. The page has no idea where the repository sits
+/// on this machine, and should not.
+///
+/// **The resolved path must stay inside the project.** The message comes
+/// from a document this app embeds but does not author — a map generated
+/// by an older engine, or one someone else produced — and `../../` in a
+/// path is the difference between opening a file and opening any file.
+#[tauri::command]
+fn open_in_editor(
+    app: tauri::AppHandle,
+    id: String,
+    path: String,
+    line: Option<u64>,
+) -> Result<(), String> {
+    let ws = read_workspace(&app)?;
+    let project = ws
+        .projects
+        .iter()
+        .find(|p| p.id == id)
+        .ok_or_else(|| format!("no such project: {id}"))?;
+
+    let root = fs::canonicalize(&project.root)
+        .map_err(|e| format!("cannot resolve {}: {e}", project.root))?;
+    let target = fs::canonicalize(root.join(&path))
+        .map_err(|_| format!("{path} is not a file in this project"))?;
+    if !target.starts_with(&root) {
+        return Err(format!("{path} resolves outside the project"));
+    }
+    let file = portable(&target);
+
+    let template = match ws.editor.as_deref() {
+        Some(t) if !t.trim().is_empty() => t.to_string(),
+        // No template configured: hand it to the desktop, which is what
+        // double-clicking the file would do.
+        _ => return open_externally(&file),
+    };
+
+    // Split before substituting, so a path with a space in it stays one
+    // argument rather than becoming two — `C:/Program Files/...` is the
+    // normal case on this platform, not the exotic one.
+    let mut parts = template.split_whitespace().map(|p| {
+        p.replace("{file}", &file)
+            .replace("{line}", &line.unwrap_or(1).to_string())
+    });
+    let program = parts
+        .next()
+        .ok_or_else(|| "the editor command is empty".to_string())?;
+    let args: Vec<String> = parts.collect();
+
+    let mut cmd = std::process::Command::new(&program);
+    cmd.args(&args);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    cmd.spawn()
+        .map(|_| ())
+        .map_err(|e| format!("could not run {program}: {e}"))
+}
+
+/// Read or set the editor command template.
+#[tauri::command]
+fn editor_command(app: tauri::AppHandle, set: Option<String>) -> Result<Option<String>, String> {
+    if let Some(value) = set {
+        let trimmed = value.trim().to_string();
+        return with_workspace(&app, |ws| {
+            ws.editor = if trimmed.is_empty() { None } else { Some(trimmed.clone()) };
+            Ok(ws.editor.clone())
+        });
+    }
+    Ok(read_workspace(&app)?.editor)
+}
+
 /// A project's own icon, if it ships one by any convention worth
 /// following. `None` for most repositories, which is correct rather than a
 /// failure — see `icon.rs` on why nothing is shown instead of a
@@ -1318,6 +1405,8 @@ fn main() {
             about_info,
             map_freshness,
             project_icon,
+            open_in_editor,
+            editor_command,
             telemetry_info,
             set_telemetry,
             save_text
