@@ -891,3 +891,59 @@ button:focus-visible {
 .prefs-snaps li:first-child {
   border-top: 0;
 }
+
+/* ------------------------------------------------------- context menu
+
+   Positioned in viewport coordinates because it must be able to sit over
+   anything, including the map — the same reason the generated page's own
+   floating cards use `position: fixed`. */
+.ctxmenu {
+  position: fixed;
+  z-index: 80;
+  min-width: 190px;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+}
+
+.ctxmenu[hidden] {
+  display: none;
+}
+
+.ctxmenu button {
+  display: block;
+  width: 100%;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ctxmenu button:hover:not(:disabled),
+.ctxmenu button:focus-visible {
+  background: var(--accent-soft);
+  color: var(--accent);
+  outline: none;
+}
+
+/* Disabled rather than absent: an item that vanishes when it cannot run
+   teaches nobody that it exists. */
+.ctxmenu button:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+.ctxmenu .sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--line);
+}
