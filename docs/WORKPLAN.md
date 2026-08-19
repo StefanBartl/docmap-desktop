@@ -316,10 +316,12 @@ telemetry at all — the map's own Analysis panel does, from data it reads
 itself. What this can honestly do is say which captures exist, when they
 were taken and how much is in them.
 
-- [ ] A picker that *drives* something needs the app to render telemetry,
-      or the generated page to accept "show me this snapshot" — which is
-      the same inbound page channel as §1 and the export item, and is the
-      third feature now waiting on it.
+- [x] ~~A picker that *drives* something~~ — **answered by §8, not built
+      here.** The page already has `tsnap`/`tsnapb` state keys and fetches
+      `/api/telemetry?snapshot=<name>`, so it picks and compares two
+      captures today, better than a list in Settings could. This entry was
+      counting a feature as waiting on the inbound channel that turned out
+      not to need it — the same correction §8 records for the other two.
 - [ ] The dated `SetupAll` backups: none exist on this machine, so nothing
       was lost by not reading them. The directory is prompted per run and
       recorded nowhere, which is why this cannot find them in general.
@@ -362,20 +364,33 @@ run:
 3. **Snapshots: none**, because `SetupAll` does not take one. That is the
    gap between what was run and what a picker needs.
 
-- [ ] The picker reads `telemetry/<ns>/snapshots/` — newest first, the
-      same order `list_snapshots` returns.
-- [ ] It has to say when there are none, and *why*: "snapshots are only
-      taken by `:RATelemetry snapshot`" is the actionable sentence, and an
-      empty picker without it reads as a broken feature.
+- [x] ~~The picker reads `telemetry/<ns>/snapshots/`, newest first~~ —
+      built, in **Settings → Telemetry**.
+- [x] ~~It has to say when there are none, and *why*~~ — built: the empty
+      state carries `:RATelemetry snapshot <name>` and the reason snapshots
+      are never automatic, so it reads as a state rather than as a broken
+      feature.
 - [ ] The dated `SetupAll` backups are a second, differently-shaped
       archive. Worth reading too, but only once the directory is known —
       it is prompted per run and stored nowhere this app can find.
 ### One note this makes stale
 
-- [ ] `contextNoteFor` says telemetry "comes from a live Neovim session…
-      nothing here can generate it". The second half stays true — this app
-      cannot run someone's plugin code. The first half needs qualifying
-      once start/stop lands: collection can be *switched on* from here.
+- [x] ~~`contextNoteFor`'s telemetry note~~ — requalified 2026-08-19. It
+      now says collection can be switched on here and names where, while
+      keeping the half that stays true: this window cannot run somebody's
+      plugin code. A note that overstates what the window *cannot* do is the
+      same failure as one that overstates what it can.
+
+      **And it turned out to be §2's bug in a second place.** Both notes
+      were English literals inside `contextNoteFor` — invisible to the
+      `data-i18n` walk, so no amount of translating the markup would ever
+      have reached them. Catalogued in both locales, and guarded the same
+      structural way: a test reads `main.js` and fails any `return` from
+      that function that is not `t(...)` or `null`, plus one asserting the
+      telemetry note no longer claims the window can do nothing.
+
+      `docs/USAGE.md`'s table carried the old claim too, and now says the
+      same thing the note does.
 
 ---
 ## 8. ~~The inbound page channel~~ — built 2026-08-19, and smaller than expected

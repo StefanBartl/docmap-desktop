@@ -184,6 +184,14 @@ const CATALOGS = {
     "prefs.engine.note": "The engine is <strong>documentation.nvim's standalone binary</strong> — this app runs it, it does not replace it. Where it is on PATH there is nothing to do here, ever.",
     "prefs.telemetry": "Telemetry",
     "prefs.telemetry.note": "Collected by <strong>runtime-analysis.nvim</strong> inside Neovim, per plugin. Switching it here takes effect from the next Neovim session — nothing in this window runs your plugin.",
+    // The notes shown over a panel the engine here cannot fill. Catalogued
+    // 2026-08-19 with the placeholders, for the same reason and by the same
+    // test: they were built as English literals inside `contextNoteFor`,
+    // where nothing walking `data-i18n` attributes would ever find them.
+    "note.telemetry":
+      "Telemetry is collected by <code>runtime-analysis.nvim</code> inside a live Neovim session. This app can switch collection on for the next session — <strong>Settings → Telemetry</strong> — but it cannot run your plugin code, so it shows only what was collected there.",
+    "note.types":
+      "Type data comes from <code>lua-language-server</code> (<code>:DocMap full</code>, inside Neovim). The standalone engine this app runs has no equivalent of that and cannot produce it.",
     "tel.absent": "runtime-analysis.nvim has never written a cache on this machine.",
     "tel.unknown": "No telemetry for {name}. A namespace is a plugin name, so this only applies to a project that registers telemetry under its own.",
     "tel.on": "Collecting — {sessions} session(s), {days} day(s) recorded.",
@@ -402,6 +410,10 @@ const CATALOGS = {
     "prefs.engine.note": "Die Engine ist <strong>das Standalone-Binary von documentation.nvim</strong> — diese App führt es aus, sie ersetzt es nicht. Liegt es auf PATH, gibt es hier nie etwas zu tun.",
     "prefs.telemetry": "Telemetry",
     "prefs.telemetry.note": "Wird von <strong>runtime-analysis.nvim</strong> in Neovim erhoben, pro Plugin. Ein Umschalten hier wirkt ab der nächsten Neovim-Sitzung — in diesem Fenster läuft dein Plugin nicht.",
+    "note.telemetry":
+      "Telemetry erhebt <code>runtime-analysis.nvim</code> in einer laufenden Neovim-Sitzung. Diese App kann die Erhebung ab der nächsten Sitzung einschalten — <strong>Einstellungen → Telemetry</strong> —, aber sie kann deinen Plugin-Code nicht ausführen und zeigt daher nur, was dort erhoben wurde.",
+    "note.types":
+      "Typdaten kommen von <code>lua-language-server</code> (<code>:DocMap full</code>, in Neovim). Die eigenständige Engine dieser App hat dafür keine Entsprechung und kann sie nicht erzeugen.",
     "tel.absent": "runtime-analysis.nvim hat auf diesem Rechner noch nie einen Cache geschrieben.",
     "tel.unknown": "Keine Telemetry für {name}. Ein Namespace ist ein Plugin-Name — das gilt also nur für ein Projekt, das sich unter seinem eigenen registriert.",
     "tel.on": "Erhebt — {sessions} Sitzung(en), {days} Tag(e) aufgezeichnet.",
