@@ -413,21 +413,28 @@ another focus" is a direction, not a task. Worth turning into specific
 views before building any — one named view with a question it answers
 beats three general ones.
 
-### 9.4 Open the file where an entity lives
+### 9.4 ~~Open the file where an entity lives~~ — built 2026-08-19
 
-An icon beside a listed function or module that opens its file in the
-system's editor, VS Code, or whatever is configured — the Godbolt move.
+An **Open in editor** item in the map's own right-click menu, beside the
+existing *Open source*, carrying the path and — on a function — its line.
 
-- [ ] **This one lands in the desktop app, not the page.** A browser cannot
-      open an editor; the app can, and already does exactly this shape for
-      `reveal_project`. So the page asks and the app acts — which the
-      inbound channel (§8) now makes possible in the wrong direction only:
-      the page *speaks* outward already, so this needs no new channel at
-      all, just a message the app listens for.
-- [ ] Which editor is a setting, and Settings now exists (§4) to hold it.
-      Default to the system association; `code -g file:line` for VS Code.
-- [ ] Line numbers are already in the artifact, so "open at the function"
-      is free once the file opens at all.
+Outbound only, so it needed nothing new: this page has always spoken to its
+embedder, and asking a *host* to act is the direction that was never
+restricted. Offered only when embedded, because a browser cannot start an
+editor and a menu item that does nothing is worse than an absent one.
+
+**The path is resolved and bounds-checked in Rust**, not trusted. It
+arrives repo-relative — that is what the artifact stores — and the message
+comes from a document this app embeds but does not author: a map generated
+by an older engine, or one somebody else produced. `../../` in a path is
+the difference between opening a file and opening any file, so the resolved
+path has to start with the project root or it is refused.
+
+The editor is a Settings field, `{file}` and `{line}` substituted, empty
+meaning "hand it to the desktop" — which is a real answer rather than an
+unset setting, since it is what double-clicking the file would do. The
+template is split into arguments *before* substitution, so a path with a
+space in it stays one argument; on this platform that is the normal case.
 
 ### 9.5 An "Actual filetree" tab, and folding History into it
 
