@@ -249,12 +249,16 @@ removed from the window.
 English here and in every locale: a product's name and its motto are its
 own words.
 
-- [ ] **The GitHub repository descriptions still carry the old line.**
-      Left alone deliberately: that is a public setting on the
-      repositories, not a file in them. Two commands, whenever wanted:
+- [x] ~~**The GitHub repository descriptions still carry the old line.**~~
+      — run 2026-08-20, on your say-so. Both now read back as set:
 
-      gh repo edit StefanBartl/documentation.nvim --description "know your project — an interactive module map, drift checks that fail CI, and an in-editor browser for any repository."
-      gh repo edit StefanBartl/docmap-desktop --description "know your project — a desktop workspace for documentation.nvim's module maps."
+      documentation.nvim: know your project — an interactive module map, drift checks that fail CI, and an in-editor browser for any repository.
+      docmap-desktop: know your project — a desktop workspace for documentation.nvim's module maps.
+
+      The delay was the right shape rather than caution for its own sake: a
+      repository description is public and is not a file in the repository,
+      so it is the one thing in this round that no commit could have
+      undone. Asking cost a sentence.
 
 - [x] ~~`claude/documentation-nvim-browser-title-805562`~~ — **already on
       `main`, by a different branch.** Checked rather than merged, and the
@@ -267,10 +271,11 @@ own words.
 
       Merging it would have re-applied work already present and dragged 80
       commits' worth of stale `docs/map/*` artifacts along with it. **The
-      branch itself is now dead and worth deleting** — left to you, since a
-      remote branch is not a file in the repository:
-
-      git push origin --delete claude/documentation-nvim-browser-title-805562
+      branch is deleted** — 2026-08-20, on your say-so. Its tip was
+      `31144d9`, recorded here because that is what makes the deletion
+      reversible: the commit is not gone, only the name that pointed at it,
+      and `git fetch origin 31144d9` brings it back if the check above ever
+      turns out to have missed something.
 
 ---
 ## 7. Telemetry — measured, and it splits in two
