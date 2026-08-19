@@ -66,40 +66,28 @@ reason it was made does not stop being true.
    somewhere in the generation log.
 
 ---
-## 1. The map pane ignores the theme
+## 1. ~~The map pane ignores the theme~~ — fixed 2026-08-19
 
-**Reported:** choosing Dark themes the sidebar and leaves the map white.
+The generated page reads `?theme=` and stamps `data-theme` on `:root` in
+`<head>`, before first paint. The app appends it to the frame URL and
+reloads the frame when the theme changes.
 
-**Measured, not guessed.** The generated page already supports
-`:root[data-theme="light"|"dark"]` and otherwise follows
-`prefers-color-scheme`. The app stamps `data-theme` on *its own* document.
-The map is an iframe served from `127.0.0.1` while the shell is on
-`tauri://` — a different document at a different origin, so the attribute
-never reaches it and the page keeps following the OS. On an OS set to light
-with the app set to dark, that is exactly the half-dark window in the
-screenshot.
+`?theme=` rather than an inbound `postMessage`: the page's channel to a
+host is deliberately one-way, and a page that executes instructions from
+whatever embeds it is a different security posture than one that reads its
+own URL. It is also a feature outside this app — `index.html?theme=dark`
+in any browser.
 
-**Why it is not a one-line fix.** The page channel is one-way:
-`src/main.js` listens for `message` and nothing ever posts *to* the frame
-(`docs/MENUBAR.md` constraint 1). So the theme has to arrive some other way.
+A reload would have cost the reader their panel, so the app remembers the
+`tab` the page reports through that one-way channel and lands back on it.
+The panel and nothing finer: the page posts a coarse context on purpose,
+and scroll position is not in it.
 
-**The plan**, cheapest correct option first:
-
-- [ ] `core/render/html.lua` reads a `theme` query parameter and, when it is
-      `light` or `dark`, stamps it on `:root` — the same three states the
-      page already has, just reachable from outside. Absent means what it
-      means today: follow the OS.
-- [ ] The app appends `?theme=…` to the iframe URL, and reloads the frame
-      when the theme changes.
-- [ ] **Verify against the real failure**, not against a fresh window: OS
-      light, app dark, map dark. The current bug passes any test that only
-      checks "dark works" on a dark OS.
-
-This is also a feature outside this app: a generated map opened in a browser
-gains `?theme=dark` for free.
+Verified against the actual failure rather than its easier half — on a
+machine whose OS prefers dark, `?theme=light` renders light. The bug
+would have passed any test that only checked dark on a dark OS.
 
 ---
-
 ## 2. The three generate surfaces
 
 **Asked:** if adding a project generates automatically, are the *Generate
@@ -230,6 +218,38 @@ its motto are its own words, not a string the catalog speaks for.
 - [ ] The generated page's own header, together with
       `claude/documentation-nvim-browser-title-805562`, which adds exactly
       that topbar and was waiting on this decision.
+
+---
+## 7. Telemetry — starting it, stopping it, and choosing which run
+
+**Asked 2026-08-19**, and worth separating from the objection I raised
+before, which was to this app *reimplementing* telemetry. This is not
+that: `runtime-analysis.nvim` already counts calls, already writes them,
+and already has `:RATelemetry` to control it. What is asked for is a
+**control surface and a selector** over data that exists.
+
+Two halves, and only one of them is cheap:
+
+- [ ] **Start / stop for the selected project.** Needs measuring first:
+      `:RATelemetry` wraps functions *inside a running Lua process*, so
+      "start telemetry for this project" only means something while
+      something is running that project's code. Whether this app can ask
+      for that at all — and what it would be asking, given the app runs
+      the engine as a one-shot binary — is the open question, and it is
+      the same category error `docs/ECOSYSTEM.md` names. **Do not build
+      until that is answered by reading `runtime-analysis.nvim`, not by
+      assuming.**
+- [ ] **Choosing which run you are looking at.** This is the good half and
+      it is independent of the above: telemetry produces a data point per
+      session, someone measures, changes something, measures again, and
+      then has several per project. A picker over the runs that already
+      exist on disk is a reading feature — the kind of thing
+      `docs/ROADMAP.md`'s extension-API stage 2 describes, and buildable
+      without any of stage 3.
+- [ ] Where it goes: beside the telemetry panel, not in the project
+      dropdown. The project dropdown answers "which repository"; a run
+      picker answers "which measurement of it", and stacking the second
+      inside the first makes a control that means two things.
 
 ---
 ## Carried over, not from this round
