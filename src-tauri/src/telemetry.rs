@@ -92,7 +92,7 @@ fn sessions_of(v: &serde_json::Value) -> u64 {
 pub fn info(cache_root: &str, namespace: &str) -> Info {
     let root = dir(cache_root);
     let mut out = Info {
-        path: root.to_string_lossy().replace('\\', "/"),
+        path: crate::portable(&root),
         installed: root.is_dir(),
         ..Default::default()
     };
