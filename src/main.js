@@ -431,7 +431,10 @@ async function select(id) {
     say(String(e));
   }
   els.frame.src = served ?? convertFileSrc(status.index_path);
-  say(`${p.root} · ${status.modules ?? "?"} modules`);
+  // The path alone. The module count is already on the project row in the
+  // list and again in the map's own header — three copies of one number, and
+  // this was the third.
+  say(p.root);
   renderEngine();
 }
 

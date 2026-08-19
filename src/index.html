@@ -94,7 +94,6 @@
         <select id="lang" aria-label="Language" data-i18n-help="help.language"></select>
       </div>
 
-      <footer id="status"></footer>
     </aside>
 
     <main id="view">
@@ -268,5 +267,10 @@
     </dialog>
 
     <script type="module" src="main.js"></script>
+    <!-- A status bar, not a sidebar footer. It reports on the thing in the
+         main pane, so it belongs under the main pane rather than under the
+         list — and centred, because it is one fact about the window rather
+         than the last item of a column. -->
+    <footer id="status"></footer>
   </body>
 </html>

@@ -98,6 +98,10 @@ body {
 body {
   display: grid;
   grid-template-columns: 260px 1fr;
+  /* Two rows now: the shell, and a status bar under both columns. `1fr`
+     then `auto` so the bar is exactly as tall as its one line and the
+     panes take the rest. */
+  grid-template-rows: 1fr auto;
   font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   color: var(--ink);
   background: var(--bg);
@@ -237,11 +241,28 @@ button:focus-visible {
   color: var(--muted);
 }
 
+/* The status bar spans both columns of the shell grid. Centred and
+   monospaced, because what it mostly carries is a path — and a path that
+   moves horizontally every time the selection changes is harder to read
+   than one that stays put. */
 #status {
-  padding: 8px 16px 12px;
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 5px 16px;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+  font-family: var(--mono);
   font-size: 11.5px;
   color: var(--muted);
-  min-height: 1.5em;
+  min-height: 1.6em;
+  /* One line. A long path is elided rather than wrapped: a status bar that
+     changes height as the selection changes makes the whole window jump. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ---------------------------------------------------------------- view */
