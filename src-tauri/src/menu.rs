@@ -136,6 +136,10 @@ const GROUPS: &[Group] = &[
             item("menu.project.generate_all", Some("CmdOrCtrl+Shift+G"), false),
             item("menu.project.generate_stale", None, false),
             Node::Separator,
+            // Reads, never writes — which is why it sits apart from the three
+            // above rather than among them.
+            item("menu.project.check", None, true),
+            Node::Separator,
             item("menu.project.regenerate", Some("F5"), true),
             Node::Separator,
             item("menu.project.generate_full", None, true),

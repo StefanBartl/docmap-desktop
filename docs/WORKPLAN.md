@@ -160,8 +160,13 @@ would mark everything stale forever), a nested checkout must not, and "no
 map" is a different state from "stale" — a project that has never been
 generated is not behind, it is absent.
 
-- [ ] The exact answer on demand (`--check`) is **not** built. Still worth
-      having as the thing that settles it.
+- [x] ~~The exact answer on demand (`--check`)~~ — built 2026-08-19 as
+      *Project → Check exactly*. This entry called it "the thing that
+      settles it" and that is exactly the division: the mark compares
+      modification times and says *something was touched*, this runs the
+      analysis and compares the output byte for byte. The mark's own
+      tooltip had been pointing at a command that did not exist yet; it
+      does now. See [§10.9](#109-which-app-features-belong-in-the-menu-a-review-not-a-task).
 
 ---
 ## 4. ~~Settings~~ — built 2026-08-19
@@ -807,10 +812,25 @@ candidates went in, each argued in its row in `docs/MENUBAR.md`.
 - [x] ~~**Open the workspace file**~~ — built as *Help → Open the settings
       folder*, the folder rather than the file: there are now several files
       in it (§11) and the one somebody needs depends on what went wrong.
-- [ ] **Check exactly** (`docmap --check`) stays unbuilt, and is left here
-      rather than closed with the rest: it is the only thing that answers
-      "would the map actually come out different", and a menu item that
-      leads nowhere is worse than no menu item. It needs §3 first.
+- [x] ~~**Check exactly** (`docmap --check`)~~ — built 2026-08-19, once §3
+      unblocked it. *Project → Check exactly*, separated from the three
+      Generate items by a rule rather than a gap: **it reads and never
+      writes**, and that is a different promise than everything above it.
+
+      **`--lenient` is the design decision, and it is not a softening.**
+      Without it the engine exits 1 for two unrelated reasons — the map is
+      stale, *or* the map is current but carries error-severity drift
+      findings — and a caller holding one bit cannot tell those apart. The
+      alternative was sniffing stderr for the sentence `Module map is
+      stale`, which works today and breaks the first time somebody rewords
+      it. With `--lenient` the exit code means staleness and nothing else,
+      and the findings still arrive in the output, where this app already
+      shows the engine's report verbatim.
+
+      Its own Tauri command rather than a flag on `generate`: the two have
+      opposite guarantees, and a boolean deciding whether a function writes
+      into somebody's repository is the kind of argument that eventually
+      gets passed the wrong way round.
 
 ### 10.7 The documentation needs rebuilding from the ground up
 
