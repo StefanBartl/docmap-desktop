@@ -505,16 +505,36 @@ per language, not a file count.
       and looked like a language nobody writes to-dos in. Caught by the
       contract spec, which proves the comment token *works* rather than
       that it is declared.
+- [x] ~~**C and C++**~~ — built 2026-08-19, the seventh and eighth, shared
+      in one file the way the three ECMA registrations are. Both questions
+      the engine’s own roadmap had left open for C got answered:
+      **declaration vs. definition** is decided per *file* (a header’s
+      prototypes are its published surface; a source file’s are duplicates
+      of the bodies below them), and **the missing module system** is the
+      path, exactly as Zig already established.
+
+      **The measurement that changed the design:** scanned against a real
+      C project (`antirez/sds`, 1328 lines, 45 functions, nearly all
+      commented), the Doxygen-only rule every C tool uses found **zero**
+      summaries — that codebase writes plain `/* ... */`. So a comment
+      directly above a declaration counts whatever its punctuation, with
+      one filter against commented-out code, and the file-header rule
+      still demands Doxygen style so a license banner never becomes a file
+      summary. Same tree, after: 34 of 45.
 - [ ] **What "full" costs, per language, measured on the ones that exist:**
       a tree-sitter grammar, `is_source`/`extensions`/`detect_source`, a
       header parser, a function scanner, a glossary for the keyword hover,
       and comment syntax. Lua and the ECMA family took very different
       amounts of that, and the ECMA one is the honest estimate for a new
       C-like language.
-- [ ] Assembly is not like the others and should be argued separately: it
+- [ ] **Assembly — needs your decision, and it is the only one left.** It
       has no modules, no imports and no functions in the sense the rest of
-      this tool means, so "support" there is a different feature wearing
-      the same word.
+      this tool means, no visibility concept and no documentation
+      convention; and *which* assembly (GAS, NASM, ARM) is a fork rather
+      than a dialect. A backend that reports labels and include directives
+      is buildable and honest, and it would show a file list with labels
+      in it — which may or may not be what was wanted by "voll und ganz".
+      Worth answering before it is built rather than after.
 
 ---
 
