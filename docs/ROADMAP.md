@@ -154,7 +154,7 @@ so the cross-repository piece comes last rather than blocking the rest.
    items had no command behind them yet and were written rather than
    shipped dead: open the map in the system browser, and reveal the
    project root in the file manager.
-2. **View: theme, language, zoom, sidebar toggle.** Theme and language
+2. ~~**View: theme, language, zoom, sidebar toggle**~~ — built 2026-08-19. Theme and language
    leave the sidebar footer. The catalog-to-Rust handoff gets built here,
    on two items whose behaviour is already understood.
 3. **A context menu on a project row**, sharing the Project handlers.

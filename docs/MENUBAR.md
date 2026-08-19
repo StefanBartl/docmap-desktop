@@ -243,7 +243,7 @@ riskiest cross-repo piece comes last rather than blocking the rest.
    rename on one side is a failing test rather than a runtime surprise in
    whichever language the window happened to open in.
 
-2. **View: theme, language, zoom, sidebar toggle.** Theme and language move
+2. ~~**View: theme, language, zoom, sidebar toggle.**~~ **Built 2026-08-19.** Theme and language move
    out of the footer; the catalog-to-Rust handoff from constraint 2 gets
    built here, on two items whose behaviour is already understood.
 3. **The context menu on a project row**, sharing the Project submenu's

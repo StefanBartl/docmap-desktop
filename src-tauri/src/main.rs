@@ -941,6 +941,25 @@ fn reveal_project(app: tauri::AppHandle, id: String) -> Result<(), String> {
     open_externally(&project.root)
 }
 
+/// Set the window's zoom factor.
+///
+/// On the webview rather than in CSS: the map is an iframe served from
+/// `127.0.0.1` while the shell is on `tauri://`, so a page-level transform
+/// stops at the frame boundary and would scale everything *except* the
+/// dense page the reader wanted bigger.
+///
+/// Clamped here rather than in the frontend because this is the side that
+/// has to survive being asked for zero.
+#[tauri::command]
+fn set_zoom(app: tauri::AppHandle, factor: f64) -> Result<f64, String> {
+    let factor = factor.clamp(0.5, 3.0);
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| "no main window".to_string())?;
+    window.set_zoom(factor).map_err(|e| e.to_string())?;
+    Ok(factor)
+}
+
 /// Install (or replace) the window menu with the frontend's labels.
 ///
 /// Called once after i18n initialises and again on every language change
@@ -952,8 +971,9 @@ fn set_menu(
     app: tauri::AppHandle,
     labels: HashMap<String, String>,
     has_project: bool,
+    state: menu::ViewState,
 ) -> Result<(), String> {
-    let built = menu::build(&app, &labels, has_project)?;
+    let built = menu::build(&app, &labels, has_project, &state)?;
     app.set_menu(built).map_err(|e| e.to_string())?;
     Ok(())
 }
@@ -990,7 +1010,8 @@ fn main() {
             set_menu,
             open_map_in_browser,
             reveal_project,
-            open_docs
+            open_docs,
+            set_zoom
         ])
         .run(tauri::generate_context!())
         .expect("docmap-desktop failed to start");

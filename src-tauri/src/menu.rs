@@ -11,11 +11,11 @@
 //! fields between them.
 //!
 //! So the frontend builds the menu: it calls `set_menu` with a label per id
-//! after i18n has initialised, and again whenever the language changes.
-//! Missing keys are an error naming them rather than a silent fallback,
-//! because the catalog test guarantees they cannot be missing and a quiet
-//! English label in a German menu is exactly the failure that test exists to
-//! prevent.
+//! after i18n has initialised, and again whenever the language, the theme,
+//! the zoom or the selection changes. Missing keys are an error naming them
+//! rather than a silent fallback, because the catalog test guarantees they
+//! cannot be missing and a quiet English label in a German menu is exactly
+//! the failure that test exists to prevent.
 //!
 //! Clicking an item emits `menu` to the webview with the item's id. The
 //! handlers stay in `main.js` beside the buttons that already call them —
@@ -24,8 +24,40 @@
 
 use std::collections::HashMap;
 
-use tauri::menu::{Menu, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
+use serde::Deserialize;
+use tauri::menu::{CheckMenuItemBuilder, Menu, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
 use tauri::{AppHandle, Emitter, Runtime};
+
+/// The window state the menu has to *show*, not just act on.
+///
+/// A checkmark is a claim about how the window currently is, so it cannot be
+/// inferred here: theme, interface language and sidebar visibility all live
+/// in the frontend (in `localStorage`, per `docs/MENUBAR.md`'s note on why
+/// they are properties of this machine rather than of the project list).
+/// They are handed over on every rebuild instead, which is also what makes
+/// the marks correct after a change made from somewhere other than the menu.
+#[derive(Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ViewState {
+    /// `"system"`, `"light"` or `"dark"` — three states, because "system"
+    /// has to stay choosable. A two-way toggle can only ever leave a reader
+    /// pinned to a decision they made once.
+    pub theme: String,
+    /// The active locale code.
+    pub locale: String,
+    /// The locales to offer, with their endonyms. Sent as data rather than
+    /// hardcoded here so adding a language stays a one-file change in the
+    /// catalog — and the labels are endonyms, never translated: a language
+    /// name spelled the reader's own way is how they find it.
+    pub locales: Vec<Locale>,
+    pub sidebar: bool,
+}
+
+#[derive(Deserialize)]
+pub struct Locale {
+    pub code: String,
+    pub label: String,
+}
 
 /// One clickable item: the id the frontend will receive, and its accelerator.
 ///
@@ -41,62 +73,135 @@ struct Item {
     needs_project: bool,
 }
 
-const fn item(id: &'static str, accel: Option<&'static str>, needs_project: bool) -> Item {
-    Item {
+const fn item(id: &'static str, accel: Option<&'static str>, needs_project: bool) -> Node {
+    Node::Item(Item {
         id,
         accel,
         needs_project,
-    }
+    })
 }
 
-/// The tree, as data.
-///
-/// Read top to bottom this is the whole menu; `docs/MENUBAR.md` argues each
-/// placement. `None` in a submenu's item list is a separator.
+/// A checkable item. What it is checked *by* is decided in `is_checked`,
+/// which is the one place that reads `ViewState`.
+const fn check(id: &'static str, accel: Option<&'static str>) -> Node {
+    Node::Check(Item {
+        id,
+        accel,
+        needs_project: false,
+    })
+}
+
+/// One entry in a menu or submenu.
+enum Node {
+    Item(Item),
+    Check(Item),
+    /// A nested submenu: its own label key, then its contents.
+    Sub(&'static str, &'static [Node]),
+    /// The list of interface languages, built from `ViewState::locales`
+    /// rather than from this file. Its item ids are `menu.view.lang:<code>`,
+    /// which is why they are not literals anyone can grep for here.
+    Locales,
+    Separator,
+}
+
+/// The tree, as data. Read top to bottom this is the whole menu;
+/// `docs/MENUBAR.md` argues each placement.
 struct Group {
-    /// Label key for the submenu title.
     id: &'static str,
-    items: &'static [Option<Item>],
+    items: &'static [Node],
 }
 
 const GROUPS: &[Group] = &[
     Group {
         id: "menu.file",
         items: &[
-            Some(item("menu.file.add", Some("CmdOrCtrl+N"), false)),
-            Some(item("menu.file.open_browser", Some("CmdOrCtrl+Shift+O"), true)),
-            Some(item("menu.file.reveal", None, true)),
-            None,
-            Some(item("menu.file.remove", Some("Delete"), true)),
+            item("menu.file.add", Some("CmdOrCtrl+N"), false),
+            item("menu.file.open_browser", Some("CmdOrCtrl+Shift+O"), true),
+            item("menu.file.reveal", None, true),
+            Node::Separator,
+            item("menu.file.remove", Some("Delete"), true),
         ],
     },
     Group {
         id: "menu.project",
         items: &[
-            Some(item("menu.project.generate", Some("CmdOrCtrl+G"), true)),
-            Some(item("menu.project.generate_all", Some("CmdOrCtrl+Shift+G"), false)),
-            None,
-            Some(item("menu.project.regenerate", Some("F5"), true)),
+            item("menu.project.generate", Some("CmdOrCtrl+G"), true),
+            item("menu.project.generate_all", Some("CmdOrCtrl+Shift+G"), false),
+            Node::Separator,
+            item("menu.project.regenerate", Some("F5"), true),
+        ],
+    },
+    Group {
+        id: "menu.view",
+        items: &[
+            Node::Sub(
+                "menu.view.theme",
+                &[
+                    check("menu.view.theme.system", None),
+                    check("menu.view.theme.light", None),
+                    check("menu.view.theme.dark", None),
+                ],
+            ),
+            Node::Sub("menu.view.language", &[Node::Locales]),
+            Node::Separator,
+            // The map is a dense page, and this is the single most useful
+            // thing a menu bar adds to it. `CmdOrCtrl+Plus` as well as
+            // `Equal`: the unshifted key is what people actually press.
+            item("menu.view.zoom_in", Some("CmdOrCtrl+Plus"), false),
+            item("menu.view.zoom_out", Some("CmdOrCtrl+-"), false),
+            item("menu.view.zoom_reset", Some("CmdOrCtrl+0"), false),
+            Node::Separator,
+            check("menu.view.sidebar", Some("CmdOrCtrl+B")),
         ],
     },
     Group {
         id: "menu.tools",
         items: &[
-            Some(item("menu.tools.engine", None, false)),
-            Some(item("menu.tools.grammars", None, false)),
-            None,
-            Some(item("menu.tools.nvim", None, false)),
-            Some(item("menu.tools.nvim_config", None, false)),
+            item("menu.tools.engine", None, false),
+            item("menu.tools.grammars", None, false),
+            Node::Separator,
+            item("menu.tools.nvim", None, false),
+            item("menu.tools.nvim_config", None, false),
         ],
     },
     Group {
         id: "menu.help",
         items: &[
-            Some(item("menu.help.usage", None, false)),
-            Some(item("menu.help.engine", None, false)),
+            item("menu.help.usage", None, false),
+            item("menu.help.engine", None, false),
         ],
     },
 ];
+
+/// Whether a checkable item is currently checked.
+///
+/// The one place that reads `ViewState`, so "what the window is" is compared
+/// against the menu in exactly one function rather than threaded through the
+/// tree as data that could disagree with itself.
+fn is_checked(id: &str, state: &ViewState) -> bool {
+    match id {
+        "menu.view.theme.system" => state.theme != "light" && state.theme != "dark",
+        "menu.view.theme.light" => state.theme == "light",
+        "menu.view.theme.dark" => state.theme == "dark",
+        "menu.view.sidebar" => state.sidebar,
+        _ => false,
+    }
+}
+
+fn walk(nodes: &'static [Node], keys: &mut Vec<&'static str>) {
+    for node in nodes {
+        match node {
+            Node::Item(it) | Node::Check(it) => keys.push(it.id),
+            Node::Sub(id, children) => {
+                keys.push(id);
+                walk(children, keys);
+            }
+            // Built from `ViewState::locales`, and its labels are endonyms
+            // rather than catalog entries.
+            Node::Locales | Node::Separator => {}
+        }
+    }
+}
 
 /// Every label key this module needs, in one list.
 ///
@@ -107,9 +212,7 @@ pub fn label_keys() -> Vec<&'static str> {
     let mut keys = Vec::new();
     for group in GROUPS {
         keys.push(group.id);
-        for entry in group.items.iter().flatten() {
-            keys.push(entry.id);
-        }
+        walk(group.items, &mut keys);
     }
     // Quit and Close window are predefined items, and the platform supplies
     // their text — but not their submenu placement, so File still needs to
@@ -119,16 +222,69 @@ pub fn label_keys() -> Vec<&'static str> {
     keys
 }
 
+/// The id prefix a language item carries, joined to its locale code.
+pub const LOCALE_ID: &str = "menu.view.lang:";
+
+fn fill<'a, R: Runtime>(
+    app: &'a AppHandle<R>,
+    sub: SubmenuBuilder<'a, R, AppHandle<R>>,
+    nodes: &'static [Node],
+    labels: &HashMap<String, String>,
+    state: &ViewState,
+    has_project: bool,
+) -> Result<SubmenuBuilder<'a, R, AppHandle<R>>, String> {
+    let mut sub = sub;
+    for node in nodes {
+        sub = match node {
+            Node::Separator => sub.separator(),
+            Node::Item(it) => {
+                let mut b = MenuItemBuilder::with_id(it.id, &labels[it.id])
+                    .enabled(!it.needs_project || has_project);
+                if let Some(accel) = it.accel {
+                    b = b.accelerator(accel);
+                }
+                sub.item(&b.build(app).map_err(|e| e.to_string())?)
+            }
+            Node::Check(it) => {
+                let mut b = CheckMenuItemBuilder::with_id(it.id, &labels[it.id])
+                    .checked(is_checked(it.id, state));
+                if let Some(accel) = it.accel {
+                    b = b.accelerator(accel);
+                }
+                sub.item(&b.build(app).map_err(|e| e.to_string())?)
+            }
+            Node::Sub(id, children) => {
+                let nested = SubmenuBuilder::new(app, &labels[*id]);
+                let nested = fill(app, nested, children, labels, state, has_project)?;
+                sub.item(&nested.build().map_err(|e| e.to_string())?)
+            }
+            Node::Locales => {
+                let mut acc = sub;
+                for loc in &state.locales {
+                    let b = CheckMenuItemBuilder::with_id(
+                        format!("{LOCALE_ID}{}", loc.code),
+                        // The endonym, verbatim. Never translated, and never
+                        // put through a CSS case transform elsewhere either:
+                        // a `text-transform` on a language name is the
+                        // Turkish dotless-ı bug waiting to happen.
+                        &loc.label,
+                    )
+                    .checked(loc.code == state.locale);
+                    acc = acc.item(&b.build(app).map_err(|e| e.to_string())?);
+                }
+                acc
+            }
+        };
+    }
+    Ok(sub)
+}
+
 /// Build the menu from the frontend's labels and set it on the main window.
-///
-/// `enabled` is the selected-project state: everything marked `needs_project`
-/// is greyed when it is false. Passed in rather than read from the workspace
-/// file because "which project is selected" is the frontend's own state and
-/// has never been anywhere else.
-pub fn build<R: Runtime>(
+pub fn build<R: Runtime + 'static>(
     app: &AppHandle<R>,
     labels: &HashMap<String, String>,
     has_project: bool,
+    state: &ViewState,
 ) -> Result<Menu<R>, String> {
     let missing: Vec<&str> = label_keys()
         .into_iter()
@@ -145,29 +301,22 @@ pub fn build<R: Runtime>(
     let menu = Menu::new(app).map_err(|e| e.to_string())?;
 
     for group in GROUPS {
-        let mut sub = SubmenuBuilder::new(app, &labels[group.id]);
-        for entry in group.items {
-            match entry {
-                None => sub = sub.separator(),
-                Some(it) => {
-                    let mut b = MenuItemBuilder::with_id(it.id, &labels[it.id])
-                        .enabled(!it.needs_project || has_project);
-                    if let Some(accel) = it.accel {
-                        b = b.accelerator(accel);
-                    }
-                    sub = sub.item(&b.build(app).map_err(|e| e.to_string())?);
-                }
-            }
-        }
+        let mut sub = fill(
+            app,
+            SubmenuBuilder::new(app, &labels[group.id]),
+            group.items,
+            labels,
+            state,
+            has_project,
+        )?;
         // The window-level items go at the bottom of File, where the
         // convention puts them on Windows and Linux. `PredefinedMenuItem`
         // rather than our own: it carries the platform's own wording and,
         // on macOS, the platform's own placement.
         if group.id == "menu.file" {
             sub = sub.separator();
-            sub = sub.item(
-                &PredefinedMenuItem::close_window(app, None).map_err(|e| e.to_string())?,
-            );
+            sub =
+                sub.item(&PredefinedMenuItem::close_window(app, None).map_err(|e| e.to_string())?);
             sub = sub.item(&PredefinedMenuItem::quit(app, None).map_err(|e| e.to_string())?);
         }
         menu.append(&sub.build().map_err(|e| e.to_string())?)
@@ -204,6 +353,24 @@ mod tests {
             .collect()
     }
 
+    fn state() -> ViewState {
+        ViewState {
+            theme: "system".into(),
+            locale: "de".into(),
+            locales: vec![
+                Locale {
+                    code: "en".into(),
+                    label: "English".into(),
+                },
+                Locale {
+                    code: "de".into(),
+                    label: "Deutsch".into(),
+                },
+            ],
+            sidebar: true,
+        }
+    }
+
     #[test]
     fn the_menu_builds_with_a_complete_label_set() {
         // The one thing this environment cannot verify by eye. A window with
@@ -211,7 +378,7 @@ mod tests {
         // — `mock_app()` gives a real `AppHandle` with no window, which is
         // enough for the menu builder to succeed or fail for real.
         let app = tauri::test::mock_app();
-        assert!(build(app.handle(), &labels(), true).is_ok());
+        assert!(build(app.handle(), &labels(), true, &state()).is_ok());
     }
 
     #[test]
@@ -220,7 +387,17 @@ mod tests {
         // tree has to build in both states — a menu that only exists once
         // something is selected is a menu nobody finds.
         let app = tauri::test::mock_app();
-        assert!(build(app.handle(), &labels(), false).is_ok());
+        assert!(build(app.handle(), &labels(), false, &state()).is_ok());
+    }
+
+    #[test]
+    fn it_builds_with_no_locales_offered() {
+        // The language submenu is the one part built from data rather than
+        // from this file, so it is the one part that can arrive empty.
+        let app = tauri::test::mock_app();
+        let mut s = state();
+        s.locales.clear();
+        assert!(build(app.handle(), &labels(), true, &s).is_ok());
     }
 
     #[test]
@@ -231,7 +408,7 @@ mod tests {
         let app = tauri::test::mock_app();
         let mut incomplete = labels();
         incomplete.remove("menu.tools.grammars");
-        let err = match build(app.handle(), &incomplete, true) {
+        let err = match build(app.handle(), &incomplete, true, &state()) {
             Err(e) => e,
             Ok(_) => panic!("an incomplete label set must not produce a menu"),
         };
@@ -247,6 +424,26 @@ mod tests {
         for key in &keys {
             assert!(seen.insert(*key), "duplicate menu id: {key}");
         }
-        assert!(keys.len() >= 15, "expected the whole menu, got {}", keys.len());
+        assert!(
+            keys.len() >= 20,
+            "expected the whole menu, got {}",
+            keys.len()
+        );
+    }
+
+    #[test]
+    fn system_is_the_theme_check_when_nothing_was_chosen() {
+        // Three states, and the absence of a choice is one of them. An empty
+        // string is what the frontend sends when nothing is stamped on
+        // `<html>`, and reading that as "not system" would leave the theme
+        // submenu with no mark at all.
+        let mut s = state();
+        s.theme = String::new();
+        assert!(is_checked("menu.view.theme.system", &s));
+        assert!(!is_checked("menu.view.theme.dark", &s));
+
+        s.theme = "dark".into();
+        assert!(is_checked("menu.view.theme.dark", &s));
+        assert!(!is_checked("menu.view.theme.system", &s));
     }
 }
