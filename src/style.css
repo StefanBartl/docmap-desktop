@@ -126,7 +126,11 @@ body {
   letter-spacing: 0.02em;
 }
 
-.sub {
+/* The motto, and the only line under the name. Not italic and not smaller
+   than the rest of the sidebar's secondary text: a motto set in small
+   italics reads as a caption apologising for itself, and this one is meant
+   to say what the program is for. */
+.tagline {
   margin: 2px 0 0;
   font-size: 12px;
   color: var(--muted);

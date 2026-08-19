@@ -27,7 +27,6 @@
 /** Catalogs. `en` is the source: every other locale translates *it*. */
 const CATALOGS = {
   en: {
-    "app.subtitle": "module maps, by project",
     "sidebar.add": "Add project…",
     "sidebar.generate": "Generate map",
     "sidebar.generateAll": "Generate all",
@@ -159,7 +158,6 @@ const CATALOGS = {
   },
 
   de: {
-    "app.subtitle": "Modulkarten, pro Projekt",
     "sidebar.add": "Projekt hinzufügen…",
     "sidebar.generate": "Karte erzeugen",
     "sidebar.generateAll": "Alle erzeugen",
