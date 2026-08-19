@@ -1181,6 +1181,102 @@ function viewState() {
   if (savedZoom !== 1) applyZoom(savedZoom);
 }
 
+
+// =====================================================================
+// Feedback
+//
+// Builds a prefilled GitHub form and opens it; the writer reads it there
+// and submits it themselves. `src-tauri/src/feedback.rs` carries the two
+// reasons — this app holds no credentials, and filing to a public tracker
+// is publishing, which is not something a dialog should do on someone's
+// behalf while they are looking at a Send button.
+//
+// The environment block is opt-in and shown verbatim before anything opens,
+// because it is the one part of the report the writer did not type.
+// =====================================================================
+
+const fb = {
+  box: document.getElementById("fbbox"),
+  topic: document.getElementById("fb-topic"),
+  repo: document.getElementById("fb-repo"),
+  subject: document.getElementById("fb-subject"),
+  body: document.getElementById("fb-body"),
+  attach: document.getElementById("fb-attach"),
+  env: document.getElementById("fb-env"),
+  problem: document.getElementById("fb-problem"),
+  go: document.getElementById("fb-go"),
+};
+
+let aboutInfo = null;
+
+/** The attached block, exactly as it will be sent. Never translated: it is
+ *  read by whoever triages the report, not by the person writing it. */
+function envBlock() {
+  if (!aboutInfo) return "";
+  const lines = [
+    "docmap-desktop " + aboutInfo.appVersion,
+    aboutInfo.os + " / " + aboutInfo.arch,
+    "engine: " + (aboutInfo.enginePath || "not configured"),
+    "grammars: " + (aboutInfo.grammars || "none"),
+    "interface: " + locale,
+  ];
+  return lines.join("\n");
+}
+
+function renderEnv() {
+  // Nothing to attach is a real state —  can fail, and a report
+  // is still worth filing without it. The whole row goes away rather than
+  // leaving a ticked checkbox above an empty box, which would claim
+  // something is being attached when nothing is.
+  const text = envBlock();
+  fb.env.textContent = text;
+  fb.env.hidden = !fb.attach.checked || !text;
+  fb.attach.closest(".fb-check").hidden = !text;
+}
+
+async function openFeedback() {
+  fb.problem.hidden = true;
+  if (!aboutInfo) {
+    try {
+      aboutInfo = await invoke("about_info");
+    } catch (e) {
+      // A report without the version block is still worth filing.
+      void e;
+    }
+  }
+  renderEnv();
+  fb.box.showModal();
+  fb.subject.focus();
+}
+
+fb.attach.addEventListener("change", renderEnv);
+
+fb.go.addEventListener("click", async () => {
+  const subject = fb.subject.value.trim();
+  if (!subject) {
+    fb.problem.textContent = t("fb.needsSubject");
+    fb.problem.hidden = false;
+    fb.subject.focus();
+    return;
+  }
+  const parts = [fb.body.value.trim()];
+  if (fb.attach.checked && aboutInfo) {
+    parts.push("---", envBlock());
+  }
+  try {
+    await invoke("open_feedback", {
+      repo: fb.repo.value,
+      topic: fb.topic.value,
+      title: subject,
+      body: parts.filter(Boolean).join("\n\n"),
+    });
+    fb.box.close();
+  } catch (e) {
+    fb.problem.textContent = String(e);
+    fb.problem.hidden = false;
+  }
+});
+
 // =====================================================================
 // The menu bar
 //
@@ -1245,6 +1341,7 @@ const MENU_ACTIONS = {
     applySidebar(!sidebarShown);
     syncMenu();
   },
+  "menu.help.feedback": () => openFeedback(),
   "menu.help.usage": () => openDocs("usage"),
   "menu.help.engine": () => openDocs("engine"),
 };

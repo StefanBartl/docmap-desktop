@@ -205,6 +205,63 @@
 
     <div id="help" class="help" role="tooltip" hidden></div>
 
+
+    <!-- Feedback. Deliberately not a Send button: this builds a prefilled
+         GitHub form and opens it, and the writer submits it there as
+         themselves. See `src-tauri/src/feedback.rs` for the two reasons. -->
+    <dialog id="fbbox" class="addbox">
+      <form method="dialog" class="addbox-close-form">
+        <button class="addbox-x" value="cancel" aria-label="Close">&times;</button>
+      </form>
+
+      <h2 class="addbox-title" data-i18n="fb.title">Send feedback</h2>
+      <p class="addbox-lead" data-i18n="fb.lead">
+        This opens a prefilled report on GitHub in your browser. Nothing is
+        sent from here — you read it there and press Submit yourself, signed
+        in as you.
+      </p>
+
+      <label class="fb-label" for="fb-topic" data-i18n="fb.topic">Topic</label>
+      <select id="fb-topic" class="fb-field">
+        <option value="feature" data-i18n="fb.topic.feature">Feature request</option>
+        <option value="bug" data-i18n="fb.topic.bug">Something is broken</option>
+        <option value="question" data-i18n="fb.topic.question">Question</option>
+        <option value="docs" data-i18n="fb.topic.docs">Documentation</option>
+        <option value="other" data-i18n="fb.topic.other">Something else</option>
+      </select>
+
+      <!-- Two trackers, and only the writer knows which one they mean: the
+           window and the engine are separate programs that happen to be
+           looked at together. -->
+      <label class="fb-label" for="fb-repo" data-i18n="fb.repo">About</label>
+      <select id="fb-repo" class="fb-field">
+        <option value="desktop" data-i18n="fb.repo.desktop">This window (docmap-desktop)</option>
+        <option value="engine" data-i18n="fb.repo.engine">The engine and the generated map (documentation.nvim)</option>
+      </select>
+
+      <label class="fb-label" for="fb-subject" data-i18n="fb.subject">Summary</label>
+      <input id="fb-subject" class="fb-field" type="text" autocomplete="off"
+             data-i18n-placeholder="fb.subject.placeholder"
+             placeholder="One line: what happened, or what is missing" />
+
+      <label class="fb-label" for="fb-body" data-i18n="fb.body">Details</label>
+      <textarea id="fb-body" class="fb-field fb-body" rows="7"
+                data-i18n-placeholder="fb.body.placeholder"
+                placeholder="What you did, what you expected, what happened instead."></textarea>
+
+      <label class="fb-check">
+        <input id="fb-attach" type="checkbox" checked />
+        <span data-i18n="fb.attach">Attach version and platform</span>
+      </label>
+      <p class="addbox-note" data-i18n="fb.attach.note">
+        Shown below exactly as it will be sent.
+      </p>
+      <pre id="fb-env" class="fb-env"></pre>
+
+      <p id="fb-problem" class="addbox-note fb-problem" hidden></p>
+      <button id="fb-go" class="addbox-go" type="button" data-i18n="fb.go">Open on GitHub…</button>
+    </dialog>
+
     <script type="module" src="main.js"></script>
   </body>
 </html>

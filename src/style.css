@@ -589,3 +589,73 @@ button:focus-visible {
   color: var(--ink);
   font-size: 11.5px;
 }
+
+/* ---------------------------------------------------------------- feedback
+
+   Reuses the add-project dialog's frame and adds only what a form needs
+   that a set of tabs did not: labelled fields, a checkbox row, and the
+   verbatim environment block.
+
+   The block is `<pre>` on purpose. It is the one part of the report the
+   writer did not type, so it is shown as what it is — text that will be
+   sent, character for character — rather than as prose the dialog composed
+   about them. */
+.fb-label {
+  display: block;
+  margin: 14px 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.fb-field {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+}
+
+.fb-body {
+  resize: vertical;
+  min-height: 96px;
+  line-height: 1.45;
+}
+
+.fb-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 4px;
+  font-size: 12.5px;
+  color: var(--ink);
+}
+
+.fb-env {
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+  /* Long engine paths are the normal case, not the exception. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* No red token exists in this palette, and inventing one for a single
+   validation message would be a colour nothing else in the window uses.
+   Weight and the accent border carry it instead — which is also the one
+   that survives being colour-blind. */
+.fb-problem {
+  color: var(--ink);
+  font-weight: 600;
+  border-left: 3px solid var(--accent);
+  padding-left: 8px;
+}

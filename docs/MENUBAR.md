@@ -126,6 +126,8 @@ The four configuration commands, out of the sidebar at last.
 | Usage · Bedienung | Opens `docs/USAGE.md` — on GitHub, or the local copy if present. |
 | What the engine is · Was die Engine ist | The single most common confusion this app produces. |
 | — | |
+| Send feedback… · Feedback senden… | **Built 2026-08-19.** A topic, a target repository, a summary and details; opens a prefilled GitHub issue rather than posting one. Discussions are switched off on both repositories, so the topic table in `feedback.rs` maps to labelled issues — moving a category to a discussion later is one line there. |
+| — | |
 | About · Über | `PredefinedMenuItem::about`, carrying **the app version, the engine's path and version, and the grammars directory**. Today that information is spread across a collapsed panel and nowhere. |
 
 ---

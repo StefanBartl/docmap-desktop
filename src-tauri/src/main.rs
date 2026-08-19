@@ -9,6 +9,7 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod feedback;
 mod github;
 mod menu;
 mod languages;
@@ -941,6 +942,60 @@ fn reveal_project(app: tauri::AppHandle, id: String) -> Result<(), String> {
     open_externally(&project.root)
 }
 
+/// Open a prefilled report on GitHub.
+///
+/// Opens, never posts — see `feedback.rs` for why. The reader lands on
+/// GitHub's own form with the text already in it, reads it, and presses
+/// Submit as themselves.
+///
+/// `repo` is a choice between two names, not a string that reaches a URL:
+/// feedback about the window and feedback about the engine belong in
+/// different trackers, and the reader is the only one who knows which.
+#[tauri::command]
+fn open_feedback(
+    repo: String,
+    topic: String,
+    title: String,
+    body: String,
+) -> Result<String, String> {
+    let repo = match repo.as_str() {
+        "desktop" => "docmap-desktop",
+        "engine" => "documentation.nvim",
+        other => return Err(format!("no such repository: {other}")),
+    };
+    let url = feedback::url(repo, &topic, &title, &body)?;
+    open_externally(&url)?;
+    Ok(url)
+}
+
+/// What the feedback form offers to attach: the versions a report is
+/// useless without, and nothing else.
+///
+/// Shown in the dialog before anything is opened, and again on GitHub's
+/// own form before anything is submitted — so it is never sent anywhere
+/// the writer has not read it first.
+#[tauri::command]
+fn about_info(app: tauri::AppHandle) -> AboutInfo {
+    let engine = engine_info(app).ok();
+    AboutInfo {
+        app_version: env!("CARGO_PKG_VERSION").to_string(),
+        os: std::env::consts::OS.to_string(),
+        arch: std::env::consts::ARCH.to_string(),
+        engine_path: engine.as_ref().and_then(|e| e.path.clone()),
+        grammars: engine.and_then(|e| e.grammars),
+    }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AboutInfo {
+    app_version: String,
+    os: String,
+    arch: String,
+    engine_path: Option<String>,
+    grammars: Option<String>,
+}
+
 /// Name the window after what it is showing.
 ///
 /// The title bar and the sidebar heading both read `docmap`, one directly
@@ -1032,7 +1087,9 @@ fn main() {
             reveal_project,
             open_docs,
             set_zoom,
-            set_window_title
+            set_window_title,
+            open_feedback,
+            about_info
         ])
         .run(tauri::generate_context!())
         .expect("docmap-desktop failed to start");
