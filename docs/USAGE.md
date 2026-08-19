@@ -320,7 +320,7 @@ fail:
 
 | Panel | Why this app can't | What it needs instead |
 |---|---|---|
-| Analysis → Telemetry | Telemetry only exists if real code ran inside a live Neovim session with `runtime-analysis.nvim` collecting it. There is no process here that could make that data exist. | Open the project in Neovim, use it, then come back — the panel reads whatever was collected there. |
+| Analysis → Telemetry | Telemetry exists only if real code ran inside a live Neovim session with `runtime-analysis.nvim` collecting it. This window can switch collection **on** (Settings → Telemetry) but cannot run your plugin code, so it cannot make the data exist. | Switch collection on here if it is off, then open the project in Neovim and use it — the panel reads whatever was collected there. |
 | Hierarchy → Types | Type data comes from `lua-language-server`. The engine this app runs is `documentation.nvim`'s Neovim-free build, which has no equivalent — not "not installed", structurally absent. | Run `:DocMap full` inside Neovim, then reopen the project here — the map it writes already carries the type data. |
 
 Every other panel needs no explanation and shows none.

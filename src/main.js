@@ -1272,18 +1272,16 @@ async function generateStale() {
 /// explanation at all.
 function contextNoteFor(ctx) {
   if (ctx.tab === "analysis" && ctx.atool === "telemetry") {
-    return (
-      "Telemetry data comes from a live Neovim session running " +
-      "<code>runtime-analysis.nvim</code>. This app only displays what has " +
-      "already been collected there — nothing here can generate it."
-    );
+    // **Requalified once start/stop landed.** This used to end "nothing here
+    // can generate it", which stopped being true: collection can be switched
+    // on from Settings. The half that stays true is the one that matters —
+    // this app cannot run somebody's plugin code, so it shows what was
+    // collected elsewhere. A note that overstates what the window cannot do
+    // is the same failure as one that overstates what it can.
+    return t("note.telemetry");
   }
   if (ctx.tab === "hierarchy" && ctx.view === "types") {
-    return (
-      "Type data comes from <code>lua-language-server</code> " +
-      "(<code>:DocMap full</code>, inside Neovim). The standalone engine " +
-      "this app runs has no equivalent of that and cannot produce it."
-    );
+    return t("note.types");
   }
   return null;
 }
