@@ -228,9 +228,21 @@ Net effect: the sidebar loses five controls and keeps the two that answer
 Each step is independently shippable, and the order is chosen so that the
 riskiest cross-repo piece comes last rather than blocking the rest.
 
-1. **The menu with the commands that already exist.** File, Project, Tools,
-   Help — every item wired to a command that is already implemented, plus
-   accelerators. No new capability, no new failure modes.
+1. ~~**The menu with the commands that already exist.**~~ **Built
+   2026-08-19.** File, Project, Tools, Help, with accelerators. Two items
+   turned out not to exist yet and were written rather than shipped dead:
+   `open_map_in_browser` (through the same local server the embedded view
+   uses, not a `file://` URL) and `reveal_project`. Help opens
+   `docs/USAGE.md` through `open_docs`, an allowlist of two pages rather
+   than a URL parameter.
+
+   Constraint 2 was resolved the way this document argued for: the
+   frontend projects its own catalog onto the item ids and hands the
+   labels to `set_menu`, Rust refuses to build a menu with a key missing,
+   and `src/lib/menu.test.js` reads the ids straight out of `menu.rs` so a
+   rename on one side is a failing test rather than a runtime surprise in
+   whichever language the window happened to open in.
+
 2. **View: theme, language, zoom, sidebar toggle.** Theme and language move
    out of the footer; the catalog-to-Rust handoff from constraint 2 gets
    built here, on two items whose behaviour is already understood.
