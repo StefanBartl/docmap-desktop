@@ -22,6 +22,8 @@ is here rather than the assumption — that is the point of writing it down.
 - [8. The inbound page channel — built 2026-08-19, and smaller than expected](#8-the-inbound-page-channel-built-2026-08-19-and-smaller-than-expected)
 - [9. Requested 2026-08-19, not started](#9-requested-2026-08-19-not-started)
 - [10. From the installed v0.1.0, 2026-08-19](#10-from-the-installed-v010-2026-08-19)
+- [11. Several workspaces, and a dashboard — built 2026-08-19](#11-several-workspaces-and-a-dashboard-to-choose-between-them)
+- [12. The other 30 languages — requested 2026-08-19](#12-the-other-30-languages--requested-2026-08-19)
 - [Carried over, not from this round](#carried-over-not-from-this-round)
 
 ---
@@ -950,6 +952,39 @@ selection from the old workspace would leave the sidebar naming one project
 and the map showing another. What it does *not* do is remember a last
 selection **per** workspace — `LAST_KEY` is still one value, so the restore
 is skipped entirely whenever the dashboard is shown.
+
+---
+
+## 12. The other 30 languages — requested 2026-08-19
+
+**Second-to-last, by decision.** §9.6 closed with the five languages that
+were asked for; this is the rest of both rankings that matter in practice —
+TIOBE, and the Stack Overflow / GitHub Octoverse pair — thirty each.
+Deduplicated and with the nine built ones removed: **30 new backends**.
+
+The task list itself lives where language work is recorded, not here:
+[`documentation.nvim` — MULTILANG.md § The other 30](https://github.com/StefanBartl/documentation.nvim/blob/main/docs/ROADMAP/IDEAS/MULTILANG.md).
+It carries the order, the per-language contract notes, and the four
+decisions taken up front — Scratch not built (a `.sb3` is a ZIP of JSON,
+there is no text to read), Visual Basic means VB.NET, SQL is one backend
+rather than one per dialect, and a language with no maintained grammar gets
+the line scanner assembly proved.
+
+**The running order this fixes**, which is the part that belongs here:
+
+1. Everything else still open in this plan — the items above and in
+   *Carried over*.
+2. **§12, the thirty languages**, then the parity pass that follows them: a
+   table with one row per contract capability and one column per language,
+   every empty cell either filled or given a written reason naming what in
+   the language makes it impossible.
+3. **§10.7's remaining half last** — `documentation.nvim`'s `docs/` folder.
+   Deliberately last: written once against the finished set of languages
+   rather than rewritten thirty times.
+
+- [ ] Build the thirty, in the order MULTILANG.md sets, committing each.
+- [ ] The parity pass, once every backend exists.
+- [ ] Then §10.7's remainder.
 
 ---
 
