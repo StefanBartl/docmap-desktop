@@ -423,10 +423,22 @@ Three outcomes and each says which: no diagram on this tab, no answer from
 the page, or a file written where the reader chose. A cancelled dialog is
 silent — the reader knows what they did.
 
-- [ ] `state` has no caller yet. Added because the page already volunteers
-      exactly that on navigation and asking is strictly cheaper than
-      waiting; if nothing has used it by the next round of this file, it
-      should come out.
+- [x] ~~`state` has no caller yet~~ — **it came out, on this entry's own
+      terms.** The condition was written when it was added: if nothing has
+      used it by the next round of this file, remove it. This is that round,
+      nothing had, and the reason is now visible — the one host reads the
+      context the page *volunteers* on every navigation, because by the time
+      it has a reason to care the message has already arrived. Asking was
+      never cheaper; it was earlier, and earlier was not needed.
+
+      Removed rather than left, because a question nobody asks is not free:
+      it is a branch in a published channel that every generated artifact
+      carries and that any future change to the page's state has to keep
+      answering correctly. `export-svg` and `counts` stay — both have real
+      callers, and neither can be answered by waiting.
+
+      Worth noting as a small win for writing the condition down at the
+      time: this took one grep, not a judgement call.
 
 ---
 
