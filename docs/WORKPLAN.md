@@ -488,6 +488,23 @@ per language, not a file count.
       and one existing test that had four backends hardcoded. Half a day,
       and most of it was deciding the three contract answers rather than
       writing extraction.
+- [x] ~~**Java**~~ — built 2026-08-19, the sixth backend, and the first
+      whose documentation convention is older and stricter than this
+      tool's. Javadoc has a tool behind it, so `@param`, `@return`,
+      `@throws` and `@deprecated` are parsed rather than guessed. Two
+      things it gets that nothing else here does: a genuinely fully
+      qualified module name straight from the language (`package a.b.c;`
+      plus the file stem), and a four-valued visibility that collapses to
+      two on purpose — from outside the package, `protected`,
+      package-private and `private` answer alike.
+
+      **Measured cost:** one grammar, ~430 lines of backend, ~160 of spec,
+      and **one engine bug it exposed**: `core/markers.lua` only knew
+      comment nodes named `comment`, so a grammar naming them
+      `line_comment`/`block_comment` — Java's does — reported zero markers
+      and looked like a language nobody writes to-dos in. Caught by the
+      contract spec, which proves the comment token *works* rather than
+      that it is declared.
 - [ ] **What "full" costs, per language, measured on the ones that exist:**
       a tree-sitter grammar, `is_source`/`extensions`/`detect_source`, a
       header parser, a function scanner, a glossary for the keyword hover,
