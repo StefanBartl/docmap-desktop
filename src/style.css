@@ -1,3 +1,40 @@
+/* JetBrains Mono, bundled.
+
+   Not a matter of taste. This window shows paths, and in most system
+   monospace faces `Il1` and `O0` are hard to tell apart -- which are
+   exactly the characters repository names are made of. A font that ships
+   with the app turns "looks slightly different on every machine" into
+   "looks the same and is legible", for about half a megabyte in a bundle
+   that is already tens of them.
+
+   The upstream release, version 2.304, *not* a Nerd Font patch: the
+   patched builds carry thousands of icon glyphs, and nothing in this
+   window renders one. A reader whose editor uses the Nerd variant is
+   still looking at the same letterforms here.
+
+   SIL Open Font License 1.1 -- `fonts/OFL.txt`, shipped beside it because
+   the licence requires it. Regular and Bold rather than Regular alone: a
+   browser asked for bold with no bold face smears the regular one, and
+   the result is worse than the system font would have been.
+
+   `font-display: block` because there is nothing to wait for -- the file
+   is local, and a flash of a fallback face would be a flicker with no
+   loading behind it. */
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("fonts/JetBrainsMono-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("fonts/JetBrainsMono-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+}
+
 /* Deliberately close to the generated map's own palette: this window is a
    frame around that page, and a frame that fights its content reads as two
    programs stapled together. Both light and dark, following the OS. */
@@ -10,6 +47,11 @@
   --line: #e2e2e6;
   --accent: #2f6fd0;
   --accent-soft: #dbe7fa;
+  /* Referenced by `.repo-name` and the feedback block since before it
+     existed: both were silently falling back to the inherited
+     proportional face, which is how a repository list of monospaced names
+     came out unaligned. */
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 /* Three states, not two. "System" is the default and has to stay
@@ -252,7 +294,7 @@ button:focus-visible {
 }
 
 .placeholder code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--mono);
   font-size: 12.5px;
 }
 
@@ -260,7 +302,7 @@ button:focus-visible {
    the thing worth copying into a bug report. */
 .placeholder .detail {
   margin-top: 10px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--mono);
   font-size: 12px;
   color: var(--muted);
   max-width: 60ch;
@@ -383,7 +425,7 @@ button:focus-visible {
   margin: 12px auto 0;
   max-width: 70ch;
   text-align: left;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--mono);
   font-size: 12px;
   line-height: 1.45;
   white-space: pre-wrap;
