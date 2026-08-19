@@ -1286,6 +1286,18 @@ mod tests {
     // #7 explains how to populate. Not run in CI for that reason -- same
     // posture `documentation.nvim`'s own `check_treesitter.lua` states for
     // needing a real grammar on hand.
+    // **Not on macOS, and not because the behaviour differs there.**
+    // `generate_context!()` expands `embed_plist`, which defines the
+    // symbol `_EMBED_INFO_PLIST`; `main()` already expands it once, and a
+    // second expansion in the same test binary is a duplicate-symbol link
+    // error by construction. Windows and Linux have no plist to embed and
+    // link fine, which is why this only ever failed on one of the three.
+    //
+    // Gated rather than rewritten against `mock_context(noop_assets())`:
+    // the whole point of this test is that it reads *this crate's real*
+    // `tauri.conf.json`, and a fake context would leave it asserting
+    // against a configuration nobody ships.
+    #[cfg(not(target_os = "macos"))]
     #[test]
     fn bundled_sidecar_and_grammars_resolve_to_real_files() {
         let app = tauri::test::mock_builder()
