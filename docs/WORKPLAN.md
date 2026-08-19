@@ -356,6 +356,97 @@ silent — the reader knows what they did.
 
 ---
 
+## 9. Requested 2026-08-19, not started
+
+Six ideas, recorded with what each would actually take. **Nothing here is
+built.** Ordered by how much of it is already in place, not by how good it
+sounds.
+
+### 9.1 Hierarchy left-to-right
+
+The diagram runs root-at-top downward. A switch for left-to-right is a
+layout change in `core/render/html.lua`'s hierarchy code, not a new view:
+the positions are computed there and the SVG edges follow them.
+
+- [ ] One switch beside the existing view buttons, and it belongs in the
+      URL state like every other view choice — a reader who sends someone a
+      link should send the orientation with it.
+- [ ] The SVG export has to follow. It redraws boxes from live positions,
+      so it probably does already; "probably" is the thing to check.
+
+### 9.2 Reroot the hierarchy at what you clicked
+
+Clicking a module already dims everything unrelated. Making *that* the new
+root, so exploration continues from there, is the natural next press.
+
+- [ ] The state already carries `center`; this is closer to "promote the
+      current focus into `center`" than to new machinery.
+- [ ] Needs a way back — a breadcrumb of where you rerooted from, or Back
+      working, and Back is nearly free since the state is in the URL.
+
+### 9.3 More views, other emphases
+
+Deliberately left vague here because it is vague: "like Hierarchy but with
+another focus" is a direction, not a task. Worth turning into specific
+views before building any — one named view with a question it answers
+beats three general ones.
+
+### 9.4 Open the file where an entity lives
+
+An icon beside a listed function or module that opens its file in the
+system's editor, VS Code, or whatever is configured — the Godbolt move.
+
+- [ ] **This one lands in the desktop app, not the page.** A browser cannot
+      open an editor; the app can, and already does exactly this shape for
+      `reveal_project`. So the page asks and the app acts — which the
+      inbound channel (§8) now makes possible in the wrong direction only:
+      the page *speaks* outward already, so this needs no new channel at
+      all, just a message the app listens for.
+- [ ] Which editor is a setting, and Settings now exists (§4) to hold it.
+      Default to the system association; `code -g file:line` for VS Code.
+- [ ] Line numbers are already in the artifact, so "open at the function"
+      is free once the file opens at all.
+
+### 9.5 An "Actual filetree" tab, and folding History into it
+
+The real tree as it sits on disk — sizes, and right-click to open — beside
+the git history, as two sub-entries of one tab. The sub-tab mechanism from
+§: the tab restructure already exists, so this is a third owner of it.
+
+- [ ] The tree the map shows is the *module* tree, which deliberately hides
+      everything that is not a module. A real filetree is different data
+      and the engine does not collect it today.
+- [ ] Sizes and mtimes are a directory walk — the app has one already
+      (`languages.rs`, `freshness.rs`) and the engine does not need to grow
+      one. That argues for the filetree being an **app** panel rather than
+      a page tab, which is a real fork worth deciding before building.
+- [ ] Other sub-entries that would fit the same tab, if it becomes "the
+      repository as it is on disk": untracked files, ignored-but-present,
+      and what the map skipped and why — that last one the engine already
+      knows (`unclaimed`/`outside` in the scan) and nothing shows.
+
+### 9.6 More languages, fully
+
+Java, Zig, C/C++, x86 and RISC assembly. The stated goal is *full* support
+per language, not a file count.
+
+- [ ] The seam exists: `lang_registry` plus the `Documentation.LangBackend`
+      contract, and `backend_contract_spec.lua` now fails a backend that
+      forgets its comment syntax. So a new language is a known amount of
+      work rather than an open question.
+- [ ] **What "full" costs, per language, measured on the ones that exist:**
+      a tree-sitter grammar, `is_source`/`extensions`/`detect_source`, a
+      header parser, a function scanner, a glossary for the keyword hover,
+      and comment syntax. Lua and the ECMA family took very different
+      amounts of that, and the ECMA one is the honest estimate for a new
+      C-like language.
+- [ ] Assembly is not like the others and should be argued separately: it
+      has no modules, no imports and no functions in the sense the rest of
+      this tool means, so "support" there is a different feature wearing
+      the same word.
+
+---
+
 ## Carried over, not from this round
 
 **docmap-desktop**
