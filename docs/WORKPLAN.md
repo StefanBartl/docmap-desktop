@@ -490,12 +490,12 @@ The fix lives in the *page*; the page is baked at generation time; that
 engine is older than the fix. A newer engine and a regenerate is the whole
 remedy.
 
-- [ ] **The general problem is what to build.** A map on disk is a snapshot
-      of the engine that wrote it, and nothing anywhere says so. The app now
-      has both halves of the comparison — the engine reports its schema, and
-      `module_map.json` carries the schema it was written with — so it can
-      say "this map predates the engine you have" instead of letting a
-      fixed feature look broken.
+- [x] ~~**The general problem.**~~ Built 2026-08-19. `map_status` now
+      carries the schema the artifact was written with, and the engine
+      already reported the one it writes; when the map's is lower the
+      project detail says so and says regenerating is the answer. An engine
+      that reports no schema is older than the field, and then this says
+      nothing rather than guessing — the comparison needs both halves.
 
 ### 10.3 ~~About says the wrong things~~ — fixed 2026-08-19
 

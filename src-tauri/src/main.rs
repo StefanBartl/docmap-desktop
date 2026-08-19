@@ -287,6 +287,19 @@ struct MapStatus {
     /// project is identifiable without opening it.
     modules: Option<u64>,
     files: Option<u64>,
+    namespaces: Option<u64>,
+    /// The artifact schema this map was written with.
+    ///
+    /// Compared against the schema the *engine* reports, this answers a
+    /// question nothing could answer before: whether a map predates the
+    /// engine installed now. Not academic — a page-side feature fixed in
+    /// the engine looks broken until the map is regenerated, because the
+    /// page is baked at generation time, and an evening went into exactly
+    /// that confusion.
+    ///
+    /// `None` for a map written before the field existed, which is itself
+    /// the answer: older than any engine that reports one.
+    schema: Option<u64>,
 }
 
 /// Does this project have a generated map, and what is in it?
@@ -301,6 +314,8 @@ fn map_status(map_dir: String) -> MapStatus {
     let exists = Path::new(&index).is_file();
     let mut modules = None;
     let mut files = None;
+    let mut namespaces = None;
+    let mut schema = None;
 
     if exists {
         if let Ok(body) = fs::read_to_string(format!("{map_dir}/module_map.json")) {
@@ -308,11 +323,20 @@ fn map_status(map_dir: String) -> MapStatus {
                 let counts = &v["meta"]["counts"];
                 modules = counts["module"].as_u64();
                 files = counts["file"].as_u64();
+                namespaces = counts["namespace"].as_u64();
+                schema = v["meta"]["schema"].as_u64();
             }
         }
     }
 
-    MapStatus { exists, index_path: index, modules, files }
+    MapStatus {
+        exists,
+        index_path: index,
+        modules,
+        files,
+        namespaces,
+        schema,
+    }
 }
 
 /// The signed-in user's GitHub repositories, for the URL tab's picker.
