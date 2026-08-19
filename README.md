@@ -97,6 +97,7 @@ See [docs/WORKPLAN.md](docs/WORKPLAN.md) for what is being worked on and
 | [docs/USAGE.md](docs/USAGE.md) | Using it: the menu bar, Generate vs Generate all, exporting a view, telemetry, keyboard navigation, where the workspace file lives. |
 | [docs/WORKPLAN.md](docs/WORKPLAN.md) | What is done, what is next, and the measurement behind each decision. The resume point. |
 | [docs/MENUBAR.md](docs/MENUBAR.md) | Why the menu is shaped the way it is, and the four constraints that shaped it. |
+| [docs/RELEASING.md](docs/RELEASING.md) | Cutting a release: what to check before tagging, what the workflow builds, and why the last step is a person opening the app. |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | What is built, what is next, and the reasoning behind each design decision. |
 | [docs/HANDOVER.md](docs/HANDOVER.md) | Cross-repo handoff state for continuing the work in a new session. |
 
