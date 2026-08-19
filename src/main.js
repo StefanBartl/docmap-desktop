@@ -2060,11 +2060,17 @@ function setFiles(on) {
 // workspace would change somebody's lighting when they switch project sets,
 // which is not what switching project sets is for.
 //
-// **When the dashboard appears** is a decision rather than a setting: on a
-// first run, and whenever there is more than one workspace. Somebody with a
-// single workspace never sees it, which is what a "don't show again"
-// checkbox buys — without a setting to find. The checkbox exists anyway,
-// for the reader who has several and still wants to land in the last one.
+// **When the dashboard appears** is a decision rather than a setting:
+// whenever there is more than one workspace. Somebody with a single
+// workspace never sees it, which is what a "don't show again" checkbox buys
+// — without a setting to find. The checkbox exists anyway, for the reader
+// who has several and still wants to land in the last one.
+//
+// An earlier version of this comment also claimed "on a first run", which
+// the code below never did and should not: a first run has exactly one
+// workspace, and a chooser with one row is the click in front of the thing
+// you wanted that the rule above exists to avoid. Corrected here rather
+// than implemented, because the comment was the part that was wrong.
 // =====================================================================
 
 const WS_SKIP_KEY = "docmap.skipWorkspaceDashboard";

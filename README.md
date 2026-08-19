@@ -68,7 +68,7 @@ whole, not reimplemented:
 
 | Piece | Where it comes from |
 |---|---|
-| The analysis | `documentation.nvim`'s standalone build — a single binary that maps any annotated Lua tree with no Neovim and no Lua install |
+| The analysis | `documentation.nvim`'s standalone build — a single binary that maps an annotated tree with no Neovim and no Lua install, in nine language backends: Lua, JavaScript, TypeScript, TSX, Zig, Java, C, C++ and assembly |
 | The view | The generated page itself: self-contained HTML, every tab, no CDN, no build step |
 | Cross-project links | `opts.tag_files`, already resolving one project's map against another's |
 | Live telemetry (optional) | [`runtime-analysis.nvim`](https://github.com/StefanBartl/runtime-analysis.nvim) — the sibling Neovim plugin whose call-count data feeds the Telemetry and Loaded panels, when a Neovim session collected any for that project |
@@ -83,18 +83,30 @@ have moved on since its map was built.
 
 Usable. Add projects — from a folder, a URL, or the plugin specs your
 Neovim config declares — generate their maps, read them, and move between
-them. Export a diagram, switch the theme and the interface language, see
-which projects need regenerating, and file a bug report with the versions
-already filled in.
+them. Group them into **workspaces** and switch between whole sets. Browse
+the project's **files as they are on disk**, and open any file, or the line
+a function lives on, in your own editor. Export a diagram, switch the theme
+and the interface language, see which projects need regenerating and
+regenerate exactly those, and file a bug report with the versions already
+filled in.
 
-See [docs/WORKPLAN.md](docs/WORKPLAN.md) for what is being worked on and
+**One thing to know before anything else: a generated map is a snapshot of
+the engine that wrote it.** The map is an HTML document produced at the
+moment you pressed Generate, not something this window renders live — so a
+page feature that shipped after your map was written arrives by
+*regenerating that project*, not by updating the app or the engine. What
+updating the app changes is this window: the sidebar, the menu, the panes,
+the settings.
+
+See [docs/USAGE.md](docs/USAGE.md) for what every button does,
+[docs/WORKPLAN.md](docs/WORKPLAN.md) for what is being worked on, and
 [docs/ROADMAP.md](docs/ROADMAP.md) for the reasoning behind what exists.
 
 ## Documentation
 
 | Document | Covers |
 |---|---|
-| [docs/USAGE.md](docs/USAGE.md) | Using it: the menu bar, Generate vs Generate all, exporting a view, telemetry, keyboard navigation, where the workspace file lives. |
+| [docs/USAGE.md](docs/USAGE.md) | Using it, button by button: adding projects, workspaces, the files pane, opening a file in your editor, the four Generate commands, settings, the menu bar, and where everything is stored. |
 | [docs/WORKPLAN.md](docs/WORKPLAN.md) | What is done, what is next, and the measurement behind each decision. The resume point. |
 | [docs/MENUBAR.md](docs/MENUBAR.md) | Why the menu is shaped the way it is, and the four constraints that shaped it. |
 | [docs/RELEASING.md](docs/RELEASING.md) | Cutting a release: what to check before tagging, what the workflow builds, and why the last step is a person opening the app. |
@@ -110,7 +122,10 @@ found. Build one with that repository's `scripts/package.lua`.
 
 Pointing the app at a directory of compiled tree-sitter grammars is
 optional and changes fidelity, not success: with them you get
-function-level data, without them a complete module tree that says so.
+function-level data, without them a complete module tree that says so. Not
+every backend wants one — assembly is read without a parser at all, and the
+engine reports "needs no grammar" and "wanted one, could not find it" as
+the different answers they are.
 
 ## Build
 
