@@ -6,6 +6,8 @@
                          |_|                                     |_|
 ```
 
+> **know your project**
+
 [![Latest release](https://img.shields.io/github/v/release/StefanBartl/docmap-desktop)](https://github.com/StefanBartl/docmap-desktop/releases/latest)
 
 A desktop workspace for the module maps [documentation.nvim](https://github.com/StefanBartl/documentation.nvim)

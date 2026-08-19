@@ -190,21 +190,26 @@ competing for one disk.
       moves.
 
 ---
-## 6. The motto — `know your project`
+## 6. ~~The motto~~ — `know your project`, done 2026-08-19
 
-**Decided.** It is already in the sidebar and the window title from the
-merged branch, so what is left is removing the line it replaces.
+In both READMEs, directly under the ASCII banner where a reader looks for
+"what is this". The paragraph under it was rewritten so the motto is not
+repeated in its first three words — the same duplication this round
+removed from the window.
 
-*"Doxygen for annotated Lua trees, as a Neovim plugin."* is accurate,
-unloved, and describes the plugin rather than what it is for. English in
-every locale, in both repositories, beside the name — a product's name and
-its motto are its own words, not a string the catalog speaks for.
+English here and in every locale: a product's name and its motto are its
+own words.
 
-- [ ] Remove the old line from `documentation.nvim`'s `README.md` and docs.
-- [ ] Remove it from `docmap-desktop`'s `README.md` and docs.
-- [ ] The generated page's own header, together with
-      `claude/documentation-nvim-browser-title-805562`, which adds exactly
-      that topbar and was waiting on this decision.
+- [ ] **The GitHub repository descriptions still carry the old line.**
+      Left alone deliberately: that is a public setting on the
+      repositories, not a file in them. Two commands, whenever wanted:
+
+      gh repo edit StefanBartl/documentation.nvim --description "know your project — an interactive module map, drift checks that fail CI, and an in-editor browser for any repository."
+      gh repo edit StefanBartl/docmap-desktop --description "know your project — a desktop workspace for documentation.nvim's module maps."
+
+- [ ] `claude/documentation-nvim-browser-title-805562` adds the same
+      treatment to the generated page's header. It was waiting on this
+      decision and is now unblocked.
 
 ---
 ## 7. Telemetry — starting it, stopping it, and choosing which run
