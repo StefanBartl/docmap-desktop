@@ -39,20 +39,33 @@ is here rather than the assumption — that is the point of writing it down.
 
 ---
 
-## Open questions
+## Decisions taken 2026-08-19
 
-These change what gets built, so they are asked rather than guessed.
+All three open questions answered. Recorded with the answer rather than
+the deliberation, except where the answer went against the
+recommendation — there the recommendation stays visible, because the
+reason it was made does not stop being true.
 
-1. **The motto.** See [§6](#6-the-motto) — four candidates, and
-   `know your project` is in place as a placeholder either way.
-2. **The project list as a dropdown** ([§5](#5-the-project-list)) — asked
-   for, and it pulls against the staleness mark in [§3](#3-a-staleness-mark-on-the-project-row).
-   Both cannot be fully true at once and the trade is worth choosing
-   deliberately.
-3. **Whether `--full` should be reachable at all** ([§2](#2-the-three-generate-surfaces)).
+1. **Motto: `know your project`** — already in place from the merged
+   branch, so this is now a removal job rather than an insertion one. See
+   [§6](#6-the-motto).
+2. **The project list becomes a dropdown, with no count on the closed
+   control.** The staleness mark is shown for the *selected* project
+   instead, and the dropdown gains sorting — by name, by staleness, and
+   whatever else earns a place. That resolves the tension in
+   [§5](#5-the-project-list) differently than either option offered:
+   sorting by staleness answers "which ones need regenerating" in one
+   action rather than at a glance, which is a fair trade for the room a
+   dropdown gives back.
+3. **`--full` is always in the menu**, not conditional on
+   `lua-language-server` being present. Chosen against the recommendation
+   above, which stands: an option that is present and fails is worse than
+   one that is absent and explained. **So the obligation moves to the
+   failure**: the engine says `lua-language-server not found on PATH`,
+   and that sentence has to arrive where the reader is looking, not
+   somewhere in the generation log.
 
 ---
-
 ## 1. The map pane ignores the theme
 
 **Reported:** choosing Dark themes the sidebar and leaves the map white.
@@ -176,55 +189,49 @@ nowhere to live.
 
 ---
 
-## 5. The project list
+## 5. The project list — a dropdown, sorted
 
-**Asked:** make the list a dropdown that shows only what is loaded and
-selected.
+**Decided:** a dropdown showing the selected project, no count on the
+closed control, and the staleness mark shown for whatever is selected.
 
-**The tension, stated before it is built.** [§3](#3-a-staleness-mark-on-the-project-row)
-puts a mark on each row so you can see *at a glance* which projects need
-regenerating. A dropdown shows one row at a time, so that glance becomes a
-click, and with 33 repositories in the corpus that is the case the mark
-exists for.
+The tension with [§3](#3-a-staleness-mark-on-the-project-row) is real —
+a dropdown cannot show 33 marks at once — and it is resolved by **sorting**
+rather than by the count that was offered: sorting by staleness answers
+"which ones need regenerating" in one action, which is a fair trade for
+the room a dropdown gives back.
 
-Both requests are good and they pull opposite ways, so the options are:
-
-- **(a) Dropdown**, and the staleness mark lives inside it plus a count on
-  the closed control ("3 need regenerating").
-- **(b) Keep the list**, and make it collapsible with `Ctrl+B` — which the
-  View menu already does for the whole sidebar.
-- **(c) Dropdown when the list is long, list when it is short.** Rejected on
-  sight: an interface that changes shape at an arbitrary threshold is one
-  nobody can form a habit with.
-
-Waiting on the question above.
-
----
-
-## 6. The motto
-
-To replace *"Doxygen for annotated Lua trees, as a Neovim plugin."* — which
-is accurate, unloved, and describes the plugin rather than what it is for.
-English in every locale, in both repositories, alongside the name.
-
-Candidates, with what each claims:
-
-1. **`know your project`** — the placeholder in place now, from the merged
-   branch. Plain, and says the goal rather than the method.
-2. **`your repository, explained by itself`** — the strongest claim about
-   the *method*: nothing here is written by hand, the map is derived from
-   what the code already says.
-3. **`see the shape of your code`** — the shortest, and the closest to what
-   the Tree and Hierarchy views actually do.
-4. **`read a codebase before you change it`** — the most concrete about the
-   moment it is useful, and the longest.
-
-- [ ] Choose one, set it in `src/index.html`, `src-tauri/tauri.conf.json`
-      and the generated page's own header.
-- [ ] Remove the old line from both repositories' `README.md` and docs.
+- [ ] The dropdown itself, replacing the list. Keyboard navigation has to
+      survive: the list answers Arrow/Home/End/Enter/Delete today, and a
+      `<select>` answers most of that for free — `Delete` does not, so it
+      moves to the menu item that already exists for it.
+- [ ] Sort order, remembered per machine like the theme: by name, by
+      staleness, by last generated. Not by "recently opened" unless
+      someone asks — a list that reorders itself as you use it is one you
+      cannot build a habit with.
+- [ ] The staleness mark beside the selected project, worded as
+      [§3](#3-a-staleness-mark-on-the-project-row) requires.
+- [ ] The language badge and file counts currently on each row need a
+      home: a `<select>` shows one line of text. They belong beside the
+      selection, not inside the control.
 
 ---
+## 6. The motto — `know your project`
 
+**Decided.** It is already in the sidebar and the window title from the
+merged branch, so what is left is removing the line it replaces.
+
+*"Doxygen for annotated Lua trees, as a Neovim plugin."* is accurate,
+unloved, and describes the plugin rather than what it is for. English in
+every locale, in both repositories, beside the name — a product's name and
+its motto are its own words, not a string the catalog speaks for.
+
+- [ ] Remove the old line from `documentation.nvim`'s `README.md` and docs.
+- [ ] Remove it from `docmap-desktop`'s `README.md` and docs.
+- [ ] The generated page's own header, together with
+      `claude/documentation-nvim-browser-title-805562`, which adds exactly
+      that topbar and was waiting on this decision.
+
+---
 ## Carried over, not from this round
 
 **docmap-desktop**
