@@ -568,21 +568,32 @@ two numbers would be a colour nothing else uses.
       floating wherever the badge ends. They are the window's state, and
       state belongs where the eye returns to it.
 
-### 10.6 Hover explanations for tabs and sections — page side
+### 10.6 ~~Hover explanations~~ — built 2026-08-19 (documentation.nvim)
 
-Every tab (Tree, Hierarchy, Notes, …) and every section heading inside them
-(**Drift findings** was the example) should say what it is on hover.
+Eight tabs, the three modes inside Index, the features index and the
+findings disclosure. Each text written from what that view *computes*
+rather than from its label: a card that restates the heading costs a hover
+and teaches nothing.
 
-- [ ] The page already has the machinery: the keyword card and the signature
-      card are both hover surfaces with the same rules.
-- [ ] **The hard part is stated in the request and is the reason this is not
-      trivial**: "Drift findings" does not mean quite the same thing in every
-      tab. So the text cannot be one string keyed by section name — it has to
-      be keyed by *section within tab*, and where two are genuinely the same,
-      that has to be a deliberate share rather than an accident of lookup.
-- [ ] Write the texts from what each section actually computes, not from its
-      title. A hover that restates the heading is worse than none, because it
-      costs a hover to learn nothing.
+**The premise about "Drift findings" did not hold, and that is the useful
+finding.** It is not per-tab: there is exactly one `#findings`, a direct
+child of `<body>`, outside every view — it sits below the tabs and stays
+there whichever is active. So there was nothing to disambiguate, and its
+explanation answers the question somebody will actually have instead: why
+it is always there. Because a finding is about the repository, not the
+view.
+
+`data-explain` rather than `title`, for the reason the desktop's own help
+bubbles exist: `title` never appears on keyboard focus, which would leave
+exactly the controls a keyboard user reaches as the only unexplained ones.
+
+- [ ] **The focus path is unverified.** A non-compositing pane never takes
+      window focus here, so `focusin` does not fire — the same limitation
+      §2.3 of the engine's own workplan records for the keyword card. Hover
+      and Escape are verified.
+- [ ] Section headings *inside* the views are not annotated yet, only the
+      tabs and the findings block. The mechanism is one attribute, so each
+      is a text rather than a change.
 
 ### 10.7 The documentation needs rebuilding from the ground up
 
