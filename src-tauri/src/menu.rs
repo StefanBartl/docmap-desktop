@@ -370,6 +370,14 @@ mod tests {
         }
     }
 
+    // **Not on macOS.** `muda::Menu` refuses to be created off the main
+    // thread there, and Rust's test harness runs every test on a worker.
+    // Nothing about the menu differs on macOS — the builder simply cannot
+    // be called from where a test lives, so the assertion is unreachable
+    // rather than untrue. `docs/MENUBAR.md` already records that the tree
+    // itself needs a documented macOS variant before shipping there, and
+    // that is the check this cannot substitute for.
+    #[cfg(not(target_os = "macos"))]
     #[test]
     fn the_menu_builds_with_a_complete_label_set() {
         // The one thing this environment cannot verify by eye. A window with
@@ -380,6 +388,14 @@ mod tests {
         assert!(build(app.handle(), &labels(), true, &state()).is_ok());
     }
 
+    // **Not on macOS.** `muda::Menu` refuses to be created off the main
+    // thread there, and Rust's test harness runs every test on a worker.
+    // Nothing about the menu differs on macOS — the builder simply cannot
+    // be called from where a test lives, so the assertion is unreachable
+    // rather than untrue. `docs/MENUBAR.md` already records that the tree
+    // itself needs a documented macOS variant before shipping there, and
+    // that is the check this cannot substitute for.
+    #[cfg(not(target_os = "macos"))]
     #[test]
     fn it_builds_the_same_with_nothing_selected() {
         // The project-scoped items are disabled rather than absent, so the
@@ -389,6 +405,14 @@ mod tests {
         assert!(build(app.handle(), &labels(), false, &state()).is_ok());
     }
 
+    // **Not on macOS.** `muda::Menu` refuses to be created off the main
+    // thread there, and Rust's test harness runs every test on a worker.
+    // Nothing about the menu differs on macOS — the builder simply cannot
+    // be called from where a test lives, so the assertion is unreachable
+    // rather than untrue. `docs/MENUBAR.md` already records that the tree
+    // itself needs a documented macOS variant before shipping there, and
+    // that is the check this cannot substitute for.
+    #[cfg(not(target_os = "macos"))]
     #[test]
     fn it_builds_with_no_locales_offered() {
         // The language submenu is the one part built from data rather than
