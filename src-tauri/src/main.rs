@@ -26,6 +26,28 @@ use serde::{Deserialize, Serialize};
 use tauri::Manager;
 use tauri_plugin_shell::ShellExt;
 
+/// A path as this program shows it and passes it around: forward slashes,
+/// and no `\?\`.
+///
+/// Windows hands back extended-length paths from `canonicalize()` and from
+/// `resource_dir()`, and they are correct, unreadable, and leak into every
+/// label, tooltip and error message. `add_project` has stripped the prefix
+/// since it was written; twelve other conversions did not, and the one that
+/// showed up was About reporting
+/// `grammars: //?/C:/Program Files/docmap-desktop/grammars` — the prefix
+/// half-eaten by the slash replacement that follows it.
+///
+/// **Measured before being called a bug:** the engine loads all four
+/// grammars from `//?/C:/tools/docmap-grammars` exactly as it does from the
+/// clean path, checked against a deliberately wrong path to prove the probe
+/// discriminates. So this is cosmetic — which is a reason to fix it once,
+/// centrally, rather than a reason to leave it.
+pub(crate) fn portable(path: &std::path::Path) -> String {
+    path.to_string_lossy()
+        .trim_start_matches(r"\\?\")
+        .replace('\\', "/")
+}
+
 /// One entry in the sidebar.
 ///
 /// `map_dir` is stored rather than derived so a project whose map lives
@@ -144,13 +166,9 @@ fn add_project(app: tauri::AppHandle, root: String) -> Result<Vec<Project>, Stri
     if !root_path.is_dir() {
         return Err(format!("{root} is not a directory"));
     }
-    let canonical = fs::canonicalize(root_path)
-        .map_err(|e| format!("cannot resolve {root}: {e}"))?
-        .to_string_lossy()
-        // Windows' canonicalize returns a \\?\ prefixed path; it is correct
-        // and unreadable, and it leaks into every label and error message.
-        .trim_start_matches(r"\\?\")
-        .replace('\\', "/");
+    let canonical = portable(
+        &fs::canonicalize(root_path).map_err(|e| format!("cannot resolve {root}: {e}"))?,
+    );
 
     let name = root_path
         .file_name()
@@ -229,10 +247,10 @@ async fn import_from_url(app: tauri::AppHandle, url: String) -> Result<Vec<Proje
     let dest = repos_cache_dir(&app)?.join(&name);
 
     if dest.is_dir() {
-        return add_project(app, dest.to_string_lossy().replace('\\', "/"));
+        return add_project(app, portable(&dest));
     }
 
-    let dest_str = dest.to_string_lossy().replace('\\', "/");
+    let dest_str = portable(&dest);
     let url_owned = url.clone();
     let dest_for_cleanup = dest.clone();
     let out = tauri::async_runtime::spawn_blocking(move || {
@@ -257,7 +275,7 @@ async fn import_from_url(app: tauri::AppHandle, url: String) -> Result<Vec<Proje
         return Err(format!("git clone failed: {}", String::from_utf8_lossy(&out.stderr).trim()));
     }
 
-    add_project(app, dest.to_string_lossy().replace('\\', "/"))
+    add_project(app, portable(&dest))
 }
 
 /// What the view needs to know before it tries to show anything.
@@ -349,7 +367,7 @@ fn engine_on_path() -> Option<String> {
         for name in names {
             let candidate = dir.join(name);
             if candidate.is_file() {
-                return Some(candidate.to_string_lossy().replace('\\', "/"));
+                return Some(portable(&candidate));
             }
         }
     }
@@ -405,7 +423,7 @@ fn resolve_grammars<R: tauri::Runtime>(app: &tauri::AppHandle<R>, configured: Op
     }
     let dir = app.path().resource_dir().ok()?.join("grammars");
     if dir.is_dir() {
-        Some(dir.to_string_lossy().replace('\\', "/"))
+        Some(portable(&dir))
     } else {
         None
     }
@@ -446,7 +464,7 @@ fn engine_info(app: tauri::AppHandle) -> Result<EngineInfo, String> {
     }
 
     if let Some(cmd) = engine_sidecar(&app) {
-        let path = cmd.get_program().to_string_lossy().replace('\\', "/");
+        let path = portable(Path::new(cmd.get_program()));
         return Ok(EngineInfo { path: Some(path), from_path: false, bundled: true, grammars });
     }
 
@@ -604,7 +622,7 @@ fn nvim_on_path() -> Option<String> {
         for name in names {
             let candidate = dir.join(name);
             if candidate.is_file() {
-                return Some(candidate.to_string_lossy().replace('\\', "/"));
+                return Some(portable(&candidate));
             }
         }
     }
@@ -622,7 +640,7 @@ fn default_nvim_config_dir() -> Option<String> {
         std::env::var_os("HOME").map(|d| Path::new(&d).join(".config/nvim"))
     }?;
     if guess.is_dir() {
-        Some(guess.to_string_lossy().replace('\\', "/"))
+        Some(portable(&guess))
     } else {
         None
     }
@@ -1297,6 +1315,38 @@ mod tests {
     // the whole point of this test is that it reads *this crate's real*
     // `tauri.conf.json`, and a fake context would leave it asserting
     // against a configuration nobody ships.
+    #[test]
+    fn a_windows_extended_path_does_not_leak_its_prefix() {
+        // Straight from a screenshot of the installed v0.1.0's About box:
+        // `grammars: //?/C:/Program Files/docmap-desktop/grammars`. The
+        // prefix survived `resource_dir()` and was then half-eaten by the
+        // slash replacement that followed it.
+        //
+        // Cosmetic rather than functional -- the engine loads all four
+        // grammars from the mangled path exactly as from the clean one,
+        // checked against a deliberately wrong path to prove the probe
+        // discriminates -- which is a reason to fix it in one place rather
+        // than a reason to leave it in thirteen.
+        let ugly = std::path::PathBuf::from(
+            r"\\?\C:\Program Files\docmap-desktop\grammars",
+        );
+        assert_eq!(
+            portable(&ugly),
+            "C:/Program Files/docmap-desktop/grammars"
+        );
+
+        // An ordinary path is only slash-normalised, and a path that never
+        // had the prefix must not lose leading characters to the trim.
+        assert_eq!(
+            portable(std::path::Path::new(r"C:\tools\docmap-grammars")),
+            "C:/tools/docmap-grammars"
+        );
+        assert_eq!(
+            portable(std::path::Path::new("/home/x/grammars")),
+            "/home/x/grammars"
+        );
+    }
+
     #[cfg(not(target_os = "macos"))]
     #[test]
     fn bundled_sidecar_and_grammars_resolve_to_real_files() {
@@ -1347,7 +1397,7 @@ mod tests {
         // And that `resolve_grammars` agrees once pointed at a `configured`
         // override -- the code path an actual `set_grammars` call takes,
         // fully exercisable without the `deps/` detour at all.
-        let via_configured = resolve_grammars(handle, Some(dir.to_string_lossy().replace('\\', "/")));
+        let via_configured = resolve_grammars(handle, Some(portable(&dir)));
         assert!(via_configured.is_some(), "resolve_grammars did not accept a real, existing configured dir");
     }
 }

@@ -151,7 +151,7 @@ pub fn check(root: &Path, map_dir: &Path) -> Result<Freshness, String> {
         newest: newest.and_then(|(_, p)| {
             p.strip_prefix(root)
                 .ok()
-                .map(|r| r.to_string_lossy().replace('\\', "/"))
+                .map(|r| crate::portable(&r))
         }),
         behind_secs,
         truncated,

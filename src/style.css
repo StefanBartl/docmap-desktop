@@ -947,3 +947,22 @@ button:focus-visible {
   margin: 4px 6px;
   background: var(--line);
 }
+
+/* Sidebar breathing room.
+
+   Reported from the installed build: the project badge and the collapsed
+   Engine/Neovim rows sat flush against each other, so three unrelated kinds
+   of thing read as one block. The panels are pinned to the bottom instead —
+   they are the window's state, and state belongs where the eye returns to
+   it, not wherever the list happens to end. */
+#sidebar > details:first-of-type {
+  margin-top: auto;
+}
+
+#sidebar > details {
+  padding: 2px 0;
+}
+
+.proj-detail {
+  padding-bottom: 18px;
+}
