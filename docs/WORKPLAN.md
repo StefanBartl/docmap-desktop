@@ -546,11 +546,20 @@ two numbers would be a colour nothing else uses.
       picker only shows for the selected project anyway. Left in place until
       there is somewhere better; removing a signal because the line beside
       it got longer is the wrong trade.
-- [ ] **A project image is not built.** There is no convention to follow —
-      no standard "project icon" the way there is a README — and the
-      request was conditional on one existing. Inventing a rule here means
-      documenting it and living with it; worth deciding deliberately rather
-      than picking `logo.png` because it was first to mind.
+- [x] ~~**A project image.**~~ Built 2026-08-19, after being turned down
+      once on a bad argument. "No convention exists" conflated *no
+      universal convention for every repository* with *no convention at
+      all* — and for the web projects this app supports there are several,
+      all somebody else's standard: a web app manifest's `icons` array, an
+      `apple-touch-icon`, a favicon, an Android `ic_launcher`, an iOS
+      `AppIcon.appiconset`. `icon.rs` follows them in that order and
+      invents nothing.
+
+      Absent stays absent — most repositories have no icon and are not
+      supposed to, and a grey placeholder in front of thirty of them is
+      noise pretending to be information. The `<img>` also stays hidden
+      until the file has decoded, because a failed `src` leaves a
+      broken-image glyph, which is worse than the nothing it replaced.
 
 ### 10.5 ~~Sidebar spacing~~ — fixed 2026-08-19
 

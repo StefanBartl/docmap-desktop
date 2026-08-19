@@ -66,6 +66,7 @@ const els = {
   list: document.getElementById("projects"),
   sort: document.getElementById("proj-sort"),
   detail: document.getElementById("proj-detail"),
+  icon: document.getElementById("proj-icon"),
   counts: document.getElementById("proj-counts"),
   langs: document.getElementById("proj-langs"),
   schema: document.getElementById("proj-schema"),
@@ -431,6 +432,7 @@ async function renderDetail() {
   if (!p) return;
 
   const status = await mapStatus(invoke, p.map_dir);
+  renderIcon(p.id);
   renderCounts(status);
   // The two counts the artifact does not carry are asked for when the page
   // *reports itself*, not here: at this point the frame has not been
@@ -562,6 +564,33 @@ function gotoMap(state) {
   const url = mapUrl(mapBase).split("#")[0] + "#" + parts.join("&");
   els.frame.src = url;
   watchMapLoad(url);
+}
+
+/**
+ * Show the project's own icon, if it has one.
+ *
+ * Hidden until the file has actually decoded: an `<img>` whose `src` fails
+ * leaves a broken-image glyph, which is worse than the nothing most
+ * repositories correctly get.
+ */
+async function renderIcon(id) {
+  els.icon.hidden = true;
+  els.icon.removeAttribute("src");
+  try {
+    const path = await invoke("project_icon", { id });
+    if (!path || id !== selectedId) return;
+    els.icon.onload = () => {
+      if (id === selectedId) els.icon.hidden = false;
+    };
+    els.icon.onerror = () => {
+      els.icon.hidden = true;
+    };
+    els.icon.title = path;
+    els.icon.src = convertFileSrc(path);
+  } catch (e) {
+    // A project whose icon cannot be looked for is a project without one.
+    void e;
+  }
 }
 
 /** Ask the page for the two counts the artifact does not carry. */

@@ -11,6 +11,7 @@
 
 mod feedback;
 mod freshness;
+mod icon;
 mod github;
 mod menu;
 mod languages;
@@ -1053,6 +1054,21 @@ async fn set_telemetry(
     }
 }
 
+/// A project's own icon, if it ships one by any convention worth
+/// following. `None` for most repositories, which is correct rather than a
+/// failure — see `icon.rs` on why nothing is shown instead of a
+/// placeholder.
+#[tauri::command]
+fn project_icon(app: tauri::AppHandle, id: String) -> Result<Option<String>, String> {
+    let ws = read_workspace(&app)?;
+    let project = ws
+        .projects
+        .iter()
+        .find(|p| p.id == id)
+        .ok_or_else(|| format!("no such project: {id}"))?;
+    Ok(icon::find(Path::new(&project.root)).map(|p| portable(&p)))
+}
+
 /// Whether a project's map has fallen behind its sources.
 ///
 /// Cheap by construction — modification times, not a regeneration — so the
@@ -1301,6 +1317,7 @@ fn main() {
             open_feedback,
             about_info,
             map_freshness,
+            project_icon,
             telemetry_info,
             set_telemetry,
             save_text

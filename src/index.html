@@ -62,6 +62,12 @@
            views they name, and moving the text without the navigation
            would leave decoration behind. -->
       <div id="proj-detail" class="proj-detail" hidden>
+        <!-- The project's own icon, where it ships one by a convention
+             somebody else defined — a web app manifest, a favicon, an
+             Android or iOS launcher icon. Absent for most repositories,
+             and absent is what they get: a grey placeholder in front of
+             thirty projects is noise pretending to be information. -->
+        <img id="proj-icon" class="proj-icon" alt="" hidden />
         <p id="proj-counts" class="meta counts"></p>
         <p id="proj-langs" class="meta langs" hidden></p>
         <p id="proj-schema" class="meta stale" hidden></p>

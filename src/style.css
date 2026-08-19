@@ -987,3 +987,21 @@ button:focus-visible {
   color: var(--ink);
   font-weight: 600;
 }
+
+/* The project icon. Sized to the line height of the name beside it rather
+   than to whatever the file is: a 512px launcher icon and a 16px favicon
+   have to sit in the same badge without moving anything. */
+.proj-icon {
+  display: block;
+  width: 32px;
+  height: 32px;
+  margin: 0 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  object-fit: contain;
+  background: var(--bg);
+}
+
+.proj-icon[hidden] {
+  display: none;
+}
