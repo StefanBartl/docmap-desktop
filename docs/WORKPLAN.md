@@ -247,27 +247,53 @@ this side.
       for a project that is a plugin registering telemetry, and for nothing
       else — the UI has to say so rather than show an empty panel.
 
-### Choosing which data point — the data does not exist yet
+### Choosing which data point — corrected: the mechanism exists
 
-The request assumes several measurements per project: measure, change
-something, measure again. **That is not what is stored.** There is exactly
-one cumulative record per namespace, merge-on-write — every flush re-reads
-the file and *adds* its delta. Measuring again after a change adds to the
-same totals; the two measurements cannot be told apart afterwards.
-`sessions` is a counter (42 on this machine for `cmdlog.nvim`), not a list
-of 42 things. `:RATelemetry reset` clears rather than archives.
+**The paragraph that stood here was wrong**, and it was wrong in the way
+that matters: it concluded from `store.lua` alone that there is only one
+cumulative record per namespace and no way to compare captures. That
+sentence is true of `M.load`/`M.save` and false of the module. Twenty
+lines further down the same file:
 
-The one real time axis is `days`: `day -> key -> count`, four buckets in
-the sample. So a **day picker** is honest and buildable today — and it
-separates measurements only when they happened on different days, and
-carries call counts only, not the timing and argument detail the top-level
-`functions` map has.
+- `M.save_snapshot` / `M.load_snapshot` / `M.list_snapshots`
+- stored at `telemetry/<namespace>/snapshots/<name>.json` — a second,
+  independent capture, written once and never merged into again
+- `SNAPSHOT_RETENTION`, so a namespace keeps a bounded history
+- `:RATelemetry snapshot [name]`, `snapshots <ns>`,
+  `snapshot-compare <ns> <a> <b>` — the last of which diffs two captures
+  directly, "possibly taken on different machines"
 
-A picker over *runs* needs a change in `runtime-analysis.nvim` first:
-`reset` (or a new `snapshot`) that archives the current counters under a
-label instead of dropping them. That is a third repository and its own
-decision — see the question below.
+So a picker over real, comparable measurements is buildable **today**, and
+needs no change to `runtime-analysis.nvim` at all.
 
+**Why there were none to find.** Snapshots are never automatic — the
+plugin says so explicitly: no snapshot on `disable()`, on a flush, or on
+an interval, because "an unexpected snapshot is a worse failure" than a
+missing one when retention starts evicting. The only call site is the
+command. On this machine `telemetry/documentation.nvim/snapshots/` exists
+and is empty: the directory was created, a capture never was.
+
+**Where `:RATelemetrySetupAllFull` put things**, since that is what was
+run:
+
+1. **Live counters** keep going to `telemetry/<plugin>.json` — 41 of them
+   here, rewritten at 17:27 today, so collection is working.
+2. **A dated backup** of each namespace that had data, written *before*
+   the reset, as `<ns>-YYYYMMDD-HHMMSS.json` — into the directory the
+   command **prompts for**. Declining that prompt aborts the whole run
+   rather than resetting silently, so if no directory was given, nothing
+   was backed up and nothing was reset either.
+3. **Snapshots: none**, because `SetupAll` does not take one. That is the
+   gap between what was run and what a picker needs.
+
+- [ ] The picker reads `telemetry/<ns>/snapshots/` — newest first, the
+      same order `list_snapshots` returns.
+- [ ] It has to say when there are none, and *why*: "snapshots are only
+      taken by `:RATelemetry snapshot`" is the actionable sentence, and an
+      empty picker without it reads as a broken feature.
+- [ ] The dated `SetupAll` backups are a second, differently-shaped
+      archive. Worth reading too, but only once the directory is known —
+      it is prompted per run and stored nowhere this app can find.
 ### One note this makes stale
 
 - [ ] `contextNoteFor` says telemetry "comes from a live Neovim session…
