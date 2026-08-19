@@ -595,6 +595,57 @@ exactly the controls a keyboard user reaches as the only unexplained ones.
       tabs and the findings block. The mechanism is one attribute, so each
       is a text rather than a change.
 
+### 10.8 Where the drift findings belong — measured, and a choice to make
+
+Asked: should the findings be a tab, a sub-tab, or a menu entry, instead of
+sitting below every view?
+
+**What is actually true today**, measured rather than recalled:
+
+- The **count** is always visible: `0 errors · 1 warnings` in the page
+  header, and both are links (`.stat-link`, `data-goto`). So the property
+  the question is after — always in sight — already holds for the part that
+  matters for awareness.
+- The **list** is not. `#findings` sits at `top: 756` in a 720px viewport
+  on this repository's own map, so it is below the fold before any view is
+  even long. "Always there" was true; "always visible" was my wording and
+  it was wrong.
+- Clicking the count opens the disclosure and calls `scrollIntoView` with
+  `behavior: "smooth"`. **That could not be verified here** and is not a
+  bug: instant `scrollTo` and instant `scrollIntoView` both move the page,
+  smooth does not — this pane does not composite, and smooth scrolling is
+  driven by the compositor. Checked with a control before concluding.
+
+**So the trade is narrow, and it is a real one.** A tab would give the list
+a home with room to filter and sort, which starts mattering the moment a
+repository has hundreds of findings rather than thirteen. What it must not
+do is take the count with it: a number behind a click is a number nobody
+reads, which is this project's own rule and the reason the header carries
+it.
+
+- [ ] **Decide**: ninth tab with the header count staying put, or leave it
+      as is. Not a sub-tab of anything — it belongs to no view, which is
+      exactly why it is not in one now.
+- [ ] **Not the menu**, on the current evidence. `docs/MENUBAR.md`'s rule
+      is that a menu is for things you *do*; findings are a thing that is
+      *true*, and the same rule already keeps the engine verdict out of it.
+      A menu entry that scrolls to a list is a shortcut, not a home.
+
+### 10.9 Which app features belong in the menu — a review, not a task
+
+Asked alongside 10.8 and worth doing deliberately once rather than
+case by case. The menu has grown by five items today without anyone
+re-reading it as a whole.
+
+- [ ] Re-read `docs/MENUBAR.md`'s rule — *a menu is for things you do, the
+      window is for things that are true* — against every item now in it,
+      and against everything in the window that is not.
+- [ ] Specific candidates already noticed: **Regenerate all stale** (there
+      is now a staleness signal and no command that acts on it), **Open the
+      workspace file**, **Copy the project path**, and **Check exactly**
+      (`docmap --check`), which §3 left unbuilt and which is the only thing
+      that answers "would the map actually come out different".
+
 ### 10.7 The documentation needs rebuilding from the ground up
 
 Both repositories. The request is explicit and it is right: a great deal has
