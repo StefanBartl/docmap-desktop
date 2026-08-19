@@ -56,8 +56,13 @@
            selected: what is in it, what it is written in, and whether the
            map has fallen behind. Below the control rather than inside it,
            because a `<select>` shows one line of text and this is four. -->
+      <!-- The badge. What the map's own header showed top-right now lives
+           here, where somebody choosing between projects is already
+           looking — and the numbers stay links: they were anchors into the
+           views they name, and moving the text without the navigation
+           would leave decoration behind. -->
       <div id="proj-detail" class="proj-detail" hidden>
-        <p id="proj-counts" class="meta"></p>
+        <p id="proj-counts" class="meta counts"></p>
         <p id="proj-langs" class="meta langs" hidden></p>
         <p id="proj-schema" class="meta stale" hidden></p>
         <p id="proj-stale" class="meta stale" hidden></p>

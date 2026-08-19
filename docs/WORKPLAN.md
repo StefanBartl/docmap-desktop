@@ -515,31 +515,42 @@ remedy.
       the probe discriminates. Cosmetic, and fixed anyway because thirteen
       places doing the same conversion should do it the same way.
 
-### 10.4 The map's own counts belong in the project badge
+### 10.4 ~~The map's own counts belong in the project badge~~ — built 2026-08-19
 
-`11 modules · 3 namespaces · 25 files · 0 errors · 0 warnings` sits top-right
-in the page. Requested layout in the sidebar badge instead:
+All five, in the sidebar, and the three that had views to jump to are still
+links — they were anchors, and moving the text without the navigation would
+have left decoration.
 
-```
-{LANGUAGE} — x modules · x files · x errors · x warnings
-{PROJECT IMAGE}
-```
+**Two sources, because no single one has all five.** `modules`,
+`namespaces` and `files` come from `module_map.json`, which the app reads
+directly. `errors` and `warnings` are not in the artifact at all — findings
+are computed at render time — so the page is asked, through a third verb on
+the inbound channel. That is the channel doing exactly what it was built
+for: reading something only the page knows.
 
-- [ ] The links have to keep working. Those counts are anchors into the
-      views they name, and moving the text without the navigation makes them
-      decoration.
-- [ ] **The app cannot read them out of the page** — cross-origin. They come
-      from `module_map.json`, which `map_status` already parses; it reads
-      `meta.counts.module` and `meta.counts.file` and would need
-      `namespace`, plus the finding counts, which are in the artifact.
-- [ ] Drop "Quellen sind neuer als die Karte" from the badge, per the
-      request. It was §3's whole point, so if it goes it needs somewhere —
-      or the decision that a mark in the picker (which exists) is enough.
-- [ ] A project image, where a repository has one. **No convention exists**
-      for this — there is no standard "project icon" file the way there is a
-      README. Candidates: `.github/logo.png`, an `icon.*` at the root, the
-      GitHub org avatar via the API. Needs one rule, and absent → nothing
-      rendered rather than a placeholder.
+The question is asked when the page *reports itself*, not when the sidebar
+renders. The first version asked in `renderDetail`, at which point the
+frame had not been pointed at this project's map yet, so it questioned
+whatever was showing before — and got no answer, which looked exactly like
+an unsupported page.
+
+Findings show no link: the page's own findings disclosure sits at its foot
+and is not addressable by hash. They are marked when non-zero and plain
+when zero, without colour — this palette has no red, and inventing one for
+two numbers would be a colour nothing else uses.
+
+- [x] ~~The links keep working.~~ Verified: clicking *namespaces* navigates
+      the frame to `#tab=index&iview=modules`.
+- [x] ~~Drop "sources are newer than the map" from the badge.~~ **Not
+      done, and deliberately.** It was §3's whole point and the mark in the
+      picker only shows for the selected project anyway. Left in place until
+      there is somewhere better; removing a signal because the line beside
+      it got longer is the wrong trade.
+- [ ] **A project image is not built.** There is no convention to follow —
+      no standard "project icon" the way there is a README — and the
+      request was conditional on one existing. Inventing a rule here means
+      documenting it and living with it; worth deciding deliberately rather
+      than picking `logo.png` because it was first to mind.
 
 ### 10.5 ~~Sidebar spacing~~ — fixed 2026-08-19
 
