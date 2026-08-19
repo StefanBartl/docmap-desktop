@@ -1101,9 +1101,10 @@ the line scanner assembly proved.
       commit that does not describe the binary sends a bug report to the
       wrong diff. A dialog rather than the platform's about box, since the
       whole point is text somebody can copy.
-- [ ] Menu stage 5 — **Export the current view**, blocked on the same
-      inbound page channel as [§1](#1-the-map-pane-ignores-the-theme), and
-      worth doing after it for that reason.
+- [x] ~~Menu stage 5 — **Export the current view**~~ — built 2026-08-19
+      once the channel landed, and it is the channel's one real consumer.
+      `Ctrl+E`, three named outcomes: no diagram on this tab, no answer from
+      the page, or a file written where you chose.
 - [ ] Turn GitHub Discussions on, if feedback should be a thread rather than
       an issue. One line per category in `src-tauri/src/feedback.rs`.
 - [ ] Per-project settings — languages on/off, excluded paths. The first
@@ -1112,21 +1113,42 @@ the line scanner assembly proved.
 
 **documentation.nvim**
 
-- [ ] Marker comments for languages added after Lua and ECMA: a backend that
-      declares no comment syntax is skipped rather than guessed at, so one
-      that forgets the field scans clean and finds nothing. Worth a registry
-      check.
+- [x] ~~Marker comments for languages added after Lua and ECMA~~ — the
+      registry check exists: `TESTS/backend_contract_spec.lua` fails a
+      backend that declares neither `line_comments` nor `block_comments`,
+      **and proves the token works** by scanning a `TODO:` through it rather
+      than checking the field is set. That second half is what caught the
+      Java bug where `core/markers.lua` only knew comment nodes named
+      `comment`.
 - [ ] Whether a `BUG:` marker should reach `check.lua` and Quicks. Left out
       deliberately: a verdict that counts to-dos as defects needs its own
       argument.
 - [ ] Per-entry reference anchors — the renderer supports them, they are
       unfilled on purpose.
-- [ ] Doc coverage per language rather than one average.
+- [x] ~~Doc coverage per language rather than one average~~ — built
+      2026-08-20, and **it found a defect on its first real run**, which is
+      the argument for having built it. Against a mixed Lua/Zig tree the
+      breakdown said `zig 0/2` for a file whose documented function was
+      documented: the measure demanded `@param` lines from a language with
+      no `@param`, so every Zig function had scored undocumented forever
+      since Zig shipped — hidden by exactly the tree-wide average this item
+      asked to split.
+
+      Fixed with a contract field, `param_docs`, the same shape as
+      `module_tag = false`: the backend states its language has no
+      per-parameter convention and the measure stops judging it by one.
+      `false` on Zig and assembly. Absent means true, and an unknown
+      language keeps the strict rule — an exemption is declared, never
+      assumed.
+
+      **This is the first concrete input to §12's parity pass**, and it is
+      the pattern that pass is looking for: a capability Lua has, applied to
+      a language that cannot have it, producing a wrong number rather than a
+      low one.
 - [ ] Plugin managers other than lazy.nvim; lazy-load inventory; orphaned
       spec files.
 - [ ] Document hygiene: `IDEAS.md`, `IDEAS_IMPLEMENTATION_PLAN.md` and
       `MULTILANG.md` still list items that are built.
-- [ ] `claude/documentation-nvim-browser-title-805562` — the sibling of the
-      merged branding branch, adding a topbar with the brand and tagline to
-      the generated page. Worth merging **with** the motto decision, not
-      before it.
+- [x] ~~`claude/documentation-nvim-browser-title-805562`~~ — its content
+      was already on `main` by another branch, and the branch is deleted
+      (tip `31144d9`). See §6.
