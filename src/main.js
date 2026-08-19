@@ -59,7 +59,7 @@ if (!window.__TAURI__) {
 }
 
 const { invoke, convertFileSrc } = window.__TAURI__.core;
-const { open } = window.__TAURI__.dialog;
+const { open, save } = window.__TAURI__.dialog;
 
 const els = {
   sidebar: document.getElementById("sidebar"),
@@ -1557,6 +1557,81 @@ tel.toggle.addEventListener("click", async () => {
   }
 });
 
+
+// =====================================================================
+// Asking the map a question
+//
+// The map is a cross-origin document: this window cannot read into it. The
+// page answers a fixed, tiny set of questions about itself and takes no
+// instructions — see `core/render/html.lua`'s own note on why that shape
+// was chosen over a command channel.
+//
+// One asker, promise-shaped, with a timeout. A page that is still loading,
+// or one generated before the channel existed, simply never answers — and
+// "never answers" has to become a sentence rather than a spinner that stays
+// forever.
+// =====================================================================
+
+let askId = 0;
+const pending = new Map();
+
+window.addEventListener("message", (ev) => {
+  const d = ev.data;
+  if (!d || d.source !== "docmap" || d.replyTo === undefined) return;
+  const waiting = pending.get(d.replyTo);
+  if (!waiting) return;
+  pending.delete(d.replyTo);
+  waiting(d);
+});
+
+/** Ask the map something. Resolves with its answer, or `null` on silence. */
+function askMap(ask, timeoutMs = 2000) {
+  const frame = els.frame.contentWindow;
+  if (!frame) return Promise.resolve(null);
+  const id = ++askId;
+  return new Promise((resolve) => {
+    pending.set(id, resolve);
+    setTimeout(() => {
+      if (pending.delete(id)) resolve(null);
+    }, timeoutMs);
+    // `"*"` as the target: the frame's origin is the local server's, which
+    // changes port per run. The message carries nothing secret — it is a
+    // question, and the page answers only to the origin that asked.
+    frame.postMessage({ source: "docmap-host", id, ask }, "*");
+  });
+}
+
+/**
+ * Save the diagram the map is currently showing.
+ *
+ * Three outcomes, and each says which: there is no diagram on this tab, the
+ * page never answered, or a file was written where the reader chose.
+ */
+async function exportCurrentView() {
+  const reply = await askMap("export-svg");
+  if (!reply) {
+    say(t("export.silent"));
+    return;
+  }
+  if (!reply.ok) {
+    say(t("export.none"));
+    return;
+  }
+  const path = await save({
+    defaultPath: reply.name,
+    filters: [{ name: "SVG", extensions: ["svg"] }],
+  });
+  // A cancelled dialog is a decision, not a failure: nothing is said about
+  // it, because the reader already knows what they did.
+  if (!path) return;
+  try {
+    await invoke("save_text", { path, contents: reply.data });
+    say(t("export.done").replace("{name}", path));
+  } catch (e) {
+    say(String(e));
+  }
+}
+
 // =====================================================================
 // The menu bar
 //
@@ -1582,6 +1657,7 @@ const MENU_ACTIONS = {
       say(String(e));
     }
   },
+  "menu.file.export": () => exportCurrentView(),
   "menu.file.reveal": async () => {
     if (!selectedId) return;
     try {
