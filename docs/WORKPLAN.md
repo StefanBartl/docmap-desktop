@@ -378,15 +378,26 @@ the positions are computed there and the SVG edges follow them.
 - [ ] The SVG export has to follow. It redraws boxes from live positions,
       so it probably does already; "probably" is the thing to check.
 
-### 9.2 Reroot the hierarchy at what you clicked
+### 9.2 ~~Reroot the hierarchy at what you clicked~~ — built 2026-08-19
 
-Clicking a module already dims everything unrelated. Making *that* the new
-root, so exploration continues from there, is the natural next press.
+**The mechanism already existed twice**, which the measurement found and the
+request could not have: double-clicking a box recentres, and so does
+wheel-zooming into it. Neither is visible, and neither said where you ended
+up — `▲ Up` and `⌂ Root` were the only way back and answer "where am I"
+not at all.
 
-- [ ] The state already carries `center`; this is closer to "promote the
-      current focus into `center`" than to new machinery.
-- [ ] Needs a way back — a breadcrumb of where you rerooted from, or Back
-      working, and Back is nearly free since the state is in the URL.
+So what shipped is the visible half: a breadcrumb above the graph showing
+the path to the current root, every segment a jump back to that level —
+two levels in one press, which `Up` cannot do. Hidden at the root, because
+a breadcrumb of one entry is a label pretending to be navigation. And the
+tab's hover explanation now names the double-click, since a gesture nobody
+can discover is a gesture nobody uses.
+
+- [ ] **Single click still leaves the hierarchy** for the Tree view, which
+      is the gesture people try first and the most surprising thing in the
+      view. Not changed here: it is existing behaviour with existing muscle
+      memory, and swapping it deserves its own decision rather than riding
+      along with a breadcrumb.
 
 ### 9.3 More views, other emphases
 
