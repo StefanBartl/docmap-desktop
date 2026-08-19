@@ -256,9 +256,21 @@ own words.
       gh repo edit StefanBartl/documentation.nvim --description "know your project — an interactive module map, drift checks that fail CI, and an in-editor browser for any repository."
       gh repo edit StefanBartl/docmap-desktop --description "know your project — a desktop workspace for documentation.nvim's module maps."
 
-- [ ] `claude/documentation-nvim-browser-title-805562` adds the same
-      treatment to the generated page's header. It was waiting on this
-      decision and is now unblocked.
+- [x] ~~`claude/documentation-nvim-browser-title-805562`~~ — **already on
+      `main`, by a different branch.** Checked rather than merged, and the
+      check is the point: that branch sits 80 commits behind and the same
+      change landed with `claude/docnvim-title-branding-f5c876`, the one
+      recorded at the top of this plan. `render/html.lua` on `main` carries
+      all three parts of it — the `.topbar` CSS, the ` · documentation.nvim`
+      title suffix with its self-repetition guard, and the brand/tagline
+      div above the project's own header.
+
+      Merging it would have re-applied work already present and dragged 80
+      commits' worth of stale `docs/map/*` artifacts along with it. **The
+      branch itself is now dead and worth deleting** — left to you, since a
+      remote branch is not a file in the repository:
+
+      git push origin --delete claude/documentation-nvim-browser-title-805562
 
 ---
 ## 7. Telemetry — measured, and it splits in two
