@@ -201,6 +201,23 @@ const CATALOGS = {
     "copy.path.done": "Copied: {path}",
     "menu.file.export": "Export current view…",
     "export.none": "Nothing to export: the current view has no diagram. Hierarchy draws one.",
+    // The view-area placeholders. Catalogued as a set rather than one at a
+    // time: `showPlaceholder` was called from eight places with English
+    // literals, so a German window showed a translated sentence under an
+    // untranslated heading. Half the set would have kept exactly that.
+    "ph.none.title": "Nothing selected",
+    "ph.none.body": "Pick a project on the left.",
+    "ph.nomap.title": "No map in this project yet",
+    "ph.nomap.generate": "Press <strong>Generate map</strong> to build one.",
+    "ph.nomap.noengine":
+      "Locate the engine in the sidebar first — it is <code>documentation.nvim</code>'s standalone binary.",
+    "ph.generating.title": "Generating…",
+    "ph.generating.body": "Running the engine over <code>{root}</code>.",
+    "ph.genall.title": "Generating all projects",
+    "ph.genall.body": "Running the engine over {n} project(s).",
+    "ph.failed.title": "Generation failed",
+    "ph.failed.body": "The engine exited with code {code}.",
+    "ph.enginefail.title": "Could not run the engine",
     "map.blank.title": "The map did not load",
     "map.blank.body": "The page was asked for and never reported itself. Generating again usually fixes it; if it does not, the address below is what was requested.",
     "export.silent": "The map did not answer. It may still be loading.",
@@ -391,6 +408,19 @@ const CATALOGS = {
     "copy.path.done": "Kopiert: {path}",
     "menu.file.export": "Aktuelle Ansicht exportieren…",
     "export.none": "Nichts zu exportieren: die aktuelle Ansicht hat kein Diagramm. Hierarchy zeichnet eines.",
+    "ph.none.title": "Nichts ausgewählt",
+    "ph.none.body": "Wähle links ein Projekt.",
+    "ph.nomap.title": "Noch keine Karte in diesem Projekt",
+    "ph.nomap.generate": "Mit <strong>Karte erzeugen</strong> eine anlegen.",
+    "ph.nomap.noengine":
+      "Zuerst die Engine in der Seitenleiste suchen — sie ist das eigenständige Binary von <code>documentation.nvim</code>.",
+    "ph.generating.title": "Wird erzeugt…",
+    "ph.generating.body": "Die Engine läuft über <code>{root}</code>.",
+    "ph.genall.title": "Alle Projekte werden erzeugt",
+    "ph.genall.body": "Die Engine läuft über {n} Projekt(e).",
+    "ph.failed.title": "Erzeugung fehlgeschlagen",
+    "ph.failed.body": "Die Engine endete mit Code {code}.",
+    "ph.enginefail.title": "Die Engine ließ sich nicht starten",
     "map.blank.title": "Die Karte wurde nicht geladen",
     "map.blank.body": "Die Seite wurde angefordert und hat sich nie gemeldet. Neu erzeugen hilft meist; wenn nicht, steht unten die angeforderte Adresse.",
     "export.silent": "Die Karte hat nicht geantwortet. Vielleicht lädt sie noch.",
