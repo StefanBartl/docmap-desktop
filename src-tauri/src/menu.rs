@@ -120,6 +120,8 @@ const GROUPS: &[Group] = &[
             item("menu.file.reveal", None, true),
             Node::Separator,
             item("menu.file.remove", Some("Delete"), true),
+            Node::Separator,
+            item("menu.file.settings", Some("CmdOrCtrl+,"), false),
         ],
     },
     Group {
@@ -154,16 +156,6 @@ const GROUPS: &[Group] = &[
             item("menu.view.zoom_reset", Some("CmdOrCtrl+0"), false),
             Node::Separator,
             check("menu.view.sidebar", Some("CmdOrCtrl+B")),
-        ],
-    },
-    Group {
-        id: "menu.tools",
-        items: &[
-            item("menu.tools.engine", None, false),
-            item("menu.tools.grammars", None, false),
-            Node::Separator,
-            item("menu.tools.nvim", None, false),
-            item("menu.tools.nvim_config", None, false),
         ],
     },
     Group {
@@ -411,12 +403,18 @@ mod tests {
         // be undone by a silent fallback here.
         let app = tauri::test::mock_app();
         let mut incomplete = labels();
-        incomplete.remove("menu.tools.grammars");
+        // Whatever key is removed has to still exist, or this passes by
+        // removing nothing -- which is how it failed when the Tools menu was
+        // folded into Settings, and is the reason the assertion below names
+        // the key rather than merely checking for an error.
+        let victim = "menu.file.settings";
+        assert!(labels().contains_key(victim), "{victim} is no longer a menu label");
+        incomplete.remove(victim);
         let err = match build(app.handle(), &incomplete, true, &state()) {
             Err(e) => e,
             Ok(_) => panic!("an incomplete label set must not produce a menu"),
         };
-        assert!(err.contains("menu.tools.grammars"), "unhelpful error: {err}");
+        assert!(err.contains(victim), "unhelpful error: {err}");
     }
 
     #[test]

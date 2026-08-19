@@ -87,10 +87,6 @@
           <span id="engine-summary" class="engine-summary"></span>
         </summary>
         <p id="engine-state" class="engine-state"></p>
-        <div class="engine-actions">
-          <button id="pick-engine" data-i18n-help="help.engineLocate" type="button" data-i18n="engine.locate">Locate…</button>
-          <button id="pick-grammars" data-i18n-help="help.grammars" type="button" data-i18n="engine.grammars">Grammars…</button>
-        </div>
       </details>
 
       <!-- Same shape as #engine, for the same reason: spec-import runs a
@@ -106,23 +102,8 @@
           <span id="nvim-summary" class="engine-summary"></span>
         </summary>
         <p id="nvim-state" class="engine-state"></p>
-        <div class="engine-actions">
-          <button id="pick-nvim" data-i18n-help="help.nvimLocate" type="button" data-i18n="nvim.locate">Locate nvim…</button>
-          <button id="pick-nvim-config" data-i18n-help="help.nvimConfig" type="button" data-i18n="nvim.locateConfig">Locate config…</button>
-        </div>
       </details>
 
-      <div class="prefs">
-        <select id="theme" aria-label="Theme" data-i18n-help="help.theme">
-          <option value="system" data-i18n="prefs.theme.system">Theme: system</option>
-          <option value="light" data-i18n="prefs.theme.light">Theme: light</option>
-          <option value="dark" data-i18n="prefs.theme.dark">Theme: dark</option>
-        </select>
-        <!-- Locale names are endonyms, never translated into the current
-             language: someone looking for their own language recognises it
-             spelled its own way, not as this window happens to name it. -->
-        <select id="lang" aria-label="Language" data-i18n-help="help.language"></select>
-      </div>
 
     </aside>
 
@@ -296,6 +277,74 @@
       <button id="fb-go" class="addbox-go" type="button" data-i18n="fb.go">Open on GitHub…</button>
     </dialog>
 
+    <!-- Settings.
+         `docs/MENUBAR.md` argued against this while there were two controls
+         to put in it — "a dialog for two controls is a click in front of a
+         switch" — and named the condition that would make it right: more
+         than a handful, and somewhere for what comes next to live. Both are
+         true now, and per-project settings are already on the roadmap with
+         nowhere to go.
+
+         Sections rather than a flat list, for the same reason: a list that
+         grows becomes a wall, and a wall is what people stop reading.
+
+         What is *state* stays in the sidebar. The engine verdict and the
+         Neovim verdict are facts that decide whether the next action works,
+         and a fact behind a click is a fact nobody reads. What moved here is
+         the pointing-at-a-binary, which is done about once per machine. -->
+    <dialog id="prefsbox" class="addbox">
+      <form method="dialog" class="addbox-close-form">
+        <button class="addbox-x" value="cancel" aria-label="Close">&times;</button>
+      </form>
+
+      <h2 class="addbox-title" data-i18n="prefs.title">Settings</h2>
+
+      <section class="prefs-section">
+        <h3 data-i18n="prefs.appearance">Appearance</h3>
+        <div class="prefs-row">
+          <label for="theme" data-i18n="prefs.theme">Theme</label>
+          <select id="theme" data-i18n-help="help.theme">
+            <option value="system" data-i18n="prefs.theme.system">System</option>
+            <option value="light" data-i18n="prefs.theme.light">Light</option>
+            <option value="dark" data-i18n="prefs.theme.dark">Dark</option>
+          </select>
+        </div>
+        <div class="prefs-row">
+          <label for="lang" data-i18n="prefs.language">Language</label>
+          <!-- Locale names are endonyms, never translated into the current
+               language: someone looking for their own language recognises it
+               spelled its own way. -->
+          <select id="lang" data-i18n-help="help.language"></select>
+        </div>
+      </section>
+
+      <section class="prefs-section">
+        <h3 data-i18n="prefs.engine">Engine</h3>
+        <p class="addbox-note" data-i18n="prefs.engine.note">
+          The engine is <strong>documentation.nvim's standalone binary</strong> —
+          this app runs it, it does not replace it. Where it is on PATH there is
+          nothing to do here, ever.
+        </p>
+        <p id="prefs-engine-state" class="prefs-state"></p>
+        <div class="prefs-buttons">
+          <button id="pick-engine" data-i18n-help="help.engineLocate" type="button" data-i18n="engine.locate">Locate…</button>
+          <button id="pick-grammars" data-i18n-help="help.grammars" type="button" data-i18n="engine.grammars">Grammars…</button>
+        </div>
+      </section>
+
+      <section class="prefs-section">
+        <h3 data-i18n="prefs.nvim">Neovim</h3>
+        <p class="addbox-note" data-i18n="prefs.nvim.note">
+          Only needed to import plugin specs from a Neovim config. Most
+          machines resolve both of these on their own.
+        </p>
+        <p id="prefs-nvim-state" class="prefs-state"></p>
+        <div class="prefs-buttons">
+          <button id="pick-nvim" data-i18n-help="help.nvimLocate" type="button" data-i18n="nvim.locate">Locate nvim…</button>
+          <button id="pick-nvim-config" data-i18n-help="help.nvimConfig" type="button" data-i18n="nvim.locateConfig">Locate config…</button>
+        </div>
+      </section>
+    </dialog>
     <script type="module" src="main.js"></script>
     <!-- A status bar, not a sidebar footer. It reports on the thing in the
          main pane, so it belongs under the main pane rather than under the

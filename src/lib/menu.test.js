@@ -48,8 +48,11 @@ test("the regex actually found the menu, rather than matching nothing", () => {
   // Without this, both assertions above pass triumphantly against an empty
   // list the day `menu.rs` is written differently.
   const ids = rustIds();
-  assert.ok(ids.length >= 25, `expected the whole menu, found ${ids.length} ids`);
-  for (const expected of ["menu.file", "menu.help", "menu.project.generate", "menu.tools.grammars"]) {
+  // A floor with headroom, not the exact count: this exists to catch the
+  // regex matching nothing, and a number that has to be edited every time an
+  // item is added is one that gets edited without being thought about.
+  assert.ok(ids.length >= 20, `expected the whole menu, found ${ids.length} ids`);
+  for (const expected of ["menu.file", "menu.help", "menu.project.generate", "menu.file.settings"]) {
     assert.ok(ids.includes(expected), `${expected} should be among the parsed ids`);
   }
 });
