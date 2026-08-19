@@ -1147,8 +1147,27 @@ the line scanner assembly proved.
       low one.
 - [ ] Plugin managers other than lazy.nvim; lazy-load inventory; orphaned
       spec files.
-- [ ] Document hygiene: `IDEAS.md`, `IDEAS_IMPLEMENTATION_PLAN.md` and
-      `MULTILANG.md` still list items that are built.
+- [x] ~~Document hygiene: `IDEAS.md`, `IDEAS_IMPLEMENTATION_PLAN.md` and
+      `MULTILANG.md`~~ — done 2026-08-20, audited against `lua/` rather than
+      against memory, and it found more than staleness.
+
+      `IDEAS.md` opened with "the 14 existing checks"; there are 20. Three
+      of its proposals had shipped as checks — `doc-references-missing`,
+      `example-does-not-parse`, `unused-require` — and a fourth (6.6, a
+      generic CLI entry) is answered by a different mechanism than it
+      sketched: the standalone binary takes a root and maps any repository
+      from anywhere, which is what this app runs for every project.
+
+      **And it closed a standing warning about itself.** Every CI run of
+      that repository reported `doc-references-missing` against
+      `IDEAS.md:105` — an illustrative call inside the very section that
+      proposed the check, which the check then correctly flagged. Its map
+      now reports zero warnings, which matters because a permanent warning
+      is how people learn to ignore warnings.
+
+      `MULTILANG.md`'s Phase 0 "visibility as a first-class field" is
+      closed, and closed by being *used* rather than refactored: five
+      backends fill `internal` from the language itself now.
 - [x] ~~`claude/documentation-nvim-browser-title-805562`~~ — its content
       was already on `main` by another branch, and the branch is deleted
       (tip `31144d9`). See §6.
