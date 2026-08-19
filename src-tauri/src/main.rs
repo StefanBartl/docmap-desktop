@@ -10,6 +10,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod feedback;
+mod filetree;
 mod freshness;
 mod icon;
 mod github;
@@ -1141,6 +1142,22 @@ fn editor_command(app: tauri::AppHandle, set: Option<String>) -> Result<Option<S
     Ok(read_workspace(&app)?.editor)
 }
 
+/// One directory of a project, as it is on disk.
+///
+/// One level per call: a repository is tens of thousands of files and a
+/// reader opens perhaps a dozen directories. See `filetree.rs` on why this
+/// is read live here rather than collected into the artifact.
+#[tauri::command]
+fn file_tree(app: tauri::AppHandle, id: String, sub: String) -> Result<filetree::Listing, String> {
+    let ws = read_workspace(&app)?;
+    let project = ws
+        .projects
+        .iter()
+        .find(|p| p.id == id)
+        .ok_or_else(|| format!("no such project: {id}"))?;
+    filetree::list(Path::new(&project.root), &sub)
+}
+
 /// A project's own icon, if it ships one by any convention worth
 /// following. `None` for most repositories, which is correct rather than a
 /// failure — see `icon.rs` on why nothing is shown instead of a
@@ -1406,6 +1423,7 @@ fn main() {
             map_freshness,
             project_icon,
             open_in_editor,
+            file_tree,
             editor_command,
             telemetry_info,
             set_telemetry,

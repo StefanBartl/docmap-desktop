@@ -1005,3 +1005,120 @@ button:focus-visible {
 .proj-icon[hidden] {
   display: none;
 }
+
+/* --------------------------------------------------------- files on disk
+
+   Fills the main pane the way the map does, and scrolls on its own — the
+   shell never scrolls, which is why the map is an iframe and this is a
+   section with its own overflow. */
+.files {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.files[hidden] {
+  display: none;
+}
+
+.files-crumb {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.files-crumb button {
+  border: none;
+  background: none;
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.files-crumb button:hover {
+  background: var(--accent-soft);
+}
+
+.files-crumb .here {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.files-list {
+  flex: 1 1 auto;
+  overflow: auto;
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+}
+
+.files-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 3px 16px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.files-row:hover,
+.files-row:focus-visible {
+  background: var(--accent-soft);
+  outline: none;
+}
+
+/* A folder reads as a folder before the name is read. */
+.files-row.dir .n::before {
+  content: "▸ ";
+  color: var(--muted);
+}
+
+.files-row .n {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.files-row.dir .n {
+  font-weight: 600;
+}
+
+/* Why the map ignores this folder. Quiet — it is an explanation, not a
+   warning: the folder being there is normal. */
+.files-row .why {
+  flex: 0 0 auto;
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.files-row .m {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.files-msg {
+  padding: 14px 16px;
+  color: var(--muted);
+  font-size: 12.5px;
+}

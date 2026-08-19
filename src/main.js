@@ -1555,6 +1555,7 @@ function viewState() {
     // Endonyms, straight from the catalog's own list — the menu never
     // translates a language name.
     locales: LOCALES.map((l) => ({ code: l.code, label: l.label })),
+    files: filesOpen,
     sidebar: sidebarShown,
   };
 }
@@ -1856,6 +1857,157 @@ async function exportCurrentView() {
   }
 }
 
+
+// =====================================================================
+// The repository as it is on disk
+//
+// Beside the map rather than inside it. The map is a snapshot of one
+// generation and deliberately shows only modules; this is what is actually
+// there, read now — and it is read by this program because this program is
+// the one that can also open a file when asked.
+//
+// One directory per call. A monorepo is tens of thousands of files and a
+// reader opens a dozen folders, so walking everything to draw one level is
+// work nobody asked for and a window that stalls.
+// =====================================================================
+
+let filesOpen = false;
+let filesPath = "";
+
+function formatSize(n) {
+  if (n === null || n === undefined) return "";
+  if (n < 1024) return n + " B";
+  if (n < 1024 * 1024) return Math.round(n / 1024) + " KB";
+  return (n / (1024 * 1024)).toFixed(1) + " MB";
+}
+
+async function renderFiles() {
+  if (!filesOpen || !selectedId) return;
+  const crumb = document.getElementById("files-crumb");
+  const list = document.getElementById("files-list");
+
+  let listing;
+  try {
+    listing = await invoke("file_tree", { id: selectedId, sub: filesPath });
+  } catch (e) {
+    list.innerHTML = "";
+    crumb.textContent = "";
+    const li = document.createElement("li");
+    li.className = "files-msg";
+    li.textContent = String(e);
+    list.append(li);
+    return;
+  }
+
+  // Breadcrumb: the project name, then every segment of the current path.
+  crumb.innerHTML = "";
+  const project = projects.find((p) => p.id === selectedId);
+  const segments = filesPath ? filesPath.split("/") : [];
+  const crumbButton = (label, target) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = label;
+    b.addEventListener("click", () => {
+      filesPath = target;
+      renderFiles();
+    });
+    return b;
+  };
+  crumb.append(crumbButton(project ? project.name : "/", ""));
+  segments.forEach((seg, i) => {
+    crumb.append(document.createTextNode(" / "));
+    if (i === segments.length - 1) {
+      const here = document.createElement("span");
+      here.className = "here";
+      here.textContent = seg;
+      crumb.append(here);
+      return;
+    }
+    crumb.append(crumbButton(seg, segments.slice(0, i + 1).join("/")));
+  });
+
+  list.innerHTML = "";
+  if (filesPath) {
+    const up = document.createElement("li");
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "files-row up";
+    b.textContent = "..";
+    b.addEventListener("click", () => {
+      filesPath = filesPath.split("/").slice(0, -1).join("/");
+      renderFiles();
+    });
+    up.append(b);
+    list.append(up);
+  }
+
+  if (!listing.entries.length) {
+    const li = document.createElement("li");
+    li.className = "files-msg";
+    li.textContent = t("files.empty");
+    list.append(li);
+    return;
+  }
+
+  listing.entries.forEach((e) => {
+    const li = document.createElement("li");
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "files-row" + (e.isDir ? " dir" : "");
+
+    const name = document.createElement("span");
+    name.className = "n";
+    name.textContent = e.name;
+    row.append(name);
+
+    // Why the map ignores this folder, said here rather than left to be
+    // wondered about. Both are true statements about the disk: the folder is
+    // there, and nothing under it is in the map.
+    if (e.nestedRepo || e.skipped) {
+      const why = document.createElement("span");
+      why.className = "why";
+      why.textContent = t(e.nestedRepo ? "files.nested" : "files.skipped");
+      row.append(why);
+    }
+
+    const meta = document.createElement("span");
+    meta.className = "m";
+    meta.textContent = e.isDir ? "" : formatSize(e.size);
+    row.append(meta);
+
+    row.addEventListener("click", () => {
+      if (e.isDir) {
+        filesPath = e.path;
+        renderFiles();
+        return;
+      }
+      // A file opens where files open — the editor setting decides which,
+      // and an empty setting means the desktop's own association.
+      invoke("open_in_editor", { id: selectedId, path: e.path, line: null }).catch((err) =>
+        say(String(err))
+      );
+    });
+
+    li.append(row);
+    list.append(li);
+  });
+}
+
+/** Show the filetree instead of the map, or the other way back. */
+function setFiles(on) {
+  filesOpen = on;
+  document.getElementById("files").hidden = !on;
+  // The map keeps its src: coming back should not cost a reload of a
+  // two-megabyte page that has not changed.
+  els.frame.hidden = on || !mapBase;
+  els.placeholder.hidden = on || !!mapBase;
+  if (on) {
+    filesPath = "";
+    renderFiles();
+  }
+  syncMenu();
+}
+
 // =====================================================================
 // The menu bar
 //
@@ -1915,6 +2067,7 @@ const MENU_ACTIONS = {
     await applyZoom(1);
     syncMenu();
   },
+  "menu.view.files": () => setFiles(!filesOpen),
   "menu.view.sidebar": () => {
     applySidebar(!sidebarShown);
     syncMenu();
