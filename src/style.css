@@ -966,3 +966,24 @@ button:focus-visible {
 .proj-detail {
   padding-bottom: 18px;
 }
+
+/* The map's counts, in the badge. Links, because they were links: each is an
+   anchor into the view it names, and moving the text without the navigation
+   would leave five decorative numbers. */
+.proj-detail .counts a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.proj-detail .counts a:hover,
+.proj-detail .counts a:focus-visible {
+  text-decoration: underline;
+}
+
+/* Findings that exist are worth the eye; zero of them is not. No red — the
+   palette has none, and inventing one for two numbers would be a colour
+   nothing else in this window uses. */
+.proj-detail .count-bad {
+  color: var(--ink);
+  font-weight: 600;
+}

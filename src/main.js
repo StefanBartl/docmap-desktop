@@ -431,10 +431,11 @@ async function renderDetail() {
   if (!p) return;
 
   const status = await mapStatus(invoke, p.map_dir);
-  els.counts.textContent = status.exists
-    ? `${status.modules ?? "?"} modules · ${status.files ?? "?"} files`
-    : t("detail.nomap");
-  els.counts.classList.toggle("nomap", !status.exists);
+  renderCounts(status);
+  // The two counts the artifact does not carry are asked for when the page
+  // *reports itself*, not here: at this point the frame has not been
+  // pointed at this project's map yet, so a question would go to whatever
+  // was showing before — or to nothing at all.
 
   // A different question from "are the sources newer": this one is about
   // the *engine*, and regenerating is the answer to both.
@@ -468,6 +469,110 @@ async function renderDetail() {
  * file saved without an edit in it counts here and would not change a byte
  * of the artifact.
  */
+/**
+ * The map's own counts, in the sidebar, as links.
+ *
+ * They sat top-right inside the page, which is the wrong place for them:
+ * somebody choosing between projects is looking at the sidebar, and the
+ * header only exists once you are already in the map you chose.
+ *
+ * **They stay links.** Each count was an anchor into the view it names, and
+ * moving the text without the navigation would leave five decorative
+ * numbers. Navigation is by the frame's URL — the same mechanism the theme
+ * uses, and the reason the page's inbound channel takes no instructions.
+ *
+ * Two sources, because no single one has all five. `modules`, `namespaces`
+ * and `files` come from `module_map.json`, which the app reads directly.
+ * `errors` and `warnings` do not exist in the artifact at all — findings are
+ * computed at render time — so those come from asking the page, and arrive a
+ * moment later. The line renders with what it has and fills in the rest.
+ */
+const COUNT_LINKS = [
+  { key: "modules", tab: "index", iview: "modules" },
+  { key: "namespaces", tab: "index", iview: "modules" },
+  { key: "files", tab: "index", iview: "functions" },
+  { key: "errors", tab: null },
+  { key: "warnings", tab: null },
+];
+
+/** What the page last told us, per project id. */
+const pageCounts = new Map();
+
+function renderCounts(status) {
+  els.counts.innerHTML = "";
+  if (!status.exists) {
+    els.counts.textContent = t("detail.nomap");
+    els.counts.classList.add("nomap");
+    return;
+  }
+  els.counts.classList.remove("nomap");
+
+  const asked = pageCounts.get(selectedId) || {};
+  const have = {
+    modules: status.modules,
+    namespaces: status.namespaces,
+    files: status.files,
+    errors: asked.errors,
+    warnings: asked.warnings,
+  };
+
+  let first = true;
+  for (const spec of COUNT_LINKS) {
+    const n = have[spec.key];
+    // Absent, not zero: errors and warnings are unknown until the page
+    // answers, and showing "0 errors" before knowing would be a claim.
+    if (n === undefined || n === null) continue;
+    if (!first) els.counts.append(document.createTextNode(" · "));
+    first = false;
+
+    const label = n + " " + t("count." + spec.key);
+    if (!spec.tab) {
+      // Findings have no view of their own to jump to; the page's own
+      // disclosure at its foot is not addressable by hash.
+      const span = document.createElement("span");
+      span.textContent = label;
+      if (n > 0) span.className = "count-bad";
+      els.counts.append(span);
+      continue;
+    }
+    const a = document.createElement("a");
+    a.href = "#";
+    a.textContent = label;
+    a.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      gotoMap({ tab: spec.tab, iview: spec.iview });
+    });
+    els.counts.append(a);
+  }
+}
+
+/**
+ * Send the map to a view, by navigating the frame.
+ *
+ * Costs a reload, and that is the deliberate price of the page taking no
+ * instructions: a host that could tell an embedded page what to do is a
+ * different kind of program than one that can only ask it questions.
+ */
+function gotoMap(state) {
+  if (!mapBase) return;
+  const parts = Object.keys(state)
+    .filter((k) => state[k])
+    .map((k) => k + "=" + encodeURIComponent(state[k]));
+  mapTab = null;
+  const url = mapUrl(mapBase).split("#")[0] + "#" + parts.join("&");
+  els.frame.src = url;
+  watchMapLoad(url);
+}
+
+/** Ask the page for the two counts the artifact does not carry. */
+async function askCounts(id) {
+  const reply = await askMap("counts", 4000);
+  if (!reply || !reply.ok || id !== selectedId) return;
+  pageCounts.set(id, reply);
+  const status = await mapStatus(invoke, projects.find((p) => p.id === id).map_dir);
+  renderCounts(status);
+}
+
 /**
  * Say when a map was written by an older engine than the one installed.
  *
@@ -1058,11 +1163,14 @@ window.addEventListener("message", (ev) => {
   if (!data || data.source !== "docmap") return;
   // The page ran. Whatever else this message says, it is the evidence the
   // blank-pane watchdog is waiting for.
+  const wasLoading = !mapLoaded;
   mapLoaded = true;
   if (mapWatch) {
     clearTimeout(mapWatch);
     mapWatch = null;
   }
+  // First message from this page: it is up, so it can be asked things.
+  if (wasLoading && selectedId) askCounts(selectedId);
   if (data.tab) mapTab = data.tab;
   const note = contextNoteFor(data);
   els.contextNote.innerHTML = note || "";
