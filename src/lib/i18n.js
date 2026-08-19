@@ -101,6 +101,19 @@ const CATALOGS = {
     // match, because nothing else would notice an id renamed on one side.
     // Ellipses mean the same thing here as on the buttons: this opens
     // something rather than doing something.
+    "menu.view": "View",
+    "menu.view.theme": "Theme",
+    // Three states: "system" is a choice, not the absence of one.
+    "menu.view.theme.system": "System",
+    "menu.view.theme.light": "Light",
+    "menu.view.theme.dark": "Dark",
+    // The submenu title is translated; the languages inside it are
+    // endonyms and are never sent through the catalog.
+    "menu.view.language": "Language",
+    "menu.view.zoom_in": "Zoom in",
+    "menu.view.zoom_out": "Zoom out",
+    "menu.view.zoom_reset": "Actual size",
+    "menu.view.sidebar": "Sidebar",
     "menu.file": "File",
     "menu.project": "Project",
     "menu.tools": "Tools",
@@ -192,6 +205,16 @@ const CATALOGS = {
     "repos.failed": "Die GitHub-CLI konnte deine Repositories nicht auflisten.",
     "repos.asking": "Frage gh…",
     "repos.none": "Dieses Konto hat keine Repositories.",
+    "menu.view": "Ansicht",
+    "menu.view.theme": "Darstellung",
+    "menu.view.theme.system": "System",
+    "menu.view.theme.light": "Hell",
+    "menu.view.theme.dark": "Dunkel",
+    "menu.view.language": "Sprache",
+    "menu.view.zoom_in": "Vergrößern",
+    "menu.view.zoom_out": "Verkleinern",
+    "menu.view.zoom_reset": "Originalgröße",
+    "menu.view.sidebar": "Seitenleiste",
     "menu.file": "Datei",
     "menu.project": "Projekt",
     "menu.tools": "Werkzeuge",

@@ -18,9 +18,16 @@ import { keys } from "./i18n.js";
 const RUST = readFileSync(new URL("../../src-tauri/src/menu.rs", import.meta.url), "utf8");
 
 function rustIds() {
-  const groups = [...RUST.matchAll(/id:\s*"([a-z_.]+)"/g)].map((m) => m[1]);
-  const items = [...RUST.matchAll(/item\(\s*"([a-z_.]+)"/g)].map((m) => m[1]);
-  return [...new Set([...groups, ...items])];
+  // Every menu id starts with `menu.`, so this matches the ids themselves
+  // rather than the four different constructors that carry them — which is
+  // what the first version did, and it stopped seeing them the moment the
+  // View group introduced `check(…)` and `Node::Sub(…)`.
+  //
+  // The character class excludes `:` on purpose: `LOCALE_ID` is the prefix
+  // `"menu.view.lang:"`, and a class that allowed the colon would report a
+  // phantom `menu.view.lang` the catalog has no label for — correctly, since
+  // the language items are built from data and labelled with endonyms.
+  return [...new Set([...RUST.matchAll(/"(menu\.[a-z_.]+)"/g)].map((m) => m[1]))];
 }
 
 test("the menu ids Rust builds with all exist in the catalog", () => {
@@ -41,7 +48,7 @@ test("the regex actually found the menu, rather than matching nothing", () => {
   // Without this, both assertions above pass triumphantly against an empty
   // list the day `menu.rs` is written differently.
   const ids = rustIds();
-  assert.ok(ids.length >= 15, `expected the whole menu, found ${ids.length} ids`);
+  assert.ok(ids.length >= 25, `expected the whole menu, found ${ids.length} ids`);
   for (const expected of ["menu.file", "menu.help", "menu.project.generate", "menu.tools.grammars"]) {
     assert.ok(ids.includes(expected), `${expected} should be among the parsed ids`);
   }

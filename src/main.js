@@ -62,6 +62,7 @@ const { invoke, convertFileSrc } = window.__TAURI__.core;
 const { open } = window.__TAURI__.dialog;
 
 const els = {
+  sidebar: document.getElementById("sidebar"),
   list: document.getElementById("projects"),
   empty: document.getElementById("empty"),
   add: document.getElementById("add"),
@@ -190,18 +191,7 @@ let locale = "en";
     sel.append(o);
   });
   sel.value = locale;
-  sel.addEventListener("change", () => {
-    locale = setLocale(sel.value);
-    try {
-      localStorage.setItem(LANG_KEY, locale);
-    } catch (e) {
-      void e;
-    }
-    applyLocale();
-    // The menu is not in the DOM, so `applyLocale` cannot reach it. It is
-    // rebuilt instead, which is what Tauri supports for a label change.
-    syncMenu();
-  });
+  sel.addEventListener("change", () => chooseLocale(sel.value));
   applyLocale();
 }
 
@@ -242,14 +232,9 @@ function applyTheme(choice) {
   applyTheme(saved);
   const sel = document.getElementById("theme");
   sel.value = saved;
-  sel.addEventListener("change", () => {
-    applyTheme(sel.value);
-    try {
-      localStorage.setItem(THEME_KEY, sel.value);
-    } catch (e) {
-      void e;
-    }
-  });
+  // Through the same function the menu calls: one setter, so the select
+  // and the checkmark can never end up describing different windows.
+  sel.addEventListener("change", () => chooseTheme(sel.value));
 }
 
 // =====================================================================
@@ -1110,6 +1095,90 @@ addbox.loadRepos.addEventListener("click", async () => {
 
 addbox.repoFilter.addEventListener("input", renderRepos);
 
+
+// =====================================================================
+// View state the menu has to show, not just act on
+//
+// Theme, language, zoom and sidebar visibility are all properties of *this
+// machine* rather than of the project list — `localStorage`, not
+// `workspace.json`, for the same reason the theme has always been there: a
+// window's lighting and text size do not travel with a repository.
+//
+// The menu shows them as checkmarks, which means every one of them has to
+// tell the menu when it changes. Changing a setting from the sidebar and
+// leaving the menu claiming the old value is worse than having no checkmark
+// at all.
+// =====================================================================
+
+const ZOOM_KEY = "docmap.zoom";
+const SIDEBAR_KEY = "docmap.sidebar";
+const ZOOM_STEPS = [0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2];
+
+let zoom = 1;
+let sidebarShown = true;
+
+/** Nearest step to the current factor, so repeated presses always move. */
+function zoomStep(direction) {
+  const i = ZOOM_STEPS.reduce(
+    (best, v, n) => (Math.abs(v - zoom) < Math.abs(ZOOM_STEPS[best] - zoom) ? n : best),
+    0
+  );
+  const next = Math.min(Math.max(i + direction, 0), ZOOM_STEPS.length - 1);
+  return ZOOM_STEPS[next];
+}
+
+async function applyZoom(factor) {
+  try {
+    // Rust clamps and answers with what it actually set, so the value kept
+    // here is the window's, not the request's — otherwise pressing zoom-out
+    // at the floor would keep decrementing a number nothing honours, and the
+    // first four presses back up would do nothing visible.
+    zoom = await invoke("set_zoom", { factor });
+    localStorage.setItem(ZOOM_KEY, String(zoom));
+  } catch (e) {
+    say(String(e));
+  }
+}
+
+function applySidebar(shown) {
+  sidebarShown = shown;
+  els.sidebar.hidden = !shown;
+  try {
+    localStorage.setItem(SIDEBAR_KEY, shown ? "1" : "0");
+  } catch (e) {
+    void e;
+  }
+}
+
+function currentTheme() {
+  return document.documentElement.getAttribute("data-theme") || "system";
+}
+
+/** What the menu needs in order to draw its checkmarks. */
+function viewState() {
+  return {
+    theme: currentTheme(),
+    locale,
+    // Endonyms, straight from the catalog's own list — the menu never
+    // translates a language name.
+    locales: LOCALES.map((l) => ({ code: l.code, label: l.label })),
+    sidebar: sidebarShown,
+  };
+}
+
+{
+  let savedZoom = 1;
+  let savedSidebar = "1";
+  try {
+    savedZoom = Number(localStorage.getItem(ZOOM_KEY)) || 1;
+    savedSidebar = localStorage.getItem(SIDEBAR_KEY) ?? "1";
+  } catch (e) {
+    void e;
+  }
+  applySidebar(savedSidebar !== "0");
+  if (savedZoom !== 1) applyZoom(savedZoom);
+}
+
 // =====================================================================
 // The menu bar
 //
@@ -1155,9 +1224,62 @@ const MENU_ACTIONS = {
   "menu.tools.grammars": () => els.pickGrammars.click(),
   "menu.tools.nvim": () => els.pickNvim.click(),
   "menu.tools.nvim_config": () => els.pickNvimConfig.click(),
+  "menu.view.theme.system": () => chooseTheme("system"),
+  "menu.view.theme.light": () => chooseTheme("light"),
+  "menu.view.theme.dark": () => chooseTheme("dark"),
+  "menu.view.zoom_in": async () => {
+    await applyZoom(zoomStep(1));
+    syncMenu();
+  },
+  "menu.view.zoom_out": async () => {
+    await applyZoom(zoomStep(-1));
+    syncMenu();
+  },
+  "menu.view.zoom_reset": async () => {
+    await applyZoom(1);
+    syncMenu();
+  },
+  "menu.view.sidebar": () => {
+    applySidebar(!sidebarShown);
+    syncMenu();
+  },
   "menu.help.usage": () => openDocs("usage"),
   "menu.help.engine": () => openDocs("engine"),
 };
+
+/** Must match `menu::LOCALE_ID`. */
+const LOCALE_ITEM = "menu.view.lang:";
+
+/**
+ * Change the theme from either surface.
+ *
+ * The sidebar select is updated too, rather than left showing the old
+ * value: two controls for one setting is already a compromise, and two
+ * controls disagreeing about it is a bug.
+ */
+function chooseTheme(choice) {
+  applyTheme(choice);
+  try {
+    localStorage.setItem(THEME_KEY, choice);
+  } catch (e) {
+    void e;
+  }
+  document.getElementById("theme").value = choice;
+  syncMenu();
+}
+
+/** The same, for the interface language. */
+function chooseLocale(code) {
+  locale = setLocale(code);
+  try {
+    localStorage.setItem(LANG_KEY, locale);
+  } catch (e) {
+    void e;
+  }
+  document.getElementById("lang").value = locale;
+  applyLocale();
+  syncMenu();
+}
 
 async function openDocs(page) {
   try {
@@ -1181,7 +1303,11 @@ async function syncMenu() {
     if (key.startsWith("menu.")) labels[key] = t(key);
   }
   try {
-    await invoke("set_menu", { labels, hasProject: Boolean(selectedId) });
+    await invoke("set_menu", {
+      labels,
+      hasProject: Boolean(selectedId),
+      state: viewState(),
+    });
   } catch (e) {
     // Surfaced rather than swallowed: a window with no menu is a window
     // missing half its commands, and silence here would look like a menu
@@ -1193,6 +1319,13 @@ async function syncMenu() {
 {
   const { listen } = window.__TAURI__.event;
   listen("menu", (ev) => {
+    // The language items are built from the locale list rather than from
+    // `menu.rs`, so their ids carry the code after a colon and cannot be
+    // table entries.
+    if (ev.payload.startsWith(LOCALE_ITEM)) {
+      chooseLocale(ev.payload.slice(LOCALE_ITEM.length));
+      return;
+    }
     const run = MENU_ACTIONS[ev.payload];
     if (run) run();
   });
