@@ -15,6 +15,7 @@ mod github;
 mod menu;
 mod languages;
 mod server;
+mod telemetry;
 
 use std::collections::HashMap;
 use std::fs;
@@ -874,6 +875,102 @@ fn serve_project(app: tauri::AppHandle, id: String) -> Result<String, String> {
     Ok(server::url(port))
 }
 
+/// Neovim's own cache root, asked of Neovim.
+///
+/// Not guessed from the platform: `stdpath("cache")` answers differently
+/// under `XDG_CACHE_HOME`, and a hardcoded guess would read an empty
+/// directory and report "no telemetry" for a machine full of it. One
+/// subprocess, cached for the window's lifetime — the answer cannot change
+/// while Neovim's environment does not.
+static CACHE_ROOT: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
+
+fn nvim_cache_root(app: &tauri::AppHandle) -> Option<String> {
+    CACHE_ROOT
+        .get_or_init(|| {
+            let info = nvim_info(app.clone()).ok()?;
+            let nvim = info.path?;
+            let mut cmd = std::process::Command::new(&nvim);
+            cmd.args([
+                "--headless",
+                "-c",
+                "lua io.write(vim.fn.stdpath('cache'))",
+                "-c",
+                "qa",
+            ]);
+            #[cfg(windows)]
+            {
+                use std::os::windows::process::CommandExt;
+                const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+                cmd.creation_flags(CREATE_NO_WINDOW);
+            }
+            let out = cmd.output().ok()?;
+            let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if path.is_empty() {
+                None
+            } else {
+                Some(path.replace('\\', "/"))
+            }
+        })
+        .clone()
+}
+
+/// What is known about a project's telemetry.
+///
+/// The namespace is the project's name, because a telemetry namespace is a
+/// plugin name — see `telemetry.rs` on why that is reported rather than
+/// assumed to line up.
+#[tauri::command]
+fn telemetry_info(app: tauri::AppHandle, namespace: String) -> Result<telemetry::Info, String> {
+    let root = nvim_cache_root(&app)
+        .ok_or_else(|| "No nvim to ask for its cache directory.".to_string())?;
+    Ok(telemetry::info(&root, &namespace))
+}
+
+/// Switch collection on or off for a namespace, persistently.
+///
+/// Through `:RATelemetry enable|disable` rather than by writing the control
+/// file: the plugin owns that file's format, and a second writer of it is a
+/// second thing to keep in step with a format that is not ours.
+///
+/// Takes effect from the **next** Neovim session — the flag is what
+/// `inst.start()` consults, and nothing in this process is running the
+/// plugin. The caller has to say so.
+#[tauri::command]
+async fn set_telemetry(
+    app: tauri::AppHandle,
+    namespace: String,
+    enabled: bool,
+) -> Result<(), String> {
+    let info = nvim_info(app)?;
+    let nvim = info
+        .path
+        .ok_or_else(|| "No nvim binary configured.".to_string())?;
+    let verb = if enabled { "enable" } else { "disable" };
+    let arg = format!("RATelemetry {verb} {namespace}");
+
+    let out = tauri::async_runtime::spawn_blocking(move || {
+        let mut cmd = std::process::Command::new(&nvim);
+        cmd.args(["--headless", "-c", &arg, "-c", "qa"]);
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            cmd.creation_flags(CREATE_NO_WINDOW);
+        }
+        cmd.output().map_err(|e| format!("could not run {nvim}: {e}"))
+    })
+    .await
+    .map_err(|e| format!("telemetry task failed: {e}"))??;
+
+    if out.status.success() {
+        Ok(())
+    } else {
+        // The plugin's own message, verbatim: it knows why better than a
+        // sentence written here could guess.
+        Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+    }
+}
+
 /// Whether a project's map has fallen behind its sources.
 ///
 /// Cheap by construction — modification times, not a regeneration — so the
@@ -1121,7 +1218,9 @@ fn main() {
             set_window_title,
             open_feedback,
             about_info,
-            map_freshness
+            map_freshness,
+            telemetry_info,
+            set_telemetry
         ])
         .run(tauri::generate_context!())
         .expect("docmap-desktop failed to start");

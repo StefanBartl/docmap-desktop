@@ -221,7 +221,7 @@ here promised. Measured against the real cache on this machine:
 `stdpath("cache")/runtime-analysis.nvim/cache/telemetry/`, 41 namespace
 files, one `_control.json`.
 
-### Start / stop — buildable, and my earlier caution was wrong
+### ~~Start / stop~~ — built 2026-08-19 (and my earlier caution was wrong)
 
 The previous version of this entry said start/stop "may not be a thing a
 one-shot binary run can be asked for at all". That is not what the plugin
@@ -236,17 +236,34 @@ meaning: **flip the flag; the next Neovim session honours it.** That is
 what a user asking for start/stop wants, and it needs no live session on
 this side.
 
-- [ ] Read `_control.json` and show, per project, whether collection is on.
-- [ ] Flip it — through `nvim --headless -c 'RATelemetry enable|disable
-      <ns>'` rather than by writing the file, so the plugin stays the only
-      thing that knows its own format.
-- [ ] Say *when* it takes effect. "Enabled" that silently means "from the
-      next session" is the same class of half-truth this project keeps
-      removing.
-- [ ] The namespace is a **plugin name**, not a docmap project. It lines up
-      for a project that is a plugin registering telemetry, and for nothing
-      else — the UI has to say so rather than show an empty panel.
+Settings gained a Telemetry section: the state, a switch, and the list of
+captures. Three states that look alike are worded apart — the tracker was
+never here, the tracker is here but has never seen this project, and it
+has. Every wording carries *from the next session*, because a switch that
+says "on" and means "on tomorrow" is the half-truth this window keeps
+removing from itself.
 
+Through `:RATelemetry enable|disable` rather than by writing
+`_control.json`: the plugin owns that format, and a second writer of it is
+a second thing to keep in step with a format that is not ours.
+
+`stdpath("cache")` is asked of Neovim once and cached, not guessed from
+the platform — under `XDG_CACHE_HOME` a guess reads an empty directory and
+reports "no telemetry" for a machine full of it.
+
+**The snapshots are a list, not a picker, and that is the honest scope.**
+Choosing one would need somewhere to show it, and this window renders no
+telemetry at all — the map's own Analysis panel does, from data it reads
+itself. What this can honestly do is say which captures exist, when they
+were taken and how much is in them.
+
+- [ ] A picker that *drives* something needs the app to render telemetry,
+      or the generated page to accept "show me this snapshot" — which is
+      the same inbound page channel as §1 and the export item, and is the
+      third feature now waiting on it.
+- [ ] The dated `SetupAll` backups: none exist on this machine, so nothing
+      was lost by not reading them. The directory is prompted per run and
+      recorded nowhere, which is why this cannot find them in general.
 ### Choosing which data point — corrected: the mechanism exists
 
 **The paragraph that stood here was wrong**, and it was wrong in the way

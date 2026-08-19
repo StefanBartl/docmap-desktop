@@ -1444,6 +1444,119 @@ fb.go.addEventListener("click", async () => {
   }
 });
 
+
+// =====================================================================
+// Telemetry
+//
+// This window cannot produce any, and says so rather than implying it
+// could: the counts come from wrapping functions inside a running Neovim
+// that is executing the plugin's own code. What it can do is read what was
+// collected and flip the persistent switch that decides whether the next
+// session collects — which is a real capability rather than a workaround,
+// because `runtime-analysis.nvim` keeps that flag on disk precisely so a
+// decision taken outside a session survives into the next one.
+//
+// So every wording here carries "from the next session". A switch that
+// says "on" and means "on tomorrow" is the kind of half-truth this window
+// keeps removing from itself.
+// =====================================================================
+
+const tel = {
+  state: document.getElementById("tel-state"),
+  toggle: document.getElementById("tel-toggle"),
+  snapsLabel: document.getElementById("tel-snaps-label"),
+  snaps: document.getElementById("tel-snaps"),
+};
+
+/** The namespace for a project: a telemetry namespace is a plugin name. */
+function telemetryNamespace(project) {
+  return project ? project.name : null;
+}
+
+function fill(text, vars) {
+  return Object.keys(vars).reduce((s, k) => s.replace("{" + k + "}", vars[k]), text);
+}
+
+async function renderTelemetry() {
+  const p = projects.find((x) => x.id === selectedId);
+  const ns = telemetryNamespace(p);
+  tel.toggle.hidden = true;
+  tel.snaps.hidden = true;
+  tel.snapsLabel.hidden = true;
+  if (!ns) {
+    tel.state.textContent = "";
+    return;
+  }
+
+  let info;
+  try {
+    info = await invoke("telemetry_info", { namespace: ns });
+  } catch (e) {
+    void e;
+    tel.state.textContent = t("tel.failed");
+    return;
+  }
+
+  // Three states that look alike and are not: the tracker was never here,
+  // the tracker is here but has never seen this project, and it has.
+  if (!info.installed) {
+    tel.state.textContent = t("tel.absent");
+    return;
+  }
+  if (!info.known) {
+    tel.state.textContent = fill(t("tel.unknown"), { name: ns });
+    return;
+  }
+
+  tel.state.textContent = fill(t(info.disabled ? "tel.off" : "tel.on"), {
+    sessions: info.sessions,
+    days: info.days.length,
+  });
+  tel.toggle.textContent = t(info.disabled ? "tel.enable" : "tel.disable");
+  tel.toggle.hidden = false;
+  tel.toggle.dataset.ns = ns;
+  tel.toggle.dataset.enable = info.disabled ? "1" : "";
+
+  tel.snapsLabel.hidden = false;
+  if (!info.snapshots.length) {
+    // The actionable sentence, not a blank. An empty list here is the normal
+    // state — snapshots are never automatic — and without saying so it reads
+    // as a feature that does not work.
+    tel.snapsLabel.innerHTML = t("tel.snaps.none");
+    return;
+  }
+  tel.snapsLabel.textContent = t("tel.snaps");
+  tel.snaps.innerHTML = "";
+  info.snapshots.forEach((s) => {
+    const li = document.createElement("li");
+    const when = new Date(s.takenAt * 1000);
+    // Through the catalog: the last version built this line by
+    // concatenation and left "session(s)" in English inside a German
+    // dialog. `toLocaleString` already follows the reader's locale.
+    li.textContent = fill(t("tel.snapItem"), {
+      name: s.name,
+      when: when.toLocaleString(),
+      sessions: s.sessions,
+    });
+    tel.snaps.append(li);
+  });
+  tel.snaps.hidden = false;
+}
+
+tel.toggle.addEventListener("click", async () => {
+  const ns = tel.toggle.dataset.ns;
+  if (!ns) return;
+  tel.toggle.disabled = true;
+  try {
+    await invoke("set_telemetry", { namespace: ns, enabled: !!tel.toggle.dataset.enable });
+    await renderTelemetry();
+  } catch (e) {
+    tel.state.textContent = String(e);
+  } finally {
+    tel.toggle.disabled = false;
+  }
+});
+
 // =====================================================================
 // The menu bar
 //
@@ -1575,6 +1688,9 @@ function openPrefs() {
     els.engineState.textContent;
   document.getElementById("prefs-nvim-state").textContent =
     els.nvimState.textContent;
+  // Asked when the dialog opens rather than kept live: reading it walks a
+  // directory, and nothing changes it while the dialog is shut.
+  renderTelemetry();
   document.getElementById("prefsbox").showModal();
 }
 
