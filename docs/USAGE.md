@@ -79,7 +79,8 @@ wrong.
 
 ## Theme and language
 
-Both sit in the sidebar footer and both are properties of *this machine*, so
+Both live in **File → Settings…** (`Ctrl+,`), and both are properties of
+*this machine*, so
 they live in `localStorage` rather than in `workspace.json` — syncing a
 lighting preference between machines would be carrying the wrong thing.
 
@@ -105,7 +106,10 @@ says so in one word next to the header even while collapsed: `ready`,
 
 The engine is `documentation.nvim`'s own standalone binary, a separate
 program this app runs as a subprocess — never bundled today, found on
-`PATH` or pointed at with **Locate…**. A path you set that stops existing
+`PATH` or pointed at under **File → Settings… → Engine**. The panel keeps
+the verdict, because that is a fact deciding whether the next action works
+and a fact behind a click is a fact nobody reads; pointing at a binary is
+done once per machine and moved. A path you set that stops existing
 (moved, deleted) is not remembered as broken; the app falls back to
 searching `PATH` again rather than failing later with a raw OS error.
 
@@ -129,7 +133,11 @@ Two different guarantees, not two speeds of the same thing:
 | **Generate map** | the selected project | yes, that project only |
 | **Generate all** | every project in the list | yes, all of them |
 
-**Generate all** is the one place this app writes to disk without being
+**Generate all** is in **Project → Generate all** rather than on a button:
+the sidebar keeps exactly one command, and this is the rare one. Its
+progress is reported in the status bar along the bottom.
+
+It is the one place this app writes to disk without being
 asked about that specific project — and that is the point of a button
 with that name, not an oversight. It runs projects **one after another,
 not in parallel**: each run is its own CPU-bound process, and starting a
@@ -160,14 +168,17 @@ Every other panel needs no explanation and shows none.
 
 ## Keyboard navigation
 
-The project list is one tab stop, not one per project:
+The project picker is a native `<select>`, so it answers `↓`/`↑`,
+`Home`/`End`, `Enter` and type-ahead in whatever way your platform does —
+which is more than a hand-rolled list would, and none of it can drift.
 
-| Key | Action |
-|---|---|
-| `↓` / `↑` | move the selection |
-| `Home` / `End` | jump to the first / last project |
-| `Enter` / `Space` | open the focused project |
-| `Delete` | remove the focused project from the list (does not touch its files) |
+`Delete` is the one key it does not answer, and that is deliberate: it
+lives on **File → Remove from workspace**, which also names what it
+removes. A bare Delete key over a list of repositories was always the more
+frightening of the two.
+
+Right-clicking the detail block under the picker opens the same per-project
+commands as a context menu.
 
 ## Where things live
 
@@ -197,29 +208,78 @@ means. Read there instead of here:
 | Talking to a project's map from an agent | [`documentation.nvim` — MCP.md](https://github.com/StefanBartl/documentation.nvim/blob/main/docs/MCP.md) |
 | Why Telemetry/Loaded need Neovim, not this app | [`ROADMAP.md` § The panels that need a host](ROADMAP.md#the-panels-that-need-a-host) |
 
+## The menu bar
+
+Everything this window does, in one place. The sidebar keeps the two
+things a menu is wrong for — the project you are looking at, and the
+verdicts that decide whether the next action works.
+
+| Menu | What is in it |
+|---|---|
+| **File** | Add a project, open its map in your browser, reveal it in the file manager, export the current view, remove it from the workspace, Settings, and the window's own Close/Quit. |
+| **Project** | Generate, Generate all, Regenerate and reload, and Generate map (full). Greyed when nothing is selected. |
+| **View** | Theme, interface language, zoom, and the sidebar toggle. |
+| **Help** | Usage, what the engine is, feedback, and About. |
+
+### Export the current view
+
+**File → Export current view…** (`Ctrl+E`) saves the diagram the map is
+showing as a standalone SVG, wherever you choose.
+
+The map is a separate document from a separate origin, so this window
+cannot read into it — it *asks*, and the page answers. The page takes no
+instructions through that channel, only questions about itself; a host that
+could tell an embedded page what to do is a different kind of program than
+one that can ask it what it is showing.
+
+Only Hierarchy draws a diagram. On any other tab this says so rather than
+writing a file of the last diagram that happened to be drawn.
+
+### Generate map (full)
+
+Adds `lua-language-server`'s type detail — the `@class`/`@alias`
+information behind the Types panel. It needs `lua-language-server` on
+`PATH`; without it the run fails and says exactly that, and the ordinary
+**Generate map** still produces a complete map apart from that detail.
+
+### Telemetry
+
+**File → Settings… → Telemetry** shows whether `runtime-analysis.nvim` is
+collecting for the selected project, and switches it.
+
+Two things worth being precise about. Switching takes effect **from the
+next Neovim session** — nothing in this window runs your plugin, and the
+switch is a flag the plugin reads when it next starts. And a telemetry
+namespace is a *plugin name*, so this only applies to a project that
+registers telemetry under its own.
+
+The snapshots listed there are captures taken with `:RATelemetry snapshot
+<name>`, never automatically. To compare two of them, the map's own
+**Analysis → Telemetry** panel is the place — it can hold two at once.
+
+### About
+
+**Help → About docmap** answers "which versions am I running", including
+the engine's own build: the commit it was built from, when, and whether
+that tree was clean. A binary built from a modified tree carries a commit
+that does not describe it, so About says so rather than quoting a sha that
+would send a reader to the wrong diff.
+
+There is a copy button, because the whole point of the block is a bug
+report.
+
 ## Sending feedback
 
 **Help → Send feedback…** builds a report and opens it on GitHub in your
 browser. It does not post anything: you land on GitHub's own form with the
-text already filled in, read it, and press Submit yourself, signed in as
-you.
+text already in it, read it, and press Submit yourself.
 
 That is not caution for its own sake. This app holds no credentials of its
 own — the same reason cloning goes through whatever `git clone` already
-needs on your machine, and listing repositories goes through `gh`. And
-filing to a public tracker is publishing, which is not something a dialog
-should do on your behalf while you are looking at a button.
+needs on your machine. And filing to a public tracker is publishing, which
+is not something a dialog should do on your behalf while you are looking at
+a button.
 
-Two choices decide where it lands:
-
-- **Topic** — feature request, something broken, question, documentation,
-  or something else. It picks the label.
-- **About** — this window, or the engine and the generated map. They are
-  separate programs that happen to be looked at together, and they have
-  separate trackers.
-
-**Attach version and platform** adds the app version, the OS, the engine
-path and the interface language. It is ticked by default because almost
-every report needs it and almost nobody remembers, and the exact text is
-shown in the dialog before anything opens — it is the one part of the
-report you did not type.
+**Attach version and platform** is ticked by default because almost every
+report needs it and almost nobody remembers, and the exact text is shown
+before anything opens — it is the one part of the report you did not type.

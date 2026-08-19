@@ -74,19 +74,29 @@ whole, not reimplemented:
 | Live telemetry (optional) | [`runtime-analysis.nvim`](https://github.com/StefanBartl/runtime-analysis.nvim) — the sibling Neovim plugin whose call-count data feeds the Telemetry and Loaded panels, when a Neovim session collected any for that project |
 
 What this repository adds is the part neither of them can have: a window, a
-project list, and the ability to move between projects without opening a
-dozen files.
+project picker, and the ability to move between projects without opening a
+dozen files. Around that: a menu bar with the commands, a settings dialog,
+an interface in English and German, and a mark on any project whose sources
+have moved on since its map was built.
 
 ## Status
 
-Early, but usable: add projects, generate their maps, look at them, switch
-between them. See [docs/ROADMAP.md](docs/ROADMAP.md) for what is next.
+Usable. Add projects — from a folder, a URL, or the plugin specs your
+Neovim config declares — generate their maps, read them, and move between
+them. Export a diagram, switch the theme and the interface language, see
+which projects need regenerating, and file a bug report with the versions
+already filled in.
+
+See [docs/WORKPLAN.md](docs/WORKPLAN.md) for what is being worked on and
+[docs/ROADMAP.md](docs/ROADMAP.md) for the reasoning behind what exists.
 
 ## Documentation
 
 | Document | Covers |
 |---|---|
-| [docs/USAGE.md](docs/USAGE.md) | Using it: what each button and indicator does, Generate vs Generate all, keyboard navigation, where the workspace file lives. |
+| [docs/USAGE.md](docs/USAGE.md) | Using it: the menu bar, Generate vs Generate all, exporting a view, telemetry, keyboard navigation, where the workspace file lives. |
+| [docs/WORKPLAN.md](docs/WORKPLAN.md) | What is done, what is next, and the measurement behind each decision. The resume point. |
+| [docs/MENUBAR.md](docs/MENUBAR.md) | Why the menu is shaped the way it is, and the four constraints that shaped it. |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | What is built, what is next, and the reasoning behind each design decision. |
 | [docs/HANDOVER.md](docs/HANDOVER.md) | Cross-repo handoff state for continuing the work in a new session. |
 
