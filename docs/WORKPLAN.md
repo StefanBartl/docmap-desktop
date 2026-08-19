@@ -823,11 +823,36 @@ rather than two files.
       Status. It is the one fact that makes the app's behaviour predictable
       rather than mysterious, so it is not filed under a subheading
       somebody has to already suspect exists.
-- [ ] **`documentation.nvim`'s own docs, the larger half.** Its `docs/` is
-      a folder with `FEATURES/`, `ROADMAP/IDEAS/`, `PIPELINE.md`,
-      `WORKFLOW.md` and more, and `FEATURES/` is the nearest thing to an
-      inventory while being incomplete itself. Same method: inventory from
-      the code, then close the gap, README first.
+- [x] ~~**`documentation.nvim`'s README, its entry point**~~ — done
+      2026-08-19, and the inventory found one defect that outranks
+      everything this entry anticipated: **it never named a language.**
+      Nine backends exist and the README opened with "point it at a
+      repository whose files carry `---@module`" — the Lua framing from
+      before any of them, on the page a reader sees first. Its own doc table
+      described `MULTILANG.md` as "what supporting other languages *would*
+      take", future tense, for five shipped ones.
+
+      A `## Languages` section now carries the nine in one table
+      (extensions, what documents a declaration, what makes it public) plus
+      what documents a *file*, which differs per language and is what fills
+      the map's summaries. The part worth keeping is not the table: the
+      visibility column is a **spectrum**, since Zig, Java, C, C++ and
+      assembly state visibility in the language while Lua and the ECMA
+      family read an authoring convention (`@internal`). Both honest, not
+      the same strength of evidence, and a reader comparing two projects
+      should know which they have.
+
+      Two rows of that table were written from memory and corrected against
+      the code before committing — C's rule is `not static`, and there is no
+      leading-underscore rule anywhere in `core/`. Worth recording as the
+      method working: the correction happened because the table was checked,
+      not because somebody later noticed.
+- [ ] **The rest of `documentation.nvim`'s `docs/` folder.** `FEATURES/`,
+      `ROADMAP/IDEAS/`, `PIPELINE.md`, `WORKFLOW.md` and more — a folder
+      rather than two files, and `FEATURES/` is the nearest thing to an
+      inventory while being incomplete itself. The README was taken first
+      because it is the entry point; the rest is a larger, lower-urgency
+      job and stays open.
 
 **One thing the inventory caught that was not a documentation bug.**
 `main.js`'s comment claimed the workspace dashboard appears "on a first run,
