@@ -88,45 +88,33 @@ machine whose OS prefers dark, `?theme=light` renders light. The bug
 would have passed any test that only checked dark on a dark OS.
 
 ---
-## 2. The three generate surfaces
+## 2. ~~The three generate surfaces~~ — built 2026-08-19
 
-**Asked:** if adding a project generates automatically, are the *Generate
-map* and *Generate all* buttons still needed?
+**The buttons were not redundant, and the measurement says which.**
+`autoGenerate` runs only when no map exists; every regeneration after that
+is manual, which is the common case for a repository being worked on. So
+*Generate map* stays as the sidebar's one command.
 
-**Measured.** `autoGenerate` generates **only when no map exists** — if the
-project already has one it selects it and stops. So the automatic run covers
-the first time and nothing after it, and *Generate map* is the
-**re**-generate action, which is the common case for a repository that is
-being worked on.
+*Generate all* left the sidebar for the Project menu — it is the rare one,
+and it writes into repositories you did not select. Its progress was the
+button's own label, and it is the status bar's now: a bar reporting on the
+whole window is the right home for a job spanning every project, and it
+does not vanish when the sidebar is collapsed. Its two catalog keys were
+removed rather than left behind.
 
-So the answer is: *Generate map* stays and is the one command the sidebar
-keeps. *Generate all* is the rare one, it is already in the Project menu,
-and `docs/MENUBAR.md`'s own rule is that the sidebar keeps exactly one
-button rather than a mirror of the menu.
+**`--full` is in the menu unconditionally**, as decided. The obligation
+that came with that decision is met: when the run fails with
+`lua-language-server not found on PATH`, the placeholder says so in the
+reader's own language and states what still works — rather than leaving
+it to be found in the generation log.
 
-- [ ] Remove *Generate all* from the sidebar. **Not a two-line change**: the
-      button is also its own progress display (`Generating 3/12…`), so the
-      progress moves to the new status bar first, which is a better home for
-      it anyway.
-- [ ] Once [§3](#3-a-staleness-mark-on-the-project-row) lands, *Generate
-      map* can say whether it has anything to do.
-
-**Asked:** standard or `--full`?
-
-**Measured.** The app runs `docmap <root>` — standard. `--full` sets
-`opts.luals`, which enriches the map with `lua-language-server --doc` output:
-`@class`/`@alias` detail per node, i.e. the Types panel. It needs
-`lua-language-server` on PATH, is slower, and when the tool is missing it
-reports `lua-language-server not found on PATH` rather than silently
-producing a thinner map. The standalone binary forwards the flag.
-
-**Proposed**, subject to the question above: standard stays the default,
-and *Project → Regenerate (full)* appears **only when the app can see
-lua-language-server**, with the sidebar's engine panel saying so. An option
-that is present and fails is worse than one that is absent and explained.
+- [ ] **Placeholder titles are English in every locale.** Not introduced
+      here, but now visible: the full-generation failure shows a
+      translated sentence under an untranslated heading. `showPlaceholder`
+      is called from eight places with hardcoded titles; they belong in
+      the catalog, and doing one of them would be worse than doing none.
 
 ---
-
 ## 3. ~~A staleness mark~~ — built 2026-08-19
 
 `src-tauri/src/freshness.rs`: the newest file under the root against the

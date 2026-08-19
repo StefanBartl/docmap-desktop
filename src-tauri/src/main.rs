@@ -791,7 +791,11 @@ struct GenerateResult {
 /// a dozen lines at the end, not a running log, so streaming would add a
 /// channel and a subscription for something that arrives at once anyway.
 #[tauri::command]
-async fn generate(app: tauri::AppHandle, root: String) -> Result<GenerateResult, String> {
+async fn generate(
+    app: tauri::AppHandle,
+    root: String,
+    full: bool,
+) -> Result<GenerateResult, String> {
     let info = engine_info(app)?;
     let engine = info.path.ok_or_else(|| {
         "No docmap engine configured. It is documentation.nvim's standalone binary —          put it on PATH, or point at it in the sidebar."
@@ -804,6 +808,16 @@ async fn generate(app: tauri::AppHandle, root: String) -> Result<GenerateResult,
         // three unrelated repositories. Passing a guess would be worse than
         // letting it look.
         cmd.arg(&root);
+        // `--full` adds `lua-language-server --doc` enrichment: the
+        // `@class`/`@alias` detail behind the Types panel. It needs the
+        // tool on PATH and says `lua-language-server not found on PATH`
+        // when it is missing, rather than quietly producing a thinner map.
+        // The caller has to put that sentence somewhere the reader is
+        // looking — see `docs/WORKPLAN.md` §2 on why that obligation is
+        // this side's rather than the menu's.
+        if full {
+            cmd.arg("--full");
+        }
         if let Some(g) = info.grammars {
             cmd.env("DOCMAP_TS_DIR", g);
         }
