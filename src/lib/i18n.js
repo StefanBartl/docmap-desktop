@@ -197,6 +197,8 @@ const CATALOGS = {
     "prefs.nvim.note": "Only needed to import plugin specs from a Neovim config. Most machines resolve both of these on their own.",
     "menu.file.open_browser": "Open map in browser",
     "menu.file.reveal": "Reveal in file manager",
+    "menu.file.copy_path": "Copy project path",
+    "copy.path.done": "Copied: {path}",
     "menu.file.export": "Export current view…",
     "export.none": "Nothing to export: the current view has no diagram. Hierarchy draws one.",
     "map.blank.title": "The map did not load",
@@ -208,12 +210,18 @@ const CATALOGS = {
     "menu.file.remove": "Remove from workspace",
     "menu.project.generate": "Generate map",
     "menu.project.generate_all": "Generate all",
+    // Named by what it acts on rather than by "all": the point is that it
+    // skips the ones that are already current.
+    "menu.project.generate_stale": "Generate the out-of-date ones",
+    "gen.stale.checking": "Checking which maps have fallen behind…",
+    "gen.stale.none": "Every map is current — nothing to generate.",
     "menu.project.regenerate": "Regenerate and reload",
     "menu.project.generate_full": "Generate map (full)",
     "gen.full.needsLuals": "Full generation needs lua-language-server on PATH. The map was not written; the ordinary Generate map still works and is complete apart from the type detail.",
     "gen.all.progress": "Generating {n} of {total} — {name}",
     "menu.help.usage": "Usage",
     "menu.help.engine": "What the engine is",
+    "menu.help.settings_folder": "Open the settings folder",
   },
 
   de: {
@@ -379,6 +387,8 @@ const CATALOGS = {
     "prefs.nvim.note": "Wird nur gebraucht, um Plugin-Specs aus einer Neovim-Config zu importieren. Die meisten Rechner finden beides von selbst.",
     "menu.file.open_browser": "Karte im Browser öffnen",
     "menu.file.reveal": "Im Explorer zeigen",
+    "menu.file.copy_path": "Projektpfad kopieren",
+    "copy.path.done": "Kopiert: {path}",
     "menu.file.export": "Aktuelle Ansicht exportieren…",
     "export.none": "Nichts zu exportieren: die aktuelle Ansicht hat kein Diagramm. Hierarchy zeichnet eines.",
     "map.blank.title": "Die Karte wurde nicht geladen",
@@ -388,12 +398,16 @@ const CATALOGS = {
     "menu.file.remove": "Aus der Liste entfernen",
     "menu.project.generate": "Karte erzeugen",
     "menu.project.generate_all": "Alle erzeugen",
+    "menu.project.generate_stale": "Die veralteten erzeugen",
+    "gen.stale.checking": "Prüfe, welche Karten zurückliegen…",
+    "gen.stale.none": "Jede Karte ist aktuell — nichts zu erzeugen.",
     "menu.project.regenerate": "Neu erzeugen und laden",
     "menu.project.generate_full": "Karte erzeugen (full)",
     "gen.full.needsLuals": "Für die volle Erzeugung muss lua-language-server auf PATH liegen. Es wurde nichts geschrieben; das normale Karte erzeugen funktioniert weiter und ist bis auf die Typdetails vollständig.",
     "gen.all.progress": "Erzeuge {n} von {total} — {name}",
     "menu.help.usage": "Bedienung",
     "menu.help.engine": "Was die Engine ist",
+    "menu.help.settings_folder": "Einstellungsordner öffnen",
   },
 };
 

@@ -1545,6 +1545,22 @@ fn reveal_project(app: tauri::AppHandle, id: String) -> Result<(), String> {
     open_externally(&project.root)
 }
 
+/// Show the folder this app keeps its settings and workspaces in.
+///
+/// The thing a bug report needs and nobody can find: `workspace.json`, the
+/// workspace lists beside it, and whatever went wrong in them. Opened
+/// rather than printed — a path in a dialog is a path somebody has to
+/// retype.
+#[tauri::command]
+fn reveal_settings(app: tauri::AppHandle) -> Result<(), String> {
+    let dir = app
+        .path()
+        .app_config_dir()
+        .map_err(|e| format!("no config directory: {e}"))?;
+    fs::create_dir_all(&dir).map_err(|e| format!("cannot create {}: {e}", dir.display()))?;
+    open_externally(&dir.to_string_lossy())
+}
+
 /// Open a prefilled report on GitHub.
 ///
 /// Opens, never posts — see `feedback.rs` for why. The reader lands on
@@ -1688,6 +1704,7 @@ fn main() {
             set_menu,
             open_map_in_browser,
             reveal_project,
+            reveal_settings,
             open_docs,
             set_zoom,
             set_window_title,

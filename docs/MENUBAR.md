@@ -77,6 +77,7 @@ the app now has both and **the menu is a new translation surface** — see
 | Add project… · Projekt hinzufügen… | `Ctrl+N` | Opens the existing three-tab dialog. One entry, not three: the dialog already made them one door. |
 | Open map in browser · Karte im Browser öffnen | `Ctrl+Shift+O` | The artifact is a self-contained page; opening it outside the app is a real thing people want and there is no way to do it today. |
 | Reveal in file manager · Im Explorer zeigen | | The project root. Answers "where is this actually" without a path to copy. |
+| Copy project path · Projektpfad kopieren | | **Added 2026-08-19 by the §10.9 review.** The path is on screen and unselectable — it lives in a `<select>`'s detail block, not in a text field. The clipboard is the webview's own: the text is a path this process already handed the page, so nothing new crosses the boundary. |
 | — | | |
 | Remove from workspace · Aus der Liste entfernen | `Del` | Removes the entry, never the repository. The label has to make that unmistakable. |
 | — | | |
@@ -93,6 +94,7 @@ disabled today with nothing saying why.
 |---|---|---|
 | Generate map · Karte erzeugen | `Ctrl+G` | |
 | Generate all · Alle erzeugen | `Ctrl+Shift+G` | Stays separate and stays worded as the one that writes to repositories you did not select. |
+| Generate the out-of-date ones · Die veralteten erzeugen | | **Added 2026-08-19 by the §10.9 review.** There has been a staleness mark on screen since the freshness work and no command that acts on it. Named by what it acts on rather than by "all", and it asks each project fresh rather than reading the cache — the cache only holds projects that have been looked at, which is most of what this command is *not* for. |
 | — | | |
 | Regenerate and reload · Neu erzeugen und laden | `F5` | What people actually do twice in a row today. |
 
@@ -125,6 +127,7 @@ The four configuration commands, out of the sidebar at last.
 |---|---|
 | Usage · Bedienung | Opens `docs/USAGE.md` — on GitHub, or the local copy if present. |
 | What the engine is · Was die Engine ist | The single most common confusion this app produces. |
+| Open the settings folder · Einstellungsordner öffnen | **Added 2026-08-19 by the §10.9 review.** `workspace.json`, the workspace lists beside it, and whatever went wrong in them — the thing a bug report needs and nobody can find. Opened rather than printed: a path in a dialog is a path somebody has to retype. |
 | — | |
 | Send feedback… · Feedback senden… | **Built 2026-08-19.** A topic, a target repository, a summary and details; opens a prefilled GitHub issue rather than posting one. Discussions are switched off on both repositories, so the topic table in `feedback.rs` maps to labelled issues — moving a category to a discussion later is one line there. |
 | — | |

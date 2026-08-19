@@ -120,6 +120,7 @@ const GROUPS: &[Group] = &[
             item("menu.file.add", Some("CmdOrCtrl+N"), false),
             item("menu.file.open_browser", Some("CmdOrCtrl+Shift+O"), true),
             item("menu.file.reveal", None, true),
+            item("menu.file.copy_path", None, true),
             item("menu.file.export", Some("CmdOrCtrl+E"), true),
             Node::Separator,
             item("menu.file.remove", Some("Delete"), true),
@@ -133,6 +134,7 @@ const GROUPS: &[Group] = &[
         items: &[
             item("menu.project.generate", Some("CmdOrCtrl+G"), true),
             item("menu.project.generate_all", Some("CmdOrCtrl+Shift+G"), false),
+            item("menu.project.generate_stale", None, false),
             Node::Separator,
             item("menu.project.regenerate", Some("F5"), true),
             Node::Separator,
@@ -168,6 +170,7 @@ const GROUPS: &[Group] = &[
         items: &[
             item("menu.help.usage", None, false),
             item("menu.help.engine", None, false),
+            item("menu.help.settings_folder", None, false),
             Node::Separator,
             item("menu.help.feedback", None, false),
             Node::Separator,

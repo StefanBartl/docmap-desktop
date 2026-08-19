@@ -686,14 +686,28 @@ Asked alongside 10.8 and worth doing deliberately once rather than
 case by case. The menu has grown by five items today without anyone
 re-reading it as a whole.
 
-- [ ] Re-read `docs/MENUBAR.md`'s rule — *a menu is for things you do, the
-      window is for things that are true* — against every item now in it,
-      and against everything in the window that is not.
-- [ ] Specific candidates already noticed: **Regenerate all stale** (there
-      is now a staleness signal and no command that acts on it), **Open the
-      workspace file**, **Copy the project path**, and **Check exactly**
-      (`docmap --check`), which §3 left unbuilt and which is the only thing
-      that answers "would the map actually come out different".
+**Done 2026-08-19.** The rule held: nothing already in the menu failed it,
+which is the outcome a review is allowed to have. Three of the four
+candidates went in, each argued in its row in `docs/MENUBAR.md`.
+
+- [x] ~~Re-read `docs/MENUBAR.md`'s rule against every item now in it~~ —
+      no removals. The two check items (*Files*, *Sidebar*) look like states
+      rather than commands, and they stay: what they carry is the command
+      *show me this*, and the check mark is how a menu spells a toggle.
+- [x] ~~**Regenerate all stale**~~ — *Project → Generate the out-of-date
+      ones*. It measures each project rather than reading the freshness
+      cache: the cache only holds projects that have been opened, so acting
+      on it would skip exactly the ones this command exists for.
+- [x] ~~**Copy the project path**~~ — *File → Copy project path*, and in
+      the context menu beside *Reveal*. The path is on screen and
+      unselectable, which is the whole reason.
+- [x] ~~**Open the workspace file**~~ — built as *Help → Open the settings
+      folder*, the folder rather than the file: there are now several files
+      in it (§11) and the one somebody needs depends on what went wrong.
+- [ ] **Check exactly** (`docmap --check`) stays unbuilt, and is left here
+      rather than closed with the rest: it is the only thing that answers
+      "would the map actually come out different", and a menu item that
+      leads nowhere is worse than no menu item. It needs §3 first.
 
 ### 10.7 The documentation needs rebuilding from the ground up
 
