@@ -210,9 +210,17 @@ The order that would work, each step useful on its own:
   `core:window:default` grants `allow-title` (read) and not
   `allow-set-title`, and widening the webview's permissions for one string
   would be a larger grant than the need.
-- **A bundled font.** Whether to ship JetBrains Mono as the default
-  monospace and offer a font setting at all. Not decided — see the note
-  under [Built](#built).
+- ~~**A bundled font.**~~ — done 2026-08-19. JetBrains Mono 2.304 ships
+  with the app as `--mono`, under SIL OFL 1.1 with `src/fonts/OFL.txt`
+  beside it. The upstream release, not a Nerd Font patch: the patched
+  builds carry thousands of icon glyphs and nothing here renders one.
+
+  **No font picker**, and that is the decision rather than the omission. A
+  typeface choice is a setting made once and never again, and it costs
+  permanent surface, a persistence path and a fallback branch forever.
+  What people actually reach for is *size*, and that is what
+  `View → Zoom in` is. If someone genuinely wants their own face, the
+  honest place is a settings file, not a dropdown.
 
 ### One branch deliberately not merged
 
