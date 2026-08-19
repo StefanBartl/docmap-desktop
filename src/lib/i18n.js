@@ -100,6 +100,13 @@ const CATALOGS = {
     // match, because nothing else would notice an id renamed on one side.
     // Ellipses mean the same thing here as on the buttons: this opens
     // something rather than doing something.
+    "sort.name": "Name",
+    "sort.stale": "Needs regenerating",
+    "sort.added": "Added",
+    "help.sort": "Which order the project list is in. <strong>Needs regenerating</strong> puts the ones whose sources have changed since their map was built at the top.",
+    "detail.nomap": "no map generated yet",
+    "detail.stale": "sources are newer than the map",
+    "detail.staleWhy": "Compared by modification time, which is cheap and approximate: a file saved without an edit in it counts. Generating again is the only thing that says for certain.",
     "menu.view": "View",
     "menu.view.theme": "Theme",
     // Three states: "system" is a choice, not the absence of one.
@@ -226,6 +233,13 @@ const CATALOGS = {
     "repos.failed": "Die GitHub-CLI konnte deine Repositories nicht auflisten.",
     "repos.asking": "Frage gh…",
     "repos.none": "Dieses Konto hat keine Repositories.",
+    "sort.name": "Name",
+    "sort.stale": "Neu zu erzeugen",
+    "sort.added": "Hinzugefügt",
+    "help.sort": "In welcher Reihenfolge die Projektliste steht. <strong>Neu zu erzeugen</strong> stellt die nach oben, deren Quellen sich seit der Karte geändert haben.",
+    "detail.nomap": "noch keine Karte erzeugt",
+    "detail.stale": "Quellen sind neuer als die Karte",
+    "detail.staleWhy": "Verglichen über den Änderungszeitpunkt — billig und ungefähr: eine Datei, die ohne Änderung gespeichert wurde, zählt mit. Sicher weiß man es erst nach dem Neuerzeugen.",
     "menu.view": "Ansicht",
     "menu.view.theme": "Darstellung",
     "menu.view.theme.system": "System",

@@ -64,6 +64,11 @@ const { open } = window.__TAURI__.dialog;
 const els = {
   sidebar: document.getElementById("sidebar"),
   list: document.getElementById("projects"),
+  sort: document.getElementById("proj-sort"),
+  detail: document.getElementById("proj-detail"),
+  counts: document.getElementById("proj-counts"),
+  langs: document.getElementById("proj-langs"),
+  stale: document.getElementById("proj-stale"),
   empty: document.getElementById("empty"),
   add: document.getElementById("add"),
   status: document.getElementById("status"),
@@ -313,61 +318,185 @@ document.addEventListener("keydown", (ev) => {
 window.addEventListener("resize", hideHelp);
 window.addEventListener("scroll", hideHelp, true);
 
-async function render() {
-  els.list.innerHTML = "";
-  els.empty.hidden = projects.length > 0;
+// =====================================================================
+// The project picker
+//
+// Was a list of rows; with thirty-three repositories the list *was* the
+// sidebar. A `<select>` shows the one being looked at, and the detail that
+// used to be on every row is shown for that one below it.
+//
+// What a list could do and this cannot is show every project's staleness at
+// once. Sorting answers that instead — "which need regenerating" becomes one
+// action rather than one glance.
+// =====================================================================
 
-  for (const p of projects) {
-    const status = await mapStatus(invoke, p.map_dir);
+const SORT_KEY = "docmap.sort";
 
-    const li = document.createElement("li");
-    li.className = "proj" + (p.id === selectedId ? " sel" : "");
-    li.dataset.id = p.id;
-    li.title = p.root;
+/** Freshness per project id, so switching back does not re-walk a tree. */
+const freshness = new Map();
 
-    const nm = document.createElement("span");
-    nm.className = "nm";
-    nm.textContent = p.name;
+let sortBy = "name";
+try {
+  sortBy = localStorage.getItem(SORT_KEY) || "name";
+} catch (e) {
+  void e;
+}
 
-    const meta = document.createElement("span");
-    meta.className = "meta" + (status.exists ? "" : " nomap");
-    // Counts rather than the path: two checkouts of the same plugin are told
-    // apart by what is in them, and the full path is already the tooltip.
-    meta.textContent = status.exists
-      ? `${status.modules ?? "?"} modules · ${status.files ?? "?"} files`
-      : "no map generated yet";
+/**
+ * Projects in the chosen order.
+ *
+ * `added` is the workspace's own order and is therefore the identity sort —
+ * it is offered because it is the only one that does not move when something
+ * else changes, and a list that reorders itself while you are using it is one
+ * you cannot build a habit with.
+ */
+function sortedProjects() {
+  const list = projects.slice();
+  if (sortBy === "name") {
+    list.sort((a, b) => a.name.localeCompare(b.name));
+  } else if (sortBy === "stale") {
+    // Stale first, and within that the furthest behind first. A project
+    // whose freshness has not been measured yet sorts as "not known to be
+    // stale" rather than as fresh — it moves once the answer arrives.
+    list.sort((a, b) => {
+      const fa = freshness.get(a.id);
+      const fb = freshness.get(b.id);
+      const sa = fa && fa.stale ? (fa.behindSecs ?? 1) : 0;
+      const sb = fb && fb.stale ? (fb.behindSecs ?? 1) : 0;
+      if (sa !== sb) return sb - sa;
+      return a.name.localeCompare(b.name);
+    });
+  }
+  return list;
+}
 
-    // Which languages, filled in after the row is already on screen.
-    //
-    // Not awaited with the two above: this one walks the project directory,
-    // and blocking the whole list on a filesystem walk per project would
-    // trade a rendered sidebar for a blank one. A row that gains a language
-    // line a moment later is strictly better than a list that appears late.
-    const langs = document.createElement("span");
-    langs.className = "meta langs";
-    langs.hidden = true;
-
-    scanLanguages(invoke, p.root, p.map_dir)
-      .then((scan) => {
-        const text = badgeText(scan);
-        if (!text) return;
-        langs.textContent = text;
-        // The full breakdown on the element itself rather than a fourth
-        // line: depth on demand, no extra chrome in the list.
-        langs.title = summaryText(scan, supportFor(scan, engineLangs));
-        langs.hidden = false;
-      })
-      .catch(() => {
-        // An unreadable directory costs its own language line and nothing
-        // else -- the project is still selectable, and map_status has its
-        // own error path for the parts that matter more.
-      });
-
-    li.append(nm, meta, langs);
-    li.addEventListener("click", () => select(p.id));
-    els.list.append(li);
+/**
+ * Measure every project that has not been measured yet.
+ *
+ * Sorting by staleness reads `freshness`, and `freshness` is filled in as
+ * projects are selected — so before this existed, choosing that order on a
+ * fresh window sorted by a map with one entry in it and quietly produced
+ * alphabetical order. A sort control that appears to work and does not is
+ * worse than one that takes a moment.
+ *
+ * Sequential rather than all at once: each call is a directory walk, and
+ * thirty-three of them in parallel is thirty-three filesystem walks
+ * competing for the same disk.
+ */
+async function measureAll() {
+  const pending = projects.filter((p) => !freshness.has(p.id));
+  if (!pending.length) return;
+  els.sort.disabled = true;
+  try {
+    for (const p of pending) {
+      try {
+        freshness.set(p.id, await invoke("map_freshness", { id: p.id }));
+      } catch (e) {
+        // Not knowing is not the same as fresh, but it is the only thing
+        // this can do about a project it cannot read. It stays unmeasured
+        // and sorts with the ones that are not behind.
+        void e;
+      }
+    }
+  } finally {
+    els.sort.disabled = false;
   }
 }
+
+async function render() {
+  const previous = els.list.value;
+  els.list.innerHTML = "";
+  els.empty.hidden = projects.length > 0;
+  els.list.hidden = projects.length === 0;
+  els.sort.hidden = projects.length < 2;
+
+  for (const p of sortedProjects()) {
+    const o = document.createElement("option");
+    o.value = p.id;
+    // A mark inside the option, because the closed control shows exactly one
+    // line and this is the one thing worth carrying into it.
+    const f = freshness.get(p.id);
+    o.textContent = (f && f.stale ? "• " : "") + p.name;
+    els.list.append(o);
+  }
+
+  els.list.value = selectedId ?? previous ?? "";
+  renderDetail();
+}
+
+/** What the row used to carry, for the selected project only. */
+async function renderDetail() {
+  const p = projects.find((x) => x.id === selectedId);
+  els.detail.hidden = !p;
+  if (!p) return;
+
+  const status = await mapStatus(invoke, p.map_dir);
+  els.counts.textContent = status.exists
+    ? `${status.modules ?? "?"} modules · ${status.files ?? "?"} files`
+    : t("detail.nomap");
+  els.counts.classList.toggle("nomap", !status.exists);
+
+  // Not awaited with the above: this walks the project directory, and
+  // blocking the sidebar on a filesystem walk would trade a rendered panel
+  // for a blank one.
+  scanLanguages(invoke, p.root, p.map_dir)
+    .then((scan) => {
+      const text = badgeText(scan);
+      if (!text) return;
+      els.langs.textContent = text;
+      els.langs.title = summaryText(scan, supportFor(scan, engineLangs));
+      els.langs.hidden = false;
+    })
+    .catch(() => {
+      // An unreadable directory costs its language line and nothing else.
+    });
+
+  refreshFreshness(p.id);
+}
+
+/**
+ * Ask whether the map has fallen behind, and say so.
+ *
+ * Worded as what it measures. `freshness.rs` compares modification times, so
+ * this can say *sources are newer* and must not say *the map is wrong* — a
+ * file saved without an edit in it counts here and would not change a byte
+ * of the artifact.
+ */
+async function refreshFreshness(id) {
+  els.stale.hidden = true;
+  try {
+    const f = await invoke("map_freshness", { id });
+    freshness.set(id, f);
+    if (id !== selectedId) return;
+    if (!f.hasMap || !f.stale) return;
+    els.stale.textContent = t("detail.stale") + (f.newest ? " — " + f.newest : "");
+    els.stale.title = t("detail.staleWhy");
+    els.stale.hidden = false;
+    // The mark in the list, now that the answer is known.
+    const option = [...els.list.options].find((o) => o.value === id);
+    if (option && !option.textContent.startsWith("• ")) {
+      option.textContent = "• " + option.textContent;
+    }
+  } catch (e) {
+    // Not knowing whether a map is behind is not a reason to say it is.
+    void e;
+  }
+}
+
+els.list.addEventListener("change", () => select(els.list.value));
+
+els.sort.value = sortBy;
+els.sort.addEventListener("change", async () => {
+  sortBy = els.sort.value;
+  try {
+    localStorage.setItem(SORT_KEY, sortBy);
+  } catch (e) {
+    void e;
+  }
+  // The answer has to exist before it can be ordered by.
+  if (sortBy === "stale") await measureAll();
+  render();
+});
 
 async function select(id) {
   selectedId = id;
@@ -489,41 +618,17 @@ async function autoGenerate(p) {
 /// exists for — no framework, on purpose, same reasoning as the rest of
 /// this file's own header comment.
 
-// Roving tabindex over the list: one tab stop on the container, arrows
-// within it. Same reasoning as the generated page's own long lists — a
-// project list should not put one press per project between the button
-// above it and the content.
-els.list.tabIndex = 0;
+// A `<select>` answers Arrow, Home, End, Enter and type-ahead itself, in
+// whatever way the platform does — which is more than the roving-tabindex
+// handler that used to be here did, and none of it has to be kept correct.
+//
+// `Delete` is the one key it does not answer. It lives on File → Remove
+// from workspace, which also names what it removes; a bare Delete key over
+// a list of repositories was always the more frightening of the two.
 els.list.addEventListener("keydown", (ev) => {
-  const items = [...els.list.querySelectorAll(".proj")];
-  if (!items.length) return;
-  const cur = document.activeElement.closest?.(".proj") ?? null;
-  const i = cur ? items.indexOf(cur) : -1;
-
-  const focus = (el) => {
-    if (!el) return;
-    el.tabIndex = -1;
-    el.focus();
-  };
-
-  if (ev.key === "ArrowDown") {
+  if (ev.key === "Delete" && els.list.value) {
     ev.preventDefault();
-    focus(items[i < 0 ? 0 : Math.min(i + 1, items.length - 1)]);
-  } else if (ev.key === "ArrowUp") {
-    ev.preventDefault();
-    focus(items[i <= 0 ? 0 : i - 1]);
-  } else if (ev.key === "Home") {
-    ev.preventDefault();
-    focus(items[0]);
-  } else if (ev.key === "End") {
-    ev.preventDefault();
-    focus(items[items.length - 1]);
-  } else if ((ev.key === "Enter" || ev.key === " ") && cur) {
-    ev.preventDefault();
-    select(cur.dataset.id);
-  } else if (ev.key === "Delete" && cur) {
-    ev.preventDefault();
-    removeProject(cur.dataset.id);
+    removeProject(els.list.value);
   }
 });
 

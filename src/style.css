@@ -726,3 +726,68 @@ button:focus-visible {
   border-left: 3px solid var(--accent);
   padding-left: 8px;
 }
+
+/* ------------------------------------------------------- project picker
+
+   A `<select>` and a sort control, where a list of rows used to be. With
+   thirty-three repositories the list *was* the sidebar; this shows the one
+   being looked at and hands the rest back on demand. */
+.picker {
+  display: flex;
+  gap: 6px;
+  padding: 0 12px 8px;
+}
+
+.picker > #projects {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.picker select {
+  padding: 5px 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12.5px;
+}
+
+/* Narrow on purpose: it is a modifier of the control beside it, not a peer.
+   Hidden entirely below two projects, where there is nothing to order. */
+.proj-sort {
+  flex: 0 0 auto;
+  max-width: 42%;
+  color: var(--muted);
+}
+
+.proj-detail {
+  padding: 0 12px 10px;
+}
+
+.proj-detail .meta {
+  margin: 0 0 2px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.proj-detail .nomap {
+  font-style: italic;
+}
+
+/* The staleness line. Marked with the same bullet the option carries, so the
+   thing in the list and the sentence under it are visibly one fact. No red:
+   a map that has fallen behind is not an error, and colouring it as one
+   would make every working repository look broken between saves. */
+.proj-detail .stale::before {
+  content: "• ";
+  color: var(--accent);
+}
+
+.proj-detail .stale {
+  color: var(--ink);
+  /* A path can be long; one line, elided, with the whole of it in the title. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
