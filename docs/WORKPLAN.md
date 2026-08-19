@@ -214,36 +214,66 @@ own words.
       decision and is now unblocked.
 
 ---
-## 7. Telemetry — starting it, stopping it, and choosing which run
+## 7. Telemetry — measured, and it splits in two
 
-**Asked 2026-08-19**, and worth separating from the objection I raised
-before, which was to this app *reimplementing* telemetry. This is not
-that: `runtime-analysis.nvim` already counts calls, already writes them,
-and already has `:RATelemetry` to control it. What is asked for is a
-**control surface and a selector** over data that exists.
+Read `runtime-analysis.nvim` rather than assuming, as the previous entry
+here promised. Measured against the real cache on this machine:
+`stdpath("cache")/runtime-analysis.nvim/cache/telemetry/`, 41 namespace
+files, one `_control.json`.
 
-Two halves, and only one of them is cheap:
+### Start / stop — buildable, and my earlier caution was wrong
 
-- [ ] **Start / stop for the selected project.** Needs measuring first:
-      `:RATelemetry` wraps functions *inside a running Lua process*, so
-      "start telemetry for this project" only means something while
-      something is running that project's code. Whether this app can ask
-      for that at all — and what it would be asking, given the app runs
-      the engine as a one-shot binary — is the open question, and it is
-      the same category error `docs/ECOSYSTEM.md` names. **Do not build
-      until that is answered by reading `runtime-analysis.nvim`, not by
-      assuming.**
-- [ ] **Choosing which run you are looking at.** This is the good half and
-      it is independent of the above: telemetry produces a data point per
-      session, someone measures, changes something, measures again, and
-      then has several per project. A picker over the runs that already
-      exist on disk is a reading feature — the kind of thing
-      `docs/ROADMAP.md`'s extension-API stage 2 describes, and buildable
-      without any of stage 3.
-- [ ] Where it goes: beside the telemetry panel, not in the project
-      dropdown. The project dropdown answers "which repository"; a run
-      picker answers "which measurement of it", and stacking the second
-      inside the first makes a control that means two things.
+The previous version of this entry said start/stop "may not be a thing a
+one-shot binary run can be asked for at all". That is not what the plugin
+does. `telemetry/toggle.lua` keeps a **persistent, global on-disk flag**
+— `telemetry/_control.json`, holding `{"disabled": {"<namespace>":
+true}}` — deliberately separate from any instance's data and readable
+*before* any instance loads. `inst.start()` checks it and is a no-op while
+disabled.
+
+So "start telemetry for this project from here" has a precise, honest
+meaning: **flip the flag; the next Neovim session honours it.** That is
+what a user asking for start/stop wants, and it needs no live session on
+this side.
+
+- [ ] Read `_control.json` and show, per project, whether collection is on.
+- [ ] Flip it — through `nvim --headless -c 'RATelemetry enable|disable
+      <ns>'` rather than by writing the file, so the plugin stays the only
+      thing that knows its own format.
+- [ ] Say *when* it takes effect. "Enabled" that silently means "from the
+      next session" is the same class of half-truth this project keeps
+      removing.
+- [ ] The namespace is a **plugin name**, not a docmap project. It lines up
+      for a project that is a plugin registering telemetry, and for nothing
+      else — the UI has to say so rather than show an empty panel.
+
+### Choosing which data point — the data does not exist yet
+
+The request assumes several measurements per project: measure, change
+something, measure again. **That is not what is stored.** There is exactly
+one cumulative record per namespace, merge-on-write — every flush re-reads
+the file and *adds* its delta. Measuring again after a change adds to the
+same totals; the two measurements cannot be told apart afterwards.
+`sessions` is a counter (42 on this machine for `cmdlog.nvim`), not a list
+of 42 things. `:RATelemetry reset` clears rather than archives.
+
+The one real time axis is `days`: `day -> key -> count`, four buckets in
+the sample. So a **day picker** is honest and buildable today — and it
+separates measurements only when they happened on different days, and
+carries call counts only, not the timing and argument detail the top-level
+`functions` map has.
+
+A picker over *runs* needs a change in `runtime-analysis.nvim` first:
+`reset` (or a new `snapshot`) that archives the current counters under a
+label instead of dropping them. That is a third repository and its own
+decision — see the question below.
+
+### One note this makes stale
+
+- [ ] `contextNoteFor` says telemetry "comes from a live Neovim session…
+      nothing here can generate it". The second half stays true — this app
+      cannot run someone's plugin code. The first half needs qualifying
+      once start/stop lands: collection can be *switched on* from here.
 
 ---
 ## Carried over, not from this round
