@@ -230,6 +230,16 @@ const CATALOGS = {
     // Named by what it acts on rather than by "all": the point is that it
     // skips the ones that are already current.
     "menu.project.generate_stale": "Generate the out-of-date ones",
+    "menu.project.check": "Check exactly",
+    // The staleness mark compares modification times; this runs the analysis
+    // and compares the output. Worded as the difference, because a reader
+    // who has both needs to know which one just answered them.
+    "check.running": "Asking the engine whether the map would come out different…",
+    "check.current": "The map is exactly current — regenerating would change nothing.",
+    "check.stale": "The map would come out different. Regenerate to settle it.",
+    "check.failed": "The check could not run: {error}",
+    "ph.check.title": "Checking the map",
+    "ph.check.body": "Running the engine over <code>{root}</code> without writing anything.",
     "gen.stale.checking": "Checking which maps have fallen behind…",
     "gen.stale.none": "Every map is current — nothing to generate.",
     "menu.project.regenerate": "Regenerate and reload",
@@ -429,6 +439,13 @@ const CATALOGS = {
     "menu.project.generate": "Karte erzeugen",
     "menu.project.generate_all": "Alle erzeugen",
     "menu.project.generate_stale": "Die veralteten erzeugen",
+    "menu.project.check": "Genau prüfen",
+    "check.running": "Frage die Engine, ob die Karte anders herauskäme…",
+    "check.current": "Die Karte ist exakt aktuell — neu erzeugen würde nichts ändern.",
+    "check.stale": "Die Karte käme anders heraus. Neu erzeugen klärt es.",
+    "check.failed": "Die Prüfung konnte nicht laufen: {error}",
+    "ph.check.title": "Karte wird geprüft",
+    "ph.check.body": "Die Engine läuft über <code>{root}</code>, ohne etwas zu schreiben.",
     "gen.stale.checking": "Prüfe, welche Karten zurückliegen…",
     "gen.stale.none": "Jede Karte ist aktuell — nichts zu erzeugen.",
     "menu.project.regenerate": "Neu erzeugen und laden",

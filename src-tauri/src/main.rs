@@ -1064,6 +1064,73 @@ async fn generate(
     .map_err(|e| format!("generation task failed: {e}"))?
 }
 
+#[derive(Debug, Serialize)]
+struct CheckResult {
+    /// Whether regenerating would produce byte-identical files.
+    current: bool,
+    code: i32,
+    stdout: String,
+    stderr: String,
+}
+
+/// Ask the engine whether the map would come out different.
+///
+/// **The difference from the staleness mark, which is the whole reason this
+/// exists.** `freshness.rs` compares modification times: it answers "something
+/// was touched since this was written", and a file saved without an edit in it
+/// counts. This runs the analysis and compares the *output* byte for byte, so
+/// it answers the question the mark only approximates — and it is the one
+/// answer that settles it.
+///
+/// **`--lenient` is not a softening, it is what makes the exit code readable.**
+/// Without it the engine exits 1 for two unrelated reasons — the map is stale,
+/// *or* the map is current but carries error-severity drift findings — and a
+/// caller with one bit cannot tell those apart. Sniffing the prose on stderr
+/// for "Module map is stale" would work today and break the first time that
+/// sentence is reworded. With `--lenient` the exit code means staleness and
+/// nothing else, and the findings still arrive in the output, which is where
+/// this app already shows the engine's own report verbatim.
+///
+/// Writes nothing. That is why it is its own command rather than a flag on
+/// `generate`: the two have opposite guarantees, and a boolean that decided
+/// whether a function writes to somebody's repository is the kind of argument
+/// that eventually gets passed the wrong way round.
+#[tauri::command]
+async fn check_map(app: tauri::AppHandle, root: String) -> Result<CheckResult, String> {
+    let info = engine_info(app)?;
+    let engine = info.path.ok_or_else(|| {
+        "No docmap engine configured. It is documentation.nvim's standalone binary —          put it on PATH, or point at it in the sidebar."
+            .to_string()
+    })?;
+
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut cmd = std::process::Command::new(&engine);
+        cmd.arg(&root);
+        cmd.arg("--check");
+        cmd.arg("--lenient");
+        if let Some(g) = info.grammars {
+            cmd.env("DOCMAP_TS_DIR", g);
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            cmd.creation_flags(CREATE_NO_WINDOW);
+        }
+        let out = cmd
+            .output()
+            .map_err(|e| format!("could not run {engine}: {e}"))?;
+        Ok(CheckResult {
+            current: out.status.success(),
+            code: out.status.code().unwrap_or(-1),
+            stdout: String::from_utf8_lossy(&out.stdout).to_string(),
+            stderr: String::from_utf8_lossy(&out.stderr).to_string(),
+        })
+    })
+    .await
+    .map_err(|e| format!("check task failed: {e}"))?
+}
+
 /// Serve one project's map over HTTP and return the URL to point the iframe
 /// at.
 ///
@@ -1696,6 +1763,7 @@ fn main() {
             set_engine,
             set_grammars,
             generate,
+            check_map,
             nvim_info,
             set_nvim_path,
             set_nvim_config_dir,

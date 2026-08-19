@@ -1161,6 +1161,48 @@ async function generateAll(only) {
  * would quietly skip everything the reader has not opened — which is most
  * of what this command exists for.
  */
+/**
+ * Ask the engine whether the map would come out different, and write nothing.
+ *
+ * **The staleness mark and this answer different questions**, and the wording
+ * below is the whole point of having both. The mark compares modification
+ * times: it says "something was touched since this was written", and a file
+ * saved without an edit in it counts. This runs the analysis and compares the
+ * output byte for byte, which is the only thing that settles it — and it is
+ * why the mark's own tooltip has always pointed at a command that did not
+ * exist yet.
+ *
+ * The engine's report is shown verbatim, the same as generation's. It already
+ * says what it found, and summarising it here would be this window inventing
+ * a second opinion about a tree it did not read.
+ */
+async function checkMap(id) {
+  const p = projects.find((x) => x.id === id);
+  if (!p) return;
+
+  showPlaceholder(
+    t("ph.check.title"),
+    t("ph.check.body").replace("{root}", escapeHtml(p.root))
+  );
+  say(t("check.running"));
+
+  let res;
+  try {
+    res = await invoke("check_map", { root: p.root });
+  } catch (e) {
+    say(t("check.failed").replace("{error}", String(e)));
+    appendLog(String(e), true);
+    return;
+  }
+
+  const log = [res.stdout, res.stderr].filter(Boolean).join("\n").trim();
+  // `--lenient` makes the exit code mean staleness and nothing else, so this
+  // reads one bit rather than sniffing the engine's prose for a sentence that
+  // is free to be reworded — see `check_map` in `main.rs`.
+  say(res.current ? t("check.current") : t("check.stale"));
+  appendLog(log || "(no output)", !res.current);
+}
+
 async function generateStale() {
   if (!engine.path || projects.length === 0) return;
   say(t("gen.stale.checking"));
@@ -2292,6 +2334,7 @@ const MENU_ACTIONS = {
   "menu.project.generate": () => selectedId && generateFor(selectedId),
   "menu.project.generate_all": () => generateAll(),
   "menu.project.generate_stale": () => generateStale(),
+  "menu.project.check": () => selectedId && checkMap(selectedId),
   "menu.project.generate_full": () => selectedId && generateFor(selectedId, true),
   "menu.project.regenerate": async () => {
     if (!selectedId) return;
