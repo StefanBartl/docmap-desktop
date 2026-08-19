@@ -367,6 +367,25 @@ function sortedProjects() {
       if (sa !== sb) return sb - sa;
       return a.name.localeCompare(b.name);
     });
+  } else if (sortBy === "generated") {
+    // Oldest map first, because the question is "which have I left alone the
+    // longest" — the same question staleness answers for a tree that moved,
+    // and the one it cannot answer for a tree that did not: a repository
+    // nobody has touched stays un-stale forever however old its map is.
+    //
+    // A project with no map sorts first. That is an ordering decision and
+    // deliberately not a verdict — §3's rule that absent is not behind still
+    // holds, and the mark still says so. Never generated is simply the
+    // extreme end of the question this order asks.
+    list.sort((a, b) => {
+      const fa = freshness.get(a.id);
+      const fb = freshness.get(b.id);
+      const age = (f) => (f && f.hasMap ? (f.generatedSecs ?? 0) : Infinity);
+      const aa = age(fa);
+      const ab = age(fb);
+      if (aa !== ab) return ab - aa;
+      return a.name.localeCompare(b.name);
+    });
   }
   return list;
 }
@@ -659,7 +678,10 @@ els.sort.addEventListener("change", async () => {
     void e;
   }
   // The answer has to exist before it can be ordered by.
-  if (sortBy === "stale") await measureAll();
+  // Both orders read `freshness`, which is otherwise filled in only as
+  // projects are selected — so both have to wait for the walk, or the sort
+  // silently falls back to alphabetical on a fresh window.
+  if (sortBy === "stale" || sortBy === "generated") await measureAll();
   render();
 });
 

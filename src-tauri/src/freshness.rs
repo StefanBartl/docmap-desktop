@@ -50,6 +50,20 @@ pub struct Freshness {
     /// may be newer files it never reached, so "not stale" becomes "not
     /// known to be stale" and the caller has to say so.
     pub truncated: bool,
+    /// How long ago the map was written, in seconds. `None` when there is
+    /// none.
+    ///
+    /// Returned separately from `behind_secs` because they answer different
+    /// questions and only one of them has an answer most of the time:
+    /// `behind_secs` is a gap and exists only while stale, this is an age
+    /// and exists whenever a map does. It is what the "least recently
+    /// generated" order reads — a question about the map alone, which
+    /// staleness cannot answer because a repository nobody has touched
+    /// stays un-stale forever no matter how old its map is.
+    ///
+    /// Costs nothing: `check` already reads this timestamp to compare
+    /// against, and was throwing it away.
+    pub generated_secs: Option<u64>,
 }
 
 fn mtime(path: &Path) -> Option<SystemTime> {
@@ -75,6 +89,15 @@ pub fn check(root: &Path, map_dir: &Path) -> Result<Freshness, String> {
             })
         }
     };
+
+    // Saturating rather than erroring: a file dated in the future (a bad
+    // clock, a restored archive) is not a reason to refuse an answer about
+    // every other project, and "written 0 seconds ago" is the harmless
+    // reading of it.
+    let generated_secs = SystemTime::now()
+        .duration_since(map_time)
+        .map(|d| d.as_secs())
+        .ok();
 
     let mut newest: Option<(SystemTime, PathBuf)> = None;
     let mut visited = 0usize;
@@ -155,6 +178,7 @@ pub fn check(root: &Path, map_dir: &Path) -> Result<Freshness, String> {
         }),
         behind_secs,
         truncated,
+        generated_secs,
     })
 }
 
@@ -202,6 +226,35 @@ mod tests {
         let f = check(&root, &root.join("docs/map")).unwrap();
         assert!(!f.has_map);
         assert!(!f.stale);
+    }
+
+    /// The age of the map exists whenever a map does — including on a
+    /// repository nobody has touched, which is the whole case the "least
+    /// recently generated" order was added for. Staleness cannot answer
+    /// there: an untouched tree stays un-stale forever, however old its map.
+    #[test]
+    fn the_map_age_is_reported_even_when_nothing_is_stale() {
+        let root = tmp("age-fresh");
+        let map = root.join("docs/map");
+        touch(&root.join("src/a.lua"), ago(4 * HOUR));
+        touch(&map.join("module_map.json"), ago(2 * HOUR));
+        let f = check(&root, &map).unwrap();
+        assert!(!f.stale, "nothing was touched after the map");
+        assert_eq!(f.behind_secs, None, "a gap only exists while stale");
+        // Roughly two hours old; exactness here would be testing the clock.
+        assert!(f.generated_secs.unwrap() >= 2 * HOUR - 5);
+    }
+
+    /// No map is no age. The sort treats that as its own case rather than
+    /// as "infinitely old", the same distinction `no_map_is_not_the_same_as_stale`
+    /// draws for the mark.
+    #[test]
+    fn no_map_has_no_age() {
+        let root = tmp("age-nomap");
+        touch(&root.join("src/a.lua"), ago(HOUR));
+        let f = check(&root, &root.join("docs/map")).unwrap();
+        assert!(!f.has_map);
+        assert_eq!(f.generated_secs, None);
     }
 
     #[test]

@@ -99,8 +99,12 @@ const CATALOGS = {
     // something rather than doing something.
     "sort.name": "Name",
     "sort.stale": "Needs regenerating",
+    // Named for the question rather than the field, the same way "stale"
+    // became "Needs regenerating": nobody sorts by a timestamp, they sort
+    // by "which have I left alone the longest".
+    "sort.generated": "Least recently generated",
     "sort.added": "Added",
-    "help.sort": "Which order the project list is in. <strong>Needs regenerating</strong> puts the ones whose sources have changed since their map was built at the top.",
+    "help.sort": "Which order the project list is in. <strong>Needs regenerating</strong> puts the ones whose sources have changed since their map was built at the top; <strong>Least recently generated</strong> asks the other question — which have been left alone longest, including the ones nobody has touched.",
     "detail.nomap": "no map generated yet",
     "count.modules": "modules",
     "count.namespaces": "namespaces",
@@ -319,8 +323,9 @@ const CATALOGS = {
     "repos.none": "Dieses Konto hat keine Repositories.",
     "sort.name": "Name",
     "sort.stale": "Neu zu erzeugen",
+    "sort.generated": "Am längsten nicht erzeugt",
     "sort.added": "Hinzugefügt",
-    "help.sort": "In welcher Reihenfolge die Projektliste steht. <strong>Neu zu erzeugen</strong> stellt die nach oben, deren Quellen sich seit der Karte geändert haben.",
+    "help.sort": "In welcher Reihenfolge die Projektliste steht. <strong>Neu zu erzeugen</strong> stellt die nach oben, deren Quellen sich seit der Karte geändert haben; <strong>Am längsten nicht erzeugt</strong> stellt die andere Frage — welche am längsten unangetastet sind, auch die, die niemand angefasst hat.",
     "detail.nomap": "noch keine Karte erzeugt",
     "count.modules": "Module",
     "count.namespaces": "Namespaces",

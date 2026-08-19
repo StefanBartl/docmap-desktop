@@ -216,8 +216,26 @@ than one that takes a moment. Sequential rather than parallel: each call
 is a directory walk, and thirty-three at once is thirty-three walks
 competing for one disk.
 
-- [ ] Sort by "last generated" — offered in the plan, not built. `Added`
-      (the workspace's own order) is there as the one order that never
+- [x] ~~Sort by "last generated"~~ — built 2026-08-19, and named for the
+      question rather than the field: **Least recently generated**, the same
+      way "stale" became *Needs regenerating*. Nobody sorts by a timestamp;
+      they sort by "which have I left alone the longest".
+
+      **It is not a second staleness order, and that is the reason to have
+      it.** Staleness cannot answer for a tree that did not move: a
+      repository nobody has touched stays un-stale forever however old its
+      map is, and those are exactly the ones worth finding. `freshness.rs`
+      was already reading the map's timestamp to compare against and
+      throwing it away, so the field cost nothing.
+
+      A project with no map sorts first — an ordering decision, deliberately
+      not a verdict. §3's rule that absent is not behind still holds and the
+      mark still says so; never generated is simply the extreme end of the
+      question this order asks. Two tests hold the distinction: the age
+      exists whenever a map does even with nothing stale, and no map is no
+      age rather than infinite age.
+
+      `Added` (the workspace's own order) stays as the one order that never
       moves.
 
 ---
