@@ -500,7 +500,7 @@ remedy.
       everybody else.
 - [x] ~~`grammars: //?/C:/Program Files/...`~~ Fixed in one `portable()`
       helper, now used by all thirteen path-to-string conversions in the
-      crate; exactly one of them stripped the `\?\` prefix before.
+      crate; exactly one of them stripped the `\\?\` prefix before.
 - [x] ~~Whether the mangled path also breaks `DOCMAP_TS_DIR`.~~ **Measured:
       it does not.** The engine loads all four grammars from
       `//?/C:/tools/docmap-grammars` exactly as from the clean path —
