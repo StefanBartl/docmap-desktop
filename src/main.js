@@ -430,7 +430,9 @@ async function select(id) {
   } catch (e) {
     say(String(e));
   }
-  els.frame.src = served ?? convertFileSrc(status.index_path);
+  mapBase = served ?? convertFileSrc(status.index_path);
+  mapTab = null;
+  els.frame.src = mapUrl(mapBase);
   // The path alone. The module count is already on the project row in the
   // list and again in the map's own header — three copies of one number, and
   // this was the third.
@@ -889,6 +891,7 @@ function contextNoteFor(ctx) {
 window.addEventListener("message", (ev) => {
   const data = ev.data;
   if (!data || data.source !== "docmap") return;
+  if (data.tab) mapTab = data.tab;
   const note = contextNoteFor(data);
   els.contextNote.innerHTML = note || "";
   els.contextNote.hidden = !note;
@@ -1155,6 +1158,36 @@ function applySidebar(shown) {
   }
 }
 
+// The map frame's URL, without the theme. Kept so a theme change can
+// rebuild it: the page is a separate document at a separate origin, so the
+// `data-theme` this window stamps on itself never crosses -- which is why
+// choosing dark used to leave the map white. It reads `?theme=` instead.
+let mapBase = null;
+
+// The panel the page last reported through its one-way channel. A theme
+// change reloads the frame, and landing back on Tree after having been in
+// Notes would be the fix costing more than the bug.
+let mapTab = null;
+
+/** `base` with the theme, and the panel to land on, appended. */
+function mapUrl(base) {
+  const theme = currentTheme();
+  let url = base;
+  if (theme === "light" || theme === "dark") {
+    url += (url.includes("?") ? "&" : "?") + "theme=" + theme;
+  }
+  // `tab` only. The page deliberately posts a coarse context and not its
+  // whole state, so this restores the panel and nothing finer -- which is
+  // the part a reader would notice losing.
+  if (mapTab) url += "#tab=" + encodeURIComponent(mapTab);
+  return url;
+}
+
+/** Reload the map with the current theme, if one is showing. */
+function retheme() {
+  if (mapBase) els.frame.src = mapUrl(mapBase);
+}
+
 function currentTheme() {
   return document.documentElement.getAttribute("data-theme") || "system";
 }
@@ -1382,6 +1415,7 @@ function chooseTheme(choice) {
     void e;
   }
   document.getElementById("theme").value = choice;
+  retheme();
   syncMenu();
 }
 
