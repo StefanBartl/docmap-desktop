@@ -366,17 +366,24 @@ Six ideas, recorded with what each would actually take. **Nothing here is
 built.** Ordered by how much of it is already in place, not by how good it
 sounds.
 
-### 9.1 Hierarchy left-to-right
+### 9.1 ~~Hierarchy left-to-right~~ — built 2026-08-19
 
-The diagram runs root-at-top downward. A switch for left-to-right is a
-layout change in `core/render/html.lua`'s hierarchy code, not a new view:
-the positions are computed there and the SVG edges follow them.
+A layout choice, not a second layout: every graph view already produces
+*layers*, and an orientation is only which axis a layer index becomes.
+Three places turn layers into geometry — positions, edges, canvas — and one
+predicate is all any of them consults.
 
-- [ ] One switch beside the existing view buttons, and it belongs in the
-      URL state like every other view choice — a reader who sends someone a
-      link should send the orientation with it.
-- [ ] The SVG export has to follow. It redraws boxes from live positions,
-      so it probably does already; "probably" is the thing to check.
+The shape of the data argues for it more than taste does: top-down, this
+repository's own graph is 10696 by 380 — a long thin strip nobody can read.
+Sideways the same graph is 760 by 5564, a column that scrolls the way a
+page does.
+
+- [x] ~~In the URL state.~~ Only when it is not the default, so the common
+      case stays the link this page has always produced, and an old link or
+      a typo lands top-down rather than nowhere.
+- [x] ~~The SVG export follows.~~ The plan said "probably" and that it was
+      the thing to check. Checked: asked through the page's own channel
+      while sideways, the exported SVG is 760x5564 — the same as the screen.
 
 ### 9.2 ~~Reroot the hierarchy at what you clicked~~ — built 2026-08-19
 
