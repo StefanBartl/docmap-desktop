@@ -169,6 +169,8 @@ const GROUPS: &[Group] = &[
         items: &[
             item("menu.help.usage", None, false),
             item("menu.help.engine", None, false),
+            Node::Separator,
+            item("menu.help.feedback", None, false),
         ],
     },
 ];

@@ -196,3 +196,30 @@ means. Read there instead of here:
 | How the map is built, stage by stage | [`documentation.nvim` — PIPELINE.md](https://github.com/StefanBartl/documentation.nvim/blob/main/docs/PIPELINE.md) |
 | Talking to a project's map from an agent | [`documentation.nvim` — MCP.md](https://github.com/StefanBartl/documentation.nvim/blob/main/docs/MCP.md) |
 | Why Telemetry/Loaded need Neovim, not this app | [`ROADMAP.md` § The panels that need a host](ROADMAP.md#the-panels-that-need-a-host) |
+
+## Sending feedback
+
+**Help → Send feedback…** builds a report and opens it on GitHub in your
+browser. It does not post anything: you land on GitHub's own form with the
+text already filled in, read it, and press Submit yourself, signed in as
+you.
+
+That is not caution for its own sake. This app holds no credentials of its
+own — the same reason cloning goes through whatever `git clone` already
+needs on your machine, and listing repositories goes through `gh`. And
+filing to a public tracker is publishing, which is not something a dialog
+should do on your behalf while you are looking at a button.
+
+Two choices decide where it lands:
+
+- **Topic** — feature request, something broken, question, documentation,
+  or something else. It picks the label.
+- **About** — this window, or the engine and the generated map. They are
+  separate programs that happen to be looked at together, and they have
+  separate trackers.
+
+**Attach version and platform** adds the app version, the OS, the engine
+path and the interface language. It is ticked by default because almost
+every report needs it and almost nobody remembers, and the exact text is
+shown in the dialog before anything opens — it is the one part of the
+report you did not type.

@@ -163,6 +163,44 @@ so the cross-repository piece comes last rather than blocking the rest.
 5. **Export the current view**, last, together with the inbound page
    channel in `documentation.nvim`.
 
+### Feedback — built, with one thing left to the repository owner
+
+**Help → Send feedback…** ships (2026-08-19). It opens a prefilled GitHub
+issue rather than posting one, because this app holds no credentials and
+filing to a public tracker is publishing — the writer submits it there,
+as themselves.
+
+- [ ] **Turn Discussions on**, if the intent is a discussion thread rather
+      than an issue tracker. Both repositories have `has_discussions:
+      false` today, so the topic table in `src-tauri/src/feedback.rs` maps
+      every category to a labelled issue instead. Moving *Feature request*
+      and *Question* to `discussions/new?category=…` is one line each once
+      the categories exist — and a link into a disabled feature is a dead
+      end, which is why it was not written that way on spec.
+
+### An extension API — a concept, not a plan
+
+Asked for, and worth answering carefully rather than quickly. A plugin API
+is a promise that cannot be withdrawn, and the formats here are still
+moving: `module_map.json` reached schema 4 this week, from 2 the week
+before. An API pointing at a format that changes three more times produces
+exactly the disappointment that ends a plugin ecosystem before it starts.
+
+The order that would work, each step useful on its own:
+
+1. **The artifact is already the API.** `module_map.json` is
+   byte-deterministic, versioned and documented — anything that reads a
+   repository's map is an extension today, with no code in this app. What
+   is missing is saying so, and a compatibility statement about what a
+   schema bump may change.
+2. **Reading extensions**: a panel that shows something computed from the
+   artifact. The local server is the seam, and it already exists.
+3. **Writing extensions**, last, because the page channel is one-way
+   today — the generated page posts to the app and the app never posts
+   back. That inbound protocol has to be designed deliberately, not as an
+   afterthought: a page that executes arbitrary messages from its host is
+   a different security posture than one that only speaks.
+
 ### Two open questions this touches
 
 - ~~**The window title says `docmap` twice**~~ — fixed 2026-08-19. The
