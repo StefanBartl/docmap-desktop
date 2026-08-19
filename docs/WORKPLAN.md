@@ -436,23 +436,35 @@ unset setting, since it is what double-clicking the file would do. The
 template is split into arguments *before* substitution, so a path with a
 space in it stays one argument; on this platform that is the normal case.
 
-### 9.5 An "Actual filetree" tab, and folding History into it
+### 9.5 ~~An "Actual filetree"~~ — built 2026-08-19, in the app
 
-The real tree as it sits on disk — sizes, and right-click to open — beside
-the git history, as two sub-entries of one tab. The sub-tab mechanism from
-§: the tab restructure already exists, so this is a third owner of it.
+**The fork this entry named is decided, and the reason is the data.** A
+filetree in the artifact would be a snapshot — wrong the moment somebody
+adds a file, inside a document whose whole claim is that it is
+byte-deterministic. Read live it is always right, and the program that can
+read it live is also the one that can open a file when asked. So: an app
+pane, `Ctrl+Shift+F`, not a page tab.
 
-- [ ] The tree the map shows is the *module* tree, which deliberately hides
-      everything that is not a module. A real filetree is different data
-      and the engine does not collect it today.
-- [ ] Sizes and mtimes are a directory walk — the app has one already
-      (`languages.rs`, `freshness.rs`) and the engine does not need to grow
-      one. That argues for the filetree being an **app** panel rather than
-      a page tab, which is a real fork worth deciding before building.
-- [ ] Other sub-entries that would fit the same tab, if it becomes "the
-      repository as it is on disk": untracked files, ignored-but-present,
-      and what the map skipped and why — that last one the engine already
-      knows (`unclaimed`/`outside` in the scan) and nothing shows.
+One directory per call. A monorepo is tens of thousands of files and a
+reader opens a dozen folders; walking everything to draw one level is work
+nobody asked for and a window that stalls.
+
+**Skipped directories are listed, not hidden**, and say why. `node_modules`
+is genuinely on the disk, and a filetree that omits it is lying about the
+disk to make the map look consistent. The same for a nested checkout —
+which is the reason half a tree can be missing from a map, and the one
+thing a reader would otherwise have no way to find out.
+
+Clicking a file opens it wherever §9.4's editor setting says. Coming back
+to the map does not reload it: two megabytes that have not changed.
+
+- [ ] **Not folded in with History.** That was floated as "eventuell" and
+      it cannot be: History is a page tab computed from git by the engine,
+      this is an app pane read from disk. They answer adjacent questions
+      from opposite sides of the origin boundary.
+- [ ] Other sub-entries this pane could grow — untracked files,
+      ignored-but-present, and what the map skipped and why — the last of
+      which it now partly answers per directory.
 
 ### 9.6 More languages, fully
 

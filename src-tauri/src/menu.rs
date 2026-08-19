@@ -50,6 +50,8 @@ pub struct ViewState {
     /// catalog — and the labels are endonyms, never translated: a language
     /// name spelled the reader's own way is how they find it.
     pub locales: Vec<Locale>,
+    /// The main pane is showing the filetree rather than the map.
+    pub files: bool,
     pub sidebar: bool,
 }
 
@@ -156,6 +158,7 @@ const GROUPS: &[Group] = &[
             item("menu.view.zoom_out", Some("CmdOrCtrl+-"), false),
             item("menu.view.zoom_reset", Some("CmdOrCtrl+0"), false),
             Node::Separator,
+            check("menu.view.files", Some("CmdOrCtrl+Shift+F")),
             check("menu.view.sidebar", Some("CmdOrCtrl+B")),
         ],
     },
@@ -182,6 +185,7 @@ fn is_checked(id: &str, state: &ViewState) -> bool {
         "menu.view.theme.system" => state.theme != "light" && state.theme != "dark",
         "menu.view.theme.light" => state.theme == "light",
         "menu.view.theme.dark" => state.theme == "dark",
+        "menu.view.files" => state.files,
         "menu.view.sidebar" => state.sidebar,
         _ => false,
     }
@@ -366,6 +370,7 @@ mod tests {
                     label: "Deutsch".into(),
                 },
             ],
+            files: false,
             sidebar: true,
         }
     }

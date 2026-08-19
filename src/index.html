@@ -125,6 +125,17 @@
            something to manage. -->
       <iframe id="map" title="Module map" hidden></iframe>
 
+      <!-- The repository as it is on disk, beside the map of it. A separate
+           pane rather than a tab inside the map, because this data is live:
+           the map is a snapshot of a generation, and a filetree that was
+           true an hour ago is not a filetree. Read one directory at a time
+           — a monorepo is tens of thousands of files and a reader opens a
+           dozen folders. -->
+      <section id="files" class="files" hidden>
+        <nav id="files-crumb" class="files-crumb" aria-label="Folder"></nav>
+        <ul id="files-list" class="files-list"></ul>
+      </section>
+
       <!-- The page posts which panel it is showing (postMessage — an
            iframe of a different origin has no other way out, and a button
            *inside* that panel could not reach this app's own process
