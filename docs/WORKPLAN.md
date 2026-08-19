@@ -112,11 +112,29 @@ that came with that decision is met: when the run fails with
 reader's own language and states what still works — rather than leaving
 it to be found in the generation log.
 
-- [ ] **Placeholder titles are English in every locale.** Not introduced
-      here, but now visible: the full-generation failure shows a
-      translated sentence under an untranslated heading. `showPlaceholder`
-      is called from eight places with hardcoded titles; they belong in
-      the catalog, and doing one of them would be worse than doing none.
+- [x] ~~**Placeholder titles are English in every locale.**~~ — fixed
+      2026-08-19, all eight at once, for the reason this entry gave: doing
+      one would have been worse than doing none.
+
+      **Bodies went with them**, which the entry did not say and should
+      have. Half the call sites hardcoded the body too ("Pick a project on
+      the left.", "The engine exited with code N."), so translating only
+      the headings would have moved the same bug down one line.
+
+      **Guarded structurally rather than string by string.** A test that
+      asserted these eight are translated would pass again the moment a
+      ninth call site was added with a literal — which is exactly how the
+      eight got there. So `i18n.test.js` now reads `main.js` and fails any
+      `showPlaceholder` call whose first argument is not a `t(...)`, and a
+      second test requires every `ph.*` key to exist in both locales *and
+      to differ between them*, which catches the German catalog carrying
+      the English string under a German key.
+
+      One thing found while doing it: the placeholder body is written as
+      `innerHTML`, and two call sites passed unescaped text into it — a
+      project path and an OS error string. Neither is attacker-controlled
+      today; both are escaped now, because the next thing put through that
+      argument will not be checked by anyone.
 
 ---
 ## 3. ~~A staleness mark~~ — built 2026-08-19

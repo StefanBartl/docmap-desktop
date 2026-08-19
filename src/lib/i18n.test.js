@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import { t, setLocale, locale, initialLocale, keys, keysOf, LOCALES } from "./i18n.js";
 
@@ -80,3 +81,50 @@ function setLocaleAndGet(code, key) {
   setLocale(before);
   return value;
 }
+
+// ---------------------------------------------------------------------
+// The placeholders, guarded structurally rather than one string at a time.
+//
+// `showPlaceholder` writes the view area's heading and body. It was called
+// from eight places with English literals, so a German window showed a
+// translated sentence under an untranslated heading -- the failure is not
+// that one string was missed but that the call site was allowed to carry a
+// literal at all. Asserting the eight *current* strings are translated
+// would pass again the moment a ninth call site is added, which is the one
+// case worth catching.
+// ---------------------------------------------------------------------
+test("no showPlaceholder call passes a literal instead of a catalog key", () => {
+  const src = readFileSync(new URL("../main.js", import.meta.url), "utf8");
+  const calls = [...src.matchAll(/showPlaceholder\(\s*([^,]+),/g)]
+    // The definition itself, whose parameter is named `title`.
+    .filter((m) => !/^title\b/.test(m[1].trim()));
+  assert.ok(calls.length >= 7, `expected the placeholder call sites, found ${calls.length}`);
+  for (const m of calls) {
+    const first = m[1].trim();
+    assert.ok(
+      first.startsWith("t("),
+      `showPlaceholder was given the literal ${first} — placeholder titles belong in the catalog`
+    );
+  }
+});
+
+test("every placeholder key exists in both shipped locales", () => {
+  const src = readFileSync(new URL("../main.js", import.meta.url), "utf8");
+  const used = new Set([...src.matchAll(/t\("(ph\.[a-z.]+)"\)/g)].map((m) => m[1]));
+  assert.ok(used.size >= 8, `expected the placeholder keys, found ${used.size}`);
+  for (const key of used) {
+    for (const code of ["en", "de"]) {
+      const value = setLocaleAndGet(code, key);
+      assert.ok(value && value !== key, `${key} is missing from ${code}`);
+    }
+  }
+  // And the two locales must actually differ, or the German catalog is
+  // carrying the English string under a German key.
+  for (const key of used) {
+    assert.notEqual(
+      setLocaleAndGet("de", key),
+      setLocaleAndGet("en", key),
+      `${key} was not translated`
+    );
+  }
+});

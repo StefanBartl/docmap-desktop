@@ -698,11 +698,8 @@ async function select(id) {
     }
 
     showPlaceholder(
-      "No map in this project yet",
-      (engine.path
-        ? "Press <strong>Generate map</strong> to build one."
-        : "Locate the engine in the sidebar first — it is " +
-          "<code>documentation.nvim</code>'s standalone binary.") +
+      t("ph.nomap.title"),
+      (engine.path ? t("ph.nomap.generate") : t("ph.nomap.noengine")) +
         (langLine ? `<br><span class="detail">${escapeHtml(langLine)}</span>` : "")
     );
     say(p.root);
@@ -809,7 +806,7 @@ async function removeProject(id) {
     const list = await invoke("remove_project", { id });
     if (selectedId === id) {
       selectedId = null;
-      showPlaceholder("Nothing selected", "Pick a project on the left.");
+      showPlaceholder(t("ph.none.title"), t("ph.none.body"));
       syncMenu();
       titleFor(null);
     }
@@ -1012,7 +1009,10 @@ async function generateFor(id, full = false) {
   // Replace the view while it runs: leaving the previous project's map on
   // screen during a rebuild is the same "wrong panel's data" problem the
   // generated page itself had to fix in its own fetch-backed panels.
-  showPlaceholder("Generating…", "Running the engine over <code>" + p.root + "</code>.");
+  showPlaceholder(
+    t("ph.generating.title"),
+    t("ph.generating.body").replace("{root}", escapeHtml(p.root))
+  );
   say("Generating " + p.name);
 
   // `restoreDisabled: false`: whether this button ends up enabled depends on
@@ -1036,8 +1036,8 @@ async function generateFor(id, full = false) {
           say("Generated " + p.name);
         } else {
           showPlaceholder(
-            "Generation failed",
-            "The engine exited with code " + res.code + "."
+            t("ph.failed.title"),
+            t("ph.failed.body").replace("{code}", String(res.code))
           );
           appendLog(log || "(no output)", true);
           // The one failure this app can explain better than the engine
@@ -1045,7 +1045,7 @@ async function generateFor(id, full = false) {
           // is a normal outcome rather than a broken install, and saying
           // so in the placeholder beats leaving it to be found in the log.
           if (full && /lua-language-server/.test(log)) {
-            showPlaceholder("Generation failed", t("gen.full.needsLuals"));
+            showPlaceholder(t("ph.failed.title"), t("gen.full.needsLuals"));
           }
           say("Failed: " + p.name);
         }
@@ -1053,7 +1053,7 @@ async function generateFor(id, full = false) {
       { restoreDisabled: false }
     );
   } catch (e) {
-    showPlaceholder("Could not run the engine", String(e));
+    showPlaceholder(t("ph.enginefail.title"), escapeHtml(String(e)));
     say(String(e));
   } finally {
     renderEngine();
@@ -1107,8 +1107,8 @@ async function generateAll(only) {
 
   els.gen.disabled = true;
   showPlaceholder(
-    "Generating all projects",
-    "Running the engine over " + list.length + " project(s)."
+    t("ph.genall.title"),
+    t("ph.genall.body").replace("{n}", String(list.length))
   );
 
   for (let i = 0; i < list.length; i++) {
@@ -2184,7 +2184,7 @@ async function useWorkspace(name) {
     mapBase = null;
     freshness.clear();
     pageCounts.clear();
-    showPlaceholder("Nothing selected", "Pick a project on the left.");
+    showPlaceholder(t("ph.none.title"), t("ph.none.body"));
     await refresh(list);
     // Re-listed because switching can *create*: the count in the title
     // would otherwise be one behind the workspace you are now in.
