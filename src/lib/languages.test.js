@@ -170,6 +170,28 @@ test("a backend needing no parser is full fidelity, not degraded", () => {
   assert.equal(s.get("Lua"), "full");
 });
 
+test("a grammarless language joins on the backend name instead", () => {
+  // Assembly is the case: GAS, NASM and ARM are a fork rather than
+  // dialects, so the engine reads it by line and declares no grammar at
+  // all. Joining on the grammar alone left this row matching nothing and
+  // reported "no backend" for a language read at full fidelity.
+  const s = supportFor(
+    { languages: [{ name: "Assembly", files: 6, grammar: null, backend: "asm" }], total: 6 },
+    engine([["asm", null, null]])
+  );
+  assert.equal(s.get("Assembly"), "full");
+});
+
+test("a grammarless language with no matching backend is still none", () => {
+  // The fallback must not turn every unmatched row into a match: an engine
+  // too old to have the backend is a real "no backend".
+  const s = supportFor(
+    { languages: [{ name: "Assembly", files: 6, grammar: null, backend: "asm" }], total: 6 },
+    engine([["lua", "lua", true]])
+  );
+  assert.equal(s.get("Assembly"), "none");
+});
+
 test("an engine that cannot be asked is unknown, never unsupported", () => {
   const s = supportFor(
     { languages: [{ name: "Lua", files: 1, grammar: "lua" }], total: 1 },

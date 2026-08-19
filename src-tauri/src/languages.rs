@@ -50,11 +50,26 @@ use serde::Serialize;
 ///
 /// `None` for a language with no tree-sitter grammar worth naming here. The
 /// frontend renders that as unknown rather than unsupported.
+///
+/// `backend` is the join key for the one case `grammar` cannot cover: an
+/// engine backend that reads a language **without** a parser. Assembly is
+/// that case and was the reason this field exists -- GAS, NASM and ARM are a
+/// fork rather than dialects, so the engine reads them by line and declares
+/// no grammar at all. With only the grammar key, a tree full of `.s` files
+/// joined against nothing and the app reported "no backend" for a language
+/// it reads at full fidelity, which is worse than saying nothing.
+///
+/// It is deliberately `None` for every language that has a grammar, so this
+/// stays the stated exception rather than a second vocabulary: naming
+/// backends generally is exactly the capability duplication the paragraph
+/// above refuses, and the exception is only defensible because a
+/// grammarless backend has no other key to be found by.
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct LanguageCount {
     pub name: String,
     pub files: u32,
     pub grammar: Option<String>,
+    pub backend: Option<String>,
 }
 
 /// The whole verdict for one directory.
@@ -158,7 +173,12 @@ pub(crate) const SKIP_DIRS: &[&str] = &[
 /// reader is asking about (`.h` is C here; `.hpp` is C++), and stay apart
 /// where it is (JavaScript vs. TypeScript, which are separate engine backends
 /// and separate answers to "can this be mapped").
-fn language_for(ext: &str) -> Option<(&'static str, Option<&'static str>)> {
+fn language_for(ext: &str) -> Option<(&'static str, Option<&'static str>, Option<&'static str>)> {
+    // The one language read without a parser, so the only one joined on a
+    // backend name -- see `LanguageCount::backend`.
+    if matches!(ext, "s" | "asm" | "nasm" | "inc") {
+        return Some(("Assembly", None, Some("asm")));
+    }
     let (name, grammar) = match ext {
         "lua" => ("Lua", "lua"),
         "js" | "mjs" | "cjs" => ("JavaScript", "javascript"),
@@ -200,7 +220,7 @@ fn language_for(ext: &str) -> Option<(&'static str, Option<&'static str>)> {
         "html" | "htm" => ("HTML", "html"),
         _ => return None,
     };
-    Some((name, Some(grammar)))
+    Some((name, Some(grammar), None))
 }
 
 /// Is this directory its own repository, rather than part of the one being
@@ -248,7 +268,8 @@ pub fn scan(root: &Path, map_dir: Option<&Path>) -> Result<LanguageScan, String>
         .map(|p| p.to_path_buf())
         .unwrap_or_else(|| root.join("docs").join("map"));
 
-    let mut counts: HashMap<&'static str, (u32, Option<&'static str>)> = HashMap::new();
+    let mut counts: HashMap<&'static str, (u32, Option<&'static str>, Option<&'static str>)> =
+        HashMap::new();
     let mut visited = 0usize;
     let mut truncated = false;
     let mut stack = vec![root.to_path_buf()];
@@ -296,8 +317,8 @@ pub fn scan(root: &Path, map_dir: Option<&Path>) -> Result<LanguageScan, String>
                 Some((_, ext)) if !ext.is_empty() => ext.to_lowercase(),
                 _ => continue,
             };
-            if let Some((lang, grammar)) = language_for(&ext) {
-                let slot = counts.entry(lang).or_insert((0, grammar));
+            if let Some((lang, grammar, backend)) = language_for(&ext) {
+                let slot = counts.entry(lang).or_insert((0, grammar, backend));
                 slot.0 += 1;
             }
         }
@@ -307,13 +328,14 @@ pub fn scan(root: &Path, map_dir: Option<&Path>) -> Result<LanguageScan, String>
         }
     }
 
-    let total: u32 = counts.values().map(|(n, _)| n).sum();
+    let total: u32 = counts.values().map(|(n, _, _)| n).sum();
     let mut languages: Vec<LanguageCount> = counts
         .into_iter()
-        .map(|(name, (files, grammar))| LanguageCount {
+        .map(|(name, (files, grammar, backend))| LanguageCount {
             name: name.to_string(),
             files,
             grammar: grammar.map(str::to_string),
+            backend: backend.map(str::to_string),
         })
         .collect();
 
@@ -344,6 +366,19 @@ mod tests {
             name: name.into(),
             files,
             grammar: Some(grammar.into()),
+            backend: None,
+        }
+    }
+
+    /// The grammarless row, which only assembly produces today. Separate
+    /// from `lc` rather than an extra argument on it: the two carry opposite
+    /// join keys, and a helper taking both would let a call site set neither.
+    fn lc_backend(name: &str, files: u32, backend: &str) -> LanguageCount {
+        LanguageCount {
+            name: name.into(),
+            files,
+            grammar: None,
+            backend: Some(backend.into()),
         }
     }
 
@@ -379,6 +414,35 @@ mod tests {
         );
         assert_eq!(scan.total, 6);
         assert!(!scan.truncated);
+    }
+
+    /// Assembly is one language across four extensions and the only row
+    /// carrying a backend key instead of a grammar one. Asserted as a whole
+    /// row rather than field by field: the bug this guards against is the
+    /// row coming back with *both* keys empty, which reads to the frontend
+    /// as "no backend" for a language the engine reads at full fidelity.
+    #[test]
+    fn assembly_is_one_language_and_joins_on_the_backend_name() {
+        let root = tree("asm", &["boot.s", "start.asm", "vec.nasm", "macros.inc"]);
+        let scan = scan(&root, None).unwrap();
+        assert_eq!(scan.languages, vec![lc_backend("Assembly", 4, "asm")]);
+        assert_eq!(scan.total, 4);
+    }
+
+    /// The exception stays an exception. A language with a grammar must not
+    /// also name a backend, or the frontend has two keys to choose between
+    /// and no rule for which wins.
+    #[test]
+    fn a_language_with_a_grammar_names_no_backend() {
+        let root = tree("nobackend", &["a.rs", "b.lua"]);
+        let scan = scan(&root, None).unwrap();
+        for lang in &scan.languages {
+            assert!(
+                lang.grammar.is_some() && lang.backend.is_none(),
+                "{} carries both join keys",
+                lang.name
+            );
+        }
     }
 
     #[test]

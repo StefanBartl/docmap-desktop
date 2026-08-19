@@ -153,9 +153,19 @@ export function supportFor(scan, engineLanguages) {
     // A backend can be registered under several names for one grammar, and
     // a language can in principle map to none — `find` over a handful of
     // entries is cheaper than building an index for a list this short.
+    //
+    // The second key is for a backend that reads a language with no parser
+    // at all — assembly, whose three syntaxes are a fork rather than
+    // dialects, so the engine reads it by line. It has no grammar name to be
+    // found by, and joining on the grammar alone reported "no backend" for a
+    // language the engine reads at full fidelity. The counter names the
+    // backend only in that case; see `LanguageCount::backend` on the Rust
+    // side for why that stays an exception rather than a second vocabulary.
     const backend = lang.grammar
       ? known.find((b) => b.grammar === lang.grammar)
-      : undefined;
+      : lang.backend
+        ? known.find((b) => b.name === lang.backend)
+        : undefined;
     if (!backend) {
       out.set(lang.name, "none");
     } else {

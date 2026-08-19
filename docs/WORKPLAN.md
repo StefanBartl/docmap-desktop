@@ -466,10 +466,18 @@ to the map does not reload it: two megabytes that have not changed.
       ignored-but-present, and what the map skipped and why — the last of
       which it now partly answers per directory.
 
-### 9.6 More languages, fully
+### 9.6 ~~More languages, fully~~ — all five built 2026-08-19
 
 Java, Zig, C/C++, x86 and RISC assembly. The stated goal is *full* support
 per language, not a file count.
+
+**Closed 2026-08-19.** Five requested, five built, in five backends across
+four files — Zig, Java, C and C++ (one file, three registrations counting
+`cfamily`), and assembly. Nine language backends in total. What each one
+cost, and the two designs a real-tree measurement changed rather than
+confirmed, are in the entries below; the pattern worth carrying forward is
+that **both changes came from scanning somebody else's repository, and
+neither would have come from a fixture.**
 
 - [ ] The seam exists: `lang_registry` plus the `Documentation.LangBackend`
       contract, and `backend_contract_spec.lua` now fails a backend that
@@ -527,14 +535,52 @@ per language, not a file count.
       and comment syntax. Lua and the ECMA family took very different
       amounts of that, and the ECMA one is the honest estimate for a new
       C-like language.
-- [ ] **Assembly — needs your decision, and it is the only one left.** It
-      has no modules, no imports and no functions in the sense the rest of
-      this tool means, no visibility concept and no documentation
-      convention; and *which* assembly (GAS, NASM, ARM) is a fork rather
-      than a dialect. A backend that reports labels and include directives
-      is buildable and honest, and it would show a file list with labels
-      in it — which may or may not be what was wanted by "voll und ganz".
-      Worth answering before it is built rather than after.
+- [x] ~~**Assembly**~~ — decided *build it*, and built 2026-08-19 as the
+      ninth backend. **All five requested languages now exist.** The entry
+      below was the question put to you; what follows is what building it
+      answered, including where the question's own premises were wrong.
+
+      **It is the first backend with no tree-sitter grammar, and that is
+      the design.** This entry called GAS/NASM/ARM a fork rather than a
+      dialect and that is right — which is precisely why a grammar is the
+      wrong instrument: a grammar is written against one side of the fork,
+      so a NASM file read by an x86-GAS grammar is not a degraded parse,
+      it is a confident wrong one. Everything the backend needs is
+      line-directed in all of them, because assembly is line-oriented by
+      construction. The engine's registry already distinguished "needs no
+      parser" from "wanted one and could not find it"; nothing had ever
+      exercised the first, and its spec asserted every backend had a
+      grammar. Both branches are tested now, and this is the only language
+      spec in that repository that never skips.
+
+      **"No visibility concept" was wrong.** `.globl`/`.global` (GAS,
+      ARM), `global` (NASM) and `PUBLIC` (MASM) are explicit exports — a
+      stronger signal than most languages here give, and unlike C it needs
+      no header file to read it from. The rest of the premise held: no
+      module system, so the path is the identity as with Zig.
+
+      **And the "file list with labels in it" worry was the right worry.**
+      Measured against `nemasu/asmttpd`, a real 2334-line NASM web server,
+      the first version produced **129 "functions" for a program with
+      about sixty** — branch targets are labels too. The fix is layout,
+      which every assembly file already uses: a routine's label sits in
+      column zero, a branch target is indented with the instructions
+      around it. asmttpd is 61 flush / 76 indented; `musl`'s 304 assembly
+      sources are 579 flush / **zero** indented, so the rule removes noise
+      where there is noise and costs nothing where there is none. 129 → 63.
+
+      **A second measurement, the same shape as the C one.** Reading only
+      the comment *above* a label found 5 documented routines of 63 in a
+      codebase that annotates nearly all of them — it writes the calling
+      convention *trailing* the label (`add_content_type_header: ;rdi -
+      buffer, rsi - type`), which is the closest thing assembly has to a
+      parameter list. 5 → 29 of 63. Data labels (`.asciz`, `db`, `resb`)
+      and `.equ` became symbols rather than functions, so the map splits an
+      assembly file's code from its data the way its author already did.
+
+      **Nothing to install.** No grammar means no addition to the release
+      script and nothing for the app to find — unlike Zig, Java and C/C++,
+      this one works on a machine with no grammars at all.
 
 ---
 
