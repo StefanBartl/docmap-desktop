@@ -165,12 +165,13 @@ so the cross-repository piece comes last rather than blocking the rest.
 
 ### Two open questions this touches
 
-- **The window title says `docmap` twice** — once as the window title and
-  once as the sidebar heading. The fix is to make the window title name
-  the selected project (`<project> — docmap`), which needs a Rust command:
-  `core:window:default` grants `allow-title` (read) but not
-  `allow-set-title`. Worth doing with the menu work since both touch the
-  window shell.
+- ~~**The window title says `docmap` twice**~~ — fixed 2026-08-19. The
+  sidebar heading keeps the application's name and the title bar takes the
+  subject: `<project> — docmap`, which is also what the taskbar and the
+  window switcher show. Through a `set_window_title` command, because
+  `core:window:default` grants `allow-title` (read) and not
+  `allow-set-title`, and widening the webview's permissions for one string
+  would be a larger grant than the need.
 - **A bundled font.** Whether to ship JetBrains Mono as the default
   monospace and offer a font setting at all. Not decided — see the note
   under [Built](#built).

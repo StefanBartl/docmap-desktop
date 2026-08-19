@@ -941,6 +941,26 @@ fn reveal_project(app: tauri::AppHandle, id: String) -> Result<(), String> {
     open_externally(&project.root)
 }
 
+/// Name the window after what it is showing.
+///
+/// The title bar and the sidebar heading both read `docmap`, one directly
+/// above the other, which says the same thing twice and answers nothing.
+/// The sidebar keeps the application's name — that is what a heading in an
+/// application is for — and the title bar takes the subject, which is what
+/// a title bar is for, and what the taskbar and the window switcher show.
+///
+/// A command rather than the frontend calling `setTitle` itself: the
+/// `core:window:default` permission set grants `allow-title`, which reads,
+/// and not `allow-set-title`. Widening the webview's own permissions for
+/// this would be a larger grant than the one thing needed.
+#[tauri::command]
+fn set_window_title(app: tauri::AppHandle, title: String) -> Result<(), String> {
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| "no main window".to_string())?;
+    window.set_title(&title).map_err(|e| e.to_string())
+}
+
 /// Set the window's zoom factor.
 ///
 /// On the webview rather than in CSS: the map is an iframe served from
@@ -1011,7 +1031,8 @@ fn main() {
             open_map_in_browser,
             reveal_project,
             open_docs,
-            set_zoom
+            set_zoom,
+            set_window_title
         ])
         .run(tauri::generate_context!())
         .expect("docmap-desktop failed to start");

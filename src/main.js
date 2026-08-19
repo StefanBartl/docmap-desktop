@@ -372,6 +372,7 @@ async function render() {
 async function select(id) {
   selectedId = id;
   syncMenu();
+  titleFor(projects.find((x) => x.id === id));
   try {
     localStorage.setItem(LAST_KEY, id);
   } catch (e) {
@@ -533,6 +534,7 @@ async function removeProject(id) {
       selectedId = null;
       showPlaceholder("Nothing selected", "Pick a project on the left.");
       syncMenu();
+      titleFor(null);
     }
     await refresh(list);
   } catch (e) {
@@ -1246,6 +1248,21 @@ const MENU_ACTIONS = {
   "menu.help.usage": () => openDocs("usage"),
   "menu.help.engine": () => openDocs("engine"),
 };
+
+/**
+ * Name the window after the selected project.
+ *
+ * The heading in the sidebar is the application; the title bar is the
+ * subject. Before this they both read `docmap`, one directly above the
+ * other.
+ *
+ * The project name is never translated and never escaped away — it is the
+ * subject, and the interface is the only thing the catalog speaks for.
+ */
+function titleFor(project) {
+  const title = project ? project.name + " — docmap" : "docmap";
+  invoke("set_window_title", { title }).catch((e) => void e);
+}
 
 /** Must match `menu::LOCALE_ID`. */
 const LOCALE_ITEM = "menu.view.lang:";
