@@ -144,7 +144,45 @@ catalog has to reach Rust without becoming a second catalog; macOS needs its
 own tree; and menu items cannot carry the help bubbles, so their explanations
 belong in the status line.
 
-Not started.
+### Open, in build order
+
+Struck through as each ships. The order is `docs/MENUBAR.md`'s own, chosen
+so the cross-repository piece comes last rather than blocking the rest.
+
+1. **The menu with the commands that already exist** — File, Project,
+   Tools, Help, every item wired to something already implemented, plus
+   accelerators. No new capability, no new failure modes.
+2. **View: theme, language, zoom, sidebar toggle.** Theme and language
+   leave the sidebar footer. The catalog-to-Rust handoff gets built here,
+   on two items whose behaviour is already understood.
+3. **A context menu on a project row**, sharing the Project handlers.
+4. **About**, once something knows the engine version — the engine does
+   not report one today, so this is blocked on that, not on the menu.
+5. **Export the current view**, last, together with the inbound page
+   channel in `documentation.nvim`.
+
+### Two open questions this touches
+
+- **The window title says `docmap` twice** — once as the window title and
+  once as the sidebar heading. The fix is to make the window title name
+  the selected project (`<project> — docmap`), which needs a Rust command:
+  `core:window:default` grants `allow-title` (read) but not
+  `allow-set-title`. Worth doing with the menu work since both touch the
+  window shell.
+- **A bundled font.** Whether to ship JetBrains Mono as the default
+  monospace and offer a font setting at all. Not decided — see the note
+  under [Built](#built).
+
+### One branch deliberately not merged
+
+`claude/docnvim-title-branding-f5c876` (`ee93745`) adds branding to the
+window. Left unmerged on purpose: it adds a *third* repetition of the name
+to a window that already says it twice, which is the problem above rather
+than a fix for it. Its sibling half lives on `documentation.nvim`'s
+`claude/documentation-nvim-browser-title-805562` (two commits, also
+unmerged) and adds a topbar with the brand and a tagline to the generated
+page — a different question, and one worth answering separately from this
+app's own chrome.
 
 ---
 
