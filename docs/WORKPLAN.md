@@ -623,13 +623,12 @@ do is take the count with it: a number behind a click is a number nobody
 reads, which is this project's own rule and the reason the header carries
 it.
 
-- [ ] **Decide**: ninth tab with the header count staying put, or leave it
-      as is. Not a sub-tab of anything — it belongs to no view, which is
-      exactly why it is not in one now.
-- [ ] **Not the menu**, on the current evidence. `docs/MENUBAR.md`'s rule
-      is that a menu is for things you *do*; findings are a thing that is
-      *true*, and the same rule already keeps the engine verdict out of it.
-      A menu entry that scrolls to a list is a shortcut, not a home.
+- [x] ~~**Decide**~~ — ninth tab, built 2026-08-19 in `documentation.nvim`.
+      Last in the strip, because it is a report *about* the repository
+      rather than a way of reading it. The header count stayed exactly
+      where it was, and both counts now navigate to the tab instead of
+      scrolling to something below the fold, with the matching row still
+      flashed on arrival.
 
 ### 10.9 Which app features belong in the menu — a review, not a task
 
