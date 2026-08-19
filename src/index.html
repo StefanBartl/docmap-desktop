@@ -332,6 +332,28 @@
         </div>
       </section>
 
+      <!-- Telemetry. This app cannot produce any: the counts come from
+           wrapping functions inside a running Neovim that is executing the
+           plugin's own code. What it can do is read what was collected and
+           flip the persistent switch that decides whether the next session
+           collects at all -- which is a real capability, not a workaround:
+           the flag lives on disk precisely so a decision taken outside a
+           session survives into the next one. -->
+      <section class="prefs-section">
+        <h3 data-i18n="prefs.telemetry">Telemetry</h3>
+        <p class="addbox-note" data-i18n="prefs.telemetry.note">
+          Collected by <strong>runtime-analysis.nvim</strong> inside Neovim,
+          per plugin. Switching it here takes effect from the next Neovim
+          session — nothing in this window runs your plugin.
+        </p>
+        <p id="tel-state" class="prefs-state"></p>
+        <div class="prefs-buttons">
+          <button id="tel-toggle" type="button" hidden></button>
+        </div>
+        <p id="tel-snaps-label" class="prefs-snaplabel" hidden></p>
+        <ul id="tel-snaps" class="prefs-snaps" hidden></ul>
+      </section>
+
       <section class="prefs-section">
         <h3 data-i18n="prefs.nvim">Neovim</h3>
         <p class="addbox-note" data-i18n="prefs.nvim.note">

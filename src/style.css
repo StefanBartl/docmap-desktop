@@ -860,3 +860,34 @@ button:focus-visible {
   gap: 8px;
   flex-wrap: wrap;
 }
+
+/* Telemetry snapshots. A list, not a picker: choosing one would need
+   somewhere to show it, and this window renders no telemetry — the map's own
+   Analysis panel does, from data it reads itself. What this can honestly do
+   is say which captures exist and when they were taken. */
+.prefs-snaplabel {
+  margin: 8px 0 4px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.prefs-snaps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.prefs-snaps li {
+  padding: 5px 9px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink);
+  border-top: 1px solid var(--line);
+}
+
+.prefs-snaps li:first-child {
+  border-top: 0;
+}
