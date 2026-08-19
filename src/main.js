@@ -1097,10 +1097,11 @@ els.gen.addEventListener("click", () => selectedId && generateFor(selectedId));
  * whole window is where a job spanning every project belongs, and it does
  * not disappear when the sidebar is collapsed.
  */
-async function generateAll() {
+async function generateAll(only) {
   if (!engine.path || projects.length === 0) return;
 
-  const list = projects.slice();
+  const list = only ? projects.filter((p) => only.has(p.id)) : projects.slice();
+  if (list.length === 0) return;
   const failed = [];
   let ok = 0;
 
@@ -1146,6 +1147,42 @@ async function generateAll() {
       ? ok + " generated, " + failed.length + " failed: " + failed.join(", ")
       : ok + " project(s) generated"
   );
+}
+
+/**
+ * Generate only the projects whose maps have fallen behind.
+ *
+ * The staleness mark has been on screen since §6 with no command that acts
+ * on it, which is the gap this closes: the answer to "four of these are out
+ * of date" should not be four selections and four presses.
+ *
+ * The verdict is asked for fresh rather than read out of the cache. The
+ * cache only holds projects that have been *looked at*, so acting on it
+ * would quietly skip everything the reader has not opened — which is most
+ * of what this command exists for.
+ */
+async function generateStale() {
+  if (!engine.path || projects.length === 0) return;
+  say(t("gen.stale.checking"));
+
+  const stale = new Set();
+  for (const p of projects) {
+    try {
+      const f = await invoke("map_freshness", { id: p.id });
+      freshness.set(p.id, f);
+      if (f.stale) stale.add(p.id);
+    } catch (e) {
+      // A project that cannot be measured is not evidence that it is
+      // stale. Left alone, and named at the end by not being counted.
+      void e;
+    }
+  }
+
+  if (stale.size === 0) {
+    say(t("gen.stale.none"));
+    return;
+  }
+  await generateAll(stale);
 }
 
 // -------------------------------------------------------- context note
@@ -2230,11 +2267,25 @@ const MENU_ACTIONS = {
       say(String(e));
     }
   },
+  "menu.file.copy_path": async () => {
+    const p = projects.find((x) => x.id === selectedId);
+    if (!p) return;
+    try {
+      // The webview's own clipboard rather than a plugin: the text is a
+      // path this process already handed the page, so nothing new crosses
+      // the boundary and there is no second capability to grant.
+      await navigator.clipboard.writeText(p.root);
+      say(fill(t("copy.path.done"), { path: p.root }));
+    } catch (e) {
+      say(String(e));
+    }
+  },
   "menu.file.remove": () => selectedId && removeProject(selectedId),
   "menu.file.workspaces": () => openWorkspaces(),
   "menu.file.settings": () => openPrefs(),
   "menu.project.generate": () => selectedId && generateFor(selectedId),
   "menu.project.generate_all": () => generateAll(),
+  "menu.project.generate_stale": () => generateStale(),
   "menu.project.generate_full": () => selectedId && generateFor(selectedId, true),
   "menu.project.regenerate": async () => {
     if (!selectedId) return;
@@ -2262,6 +2313,13 @@ const MENU_ACTIONS = {
     syncMenu();
   },
   "menu.help.feedback": () => openFeedback(),
+  "menu.help.settings_folder": async () => {
+    try {
+      await invoke("reveal_settings");
+    } catch (e) {
+      say(String(e));
+    }
+  },
   "menu.help.about": () => openAbout(),
   "menu.help.usage": () => openDocs("usage"),
   "menu.help.engine": () => openDocs("engine"),
@@ -2469,6 +2527,7 @@ const PROJECT_CONTEXT = [
   "sep",
   "menu.file.open_browser",
   "menu.file.reveal",
+  "menu.file.copy_path",
   "sep",
   "menu.file.remove",
 ];
