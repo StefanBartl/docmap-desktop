@@ -486,7 +486,17 @@ can discover is a gesture nobody uses.
       is the gesture people try first and the most surprising thing in the
       view. Not changed here: it is existing behaviour with existing muscle
       memory, and swapping it deserves its own decision rather than riding
-      along with a breadcrumb.
+      along with a breadcrumb. **Still open, and still a decision for you.**
+
+      **The surprise is treated, though, and separately from the swap.** The
+      harm this entry names is *surprise*, and surprise has a cheaper cure
+      than a behaviour change: the tab's hover already explained the
+      double-click — this entry added it, on the argument that a gesture
+      nobody can discover is a gesture nobody uses — while saying nothing
+      about the click people actually make first. It names both now. Anyone
+      who reads the view's own explanation is no longer surprised by it;
+      whether the two gestures should trade places is a different question
+      and is not answered by that.
 
 ### 9.3 More views, other emphases
 
