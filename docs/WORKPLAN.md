@@ -457,20 +457,27 @@ The first feedback from a **built, installed** app rather than from the dev
 harness — which is a different instrument, and it found things the harness
 structurally cannot. Nothing here is fixed yet.
 
-### 10.1 The main pane goes blank after Regenerate
+### 10.1 The main pane goes blank after Regenerate — not reproduced, made loud
 
-Reported with a screenshot: `language.nvim` selected, sidebar populated,
-main pane white. The map had been showing before.
+**Could not be reproduced here**, and three plausible causes were ruled out
+rather than assumed:
 
-- [ ] Reproduce first. `generateFor` calls `refresh()` then `select(id)`,
-      and `select` rebuilds the frame URL from `mapStatus`. A blank pane
-      means either the frame src was set to something that does not load, or
-      `showPlaceholder("Generating…")` was never replaced.
-- [ ] Suspicion worth checking before anything else: `select()` now sets
-      `mapBase` *and* `mapTab = null`, and `mapUrl` appends `#tab=` only when
-      `mapTab` is set — so the URL differs between the first load and a
-      reload. If the frame is asked for a URL identical to its current one,
-      the browser may not reload at all.
+- The harness reloads correctly through the whole generate cycle — frame
+  visible, `src` set, placeholder gone.
+- A stale cached copy is not it: the local server sends `Cache-Control:
+  no-store` on every response.
+- `select()` does un-hide the frame, and only skips that when `map_status`
+  says there is no map — which would show a placeholder with text, not a
+  white pane.
+
+So instead of shipping a guess, the pane can no longer fail *silently*. The
+page posts a message once on load; if none arrives within eight seconds the
+pane says it stayed blank and names the URL it was asked for. That is proof
+the page **ran**, where an `onload` handler would only prove the browser
+fetched something.
+
+- [ ] Still open as a cause. If it recurs, the placeholder now carries the
+      URL, which is the first thing anybody would ask for.
 
 ### 10.2 ~~The theme still stops at the sidebar~~ — answered 2026-08-19
 
