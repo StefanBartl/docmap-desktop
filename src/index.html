@@ -292,6 +292,25 @@
          Neovim verdict are facts that decide whether the next action works,
          and a fact behind a click is a fact nobody reads. What moved here is
          the pointing-at-a-binary, which is done about once per machine. -->
+    <!-- About. A dialog rather than the platform's own about box, for one
+         reason: what belongs in it is the answer to "which versions am I
+         running", and that answer is only useful if it can be copied into
+         a bug report. A native box shows text nobody can select. -->
+    <dialog id="aboutbox" class="addbox">
+      <form method="dialog" class="addbox-close-form">
+        <button class="addbox-x" value="cancel" aria-label="Close">&times;</button>
+      </form>
+      <h2 class="addbox-title">docmap</h2>
+      <p class="tagline">know your project</p>
+      <p class="addbox-note" data-i18n="about.lead">
+        A window in front of the maps <strong>documentation.nvim</strong>
+        generates. Two programs, and a bug usually belongs to one of them —
+        which is what the block below is for.
+      </p>
+      <pre id="about-facts" class="fb-env"></pre>
+      <button id="about-copy" class="addbox-go" type="button" data-i18n="about.copy">Copy for a bug report</button>
+    </dialog>
+
     <dialog id="prefsbox" class="addbox">
       <form method="dialog" class="addbox-close-form">
         <button class="addbox-x" value="cancel" aria-label="Close">&times;</button>

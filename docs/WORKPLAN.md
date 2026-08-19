@@ -362,8 +362,16 @@ silent — the reader knows what they did.
 
 - [ ] Menu stage 3 — a context menu on a project row, sharing the Project
       submenu's handlers.
-- [ ] Menu stage 4 — **About**, blocked: the engine reports no version, so
-      there is nothing true to put in it.
+- [x] ~~Menu stage 4 — **About**~~ — built 2026-08-19. It was blocked on
+      the engine having nothing true to say about itself, and the fix went
+      into `documentation.nvim` rather than here: a version number would
+      have been fiction (the only tag is `standalone-latest`, the release
+      rolls), so the engine reports the artifact **schema** it writes and
+      the **commit it was built from** — stamped by `scripts/package.lua`
+      at bundle time, including whether that tree was clean, because a
+      commit that does not describe the binary sends a bug report to the
+      wrong diff. A dialog rather than the platform's about box, since the
+      whole point is text somebody can copy.
 - [ ] Menu stage 5 — **Export the current view**, blocked on the same
       inbound page channel as [§1](#1-the-map-pane-ignores-the-theme), and
       worth doing after it for that reason.
