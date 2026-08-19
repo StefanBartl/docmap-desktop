@@ -129,6 +129,8 @@ const GROUPS: &[Group] = &[
             item("menu.project.generate_all", Some("CmdOrCtrl+Shift+G"), false),
             Node::Separator,
             item("menu.project.regenerate", Some("F5"), true),
+            Node::Separator,
+            item("menu.project.generate_full", None, true),
         ],
     },
     Group {

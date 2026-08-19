@@ -29,7 +29,6 @@ const CATALOGS = {
   en: {
     "sidebar.add": "Add project…",
     "sidebar.generate": "Generate map",
-    "sidebar.generateAll": "Generate all",
     "sidebar.empty":
       "No projects yet. <strong>Add project…</strong> points this at a repository; it does not have to have a map already.",
     "engine.label": "Engine",
@@ -69,8 +68,6 @@ const CATALOGS = {
       "Add a project three ways: a folder on this machine, every plugin your Neovim config declares, or a repository URL — including a pick-list of your own GitHub repositories.",
     "help.generate":
       "Rebuild the selected project's map, overwriting what is there. Writes into that repository's docs/map.",
-    "help.generateAll":
-      "Rebuild every project in the list, one after another. The only button that writes to repositories you did not select — the label counts progress while it runs.",
     "menu.help.engine":
       "documentation.nvim's standalone binary — this app runs it, it does not replace it. The word beside the label is the verdict that decides whether generation works, and at what fidelity.",
     "help.engineLocate":
@@ -156,6 +153,9 @@ const CATALOGS = {
     "menu.project.generate": "Generate map",
     "menu.project.generate_all": "Generate all",
     "menu.project.regenerate": "Regenerate and reload",
+    "menu.project.generate_full": "Generate map (full)",
+    "gen.full.needsLuals": "Full generation needs lua-language-server on PATH. The map was not written; the ordinary Generate map still works and is complete apart from the type detail.",
+    "gen.all.progress": "Generating {n} of {total} — {name}",
     "menu.tools.engine": "Locate engine…",
     "menu.tools.grammars": "Grammars…",
     "menu.tools.nvim": "Locate nvim…",
@@ -167,7 +167,6 @@ const CATALOGS = {
   de: {
     "sidebar.add": "Projekt hinzufügen…",
     "sidebar.generate": "Karte erzeugen",
-    "sidebar.generateAll": "Alle erzeugen",
     "sidebar.empty":
       "Noch keine Projekte. <strong>Projekt hinzufügen…</strong> richtet das hier auf ein Repository; eine Karte muss es noch nicht haben.",
     "engine.label": "Engine",
@@ -207,8 +206,6 @@ const CATALOGS = {
       "Ein Projekt auf drei Wegen hinzufügen: ein Ordner auf diesem Rechner, jedes Plugin, das deine Neovim-Config deklariert, oder eine Repository-URL — samt Auswahlliste deiner eigenen GitHub-Repositories.",
     "help.generate":
       "Die Karte des gewählten Projekts neu bauen und die vorhandene überschreiben. Schreibt in dessen docs/map.",
-    "help.generateAll":
-      "Jedes Projekt der Liste neu bauen, eines nach dem anderen. Der einzige Knopf, der auch in Repositories schreibt, die du nicht ausgewählt hast — die Beschriftung zählt den Fortschritt mit.",
     "menu.help.engine":
       "Das Standalone-Binary von documentation.nvim — diese App führt es aus, sie ersetzt es nicht. Das Wort neben der Beschriftung ist das Urteil darüber, ob und wie genau erzeugt werden kann.",
     "help.engineLocate":
@@ -284,6 +281,9 @@ const CATALOGS = {
     "menu.project.generate": "Karte erzeugen",
     "menu.project.generate_all": "Alle erzeugen",
     "menu.project.regenerate": "Neu erzeugen und laden",
+    "menu.project.generate_full": "Karte erzeugen (full)",
+    "gen.full.needsLuals": "Für die volle Erzeugung muss lua-language-server auf PATH liegen. Es wurde nichts geschrieben; das normale Karte erzeugen funktioniert weiter und ist bis auf die Typdetails vollständig.",
+    "gen.all.progress": "Erzeuge {n} von {total} — {name}",
     "menu.tools.engine": "Engine suchen…",
     "menu.tools.grammars": "Grammatiken…",
     "menu.tools.nvim": "nvim suchen…",

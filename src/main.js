@@ -75,7 +75,6 @@ const els = {
   frame: document.getElementById("map"),
   placeholder: document.getElementById("placeholder"),
   gen: document.getElementById("gen"),
-  genAll: document.getElementById("gen-all"),
   engine: document.getElementById("engine"),
   engineSummary: document.getElementById("engine-summary"),
   engineState: document.getElementById("engine-state"),
@@ -714,7 +713,6 @@ function renderEngine() {
     is usable. */
 function syncActions() {
   els.gen.disabled = !engine.path || !selectedId;
-  els.genAll.disabled = !engine.path || projects.length === 0;
 }
 
 async function loadEngine() {
@@ -839,7 +837,7 @@ els.pickNvimConfig.addEventListener("click", async () => {
 
 // ---------------------------------------------------------- generation
 
-async function generateFor(id) {
+async function generateFor(id, full = false) {
   const p = projects.find((x) => x.id === id);
   if (!p) return;
 
@@ -857,7 +855,7 @@ async function generateFor(id) {
       els.gen,
       "Generating…",
       async () => {
-        const res = await invoke("generate", { root: p.root });
+        const res = await invoke("generate", { root: p.root, full });
         // The engine reports on stdout even when it succeeds, and its report
         // is the useful part — counts, coverage, findings. Show it either way.
         const log = [res.stdout, res.stderr].filter(Boolean).join("\n").trim();
@@ -874,6 +872,13 @@ async function generateFor(id) {
             "The engine exited with code " + res.code + "."
           );
           appendLog(log || "(no output)", true);
+          // The one failure this app can explain better than the engine
+          // can. `--full` is offered unconditionally, so the missing tool
+          // is a normal outcome rather than a broken install, and saying
+          // so in the placeholder beats leaving it to be found in the log.
+          if (full && /lua-language-server/.test(log)) {
+            showPlaceholder("Generation failed", t("gen.full.needsLuals"));
+          }
           say("Failed: " + p.name);
         }
       },
@@ -911,27 +916,48 @@ els.gen.addEventListener("click", () => selectedId && generateFor(selectedId));
 /// the point rather than an oversight: pressing a button named "Generate
 /// all" is the explicit request that the automatic path deliberately is
 /// not.
-els.genAll.addEventListener("click", async () => {
+/**
+ * Generate every project in the workspace.
+ *
+ * No longer a sidebar button. `docs/MENUBAR.md`'s rule is that the sidebar
+ * keeps exactly one command rather than a mirror of the menu, and this is
+ * the rare one — it writes into repositories you did not select, which is
+ * also why its wording never gets shortened.
+ *
+ * The progress used to be the button's own label. It is the status bar's
+ * now, which is a better home for it anyway: a bar that reports on the
+ * whole window is where a job spanning every project belongs, and it does
+ * not disappear when the sidebar is collapsed.
+ */
+async function generateAll() {
   if (!engine.path || projects.length === 0) return;
 
   const list = projects.slice();
-  const label = els.genAll.textContent;
   const failed = [];
   let ok = 0;
 
-  els.genAll.disabled = true;
   els.gen.disabled = true;
-  showPlaceholder("Generating all projects", "Running the engine over " + list.length + " project(s).");
+  showPlaceholder(
+    "Generating all projects",
+    "Running the engine over " + list.length + " project(s)."
+  );
 
   for (let i = 0; i < list.length; i++) {
     const p = list[i];
-    els.genAll.textContent = "Generating " + (i + 1) + "/" + list.length + "…";
-    say("Generating " + p.name + " (" + (i + 1) + "/" + list.length + ")");
+    say(
+      t("gen.all.progress")
+        .replace("{n}", String(i + 1))
+        .replace("{total}", String(list.length))
+        .replace("{name}", p.name)
+    );
     try {
-      const res = await invoke("generate", { root: p.root });
+      const res = await invoke("generate", { root: p.root, full: false });
       if (res.ok) {
         invalidate(p.map_dir);
         invalidateLanguages(p.root);
+        // The map just moved; the cached verdict about it is now a claim
+        // about a file that no longer exists in that state.
+        freshness.delete(p.id);
         ok++;
       } else {
         failed.push(p.name);
@@ -939,11 +965,11 @@ els.genAll.addEventListener("click", async () => {
     } catch (e) {
       // One unreachable project must not abandon the rest — the report at
       // the end names which ones failed.
+      void e;
       failed.push(p.name);
     }
   }
 
-  els.genAll.textContent = label;
   await refresh();
   if (selectedId) await select(selectedId);
   renderEngine();
@@ -952,7 +978,7 @@ els.genAll.addEventListener("click", async () => {
       ? ok + " generated, " + failed.length + " failed: " + failed.join(", ")
       : ok + " project(s) generated"
   );
-});
+}
 
 // -------------------------------------------------------- context note
 
@@ -1453,7 +1479,8 @@ const MENU_ACTIONS = {
   },
   "menu.file.remove": () => selectedId && removeProject(selectedId),
   "menu.project.generate": () => selectedId && generateFor(selectedId),
-  "menu.project.generate_all": () => els.genAll.click(),
+  "menu.project.generate_all": () => generateAll(),
+  "menu.project.generate_full": () => selectedId && generateFor(selectedId, true),
   "menu.project.regenerate": async () => {
     if (!selectedId) return;
     await generateFor(selectedId);
