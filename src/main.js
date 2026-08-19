@@ -68,6 +68,7 @@ const els = {
   detail: document.getElementById("proj-detail"),
   counts: document.getElementById("proj-counts"),
   langs: document.getElementById("proj-langs"),
+  schema: document.getElementById("proj-schema"),
   stale: document.getElementById("proj-stale"),
   empty: document.getElementById("empty"),
   add: document.getElementById("add"),
@@ -435,6 +436,12 @@ async function renderDetail() {
     : t("detail.nomap");
   els.counts.classList.toggle("nomap", !status.exists);
 
+  // A different question from "are the sources newer": this one is about
+  // the *engine*, and regenerating is the answer to both.
+  const older = schemaNote(status);
+  els.schema.textContent = older || "";
+  els.schema.hidden = !older;
+
   // Not awaited with the above: this walks the project directory, and
   // blocking the sidebar on a filesystem walk would trade a rendered panel
   // for a blank one.
@@ -461,6 +468,31 @@ async function renderDetail() {
  * file saved without an edit in it counts here and would not change a byte
  * of the artifact.
  */
+/**
+ * Say when a map was written by an older engine than the one installed.
+ *
+ * This is the failure that cost an evening: the theme fix shipped, the app
+ * had it, and the map on disk did not — because a generated page is baked
+ * at generation time and the engine that baked it was older. From the
+ * outside that is indistinguishable from a broken feature.
+ *
+ * Both halves are now readable: the engine reports the schema it writes,
+ * and the artifact carries the schema it was written with. An engine that
+ * reports nothing is simply older than the field, and then this says
+ * nothing rather than guessing — the comparison needs both sides.
+ */
+function schemaNote(status) {
+  const engineSchema = engineLangs && engineLangs.schema;
+  if (!engineSchema || !status.exists) return null;
+  // A map with no schema at all predates the field, which is strictly
+  // older than any engine that reports one.
+  const mapSchema = status.schema ?? 0;
+  if (mapSchema >= engineSchema) return null;
+  return t("detail.oldSchema")
+    .replace("{map}", mapSchema || "?")
+    .replace("{engine}", engineSchema);
+}
+
 async function refreshFreshness(id) {
   els.stale.hidden = true;
   try {
