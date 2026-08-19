@@ -748,17 +748,38 @@ be switched off and one workspace always loads.
 
 ### The work
 
-- [ ] Storage: `workspaces/<name>.json` beside the current file, or one
-      file with a map. The first shape survives a corrupted workspace
-      losing only that one, which is the argument for it.
-- [ ] Create, rename, delete, switch. Deleting needs the same wording care
-      `Remove from workspace` has: it removes a list, never a repository.
-- [ ] The dashboard itself, and the rule for when it appears.
-- [ ] `File → Switch workspace…` — this one *is* a menu item: it is
-      something you do.
-- [ ] The window title should say which workspace, once there can be more
-      than one. It already names the project; `<project> — <workspace> —
-      docmap` is a lot, so this needs a decision rather than an append.
+**Built 2026-08-19.** Decision 1 was taken both ways: the dashboard shows
+on a first run and whenever there is more than one workspace, *and* the
+checkbox exists — for the reader who has several and still wants to land in
+the last one, which is the case the rule alone gets wrong. Decision 2 stands
+as written: a workspace is projects and nothing else. Decision 3 is a silent
+in-place migration — an existing inline project list moves out to
+`workspaces/Default.json` the first time it is read, and is never asked
+about.
+
+- [x] ~~Storage: `workspaces/<name>.json` beside the current file~~ — the
+      per-file shape, for the reason given: `workspace.json` keeps the
+      settings and which workspace is active, `workspaces/<name>.json`
+      keeps that one's project list. A name is typed by a person and
+      becomes a path, so `workspace_file_name()` reduces it to
+      alphanumerics, `-`, `_` and space, with three tests including
+      `../../etc/passwd`.
+- [x] ~~Create, rename, delete, switch~~ — switching creates, which is why
+      there is no separate *New* verb to explain. Deleting refuses the last
+      workspace, and says what it removes: the list, never a repository.
+- [x] ~~The dashboard itself, and the rule for when it appears~~.
+- [x] ~~`File → Workspaces…`~~ — `Ctrl+Shift+W`.
+- [x] ~~The window title should say which workspace~~ — decided rather
+      than appended: it names the workspace **only when there is more than
+      one**, which is the only time the answer is news. One workspace still
+      reads `<project> — docmap`.
+
+Not done, and named rather than left implied: switching clears the
+selection, the map, and the cached freshness and page counts, because a
+selection from the old workspace would leave the sidebar naming one project
+and the map showing another. What it does *not* do is remember a last
+selection **per** workspace — `LAST_KEY` is still one value, so the restore
+is skipped entirely whenever the dashboard is shown.
 
 ---
 

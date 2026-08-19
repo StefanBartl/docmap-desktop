@@ -102,6 +102,88 @@ struct Workspace {
     /// double-clicking the file in a file manager would do.
     #[serde(default)]
     editor: Option<String>,
+    /// Which named workspace is loaded.
+    ///
+    /// Lives beside the settings rather than inside a workspace, because
+    /// "which set of projects am I looking at" is a property of this
+    /// machine — the same reasoning that keeps theme and engine paths out
+    /// of a workspace. `None` on a file written before workspaces existed.
+    #[serde(default)]
+    active: Option<String>,
+}
+
+/// The name of the workspace a fresh install starts in.
+///
+/// Named rather than empty so the dashboard has something to show and the
+/// file on disk has something to be called. It is renameable like any other.
+const DEFAULT_WORKSPACE: &str = "Default";
+
+/// A workspace name as a filename.
+///
+/// A name is typed by a person and becomes a path, which is the shape of
+/// every directory-traversal bug ever written. Everything outside this set
+/// becomes `_`; a name that reduces to nothing falls back to the default
+/// rather than writing to the directory itself.
+fn workspace_file_name(name: &str) -> String {
+    let safe: String = name
+        .chars()
+        .map(|c| {
+            if c.is_alphanumeric() || c == '-' || c == '_' || c == ' ' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    // No leading-dot guard: a dot is not in the allowed set, so it has
+    // already become `_` above. One was written here first and removed for
+    // suggesting a protection that nothing needs.
+    let trimmed = safe.trim().to_string();
+    if trimmed.is_empty() {
+        DEFAULT_WORKSPACE.to_string()
+    } else {
+        trimmed
+    }
+}
+
+fn workspaces_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let dir = app
+        .path()
+        .app_config_dir()
+        .map_err(|e| format!("no config directory: {e}"))?
+        .join("workspaces");
+    fs::create_dir_all(&dir).map_err(|e| format!("cannot create {}: {e}", dir.display()))?;
+    Ok(dir)
+}
+
+fn workspace_projects_path(app: &tauri::AppHandle, name: &str) -> Result<PathBuf, String> {
+    Ok(workspaces_dir(app)?.join(format!("{}.json", workspace_file_name(name))))
+}
+
+/// Every workspace that exists, by name, sorted.
+///
+/// Read from the directory rather than from an index kept beside it: an
+/// index is a second thing to keep in step, and the answer to "which
+/// workspaces are there" is already spelled by the files.
+pub fn workspace_names(app: &tauri::AppHandle) -> Result<Vec<String>, String> {
+    let dir = workspaces_dir(app)?;
+    let mut names = Vec::new();
+    if let Ok(entries) = fs::read_dir(&dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) != Some("json") {
+                continue;
+            }
+            if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                names.push(stem.to_string());
+            }
+        }
+    }
+    if names.is_empty() {
+        names.push(DEFAULT_WORKSPACE.to_string());
+    }
+    names.sort_by_key(|n| n.to_lowercase());
+    Ok(names)
 }
 
 /// Where the project list lives.
@@ -118,7 +200,8 @@ fn workspace_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(dir.join("workspace.json"))
 }
 
-fn read_workspace(app: &tauri::AppHandle) -> Result<Workspace, String> {
+/// The settings file, without the project list attached.
+fn read_settings(app: &tauri::AppHandle) -> Result<Workspace, String> {
     let path = workspace_path(app)?;
     match fs::read_to_string(&path) {
         Ok(body) => serde_json::from_str(&body)
@@ -130,9 +213,67 @@ fn read_workspace(app: &tauri::AppHandle) -> Result<Workspace, String> {
     }
 }
 
+/// The settings, with the active workspace's projects attached.
+///
+/// **Every command above and below this still sees one `Workspace`.** The
+/// split — settings in one file, each project list in its own — is entirely
+/// inside this function and its writer, which is why adding workspaces
+/// changed no command that operates on projects.
+///
+/// Migration happens here and is not asked about: a file written before
+/// workspaces existed carries its projects inline, and they become the
+/// first workspace. A feature whose first act is losing somebody's project
+/// list is not a feature.
+fn read_workspace(app: &tauri::AppHandle) -> Result<Workspace, String> {
+    let mut ws = read_settings(app)?;
+    let name = ws.active.clone().unwrap_or_else(|| DEFAULT_WORKSPACE.to_string());
+    let path = workspace_projects_path(app, &name)?;
+
+    if path.is_file() {
+        let body = fs::read_to_string(&path)
+            .map_err(|e| format!("cannot read {}: {e}", path.display()))?;
+        ws.projects = serde_json::from_str(&body)
+            .map_err(|e| format!("{} is not readable as a project list: {e}", path.display()))?;
+    } else if !ws.projects.is_empty() {
+        // Pre-workspace file with projects inline. Written out under the
+        // active name so the next read finds it where it now belongs.
+        let body = serde_json::to_string_pretty(&ws.projects)
+            .map_err(|e| format!("cannot serialise: {e}"))?;
+        fs::write(&path, body).map_err(|e| format!("cannot write {}: {e}", path.display()))?;
+    }
+
+    ws.active = Some(name);
+    Ok(ws)
+}
+
 fn write_workspace(app: &tauri::AppHandle, ws: &Workspace) -> Result<(), String> {
+    let name = ws.active.clone().unwrap_or_else(|| DEFAULT_WORKSPACE.to_string());
+
+    // The project list, in its own file. Written first: if the settings
+    // write fails afterwards the projects are still saved, which is the
+    // right way round for the half nobody can retype.
+    let list_path = workspace_projects_path(app, &name)?;
+    let list = serde_json::to_string_pretty(&ws.projects)
+        .map_err(|e| format!("cannot serialise: {e}"))?;
+    fs::write(&list_path, list)
+        .map_err(|e| format!("cannot write {}: {e}", list_path.display()))?;
+
+    // The settings, with the list left out — it would be a stale second
+    // copy the moment anything is added to the real one.
+    let mut settings = Workspace {
+        projects: Vec::new(),
+        active: Some(name),
+        ..Default::default()
+    };
+    settings.engine = ws.engine.clone();
+    settings.grammars = ws.grammars.clone();
+    settings.nvim_path = ws.nvim_path.clone();
+    settings.nvim_config_dir = ws.nvim_config_dir.clone();
+    settings.editor = ws.editor.clone();
+
     let path = workspace_path(app)?;
-    let body = serde_json::to_string_pretty(ws).map_err(|e| format!("cannot serialise: {e}"))?;
+    let body = serde_json::to_string_pretty(&settings)
+        .map_err(|e| format!("cannot serialise: {e}"))?;
     fs::write(&path, body).map_err(|e| format!("cannot write {}: {e}", path.display()))
 }
 
@@ -1142,6 +1283,138 @@ fn editor_command(app: tauri::AppHandle, set: Option<String>) -> Result<Option<S
     Ok(read_workspace(&app)?.editor)
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkspaceEntry {
+    name: String,
+    projects: usize,
+    active: bool,
+}
+
+/// Every workspace, with how many projects each holds.
+///
+/// The count is what makes the dashboard worth looking at — a list of
+/// names says nothing about which one you meant.
+#[tauri::command]
+fn list_workspaces(app: tauri::AppHandle) -> Result<Vec<WorkspaceEntry>, String> {
+    let active = read_settings(&app)?
+        .active
+        .unwrap_or_else(|| DEFAULT_WORKSPACE.to_string());
+    // Reading the active one through `read_workspace` first performs the
+    // migration, so a first run after an update lists the projects that
+    // were inline rather than an empty Default.
+    let _ = read_workspace(&app)?;
+
+    let mut out = Vec::new();
+    for name in workspace_names(&app)? {
+        let path = workspace_projects_path(&app, &name)?;
+        let projects = fs::read_to_string(&path)
+            .ok()
+            .and_then(|b| serde_json::from_str::<Vec<Project>>(&b).ok())
+            .map(|p| p.len())
+            .unwrap_or(0);
+        out.push(WorkspaceEntry {
+            active: name == active,
+            name,
+            projects,
+        });
+    }
+    Ok(out)
+}
+
+/// Switch to a workspace, creating it if it does not exist yet.
+///
+/// Creating on switch rather than refusing: the two are the same act from
+/// the dashboard's point of view, and a "create" that then needs a
+/// "switch" is two clicks for one intention.
+#[tauri::command]
+fn switch_workspace(app: tauri::AppHandle, name: String) -> Result<Vec<Project>, String> {
+    let clean = workspace_file_name(&name);
+    let _guard = WORKSPACE_LOCK
+        .lock()
+        .map_err(|_| "workspace lock poisoned".to_string())?;
+
+    // The current list is already on disk under its own name; only the
+    // pointer moves.
+    let mut settings = read_settings(&app)?;
+    settings.active = Some(clean.clone());
+    settings.projects = Vec::new();
+    let path = workspace_path(&app)?;
+    let body = serde_json::to_string_pretty(&settings)
+        .map_err(|e| format!("cannot serialise: {e}"))?;
+    fs::write(&path, body).map_err(|e| format!("cannot write {}: {e}", path.display()))?;
+
+    // A workspace that has never been written yet is an empty one, and an
+    // empty file now is what makes it appear in the list.
+    let list_path = workspace_projects_path(&app, &clean)?;
+    if !list_path.is_file() {
+        fs::write(&list_path, "[]")
+            .map_err(|e| format!("cannot write {}: {e}", list_path.display()))?;
+    }
+    drop(_guard);
+    Ok(read_workspace(&app)?.projects)
+}
+
+/// Rename a workspace, moving its project list with it.
+#[tauri::command]
+fn rename_workspace(app: tauri::AppHandle, from: String, to: String) -> Result<(), String> {
+    let from_clean = workspace_file_name(&from);
+    let to_clean = workspace_file_name(&to);
+    if from_clean == to_clean {
+        return Ok(());
+    }
+    let src = workspace_projects_path(&app, &from_clean)?;
+    let dst = workspace_projects_path(&app, &to_clean)?;
+    if dst.is_file() {
+        return Err(format!("{to_clean} already exists"));
+    }
+    fs::rename(&src, &dst).map_err(|e| format!("cannot rename: {e}"))?;
+
+    let mut settings = read_settings(&app)?;
+    if settings.active.as_deref() == Some(from_clean.as_str()) {
+        settings.active = Some(to_clean);
+    }
+    settings.projects = Vec::new();
+    let path = workspace_path(&app)?;
+    let body = serde_json::to_string_pretty(&settings)
+        .map_err(|e| format!("cannot serialise: {e}"))?;
+    fs::write(&path, body).map_err(|e| format!("cannot write {}: {e}", path.display()))
+}
+
+/// Delete a workspace.
+///
+/// Removes a list of paths, never a repository — the same promise
+/// `remove_project` makes, one scale up, and the wording in the UI has to
+/// carry it.
+///
+/// The last one cannot be deleted: an app with no workspace has nowhere to
+/// put the next project, and "delete everything" is not what somebody
+/// pressing delete on one row meant.
+#[tauri::command]
+fn delete_workspace(app: tauri::AppHandle, name: String) -> Result<Vec<WorkspaceEntry>, String> {
+    let clean = workspace_file_name(&name);
+    if workspace_names(&app)?.len() <= 1 {
+        return Err("the last workspace cannot be deleted".to_string());
+    }
+    let path = workspace_projects_path(&app, &clean)?;
+    fs::remove_file(&path).map_err(|e| format!("cannot delete {}: {e}", path.display()))?;
+
+    let mut settings = read_settings(&app)?;
+    if settings.active.as_deref() == Some(clean.as_str()) {
+        // Deleting what you are standing in has to land somewhere, and the
+        // first remaining one is the only choice that needs no guessing.
+        settings.active = workspace_names(&app)?.into_iter().next();
+    }
+    settings.projects = Vec::new();
+    let settings_path = workspace_path(&app)?;
+    let body = serde_json::to_string_pretty(&settings)
+        .map_err(|e| format!("cannot serialise: {e}"))?;
+    fs::write(&settings_path, body)
+        .map_err(|e| format!("cannot write {}: {e}", settings_path.display()))?;
+
+    list_workspaces(app)
+}
+
 /// One directory of a project, as it is on disk.
 ///
 /// One level per call: a repository is tens of thousands of files and a
@@ -1424,6 +1697,10 @@ fn main() {
             project_icon,
             open_in_editor,
             file_tree,
+            list_workspaces,
+            switch_workspace,
+            rename_workspace,
+            delete_workspace,
             editor_command,
             telemetry_info,
             set_telemetry,
@@ -1493,6 +1770,34 @@ mod tests {
             portable(std::path::Path::new("/home/x/grammars")),
             "/home/x/grammars"
         );
+    }
+
+    #[test]
+    fn a_workspace_name_cannot_escape_its_directory() {
+        // A name is typed by a person and becomes a filename, which is the
+        // shape of every directory-traversal bug ever written.
+        assert_eq!(workspace_file_name("../../etc/passwd"), "______etc_passwd");
+        assert_eq!(workspace_file_name("work/side"), "work_side");
+        assert_eq!(workspace_file_name(r"C:\evil"), "C__evil");
+    }
+
+    #[test]
+    fn a_name_that_reduces_to_nothing_falls_back() {
+        // An empty filename would write to the directory itself.
+        // `...` is *not* one of these: every dot has already become `_`,
+        // so it is a safe if ugly name rather than a fallback case.
+        assert_eq!(workspace_file_name("..."), "___");
+        assert_eq!(workspace_file_name("   "), DEFAULT_WORKSPACE);
+        assert_eq!(workspace_file_name(""), DEFAULT_WORKSPACE);
+    }
+
+    #[test]
+    fn ordinary_names_survive_intact() {
+        // The sanitiser must not mangle what people will actually type,
+        // or every workspace ends up called something with underscores in.
+        assert_eq!(workspace_file_name("Work"), "Work");
+        assert_eq!(workspace_file_name("nvim plugins"), "nvim plugins");
+        assert_eq!(workspace_file_name("client-2026"), "client-2026");
     }
 
     #[cfg(not(target_os = "macos"))]

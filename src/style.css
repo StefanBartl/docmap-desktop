@@ -1122,3 +1122,77 @@ button:focus-visible {
   color: var(--muted);
   font-size: 12.5px;
 }
+
+/* ------------------------------------------------------------ workspaces
+
+   A list of sets of projects. Each row is one press to switch, with rename
+   and delete beside it — the two actions that need to be reachable and must
+   not be the easy ones to hit. */
+.ws-list {
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.ws-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-top: 1px solid var(--line);
+  padding-right: 6px;
+}
+
+.ws-row:first-child {
+  border-top: 0;
+}
+
+.ws-row.active {
+  background: var(--accent-soft);
+}
+
+.ws-open {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 12px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ws-open .n {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ws-open .c {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.ws-act {
+  flex: 0 0 auto;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11.5px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+
+.ws-act:hover {
+  color: var(--ink);
+  border-color: var(--line);
+}
