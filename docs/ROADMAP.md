@@ -128,6 +128,26 @@ new message.
 
 ---
 
+## A menu bar
+
+The sidebar grew three different kinds of thing into one column: the subject
+(the project list), commands (seven buttons, four of them configuration
+touched once per machine), and state (the engine verdict, the language
+badges). A conventional menu bar is the right home for the middle one.
+
+Designed in full in [docs/MENUBAR.md](MENUBAR.md), including the rule that
+decides every item — **a menu is for things you do, the window is for things
+that are true** — and four constraints that are invisible from outside: the
+page channel is one-way, so exporting the current view needs a change in
+`documentation.nvim`; native menu labels are not in the DOM, so the i18n
+catalog has to reach Rust without becoming a second catalog; macOS needs its
+own tree; and menu items cannot carry the help bubbles, so their explanations
+belong in the status line.
+
+Not started.
+
+---
+
 ## Languages — saying which ones this can read
 
 The engine gained a language seam (`core/lang_registry.lua`) and four
