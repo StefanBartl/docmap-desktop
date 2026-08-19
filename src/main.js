@@ -1478,6 +1478,7 @@ const MENU_ACTIONS = {
     }
   },
   "menu.file.remove": () => selectedId && removeProject(selectedId),
+  "menu.file.settings": () => openPrefs(),
   "menu.project.generate": () => selectedId && generateFor(selectedId),
   "menu.project.generate_all": () => generateAll(),
   "menu.project.generate_full": () => selectedId && generateFor(selectedId, true),
@@ -1486,10 +1487,6 @@ const MENU_ACTIONS = {
     await generateFor(selectedId);
     await select(selectedId);
   },
-  "menu.tools.engine": () => els.pickEngine.click(),
-  "menu.tools.grammars": () => els.pickGrammars.click(),
-  "menu.tools.nvim": () => els.pickNvim.click(),
-  "menu.tools.nvim_config": () => els.pickNvimConfig.click(),
   "menu.view.theme.system": () => chooseTheme("system"),
   "menu.view.theme.light": () => chooseTheme("light"),
   "menu.view.theme.dark": () => chooseTheme("dark"),
@@ -1562,6 +1559,23 @@ function chooseLocale(code) {
   document.getElementById("lang").value = locale;
   applyLocale();
   syncMenu();
+}
+
+/**
+ * Open Settings.
+ *
+ * The engine and Neovim state is copied in when it opens rather than kept
+ * in step continuously: the dialog is modal, so the sidebar's own copy is
+ * behind it and the two are never on screen together — and a path being
+ * pointed at is exactly what someone wants to read while they point at a
+ * different one.
+ */
+function openPrefs() {
+  document.getElementById("prefs-engine-state").textContent =
+    els.engineState.textContent;
+  document.getElementById("prefs-nvim-state").textContent =
+    els.nvimState.textContent;
+  document.getElementById("prefsbox").showModal();
 }
 
 async function openDocs(page) {

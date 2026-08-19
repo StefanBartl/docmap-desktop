@@ -140,30 +140,32 @@ generated is not behind, it is absent.
       having as the thing that settles it.
 
 ---
-## 4. Settings
+## 4. ~~Settings~~ — built 2026-08-19
 
-**Asked:** *File → Settings*, opening a window with language, theme, engine
-and Neovim state, and room for what comes later.
+`docs/MENUBAR.md` argued against a dialog while there were two controls to
+put in it and named the condition that would make it right: more than a
+handful, and somewhere for what comes next to live. Both hold now.
 
-`docs/MENUBAR.md` argued against this — "a dialog for two controls is a
-click in front of a switch" — and named the condition under which it becomes
-right: the moment there is more than a handful of settings. That condition
-is now met by the request itself, and the "room for later" argument is the
-stronger one: per-project settings are already on the roadmap and have
-nowhere to live.
+Sections rather than a flat list — Appearance, Engine, Neovim — because a
+list that grows becomes a wall.
 
-- [ ] A Settings dialog, same frame as the Add and Feedback dialogs.
-- [ ] It takes over as the **home** for theme, language, engine path,
-      grammars path, nvim path and config path — the four Tools items become
-      one Settings entry, and the sidebar footer's two selects go away.
-- [ ] **View keeps theme**, and nothing else moves back. A theme toggle is
-      flipped often enough to earn a place two clicks closer; an engine path
-      is not. That is one deliberate duplication, written down here so it is
-      a decision rather than a drift.
-- [ ] Room for later means a shape that grows: sections, not a flat list.
+**Tools is gone.** It held exactly the four things Settings now owns, so
+one File entry replaced a whole submenu. `Ctrl+,`, which is where every
+other desktop application puts it.
+
+**State stayed in the sidebar**, per the rule: the engine and Neovim
+verdicts decide whether the next action works, and a fact behind a click
+is a fact nobody reads. What moved is the pointing-at-a-binary, done about
+once per machine. The dialog shows the current path while you replace it,
+which is a different fact from the verdict and is never on screen at the
+same time — the dialog is modal over the sidebar.
+
+The Rust test that asserts a missing label is refused caught the rename by
+failing: it removed `menu.tools.grammars`, which no longer existed, so it
+removed nothing and the menu built fine. It now asserts the key it is
+about to remove still exists.
 
 ---
-
 ## 5. ~~The project list — a dropdown, sorted~~ — built 2026-08-19
 
 A native `<select>` and a sort control, where a list of rows used to be.
