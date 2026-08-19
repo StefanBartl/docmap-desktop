@@ -124,6 +124,7 @@ const GROUPS: &[Group] = &[
             Node::Separator,
             item("menu.file.remove", Some("Delete"), true),
             Node::Separator,
+            item("menu.file.workspaces", Some("CmdOrCtrl+Shift+W"), false),
             item("menu.file.settings", Some("CmdOrCtrl+,"), false),
         ],
     },

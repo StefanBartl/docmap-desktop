@@ -1225,6 +1225,12 @@ window.addEventListener("message", (ev) => {
     await loadEngine();
     await loadNvim();
     await refresh();
+    // The dashboard decides for itself whether it is worth showing: one
+    // workspace is not a choice. When it does show, the last selection is
+    // not restored — it belongs to whichever workspace is picked, and
+    // restoring it first would flash a project from the old one.
+    const chose = await maybeOpenWorkspaces();
+    if (chose) return;
     const last = localStorage.getItem(LAST_KEY);
     if (last && projects.some((p) => p.id === last)) await select(last);
   } catch (e) {
@@ -2008,6 +2014,188 @@ function setFiles(on) {
   syncMenu();
 }
 
+
+// =====================================================================
+// Workspaces
+//
+// A workspace is a set of projects and nothing else. Theme, language, zoom
+// and the engine paths stay properties of this machine — carrying them per
+// workspace would change somebody's lighting when they switch project sets,
+// which is not what switching project sets is for.
+//
+// **When the dashboard appears** is a decision rather than a setting: on a
+// first run, and whenever there is more than one workspace. Somebody with a
+// single workspace never sees it, which is what a "don't show again"
+// checkbox buys — without a setting to find. The checkbox exists anyway,
+// for the reader who has several and still wants to land in the last one.
+// =====================================================================
+
+const WS_SKIP_KEY = "docmap.skipWorkspaceDashboard";
+
+/**
+ * The workspace the app is in, and how many exist.
+ *
+ * Kept here rather than asked for at each use: the window title needs both
+ * on every project change, and a title is not worth a round trip.
+ */
+let activeWorkspace = null;
+let workspaceCount = 1;
+
+const ws = {
+  box: document.getElementById("wsbox"),
+  list: document.getElementById("ws-list"),
+  name: document.getElementById("ws-new"),
+  create: document.getElementById("ws-create"),
+  problem: document.getElementById("ws-problem"),
+  skip: document.getElementById("ws-skip"),
+};
+
+function wsSkipped() {
+  try {
+    return localStorage.getItem(WS_SKIP_KEY) === "1";
+  } catch (e) {
+    void e;
+    return false;
+  }
+}
+
+async function renderWorkspaces() {
+  let entries;
+  try {
+    entries = await invoke("list_workspaces");
+  } catch (e) {
+    ws.problem.textContent = String(e);
+    ws.problem.hidden = false;
+    return [];
+  }
+  activeWorkspace = (entries.find((w) => w.active) || {}).name || null;
+  workspaceCount = entries.length;
+  ws.list.innerHTML = "";
+  entries.forEach((w) => {
+    const li = document.createElement("li");
+    li.className = "ws-row" + (w.active ? " active" : "");
+
+    const open = document.createElement("button");
+    open.type = "button";
+    open.className = "ws-open";
+    const n = document.createElement("span");
+    n.className = "n";
+    n.textContent = w.name;
+    const c = document.createElement("span");
+    c.className = "c";
+    c.textContent = fill(t("ws.count"), { n: w.projects });
+    open.append(n, c);
+    open.addEventListener("click", () => useWorkspace(w.name));
+    li.append(open);
+
+    const ren = document.createElement("button");
+    ren.type = "button";
+    ren.className = "ws-act";
+    ren.textContent = t("ws.rename");
+    ren.addEventListener("click", async () => {
+      const to = prompt(t("ws.rename.prompt"), w.name);
+      if (!to || to === w.name) return;
+      try {
+        await invoke("rename_workspace", { from: w.name, to });
+        await renderWorkspaces();
+      } catch (e) {
+        ws.problem.textContent = String(e);
+        ws.problem.hidden = false;
+      }
+    });
+
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "ws-act";
+    del.textContent = t("ws.delete");
+    del.addEventListener("click", async () => {
+      // The wording has to survive being misread: this removes a list, never
+      // a repository — the same promise "Remove from workspace" makes, one
+      // scale up.
+      if (!confirm(fill(t("ws.delete.confirm"), { name: w.name }))) return;
+      try {
+        await invoke("delete_workspace", { name: w.name });
+        await renderWorkspaces();
+      } catch (e) {
+        ws.problem.textContent = String(e);
+        ws.problem.hidden = false;
+      }
+    });
+
+    li.append(ren, del);
+    ws.list.append(li);
+  });
+  return entries;
+}
+
+/** Switch to a workspace and close the dashboard. */
+async function useWorkspace(name) {
+  ws.problem.hidden = true;
+  try {
+    const list = await invoke("switch_workspace", { name });
+    activeWorkspace = name;
+    // Nothing from the old workspace may survive the switch: a selection
+    // pointing at a project this workspace does not contain would leave the
+    // sidebar naming one thing and the map showing another.
+    selectedId = null;
+    mapBase = null;
+    freshness.clear();
+    pageCounts.clear();
+    showPlaceholder("Nothing selected", "Pick a project on the left.");
+    await refresh(list);
+    // Re-listed because switching can *create*: the count in the title
+    // would otherwise be one behind the workspace you are now in.
+    await renderWorkspaces();
+    titleFor(null);
+    ws.box.close();
+  } catch (e) {
+    ws.problem.textContent = String(e);
+    ws.problem.hidden = false;
+  }
+}
+
+ws.create.addEventListener("click", () => {
+  const name = ws.name.value.trim();
+  if (!name) return;
+  ws.name.value = "";
+  useWorkspace(name);
+});
+
+ws.skip.addEventListener("change", () => {
+  try {
+    localStorage.setItem(WS_SKIP_KEY, ws.skip.checked ? "1" : "0");
+  } catch (e) {
+    void e;
+  }
+});
+
+async function openWorkspaces() {
+  ws.problem.hidden = true;
+  ws.skip.checked = wsSkipped();
+  await renderWorkspaces();
+  ws.box.showModal();
+}
+
+/**
+ * Show the dashboard at startup, or do not.
+ *
+ * Returns whether it was shown, so the caller knows whether a project list
+ * is already on screen or is about to be chosen.
+ */
+async function maybeOpenWorkspaces() {
+  // Listed even when the dashboard is skipped: the window title needs to
+  // know which workspace this is and how many there are, and skipping the
+  // *dashboard* is not skipping the fact.
+  const entries = await renderWorkspaces();
+  if (wsSkipped()) return false;
+  // One workspace is not a choice, and a chooser with one row is a click in
+  // front of the thing you wanted.
+  if (entries.length < 2) return false;
+  ws.skip.checked = false;
+  ws.box.showModal();
+  return true;
+}
+
 // =====================================================================
 // The menu bar
 //
@@ -2043,6 +2231,7 @@ const MENU_ACTIONS = {
     }
   },
   "menu.file.remove": () => selectedId && removeProject(selectedId),
+  "menu.file.workspaces": () => openWorkspaces(),
   "menu.file.settings": () => openPrefs(),
   "menu.project.generate": () => selectedId && generateFor(selectedId),
   "menu.project.generate_all": () => generateAll(),
@@ -2089,8 +2278,14 @@ const MENU_ACTIONS = {
  * subject, and the interface is the only thing the catalog speaks for.
  */
 function titleFor(project) {
-  const title = project ? project.name + " — docmap" : "docmap";
-  invoke("set_window_title", { title }).catch((e) => void e);
+  // The workspace is named only when there is more than one, which is the
+  // only time the answer is news. `<project> — <workspace> — docmap` is a
+  // long title to carry for somebody who will never have a second one.
+  const parts = [];
+  if (project) parts.push(project.name);
+  if (workspaceCount > 1 && activeWorkspace) parts.push(activeWorkspace);
+  parts.push("docmap");
+  invoke("set_window_title", { title: parts.join(" — ") }).catch((e) => void e);
 }
 
 /** Must match `menu::LOCALE_ID`. */

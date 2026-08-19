@@ -319,6 +319,40 @@
          reason: what belongs in it is the answer to "which versions am I
          running", and that answer is only useful if it can be copied into
          a bug report. A native box shows text nobody can select. -->
+    <!-- The workspace dashboard.
+         Shown on a first run and whenever there is more than one workspace —
+         somebody with a single workspace never sees it, which is the outcome
+         a "don't show again" checkbox buys without a setting to find. The
+         checkbox is there anyway for the case that argument gets wrong: more
+         than one workspace and still wanting to land straight in the last
+         one. -->
+    <dialog id="wsbox" class="addbox">
+      <form method="dialog" class="addbox-close-form">
+        <button class="addbox-x" value="cancel" aria-label="Close">&times;</button>
+      </form>
+
+      <h2 class="addbox-title" data-i18n="ws.title">Workspaces</h2>
+      <p class="addbox-note" data-i18n="ws.lead">
+        Each workspace is its own set of projects. Settings — theme, language,
+        engine paths — belong to this machine and are shared by all of them.
+      </p>
+
+      <ul id="ws-list" class="ws-list"></ul>
+
+      <div class="addbox-row">
+        <input id="ws-new" type="text" autocomplete="off"
+               data-i18n-placeholder="ws.new.placeholder" placeholder="New workspace…" />
+        <button id="ws-create" class="addbox-go" type="button" data-i18n="ws.create">Create</button>
+      </div>
+
+      <p id="ws-problem" class="addbox-note fb-problem" hidden></p>
+
+      <label class="fb-check">
+        <input id="ws-skip" type="checkbox" />
+        <span data-i18n="ws.skip">Don't show this again — open the last workspace</span>
+      </label>
+    </dialog>
+
     <dialog id="aboutbox" class="addbox">
       <form method="dialog" class="addbox-close-form">
         <button class="addbox-x" value="cancel" aria-label="Close">&times;</button>
