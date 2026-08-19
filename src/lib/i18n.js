@@ -72,7 +72,7 @@ const CATALOGS = {
       "Rebuild the selected project's map, overwriting what is there. Writes into that repository's docs/map.",
     "help.generateAll":
       "Rebuild every project in the list, one after another. The only button that writes to repositories you did not select — the label counts progress while it runs.",
-    "help.engine":
+    "menu.help.engine":
       "documentation.nvim's standalone binary — this app runs it, it does not replace it. The word beside the label is the verdict that decides whether generation works, and at what fidelity.",
     "help.engineLocate":
       "Point at documentation.nvim's standalone binary. Only needed when it is not on PATH — the line above says which one was found.",
@@ -96,6 +96,30 @@ const CATALOGS = {
     "repos.failed": "GitHub CLI could not list your repositories.",
     "repos.asking": "Asking gh…",
     "repos.none": "That account has no repositories.",
+    // The menu bar. Keys are the item ids `src-tauri/src/menu.rs` builds
+    // with, joined by string — `menu_labels_spec` asserts the two lists
+    // match, because nothing else would notice an id renamed on one side.
+    // Ellipses mean the same thing here as on the buttons: this opens
+    // something rather than doing something.
+    "menu.file": "File",
+    "menu.project": "Project",
+    "menu.tools": "Tools",
+    "menu.help": "Help",
+    "menu.file.add": "Add project…",
+    "menu.file.open_browser": "Open map in browser",
+    "menu.file.reveal": "Reveal in file manager",
+    // Worded so the distinction cannot be missed: this removes the entry,
+    // never the repository.
+    "menu.file.remove": "Remove from workspace",
+    "menu.project.generate": "Generate map",
+    "menu.project.generate_all": "Generate all",
+    "menu.project.regenerate": "Regenerate and reload",
+    "menu.tools.engine": "Locate engine…",
+    "menu.tools.grammars": "Grammars…",
+    "menu.tools.nvim": "Locate nvim…",
+    "menu.tools.nvim_config": "Locate Neovim config…",
+    "menu.help.usage": "Usage",
+    "menu.help.engine": "What the engine is",
   },
 
   de: {
@@ -144,7 +168,7 @@ const CATALOGS = {
       "Die Karte des gewählten Projekts neu bauen und die vorhandene überschreiben. Schreibt in dessen docs/map.",
     "help.generateAll":
       "Jedes Projekt der Liste neu bauen, eines nach dem anderen. Der einzige Knopf, der auch in Repositories schreibt, die du nicht ausgewählt hast — die Beschriftung zählt den Fortschritt mit.",
-    "help.engine":
+    "menu.help.engine":
       "Das Standalone-Binary von documentation.nvim — diese App führt es aus, sie ersetzt es nicht. Das Wort neben der Beschriftung ist das Urteil darüber, ob und wie genau erzeugt werden kann.",
     "help.engineLocate":
       "Auf das Standalone-Binary von documentation.nvim zeigen. Nur nötig, wenn es nicht auf PATH liegt — die Zeile darüber sagt, welches gefunden wurde.",
@@ -168,6 +192,23 @@ const CATALOGS = {
     "repos.failed": "Die GitHub-CLI konnte deine Repositories nicht auflisten.",
     "repos.asking": "Frage gh…",
     "repos.none": "Dieses Konto hat keine Repositories.",
+    "menu.file": "Datei",
+    "menu.project": "Projekt",
+    "menu.tools": "Werkzeuge",
+    "menu.help": "Hilfe",
+    "menu.file.add": "Projekt hinzufügen…",
+    "menu.file.open_browser": "Karte im Browser öffnen",
+    "menu.file.reveal": "Im Explorer zeigen",
+    "menu.file.remove": "Aus der Liste entfernen",
+    "menu.project.generate": "Karte erzeugen",
+    "menu.project.generate_all": "Alle erzeugen",
+    "menu.project.regenerate": "Neu erzeugen und laden",
+    "menu.tools.engine": "Engine suchen…",
+    "menu.tools.grammars": "Grammatiken…",
+    "menu.tools.nvim": "nvim suchen…",
+    "menu.tools.nvim_config": "Neovim-Config suchen…",
+    "menu.help.usage": "Bedienung",
+    "menu.help.engine": "Was die Engine ist",
   },
 };
 

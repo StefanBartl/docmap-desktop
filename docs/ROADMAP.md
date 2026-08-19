@@ -149,9 +149,11 @@ belong in the status line.
 Struck through as each ships. The order is `docs/MENUBAR.md`'s own, chosen
 so the cross-repository piece comes last rather than blocking the rest.
 
-1. **The menu with the commands that already exist** — File, Project,
-   Tools, Help, every item wired to something already implemented, plus
-   accelerators. No new capability, no new failure modes.
+1. ~~**The menu with the commands that already exist**~~ — built
+   2026-08-19. File, Project, Tools, Help, with accelerators. Two File
+   items had no command behind them yet and were written rather than
+   shipped dead: open the map in the system browser, and reveal the
+   project root in the file manager.
 2. **View: theme, language, zoom, sidebar toggle.** Theme and language
    leave the sidebar footer. The catalog-to-Rust handoff gets built here,
    on two items whose behaviour is already understood.

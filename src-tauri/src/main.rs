@@ -10,9 +10,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod github;
+mod menu;
 mod languages;
 mod server;
 
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -856,8 +858,115 @@ fn serve_project(app: tauri::AppHandle, id: String) -> Result<String, String> {
     Ok(server::url(port))
 }
 
+/// Hand a path or URL to whatever the desktop opens it with.
+///
+/// Written here rather than reached for through a plugin because it is
+/// three lines per platform and the alternative is another capability
+/// surface for the webview. Nothing from the page reaches this: both
+/// callers pass a path this process produced.
+fn open_externally(target: &str) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    let mut cmd = {
+        // Through `cmd /c start` rather than `explorer <url>`: `start`
+        // honours the user's default browser, and its first quoted
+        // argument is the *window title*, which is why the empty string
+        // has to be there.
+        let mut c = std::process::Command::new("cmd");
+        c.args(["/c", "start", "", target]);
+        c
+    };
+    #[cfg(target_os = "macos")]
+    let mut cmd = {
+        let mut c = std::process::Command::new("open");
+        c.arg(target);
+        c
+    };
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let mut cmd = {
+        let mut c = std::process::Command::new("xdg-open");
+        c.arg(target);
+        c
+    };
+
+    cmd.spawn()
+        .map(|_| ())
+        .map_err(|e| format!("could not open {target}: {e}"))
+}
+
+/// Open a project's map in the system browser.
+///
+/// Through the same local server the embedded view uses, not as a `file://`
+/// URL: the generated page fetches its own sibling files, and a browser
+/// opening it off disk applies a different origin policy than the one it
+/// was tested under. Same page, same server, second window.
+#[tauri::command]
+fn open_map_in_browser(app: tauri::AppHandle, id: String) -> Result<String, String> {
+    let url = serve_project(app, id)?;
+    open_externally(&url)?;
+    Ok(url)
+}
+
+/// Open one of this project's own documentation pages.
+///
+/// An allowlist of two, not a URL parameter. The webview asks for a *page*
+/// by name and this decides what that means — so nothing the page can say
+/// turns into a browser opening an arbitrary address, which is what a
+/// generic `open_url` command would be.
+#[tauri::command]
+fn open_docs(page: String) -> Result<(), String> {
+    const BASE: &str = "https://github.com/StefanBartl/docmap-desktop/blob/main/docs/";
+    let target = match page.as_str() {
+        "usage" => format!("{BASE}USAGE.md"),
+        // The single most common confusion this app produces: that the
+        // engine is a separate program this is a window onto.
+        "engine" => format!("{BASE}USAGE.md#the-engine-indicator"),
+        other => return Err(format!("no such documentation page: {other}")),
+    };
+    open_externally(&target)
+}
+
+/// Show a project's root in the desktop's file manager.
+///
+/// Answers "where is this actually" without a path to copy out of a
+/// tooltip. The repository root, not the map directory: the map is an
+/// output, and the question is about the project.
+#[tauri::command]
+fn reveal_project(app: tauri::AppHandle, id: String) -> Result<(), String> {
+    let ws = read_workspace(&app)?;
+    let project = ws
+        .projects
+        .iter()
+        .find(|p| p.id == id)
+        .ok_or_else(|| format!("no such project: {id}"))?;
+    open_externally(&project.root)
+}
+
+/// Install (or replace) the window menu with the frontend's labels.
+///
+/// Called once after i18n initialises and again on every language change
+/// and every selection change. Replacing the whole menu rather than
+/// mutating items is what Tauri supports for a label change, and the menu
+/// is nine items — the cost is not worth a second code path.
+#[tauri::command]
+fn set_menu(
+    app: tauri::AppHandle,
+    labels: HashMap<String, String>,
+    has_project: bool,
+) -> Result<(), String> {
+    let built = menu::build(&app, &labels, has_project)?;
+    app.set_menu(built).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 fn main() {
     tauri::Builder::default()
+        .setup(|app| {
+            // Registered once. `set_menu` replaces the menu on every
+            // language and selection change, and a handler registered per
+            // rebuild would fire once per rebuild it outlived.
+            menu::forward_clicks(app.handle());
+            Ok(())
+        })
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
@@ -877,7 +986,11 @@ fn main() {
             set_nvim_path,
             set_nvim_config_dir,
             import_from_nvim_config,
-            serve_project
+            serve_project,
+            set_menu,
+            open_map_in_browser,
+            reveal_project,
+            open_docs
         ])
         .run(tauri::generate_context!())
         .expect("docmap-desktop failed to start");

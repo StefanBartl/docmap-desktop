@@ -20,7 +20,7 @@
 // guard below changes nothing about what that guard catches.
 import { withBusyButton } from "./lib/busy-button.js";
 import { mapStatus, invalidate } from "./lib/status-cache.js";
-import { t, setLocale, initialLocale, LOCALES } from "./lib/i18n.js";
+import { t, setLocale, initialLocale, LOCALES, keys } from "./lib/i18n.js";
 import {
   scanLanguages,
   invalidateLanguages,
@@ -198,6 +198,9 @@ let locale = "en";
       void e;
     }
     applyLocale();
+    // The menu is not in the DOM, so `applyLocale` cannot reach it. It is
+    // rebuilt instead, which is what Tauri supports for a label change.
+    syncMenu();
   });
   applyLocale();
 }
@@ -383,6 +386,7 @@ async function render() {
 
 async function select(id) {
   selectedId = id;
+  syncMenu();
   try {
     localStorage.setItem(LAST_KEY, id);
   } catch (e) {
@@ -528,18 +532,28 @@ els.list.addEventListener("keydown", (ev) => {
     select(cur.dataset.id);
   } else if (ev.key === "Delete" && cur) {
     ev.preventDefault();
-    const id = cur.dataset.id;
-    invoke("remove_project", { id })
-      .then((list) => {
-        if (selectedId === id) {
-          selectedId = null;
-          showPlaceholder("Nothing selected", "Pick a project on the left.");
-        }
-        return refresh(list);
-      })
-      .catch((e) => say(String(e)));
+    removeProject(cur.dataset.id);
   }
 });
+
+/// Drop a project from the workspace. Never touches the repository — the
+/// menu label says so, and this is what it does.
+///
+/// Extracted from the Delete-key handler when the menu grew an item for
+/// it: two callers, one behaviour.
+async function removeProject(id) {
+  try {
+    const list = await invoke("remove_project", { id });
+    if (selectedId === id) {
+      selectedId = null;
+      showPlaceholder("Nothing selected", "Pick a project on the left.");
+      syncMenu();
+    }
+    await refresh(list);
+  } catch (e) {
+    say(String(e));
+  }
+}
 
 // ------------------------------------------------------------- engine
 
@@ -1096,3 +1110,91 @@ addbox.loadRepos.addEventListener("click", async () => {
 
 addbox.repoFilter.addEventListener("input", renderRepos);
 
+// =====================================================================
+// The menu bar
+//
+// `src-tauri/src/menu.rs` owns the structure — which items exist, their
+// order, their accelerators. This owns the strings, because they are
+// translations and the catalog next door is already the one place those
+// live, with a spec that fails when a locale is short a key.
+//
+// Every item calls the same function its sidebar button calls. Two ways to
+// reach one implementation, never two implementations: `docs/MENUBAR.md`'s
+// last "what I would not build" entry is exactly this, and it is the reason
+// the sidebar keeps one button rather than a mirror of the menu.
+// =====================================================================
+
+/** Item id → what it does. Keys must match `menu.rs`; `menu.test.js` checks. */
+const MENU_ACTIONS = {
+  "menu.file.add": () => els.add.click(),
+  "menu.file.open_browser": async () => {
+    if (!selectedId) return;
+    try {
+      await invoke("open_map_in_browser", { id: selectedId });
+    } catch (e) {
+      say(String(e));
+    }
+  },
+  "menu.file.reveal": async () => {
+    if (!selectedId) return;
+    try {
+      await invoke("reveal_project", { id: selectedId });
+    } catch (e) {
+      say(String(e));
+    }
+  },
+  "menu.file.remove": () => selectedId && removeProject(selectedId),
+  "menu.project.generate": () => selectedId && generateFor(selectedId),
+  "menu.project.generate_all": () => els.genAll.click(),
+  "menu.project.regenerate": async () => {
+    if (!selectedId) return;
+    await generateFor(selectedId);
+    await select(selectedId);
+  },
+  "menu.tools.engine": () => els.pickEngine.click(),
+  "menu.tools.grammars": () => els.pickGrammars.click(),
+  "menu.tools.nvim": () => els.pickNvim.click(),
+  "menu.tools.nvim_config": () => els.pickNvimConfig.click(),
+  "menu.help.usage": () => openDocs("usage"),
+  "menu.help.engine": () => openDocs("engine"),
+};
+
+async function openDocs(page) {
+  try {
+    await invoke("open_docs", { page });
+  } catch (e) {
+    say(String(e));
+  }
+}
+
+/**
+ * Hand Rust the labels and the enable state, and let it rebuild the menu.
+ *
+ * Called after the locale is settled, on every language change, and on every
+ * selection change — the items that act on a project are greyed when there
+ * is none, which is the one thing the sidebar's disabled Generate button
+ * never explained.
+ */
+async function syncMenu() {
+  const labels = {};
+  for (const key of keys()) {
+    if (key.startsWith("menu.")) labels[key] = t(key);
+  }
+  try {
+    await invoke("set_menu", { labels, hasProject: Boolean(selectedId) });
+  } catch (e) {
+    // Surfaced rather than swallowed: a window with no menu is a window
+    // missing half its commands, and silence here would look like a menu
+    // bar that is simply slow.
+    say("Menu: " + String(e));
+  }
+}
+
+{
+  const { listen } = window.__TAURI__.event;
+  listen("menu", (ev) => {
+    const run = MENU_ACTIONS[ev.payload];
+    if (run) run();
+  });
+  syncMenu();
+}
