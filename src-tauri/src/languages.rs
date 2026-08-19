@@ -106,7 +106,7 @@ const MAX_FILES: usize = 20_000;
 ///   [`scan`]'s nested-repository rule, which was written after measuring
 ///   this walk against `documentation.nvim` and finding 306 of its 448 Lua
 ///   files were copies of itself under `.claude/worktrees/`.
-const SKIP_DIRS: &[&str] = &[
+pub(crate) const SKIP_DIRS: &[&str] = &[
     ".git",
     // Tooling state, never the project's own source. Listed by name as well
     // as caught by the nested-repository rule below, because the parts of it
@@ -220,7 +220,7 @@ fn language_for(ext: &str) -> Option<(&'static str, Option<&'static str>)> {
 ///
 /// The root being scanned is never subjected to this -- the walk starts
 /// inside it -- so a normal repository is not skipped by its own `.git`.
-fn is_nested_checkout(dir: &Path) -> bool {
+pub(crate) fn is_nested_checkout(dir: &Path) -> bool {
     dir.join(".git").exists()
 }
 

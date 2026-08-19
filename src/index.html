@@ -30,7 +30,38 @@
         <button id="gen-all" data-i18n-help="help.generateAll" type="button" disabled data-i18n="sidebar.generateAll">Generate all</button>
       </div>
 
-      <ul id="projects" aria-label="Projects"></ul>
+      <!-- A picker, not a list. With thirty-three repositories the list was
+           the sidebar; a `<select>` shows the one being looked at and hands
+           the rest back on demand.
+
+           What a list could do and this cannot is show every project's
+           staleness at once. That is answered by *sorting* rather than by a
+           badge on the closed control: "which need regenerating" becomes one
+           action instead of one glance, which is a fair trade for the room.
+
+           A native `<select>` rather than a custom menu: it already answers
+           Arrow, Home, End, Enter, type-ahead and the platform's own
+           conventions, and every one of those would have to be rebuilt and
+           kept correct. `Delete` is the one thing it does not do, and that
+           lives in File → Remove from workspace. -->
+      <div class="picker">
+        <select id="projects" aria-label="Projects"></select>
+        <select id="proj-sort" class="proj-sort" aria-label="Sort projects" data-i18n-help="help.sort">
+          <option value="name" data-i18n="sort.name">Name</option>
+          <option value="stale" data-i18n="sort.stale">Needs regenerating</option>
+          <option value="added" data-i18n="sort.added">Added</option>
+        </select>
+      </div>
+
+      <!-- Everything the row used to carry, for the one project that is
+           selected: what is in it, what it is written in, and whether the
+           map has fallen behind. Below the control rather than inside it,
+           because a `<select>` shows one line of text and this is four. -->
+      <div id="proj-detail" class="proj-detail" hidden>
+        <p id="proj-counts" class="meta"></p>
+        <p id="proj-langs" class="meta langs" hidden></p>
+        <p id="proj-stale" class="meta stale" hidden></p>
+      </div>
 
       <p id="empty" class="empty" data-i18n="sidebar.empty" hidden>
         No projects yet. <strong>Add project…</strong> points this at a

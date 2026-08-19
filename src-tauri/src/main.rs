@@ -10,6 +10,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod feedback;
+mod freshness;
 mod github;
 mod menu;
 mod languages;
@@ -859,6 +860,22 @@ fn serve_project(app: tauri::AppHandle, id: String) -> Result<String, String> {
     Ok(server::url(port))
 }
 
+/// Whether a project's map has fallen behind its sources.
+///
+/// Cheap by construction — modification times, not a regeneration — so the
+/// answer is "something was touched since", never "the map is wrong". See
+/// `freshness.rs` on why the wording of the mark follows from that.
+#[tauri::command]
+fn map_freshness(app: tauri::AppHandle, id: String) -> Result<freshness::Freshness, String> {
+    let ws = read_workspace(&app)?;
+    let project = ws
+        .projects
+        .iter()
+        .find(|p| p.id == id)
+        .ok_or_else(|| format!("no such project: {id}"))?;
+    freshness::check(Path::new(&project.root), Path::new(&project.map_dir))
+}
+
 /// Hand a path or URL to whatever the desktop opens it with.
 ///
 /// Written here rather than reached for through a plugin because it is
@@ -1089,7 +1106,8 @@ fn main() {
             set_zoom,
             set_window_title,
             open_feedback,
-            about_info
+            about_info,
+            map_freshness
         ])
         .run(tauri::generate_context!())
         .expect("docmap-desktop failed to start");
