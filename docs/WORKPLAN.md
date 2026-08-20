@@ -1124,12 +1124,37 @@ the line scanner assembly proved.
       first, both about trust: a hand-written claim and a measured
       observation must not render alike, and an agent's edit is a proposal
       rather than a result.
-- [ ] The parity pass, once every backend exists. **Two inputs it can start
-      from now**: `param_docs` and `module_tag`, which
-      `documentation.nvim`'s `docs/LANGUAGES.md` already tabulates per
-      backend from the registry rather than from prose. That file is where
-      the finished matrix belongs — it is the reference; `MULTILANG.md`
-      stays the record of what each one cost.
+- [x] ~~The parity pass, once every backend exists.~~ — done 2026-08-20,
+      `documentation.nvim` commit `c9b497a`. The matrix is
+      `docs/LANGUAGES.md § Parity`, measured by `scripts/parity.lua` over one
+      fixture per language rather than written by hand.
+
+      **Four columns complete across all twenty-three** — file summary,
+      declaration summary, visibility, require edges — and markers too, after
+      the pass fixed three languages where they were not.
+
+      **Two findings this app has to care about**, because they are the
+      difference between a panel that is empty and a panel that is empty *for
+      a reason*:
+
+      1. **Call edges exist in four backends of twenty-three.** `lua`, `js`,
+         `ts`, `tsx`. The other nineteen return nothing, so everything built
+         on the call graph — Calls, Module Calls, `:DocMap why`, the
+         call-hierarchy view, `dead-function`'s call tier — is empty for a
+         Go, Rust or Python project. **Nothing in those languages makes it
+         impossible; it is unbuilt.**
+      2. **Module-scope symbols are missing in `zig`, `java`, `c`, `cpp`** —
+         the four oldest non-Lua backends. Every one written after them has
+         them.
+
+      Both are in the engine's `ROADMAP.md`. **This app's own follow-up is a
+      separate and much smaller question**, recorded here because the
+      sentence belongs in this window: a panel that is empty because the
+      language has no extraction yet should *say so*, the way the Types panel
+      already names the tool it is missing. Today a reader cannot tell "this
+      project has no calls" from "this language has no call extraction" — the
+      same class of defect as the telemetry note that claimed the window
+      could do nothing.
 - [x] ~~Then §10.7's remainder.~~ — done 2026-08-20, ahead of the parity
       pass rather than after it. The ordering above assumed the docs should
       wait for the finished set of languages; with wave 4 cancelled and the
