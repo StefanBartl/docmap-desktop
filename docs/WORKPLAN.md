@@ -1241,12 +1241,23 @@ the line scanner assembly proved.
       against a map nobody would ever write, and reports the project stale
       forever.
 
-      Verified structurally and by test, **not looked at in the running
-      window**: `cargo test` (59), `node --test` (60, including a new
-      `scope.test.js` that joins the markup, `main.js` and `main.rs` by the
-      ids, command names and catalog keys they share). See §12's note about
-      a panel that is empty for a reason — the same rule applies here and is
-      not yet built.
+      Verified structurally and by test — `cargo test` (59), `node --test`
+      (71, including a `scope.test.js` that joins the markup, `main.js` and
+      `main.rs` by the ids, command names and catalog keys they share).
+
+      **And then looked at, which is the part that mattered.** This shipped
+      as "not looked at in the running window", the same caveat three other
+      things carry; the first look found that **Save** was 149px below the
+      fold at the window's minimum height, in a dialog whose obvious wheel
+      targets scroll something else. Fixed in `54f4c41` — a dialog's own
+      action is pinned now, and the feedback dialog had the same defect.
+
+      The looking was done with `tools/preview/`: this app's real markup,
+      CSS and `main.js` in a browser with a stubbed Tauri bridge and the
+      engine's real 23-backend language list, so layout can be measured
+      rather than asserted. It proves layout, not behaviour, and a browser
+      is not WebView2 — but a test that reads the DOM could never have seen
+      this.
 - [ ] The extension API concept, three stages, in `docs/ROADMAP.md`.
 - [ ] **Compiler Explorer, two steps further** — noted 2026-08-20, not
       built, in `documentation.nvim`'s `IDEAS.md` §3.6. Compare two marked
