@@ -200,14 +200,35 @@ Ein Arbeitstag oder mehr.
 
 ### M1 · Config-Analyse: die drei übrigen Punkte — **S–M je**, Engine
 
-Drei getrennte Stücke, keines vom anderen abhängig:
+Drei getrennte Stücke, keines vom anderen abhängig. **Zwei sind erledigt,
+eines davon anders als geplant.**
 
+- ~~**Lazy-Load-Inventar**~~ — **gebaut 2026-08-21.** Eigener Analyse-Tab:
+  welches Plugin lädt auf welches Event/ft/cmd/keys, und was beim Start
+  liegt. Die Messung an einer echten Config hat den Entwurf korrigiert:
+  7 von 52 Specs standen unter dem falschen Ladezustand, weil `lazy = true`
+  ohne jeden Trigger gelesen wurde, als lüde es später — es lädt nie.
+  Daher drei Zustände statt zwei.
+- ~~**Verwaiste Spec-Dateien**~~ — **entschieden 2026-08-21: wird nicht
+  gebaut.** Gemessen, statt geschätzt: der einzige echte Fund in der einen
+  verfügbaren Config war ein **Falsch-Positiv** (die Datei registriert über
+  einen eigenen Helper, siehe unten), und die übrigen Kandidaten deklarieren
+  nichts, weil ihr Inhalt bewusst auskommentiert ist. „Nennt kein Plugin"
+  trennt also nicht Leiche von Parkplatz — das Kriterium trägt nicht, und
+  ein Panel, das geparkte Dateien als tot meldet, ist schlechter als keins.
+- **Statt dessen gebaut: `opts.plugins.wrappers`** — genau dieses
+  Falsch-Positiv war der weit größere Fund. `core/plugins.lua` las nur das
+  `return { … }` einer Datei; eine Config, die über `plugins.add({ … })`
+  registriert, trug **nichts** bei — schweigend, ohne Fehler. Gemessen:
+  **52 Specs gefunden, 85 nach Deklaration des einen Wrappers**, die
+  fehlenden 33 in einer einzigen 906-Zeilen-Datei. 63 % dieser Config waren
+  unsichtbar, und jedes Panel über `n.plugins` — inklusive des neuen
+  Lazy-Tabs — beantwortete Fragen über die Hälfte, die zufällig ein
+  Tabellen-Literal benutzt. Deklariert, nicht erraten, wie bei
+  `bindings.wrappers`.
 - **Andere Plugin-Manager als lazy.nvim** — packer, vim-plug, mini.deps sind
-  eigene Extraktoren, keine gebogene Version des einen. **M.**
-- **Lazy-Load-Inventar** — welches Plugin lädt auf welches Event/ft/cmd.
-  Beantwortet „warum ist das noch nicht geladen". **S.**
-- **Verwaiste Spec-Dateien** — ein `lua/plugins/foo.lua`, dessen Plugin
-  nichts mehr nennt. **S.**
+  eigene Extraktoren, keine gebogene Version des einen. **M.** ← der Rest
+  von M1.
 
 Keymap-Konflikte sind gebaut. *Vorher: M6.*
 
@@ -396,9 +417,10 @@ weiteren Join.
 Nach Nutzen pro Aufwand:
 
 1. ~~**QW8**~~ — erledigt 2026-08-20.
-2. **M1** (Config-Analyse) ← **hier weitermachen** — drei getrennte Stücke, jedes für sich nützlich,
-   keines von einem anderen abhängig. Das Lazy-Load-Inventar ist davon das
-   billigste und beantwortet eine Frage, die man wirklich hat.
+2. **M1** (Config-Analyse) — zwei der drei Stücke erledigt 2026-08-21
+   (Lazy-Inventar gebaut, verwaiste Spec-Dateien gemessen und verworfen,
+   dafür Wrapper-Unterstützung). Offen bleibt nur **andere Plugin-Manager**,
+   **M**.
 3. **M2** — die ehrliche Frage zum Reference-Tab. Möglicherweise der
    billigste Punkt der Liste, und er schaltet M3 frei.
 4. **M4** (Cross-Repo-Dashboard) — das Einzige, was nur diese App kann.
