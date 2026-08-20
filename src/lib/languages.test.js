@@ -8,6 +8,7 @@ import {
   badgeText,
   summaryText,
   supportFor,
+  callsSupportFor,
   engineLanguageText,
   engineVerdict,
 } from "./languages.js";
@@ -291,4 +292,70 @@ test("engineVerdict falls back to the directory proxy for an engine that cannot 
 
 test("engineVerdict says not found before anything else", () => {
   assert.equal(engineVerdict({ path: null }, engine([["lua", "lua", true]])), "not found");
+});
+
+// ---------------------------------------------------------------------------
+// callsSupportFor — the join behind the note over an empty Calls panel.
+//
+// The whole point is telling two identical-looking screens apart, so every
+// case below is one way of getting that wrong.
+// ---------------------------------------------------------------------------
+
+const ENGINE = {
+  languages: [
+    { name: "lua", grammar: "lua", grammar_loaded: true, calls: true },
+    { name: "go", grammar: "go", grammar_loaded: true, calls: false },
+    { name: "asm", grammar: null, grammar_loaded: null, calls: false },
+  ],
+};
+
+test("a language whose backend produces call edges answers yes", () => {
+  const scan = { languages: [{ name: "Lua", grammar: "lua" }] };
+  assert.equal(callsSupportFor(scan, ENGINE), "yes");
+});
+
+test("a language whose backend does not answers no", () => {
+  const scan = { languages: [{ name: "Go", grammar: "go" }] };
+  assert.equal(callsSupportFor(scan, ENGINE), "no");
+});
+
+test("one supported language among several is enough", () => {
+  // A repository with Lua beside Go has a call graph — a partial one. Telling
+  // its reader the feature is unsupported would be false, and the panel is
+  // not empty for them anyway.
+  const scan = { languages: [{ name: "Go", grammar: "go" }, { name: "Lua", grammar: "lua" }] };
+  assert.equal(callsSupportFor(scan, ENGINE), "yes");
+});
+
+test("a grammarless language joins on the backend name, as elsewhere", () => {
+  const scan = { languages: [{ name: "Assembly", grammar: null, backend: "asm" }] };
+  assert.equal(callsSupportFor(scan, ENGINE), "no");
+});
+
+test("an engine that cannot be asked is unknown, never no", () => {
+  // The failure this guards: a defaulted `false` would put "the engine has
+  // no call extraction for this language" in front of a reader whose engine
+  // never said anything of the kind.
+  const scan = { languages: [{ name: "Lua", grammar: "lua" }] };
+  assert.equal(callsSupportFor(scan, { languages: null }), "unknown");
+  assert.equal(callsSupportFor(scan, null), "unknown");
+});
+
+test("an engine that predates the field is unknown, not no", () => {
+  const old = { languages: [{ name: "lua", grammar: "lua", grammar_loaded: true }] };
+  const scan = { languages: [{ name: "Lua", grammar: "lua" }] };
+  assert.equal(callsSupportFor(scan, old), "unknown");
+});
+
+test("no scan, or an empty one, is unknown", () => {
+  assert.equal(callsSupportFor(null, ENGINE), "unknown");
+  assert.equal(callsSupportFor({ languages: [] }, ENGINE), "unknown");
+});
+
+test("a language no backend claims does not decide the answer", () => {
+  // It contributes nothing rather than a `no`: the engine said nothing about
+  // it, and a language it cannot read at all is a different sentence than
+  // the one this note carries.
+  const scan = { languages: [{ name: "COBOL", grammar: "cobol" }] };
+  assert.equal(callsSupportFor(scan, ENGINE), "unknown");
 });

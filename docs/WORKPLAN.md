@@ -1147,14 +1147,29 @@ the line scanner assembly proved.
          the four oldest non-Lua backends. Every one written after them has
          them.
 
-      Both are in the engine's `ROADMAP.md`. **This app's own follow-up is a
-      separate and much smaller question**, recorded here because the
-      sentence belongs in this window: a panel that is empty because the
-      language has no extraction yet should *say so*, the way the Types panel
-      already names the tool it is missing. Today a reader cannot tell "this
-      project has no calls" from "this language has no call extraction" — the
-      same class of defect as the telemetry note that claimed the window
-      could do nothing.
+      **The symbols half was closed the same day** in the engine
+      (`b3a32c1`), and no two of the four backends needed the same answer,
+      because "module-scope binding" is not one idea across languages.
+
+      **This app's own follow-up is done too** (2026-08-20): a panel empty
+      because the language has no extraction yet now *says so*, the way the
+      Types panel already names the tool it is missing. Hierarchy → Calls
+      and Module Calls carry a third context note.
+
+      It needed the engine to be able to answer first. `lang_registry.report()`
+      gained `calls` per backend (engine `2969b80`), declared on the backend
+      and **verified against what it actually returns** for its own parity
+      fixture — a flag claiming a capability the backend lacks would put a
+      wrong sentence exactly where a reader went looking for the truth.
+
+      The join is `callsSupportFor` in `src/lib/languages.js`, beside the
+      `supportFor` that already joins scan languages to engine grammars.
+      Three answers, and the third is the one that matters: **`unknown`
+      shows nothing.** No scan yet, or an engine too old to have the field,
+      and a guess would be wrong for precisely the reader who most needs it
+      to be right. One supported language among several is `yes` — a
+      repository with Lua beside Go has a partial call graph, and its panel
+      is not empty anyway.
 - [x] ~~Then §10.7's remainder.~~ — done 2026-08-20, ahead of the parity
       pass rather than after it. The ordering above assumed the docs should
       wait for the finished set of languages; with wave 4 cancelled and the

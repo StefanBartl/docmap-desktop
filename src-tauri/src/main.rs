@@ -803,6 +803,15 @@ struct EngineLanguage {
     name: String,
     grammar: Option<String>,
     grammar_loaded: Option<bool>,
+    /// Whether this backend produces call edges at all.
+    ///
+    /// `None` from an engine that predates the field, and that is a third
+    /// answer rather than a defaulted `false`: "this build has no call
+    /// extraction for this language" and "this build cannot say" lead to
+    /// different sentences, and only the first is worth putting in front of
+    /// a reader looking at an empty panel.
+    #[serde(default)]
+    calls: Option<bool>,
 }
 
 /// What the engine says it can read.

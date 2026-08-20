@@ -359,15 +359,30 @@ it.
 
 ## The note that appears over some panels
 
-The generated page reports which panel it is showing, and two of them ask
-for something this app's engine cannot ever do, no matter how it is
-configured. A note explains why instead of offering a button that would
-fail:
+The generated page reports which panel it is showing, and three of them can
+be empty for a reason that is not the project's. A note explains which
+instead of leaving a blank pane to be read as a verdict.
+
+**Two of them are permanent** — the app's engine cannot ever produce that
+data, no matter how it is configured:
 
 | Panel | Why this app can't | What it needs instead |
 |---|---|---|
 | Analysis → Telemetry | Telemetry exists only if real code ran inside a live Neovim session with `runtime-analysis.nvim` collecting it. This window can switch collection **on** (Settings → Telemetry) but cannot run your plugin code, so it cannot make the data exist. | Switch collection on here if it is off, then open the project in Neovim and use it — the panel reads whatever was collected there. |
 | Hierarchy → Types | Type data comes from `lua-language-server`. The engine this app runs is `documentation.nvim`'s Neovim-free build, which has no equivalent — not "not installed", structurally absent. | Run `:DocMap full` inside Neovim, then reopen the project here — the map it writes already carries the type data. |
+
+**The third is temporary, and says so.** Hierarchy → **Calls** and **Module
+Calls** draw nothing for a project whose languages have no call extraction
+in the engine yet — four of its twenty-three backends produce a call graph
+and the rest do not. That is the same blank pane a project with genuinely no
+calls in it produces, which is exactly why it needs a sentence: the note
+says the engine has not got there yet, and that nothing about those
+languages makes it impossible.
+
+Only when the answer is *known to be no*. A project whose languages the
+engine has not been asked about, or an engine too old to carry the field,
+shows nothing — a guess would be wrong for precisely the reader who most
+needs it to be right.
 
 Every other panel needs no explanation and shows none.
 
