@@ -1294,9 +1294,15 @@ the line scanner assembly proved.
       than checking the field is set. That second half is what caught the
       Java bug where `core/markers.lua` only knew comment nodes named
       `comment`.
-- [ ] Whether a `BUG:` marker should reach `check.lua` and Quicks. Left out
-      deliberately: a verdict that counts to-dos as defects needs its own
-      argument.
+- [x] ~~Whether a `BUG:` marker should reach `check.lua` and Quicks.~~ —
+      decided 2026-08-20, engine `11dacc2`: **Quicks yes, `check.lua` no.**
+      The argument it was waiting for is the line between a measurement and a
+      claim. A `check.lua` finding is something the tool found by comparing
+      documentation to reality; a `FIX` marker contradicts nothing — it is
+      the author stating a fact about their own code. A gate on one would
+      fail the repository that wrote its defect down and pass the one that
+      kept quiet. `recorded-defects`, `FIX` family only, `bad = 1`, `tab:
+      notes`, no severity anywhere.
 - [ ] Per-entry reference anchors — the renderer supports them, they are
       unfilled on purpose.
 - [x] ~~Doc coverage per language rather than one average~~ — built
