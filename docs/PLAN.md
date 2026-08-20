@@ -244,12 +244,24 @@ Schätzungen dieses Blocks lagen in dieselbe Richtung daneben — sie
 beschrieben das Feature statt der Lücke, und die Lücke sieht man erst, wenn
 man das Ding gegen echten Code laufen lässt. *Vorher: M6.*
 
-### M2 · Reference-Tab, Schritt 6 — **S**, Engine
+### ~~M2 · Reference-Tab, Schritt 6~~ — **entschieden 2026-08-21: kein Tab**, Engine
 
-Vier von sechs Schritten sind gebaut. Schritt 6 ist **die ehrliche Frage**,
-ob der Tab nach den In-Place-Lookups überhaupt noch verdient ist. Möglich,
-dass die Antwort *nein* lautet — dann ist das der billigste Punkt der Liste
-und schaltet zugleich M3 frei. *Vorher: M7.*
+Die Antwort lautet *nein*, und sie wurde gezählt statt diskutiert. Über die
+791 gerenderten Snippets dieses Repos: **64 von 76 Lua-Glossareinträgen sind
+per Hover erreichbar**, 18.807 Dekorationen. Die zwölf übrigen fehlen *hier*
+und wären im nächsten Repo da. Ein Tab wäre also ein Index über Antworten,
+die der Leser ohnehin an der Frage trifft — genau der „Tab, zu dem niemand
+navigiert", vor dem `ReferenceTab.md` selbst gewarnt hat.
+
+**Das Zählen hat trotzdem etwas gefunden, nur nicht den Tab.** Das
+Stdlib-Glossar war nach Punktnamen verschlüsselt, Lua wird aber mit
+Doppelpunkt geschrieben: **1004 Doppelpunkt-Aufrufe gegen 6 mit Punkt** für
+dieselben elf Funktionen. Die häufigste Aufrufform der Sprache war für ein
+Feature unsichtbar, dessen ganzer Zweck das Erklären von Stdlib-Aufrufen ist.
+`syntax.method_namespace` behebt das, **+934 Dekorationen**, verifiziert
+durch Ausführen des Tokenizers aus der *erzeugten Seite*.
+
+**M3 ist damit frei.** *Vorher: M7.*
 
 ### M3 · `K` im Browser — **S**, Engine (§4.3), **nach M2**
 
@@ -432,8 +444,9 @@ Nach Nutzen pro Aufwand:
 2. ~~**M1**~~ (Config-Analyse) — **erledigt 2026-08-21.** Lazy-Inventar
    gebaut, verwaiste Spec-Dateien gemessen und verworfen, dafür
    Wrapper-Unterstützung und drei weitere Plugin-Manager.
-3. **M2** ← **hier weitermachen** — die ehrliche Frage zum Reference-Tab.
-   Möglicherweise der billigste Punkt der Liste, und er schaltet M3 frei.
+3. ~~**M2**~~ — **erledigt 2026-08-21**, die Antwort war *kein Tab*, und
+   das Zählen dafür hat die 1004-zu-6-Lücke im Glossar aufgedeckt.
+   **M3 ist frei** ← hier weitermachen.
 4. **M4** (Cross-Repo-Dashboard) — das Einzige, was nur diese App kann.
 
 **Nicht als Nächstes**, obwohl sie groß und sichtbar sind: **L1** und **L2**.
