@@ -345,14 +345,39 @@ Die Leseregel ist die, der dieses Projekt selbst folgt: **vorwärts
 tolerieren, rückwärts ablehnen.** `core/diff.lua` vergleicht `schema >= 2`,
 nie `== 2`, und degradiert, indem es *benennt, was es nicht sagen kann*.
 
-### Q14 · Den fehlenden Werkzeugnamen nennen — **S**, Engine (§6.8)
+### ~~Q14 · Den fehlenden Werkzeugnamen nennen~~ — gebaut 2026-08-20
 
-Im Desktop existiert das beste Exemplar bereits (die Notiz über
-Hierarchy → Types nennt `lua-language-server`). Offen ist die Neovim-Seite —
-und **mit der Korrektur, die dazugehört**: die zwanzig Drift-Prüfungen der
-Karte sind ihre eigenen und brauchen keinen Linter in keiner Sprache. Nur
-Types ist werkzeugabhängig. Ein mason.nvim-Hinweis gehört ausschließlich nach
-Neovim.
+`:checkhealth documentation` hat einen neuen Abschnitt **language support**.
+
+**Und dabei kam eine größere Lücke heraus, als der Eintrag vermutete.** Der
+Health-Check prüfte den **Lua**-Parser — die ganze Geschichte, solange es ein
+Backend gab. Es sind dreiundzwanzig, und ein Go- oder Python-Baum ohne
+Grammatik liefert einen vollständigen Modulbaum *ohne Funktionen darin*, was
+sich wie ein Scanner-Fehler liest und nicht wie eine fehlende Grammatik. Das
+ist der wahrscheinlichste Grund für ein leeres Panel außerhalb von Lua, und
+darüber sagte der Check bisher nichts.
+
+Jetzt: pro Sprache, die in den Quellwurzeln **tatsächlich vorkommt**,
+Grammatik vorhanden oder nicht — mit `:TSInstall <grammar>`. Nie alle
+dreiundzwanzig; zweiundzwanzig abwesende Grammatiken für ein Lua-Repository
+sind eine Wand, die niemand liest.
+
+**Die Korrektur steht daneben**, weil der Reflex „dann brauche ich pro
+Sprache einen Linter" genau hier entsteht: nein. Jeder Check liest die IR,
+die dieses Plugin gebaut hat, und meldet in jeder Sprache ohne installiertes
+Werkzeug. Eine Grammatik kauft *Funktionsebene*, `lua-language-server` kauft
+`@class`/`@alias`-Detail. Mehr externe Abhängigkeiten gibt es nicht, und
+keine davon ist ein Linter.
+
+**Der mason.nvim-Hinweis** steht ausschließlich an der
+`lua-language-server`-Zeile und nirgends sonst — und ausdrücklich *nicht* an
+den Grammatik-Zeilen: `:Mason` installiert Language Server, Grammatiken
+kommen von `:TSInstall`. Ein Satz, der auf mason zeigt, ist hilfreich;
+ein Programm, das eine Toolchain im Hintergrund installiert, ist etwas
+anderes.
+
+**Beide Pfade verifiziert**, nicht nur der grüne: derselbe Go-Fixture-Baum
+einmal ohne und einmal mit geladener Grammatik durch `health.check()`.
 
 ---
 
