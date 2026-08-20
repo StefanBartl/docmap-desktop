@@ -198,7 +198,7 @@ andere Fläche als diese hier und nach wie vor **M**.
 
 Ein Arbeitstag oder mehr.
 
-### M1 · Config-Analyse: die drei übrigen Punkte — **S–M je**, Engine
+### ~~M1 · Config-Analyse: die drei übrigen Punkte~~ — **erledigt 2026-08-21**, Engine
 
 Drei getrennte Stücke, keines vom anderen abhängig. **Zwei sind erledigt,
 eines davon anders als geplant.**
@@ -226,11 +226,23 @@ eines davon anders als geplant.**
   Lazy-Tabs — beantwortete Fragen über die Hälfte, die zufällig ein
   Tabellen-Literal benutzt. Deklariert, nicht erraten, wie bei
   `bindings.wrappers`.
-- **Andere Plugin-Manager als lazy.nvim** — packer, vim-plug, mini.deps sind
-  eigene Extraktoren, keine gebogene Version des einen. **M.** ← der Rest
-  von M1.
+- ~~**Andere Plugin-Manager als lazy.nvim**~~ — **gebaut 2026-08-21, und es
+  war kein M.** Die Schätzung sagte drei eigene Extraktoren; gemessen an je
+  einer Datei in der Form jedes Managers sind es keine. packers `use`,
+  vim-plugs `Plug` und mini.deps' `add` registrieren alle über einen Aufruf
+  mit Tabelle oder String — genau das, was der Wrapper-Lauf schon liest.
+  Wirklich gefehlt haben zwei Kleinigkeiten: ein **String**-Argument
+  (`use "a/b"` — so listet jede packer-Config packer selbst, und so sieht
+  bei vim-plug *jedes* Plugin aus) und drei Schreibweisen: `requires` und
+  `depends` sind dieselbe Kante wie `dependencies`, `source` derselbe Repo
+  wie der positionale String. Die Trigger-Keys heißen überall gleich.
+  vim-plug nur in der Lua-Aufrufform — `Plug 'a/b'` in einer `.vim`-Datei
+  ist VimScript, und das steht so da, statt halb gelesen zu werden.
 
-Keymap-Konflikte sind gebaut. *Vorher: M6.*
+Keymap-Konflikte sind gebaut. **M1 ist damit abgeschlossen.** Beide
+Schätzungen dieses Blocks lagen in dieselbe Richtung daneben — sie
+beschrieben das Feature statt der Lücke, und die Lücke sieht man erst, wenn
+man das Ding gegen echten Code laufen lässt. *Vorher: M6.*
 
 ### M2 · Reference-Tab, Schritt 6 — **S**, Engine
 
@@ -417,12 +429,11 @@ weiteren Join.
 Nach Nutzen pro Aufwand:
 
 1. ~~**QW8**~~ — erledigt 2026-08-20.
-2. **M1** (Config-Analyse) — zwei der drei Stücke erledigt 2026-08-21
-   (Lazy-Inventar gebaut, verwaiste Spec-Dateien gemessen und verworfen,
-   dafür Wrapper-Unterstützung). Offen bleibt nur **andere Plugin-Manager**,
-   **M**.
-3. **M2** — die ehrliche Frage zum Reference-Tab. Möglicherweise der
-   billigste Punkt der Liste, und er schaltet M3 frei.
+2. ~~**M1**~~ (Config-Analyse) — **erledigt 2026-08-21.** Lazy-Inventar
+   gebaut, verwaiste Spec-Dateien gemessen und verworfen, dafür
+   Wrapper-Unterstützung und drei weitere Plugin-Manager.
+3. **M2** ← **hier weitermachen** — die ehrliche Frage zum Reference-Tab.
+   Möglicherweise der billigste Punkt der Liste, und er schaltet M3 frei.
 4. **M4** (Cross-Repo-Dashboard) — das Einzige, was nur diese App kann.
 
 **Nicht als Nächstes**, obwohl sie groß und sichtbar sind: **L1** und **L2**.
