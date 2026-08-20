@@ -961,12 +961,43 @@ rather than two files.
       leading-underscore rule anywhere in `core/`. Worth recording as the
       method working: the correction happened because the table was checked,
       not because somebody later noticed.
-- [ ] **The rest of `documentation.nvim`'s `docs/` folder.** `FEATURES/`,
-      `ROADMAP/IDEAS/`, `PIPELINE.md`, `WORKFLOW.md` and more — a folder
-      rather than two files, and `FEATURES/` is the nearest thing to an
-      inventory while being incomplete itself. The README was taken first
-      because it is the entry point; the rest is a larger, lower-urgency
-      job and stays open.
+- [x] ~~**The rest of `documentation.nvim`'s `docs/` folder.**~~ — done
+      2026-08-20, same method, and it was **not** the lower-urgency job this
+      entry called it.
+
+      **`PIPELINE.md` — "the document to read before changing anything",
+      2158 lines — did not mention multi-language support once.** All eleven
+      of its "language" matches were `lua-language-server` or Compiler
+      Explorer. It opened on "an annotated Lua tree" and described a scan
+      stage hardcoding `init.lua`, which stopped being true at the first
+      backend. `REUSE.md` told a reader the one precondition is `---@module`
+      on their files — false for twenty-two of the twenty-three.
+      `WORKFLOW.md` and `MCP.md`: zero mentions each.
+
+      Two new files. **`docs/LANGUAGES.md`**, the per-language reference
+      that existed nowhere: the twenty-three backends tabulated from
+      `lang_registry.report()` rather than from prose, the contract field by
+      field with what each *absence* honestly means, grammar resolution and
+      the three-state handshake, every `DOCMAP_<LANG>_PARSER`. Until now the
+      only record was `IDEAS/MULTILANG.md` — a decision log, in a folder
+      named for things not yet built. And **`docs/README.md`**, the folder
+      index: thirty-odd files, and the README's table listed eighteen.
+
+      **Two counts in prose disagreed with the code, and tabulating the
+      registry is what caught both.** `param_docs = false` is *nine*
+      languages, not eight — Ruby was called "a different case again" and
+      then dropped from the total it belongs in — and there are *four*
+      directory-owns-a-module conventions, not three; Rust's `mod.rs` was
+      missing from the sentence while its own header called itself the
+      fourth. Neither affected a number the tool reports, because
+      `judges_params` is derived from the field and not from the sentence,
+      which is precisely why nothing caught them until something read the
+      registry instead of the prose.
+
+      **A count written in a document is a claim; a count derived from the
+      code is a fact.** The docs that were most wrong were the ones nobody
+      suspected — they had been *edited* recently without being
+      *re-inventoried*, and an edit is not an inventory.
 
 **One thing the inventory caught that was not a documentation bug.**
 `main.js`'s comment claimed the workspace dashboard appears "on a first run,
@@ -1093,8 +1124,18 @@ the line scanner assembly proved.
       first, both about trust: a hand-written claim and a measured
       observation must not render alike, and an agent's edit is a proposal
       rather than a result.
-- [ ] The parity pass, once every backend exists.
-- [ ] Then §10.7's remainder.
+- [ ] The parity pass, once every backend exists. **Two inputs it can start
+      from now**: `param_docs` and `module_tag`, which
+      `documentation.nvim`'s `docs/LANGUAGES.md` already tabulates per
+      backend from the registry rather than from prose. That file is where
+      the finished matrix belongs — it is the reference; `MULTILANG.md`
+      stays the record of what each one cost.
+- [x] ~~Then §10.7's remainder.~~ — done 2026-08-20, ahead of the parity
+      pass rather than after it. The ordering above assumed the docs should
+      wait for the finished set of languages; with wave 4 cancelled and the
+      rest *available* rather than scheduled, "finished" arrived, and the
+      inventory found `PIPELINE.md` describing a single-language tool. See
+      §10.7.
 
 ---
 
