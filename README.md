@@ -112,6 +112,7 @@ See [docs/USAGE.md](docs/USAGE.md) for what every button does,
 | [docs/RELEASING.md](docs/RELEASING.md) | Cutting a release: what to check before tagging, what the workflow builds, and why the last step is a person opening the app. |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | What is built, what is next, and the reasoning behind each design decision. |
 | [docs/HANDOVER.md](docs/HANDOVER.md) | Cross-repo handoff state for continuing the work in a new session. |
+| [docs/HANDOVER-2026-08-20.md](docs/HANDOVER-2026-08-20.md) | Where the language work stands after twenty-three backends: what shipped, what to continue with, and the four decisions a next session must not re-litigate. |
 
 ### The engine
 
