@@ -1110,6 +1110,22 @@ the line scanner assembly proved.
 - [ ] Per-project settings — languages on/off, excluded paths. The first
       real tenant of [§4](#4-settings).
 - [ ] The extension API concept, three stages, in `docs/ROADMAP.md`.
+- [ ] **Compiler Explorer, two steps further** — noted 2026-08-20, not
+      built, in `documentation.nvim`'s `IDEAS.md` §3.6. Compare two marked
+      functions there side by side (one `clientstate`, two panes — the
+      question the duplicates panel raises and cannot settle), and offer a
+      *local* Compiler Explorer instead of godbolt.org, since today's link is
+      the one feature in the generated page that reaches the network at all.
+      This app is where the "open online or point at a local one" choice
+      would live, beside the engine and editor paths it already keeps.
+- [ ] **API traffic as a measurement** — noted 2026-08-20 in
+      `runtime-analysis.nvim`'s `IDEAS.md` §1.7b. Sizes, durations, retries
+      to success and error taxonomy, in both directions (this project's own
+      endpoints answering, and its calls out to somebody else's). Shown in
+      the API area of the page and of this app, on demand rather than baked
+      in — traffic changes between runs, as call counts do. Metadata and
+      shapes, never payloads, decided up front because the captures are
+      committed.
 
 **documentation.nvim**
 
