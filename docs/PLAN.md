@@ -104,21 +104,40 @@ committet weitergegeben wird; sie kann kein Neovim-Plugin aufrufen, und die
 Standalone-Engine läuft ganz ohne Neovim. **Wohl aber für `:DocBrowse`** —
 siehe QW8.
 
-### QW8 · Code auch im Editor hervorheben — **S**, Engine
+### ~~QW8 · Code auch im Editor hervorheben~~ — **gebaut 2026-08-20**, `4aab630`
 
-Dieselbe Frage wie QW6, andere Fläche: `:DocBrowse`s Detailpane zeigt
-dieselben Zusammenfassungen, und dort stehen die Backticks weiterhin als
-Text.
+`:DocBrowse`s Detailpane zeigt Inline-Code jetzt als Code statt als
+Backticks — die Fläche, die QW6 offengelassen hatte.
 
-**Hier ist `color_my_ascii.nvim` genau richtig**, anders als für die Seite:
-das Detailpane *ist* ein Neovim-Puffer, und die öffentliche Fence-API
-(`require("color_my_ascii").fences.list_blocks(bufnr, …)`) ist
-puffer-basiert. `highlight_buffer(bufnr)` käme obendrauf.
+**Die Messung hat die Gewichtung dieses Eintrags umgedreht.** Vor dem Bauen
+gezählt statt angenommen: **2 132** Inline-Spans sind in diesem Pane
+erreichbar, dagegen **vier** Node-Bodies von hundertdreiundzwanzig mit einem
+```` ``` ````-Zaun und **null** `@example`-Blöcke. Inline-Code ist also *das
+Feature* und braucht gar keine Abhängigkeit — ein Pattern-Match und ein
+Extmark. Der Eintrag hier las sich, als sei das der Fallback.
 
-**Als weiche Abhängigkeit**, wie `pdfport.nvim` und `runtime-analysis.nvim`:
-über `soft_require.probe`, mit unverändertem Verhalten, wenn es fehlt. Der
-Fallback ist kein Verlust — Inline-Code ohne Plugin als
-`@markup.raw`-Hervorhebung ist ein paar Zeilen `nvim_buf_add_highlight`.
+**`color_my_ascii.nvim` ist damit die Ergänzung, nicht der Mechanismus** —
+weiche Abhängigkeit über `soft_require.probe`, und nur aufgerufen, wenn
+`list_blocks` wirklich einen Block meldet. Die Begründung des Eintrags
+stimmt unverändert: die Fence-API ist puffer-basiert, und dieses Pane *ist*
+ein Neovim-Puffer.
+
+**Drei Marken pro Span statt einer:** die Ticks als
+`@punctuation.special`, der Text dazwischen als `@markup.raw` — sonst läse
+sich die Interpunktion wie Inhalt. Die Backticks bleiben sichtbar; `conceal`
+würde jede Spalte danach verschieben, und dieses Pane richtet mehrere von
+Hand aus.
+
+`show_detail` ist entstanden, weil es **zwei** Render-Pfade auf dasselbe
+Pane gab. Genau die Form, die auseinanderläuft: eine Hervorhebung in nur
+einem hätte den anderen mit Backticks stehen lassen, je nachdem wie der
+Leser dorthin kam.
+
+Mutationsgeprüft: nimmt man den Aufruf aus `show_detail`, fällt der Spec
+namentlich (`expected 30, got 0`).
+
+**Stufe 2 von QW6 bleibt offen** — Zaunblöcke *auf der Seite*. Das ist eine
+andere Fläche als diese hier und nach wie vor **M**.
 
 ---
 
@@ -323,9 +342,8 @@ weiteren Join.
 
 Nach Nutzen pro Aufwand:
 
-1. **QW8** — Code auch im Editor hervorheben. Die Fläche, die QW6 noch
-   offenlässt, und `color_my_ascii.nvim` passt dort wirklich.
-2. **M1** (Config-Analyse) — drei getrennte Stücke, jedes für sich nützlich,
+1. ~~**QW8**~~ — erledigt 2026-08-20.
+2. **M1** (Config-Analyse) ← **hier weitermachen** — drei getrennte Stücke, jedes für sich nützlich,
    keines von einem anderen abhängig. Das Lazy-Load-Inventar ist davon das
    billigste und beantwortet eine Frage, die man wirklich hat.
 3. **M2** — die ehrliche Frage zum Reference-Tab. Möglicherweise der
