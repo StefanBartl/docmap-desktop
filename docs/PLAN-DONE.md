@@ -570,3 +570,37 @@ Installationszeile.
 Alle drei Zweige durch Ausführen belegt, nicht durch Lesen: beide Rocks
 fehlen, ein Rock fehlt (PATH ohne `C:\tools`), kein Interpreter vorhanden
 (PATH nur mit Neovims eigenem Verzeichnis).
+
+
+---
+
+### ~~QW7 · Erst einrasten, dann springen~~ — gebaut 2026-08-20, `c478aa1`
+
+Der Hover hebt einen Kasten und seine direkten Nachbarn hervor und blendet
+alles andere ab — und das verschwand, sobald der Zeiger sich bewegte. Die
+hervorgehobene Teilmenge war also nicht lesbar, nicht verfolgbar und nicht
+zu einem Nachbarn hin weiterzugehen: genau das, wofür die Ansicht da ist.
+
+Jetzt hält der **erste Klick** den Fokus, der **zweite** tut, was der Klick
+vorher tat. Hovern ist unverändert, solange nichts eingerastet ist.
+
+**Der `dblclick`-Handler ist weg**, und das ist der Kern der Bauart: ein
+Doppelklick sendet zwei `click`-Ereignisse, die bereits einrasten und dann
+handeln. Wer weiß, wo er hinwill, zahlt für das Einrasten nichts und merkt
+es nie. Wäre der alte Handler geblieben, hätte er *zusätzlich* gefeuert und
+zweimal gehandelt — das ist die erste Zusicherung im Spec.
+
+Drei Wege hinaus, alle drei gewünscht: **Escape** (die Bedeutung, die die
+Seite für ihre Popups ohnehin kennt), **Klick ins Leere** (was jeder
+reflexhaft versucht) und **Klick auf einen anderen Kasten**, der dort neu
+einrastet statt zu lösen — ohne das wäre das Verfolgen einer Kette die
+mühsamste Art, ausgerechnet die Funktion fürs Verfolgen zu benutzen.
+
+Die *Classic-clicks*-Pille behält ihre Bedeutung exakt: sie entscheidet, was
+der **zweite** Klick tut, nicht ob der erste einrastet. Der Spec hält beides
+auseinander, weil das Zusammenziehen ein naheliegender und stiller Fehler
+wäre.
+
+Am echten Baum durchgespielt statt gelesen — acht Schritte von „frisch
+geladen" bis Escape, plus: zweiter Klick landet `center=` in der URL, und
+ein Doppelklick handelt genau einmal.

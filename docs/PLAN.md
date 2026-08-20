@@ -104,46 +104,6 @@ committet weitergegeben wird; sie kann kein Neovim-Plugin aufrufen, und die
 Standalone-Engine läuft ganz ohne Neovim. **Wohl aber für `:DocBrowse`** —
 siehe QW8.
 
-### QW7 · Erst einrasten, dann springen — **S**, Engine
-
-**Heute verschwindet der Hover-Fokus, sobald die Maus weggeht.** Über einem
-Kasten hebt die Hierarchy ihn und seine direkten Nachbarn hervor und blendet
-alles andere ab — aber nur, solange der Zeiger draufsteht. Man kann die
-hervorgehobene Teilmenge also nicht lesen, nicht daran entlangfahren und
-nicht in Ruhe verfolgen, wohin die Kanten gehen.
-
-Gewünscht: **erster Klick rastet ein**, was der Hover zeigt (Nachbarn,
-Kanten, Abblendung bleiben stehen), **zweiter Klick löst die Aktion aus**.
-Hovern selbst bleibt genau wie heute.
-
-**Das berührt die Gesten-Entscheidung von 2026-08-20 (D2) und muss mit ihr
-zusammen gedacht werden.** Dort wurde getauscht: Einfachklick verwurzelt den
-Graphen und bleibt, Doppelklick öffnet im Tree — plus eine
-*Classic-clicks*-Pille für die alte Paarung. Mit QW7 würde daraus:
-
-| | Klick 1 | Klick 2 |
-|---|---|---|
-| **Standard** | Fokus einrasten | verwurzeln und hierbleiben |
-| **Classic clicks** | Fokus einrasten | im Tree öffnen |
-
-Drei Fragen, die vor dem Bauen zu klären sind — jede ändert das Ergebnis:
-
-1. **Wie löst man wieder?** Escape, Klick ins Leere, oder ein Klick auf einen
-   *anderen* Kasten, der dort neu einrastet. Vermutlich alle drei.
-2. **Was macht der Doppelklick dann?** Wenn Klick 1 einrastet und Klick 2
-   handelt, ist ein schneller Doppelklick genau diese Folge — das passt, muss
-   aber ausgesprochen werden, sonst kollidiert es mit dem bestehenden
-   `dblclick`-Handler.
-3. **Kostet es jeden Sprung einen Klick mehr?** Ja. Für das Erkunden ist das
-   ein Gewinn, für „ich weiß wo ich hinwill" ein Verlust — deshalb gehört es
-   vermutlich an dieselbe Pille wie D2 und nicht als dritte, unabhängige
-   Einstellung.
-
-**Der Screenshot dazu stammt von einer älteren Karte** (die Seitenleiste
-sagt es selbst: *von einer älteren Engine geschrieben*), zeigt also noch die
-Gesten **vor** D2. Nach einem Neuerzeugen springt der Einfachklick schon
-heute nicht mehr in den Tree.
-
 ### QW8 · Code auch im Editor hervorheben — **S**, Engine
 
 Dieselbe Frage wie QW6, andere Fläche: `:DocBrowse`s Detailpane zeigt
@@ -363,9 +323,8 @@ weiteren Join.
 
 Nach Nutzen pro Aufwand:
 
-1. **QW7** — erst einrasten, dann springen. Klein, und es macht die
-   Hierarchy-Ansicht zum ersten Mal *lesbar*: heute verschwindet der Fokus,
-   bevor man ihm folgen kann. Vorher die drei Fragen im Eintrag klären.
+1. **QW8** — Code auch im Editor hervorheben. Die Fläche, die QW6 noch
+   offenlässt, und `color_my_ascii.nvim` passt dort wirklich.
 2. **M1** (Config-Analyse) — drei getrennte Stücke, jedes für sich nützlich,
    keines von einem anderen abhängig. Das Lazy-Load-Inventar ist davon das
    billigste und beantwortet eine Frage, die man wirklich hat.
