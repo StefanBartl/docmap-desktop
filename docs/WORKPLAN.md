@@ -505,12 +505,34 @@ can discover is a gesture nobody uses.
       whether the two gestures should trade places is a different question
       and is not answered by that.
 
-### 9.3 More views, other emphases
+### 9.3 More views, other emphases — **brainstormed 2026-08-20**
 
-Deliberately left vague here because it is vague: "like Hierarchy but with
-another focus" is a direction, not a task. Worth turning into specific
-views before building any — one named view with a question it answers
-beats three general ones.
+Deliberately left vague here because it was vague: "like Hierarchy but with
+another focus" is a direction, not a task. It has now been turned into
+specific views, each stated as the question it answers, in
+**`documentation.nvim/docs/ROADMAP/IDEAS/IDEAS.md` §2.5** — which is where
+it belongs, because every Hierarchy view is engine code in
+`core/render/html.lua`, not app code.
+
+The short version, so this entry stands on its own:
+
+- **The division that decides the order** is encoding vs. layout. The six
+  existing views share one shape — boxes, arrows, drawn from a centre
+  outward — and the Hierarchy already lays out, zooms, exports and focuses.
+  A view that only changes what the boxes *say* costs a colour scale; a
+  view with its own layout costs a layout.
+- **Best value per effort: the health tint** — the Modules view coloured by
+  documented/tested share, answering "is the weakness concentrated or
+  spread", which a percentage cannot.
+- **Strongest genuinely new view: the layer map** — modules in the bands
+  `opts.layers` declares, violating edges red. It turns `layer-violation`
+  from a finding into a picture, and an architecture claim is what people
+  argue about in front of a diagram.
+- **Two are impossible here on purpose**: churn and ownership both need git,
+  and a committed artifact carrying history invalidates itself. They are
+  live views for this app or the editor, never page views.
+- **One is refused**: a file-size treemap. The most photogenic idea on the
+  list, and it answers nothing anyone asked.
 
 ### 9.4 ~~Open the file where an entity lives~~ — built 2026-08-19
 
