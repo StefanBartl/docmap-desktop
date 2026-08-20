@@ -29,3 +29,16 @@ tags
 
 # Generated from src/index.html on every run of tools/preview/preview.py.
 /tools/preview/preview.html
+
+# Installers downloaded for the release check. `RELEASING.md` step 6 says to
+# run `gh release download ... --dir .` right here, so they land in the repo
+# root by instruction rather than by accident — and a `git add -A` in the
+# middle of verifying a release would otherwise commit a ten-megabyte binary
+# of the thing being verified.
+/*.msi
+/*.exe
+/*.deb
+/*.rpm
+/*.AppImage
+/*.dmg
+/*.app.tar.gz
