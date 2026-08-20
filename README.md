@@ -112,12 +112,13 @@ See [docs/USAGE.md](docs/USAGE.md) for what every button does,
 | Document | Covers |
 |---|---|
 | [docs/USAGE.md](docs/USAGE.md) | Using it, button by button: adding projects, workspaces, the project picker and its four sort orders, the files pane, opening a file in your editor, the four Generate commands, settings and per-project settings, the notes that appear over some panels, the menu bar, and where everything is stored. |
-| [docs/WORKPLAN.md](docs/WORKPLAN.md) | What is done, what is next, and the measurement behind each decision. The resume point. |
+| [docs/PLAN.md](docs/PLAN.md) | **What is still open**, by effort, across all three repositories — with the two questions waiting on a person and the things that are deliberately not planned. The resume point. |
+| [docs/PLAN-DONE.md](docs/PLAN-DONE.md) | What was built and *why that way*, including the decisions that should not be re-opened. A plan that keeps its finished entries stops being a plan. |
+| [docs/WORKPLAN.md](docs/WORKPLAN.md) | The 2026-08-19 review this app grew out of: every request, and the measurement behind the answer to it. A record, not a queue. |
 | [docs/MENUBAR.md](docs/MENUBAR.md) | The menu's **design record**: why it is shaped the way it is, the four constraints that shaped it, and the three places the build went against the design. What the menu *does* is in USAGE.md. |
 | [docs/RELEASING.md](docs/RELEASING.md) | Cutting a release: what to check before tagging, what the workflow builds, and why the last step is a person opening the app. |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | What is built, what is next, and the reasoning behind each design decision. |
-| [docs/HANDOVER.md](docs/HANDOVER.md) | Cross-repo handoff state for continuing the work in a new session. |
-| [docs/HANDOVER-2026-08-20.md](docs/HANDOVER-2026-08-20.md) | Where the language work stands after twenty-three backends: what shipped, what to continue with, and the four decisions a next session must not re-litigate. |
+| [docs/HANDOVER.md](docs/HANDOVER.md) | How to work here: the state of the three repositories, what is installed on the machine, every gate and how to run it, and the traps that cost a day each. |
 
 ### The engine
 

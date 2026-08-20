@@ -1,10 +1,15 @@
 # Work plan — the 2026-08-19 review, and what was already open
 
-**Resume point.** Everything below is either measured against the code or
-marked as a question. **For the 2026-08-20 language run, start at
-[docs/HANDOVER-2026-08-20.md](HANDOVER-2026-08-20.md)** — it ranks what to
-continue with and records four decisions that should not be re-opened. Items are struck through as they ship, and each one
-says what "done" means so the next session does not have to re-derive it.
+**A record, not the queue.** Everything below is either measured against the
+code or marked as a question, and items are struck through as they ship —
+each saying what "done" meant, so nobody re-derives it.
+
+**The queue moved out on 2026-08-20**: what is still open lives in
+[PLAN.md](PLAN.md), what was built and why in [PLAN-DONE.md](PLAN-DONE.md).
+This document keeps the thing neither of those holds — the review this app
+grew out of, request by request, including the ones that turned out to rest
+on a wrong assumption about how the app behaves. That is the part worth
+having in five years.
 
 Written after a round of feedback on the running app. Where a request turned
 out to rest on a wrong assumption about how the app behaves, the measurement
