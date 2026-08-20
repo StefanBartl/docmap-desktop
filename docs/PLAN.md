@@ -263,9 +263,29 @@ aktiv ist.
 
 ### Q8 · `K` — das Zeichen unter dem Cursor nachschlagen — **S**, Engine (§4.3)
 
-Paart mit `ReferenceTab.md`s billigster Hälfte (kuratierte Linkliste), die
-unabhängig vom Rest ausliefern kann. Der Keyword-Hover in der Seite existiert
-schon — das hier ist dieselbe Registry, vierte Auslösefläche.
+**D5 — eine Entscheidung, ein Satz von dir.** Beim Anfassen kam eine Frage
+heraus, die der Eintrag nicht beantwortet, und Raten wäre hier teuer, weil `K`
+eine Taste ist, die man einmal lernt.
+
+`:DocBrowse` zeigt eine **Liste** (Modul- und Funktionsnamen), keinen
+Quelltext. „Das Zeichen unter dem Cursor" ist im Seiten-Hover eindeutig — dort
+steht gerendeter Quelltext, und `word` ist ein Lua-Schlüsselwort. In einer
+Liste steht der Cursor auf einer Zeile, die einen *Eintrag* benennt. Drei
+mögliche Bedeutungen, und sie schließen einander aus:
+
+| | `K` bedeutet | Wofür es gut ist | Wogegen |
+|---|---|---|---|
+| **a** | **Glossar-Karte** für das Wort unter dem Cursor (dieselbe Registry wie die Seite, vierte Auslösefläche — so war der Eintrag gemeint) | konsistent mit der Seite; billig | in der Liste steht selten ein Schlüsselwort. Meistens täte `K` nichts |
+| **b** | **Was ist dieser Eintrag** — Zusammenfassung, Signatur, Doku-Zustand, ohne die Ansicht zu verlassen | trifft das, was in einer Liste unter dem Cursor *steht*; „what is this" im Wortsinn | nicht mehr dieselbe Registry; überschneidet sich mit dem Detail-Pane |
+| **c** | **Beides, nach Kontext** — Glossar wenn das Wort eines ist, sonst der Eintrag | verhält sich immer sinnvoll | eine Taste mit zwei Bedeutungen ist die Art Magie, die man später bereut |
+
+**Meine Empfehlung: (a)**, aber erst *nachdem* der Referenz-Tab existiert
+(**M7**, dessen billige Hälfte unabhängig ausliefert). Grund: (a) ist genau
+dann wertvoll, wenn es etwas nachzuschlagen *gibt*, und heute wäre es eine
+Taste, die meistens schweigt. **Q8 gehört damit hinter M7**, nicht in die
+Quick Wins — das ist die eigentliche Erkenntnis aus diesem Anlauf.
+
+Falls du (b) willst, ist es unabhängig von M7 sofort baubar.
 
 ### ~~Q9 · Eine GitHub Action~~ — gebaut 2026-08-20, `3ae9c83`
 
