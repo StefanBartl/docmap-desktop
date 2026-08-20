@@ -104,20 +104,21 @@ updating the app changes is this window: the sidebar, the menu, the panes,
 the settings.
 
 See [docs/USAGE.md](docs/USAGE.md) for what every button does,
-[docs/WORKPLAN.md](docs/WORKPLAN.md) for what is being worked on, and
-[docs/ROADMAP.md](docs/ROADMAP.md) for the reasoning behind what exists.
+[docs/PLAN.md](docs/PLAN.md) for what is being worked on — **one plan for
+this app, `documentation.nvim` and `runtime-analysis.nvim` together** — and
+[docs/ROADMAP.md](docs/ROADMAP.md) for where this program is going.
 
 ## Documentation
 
 | Document | Covers |
 |---|---|
 | [docs/USAGE.md](docs/USAGE.md) | Using it, button by button: adding projects, workspaces, the project picker and its four sort orders, the files pane, opening a file in your editor, the four Generate commands, settings and per-project settings, the notes that appear over some panels, the menu bar, and where everything is stored. |
-| [docs/PLAN.md](docs/PLAN.md) | **What is still open**, by effort, across all three repositories — with the two questions waiting on a person and the things that are deliberately not planned. The resume point. |
+| [docs/PLAN.md](docs/PLAN.md) | **The one queue for all three repositories** — `documentation.nvim`, this app, `runtime-analysis.nvim` — by effort: quick wins, medium, large. Plus what waits on a person and what is deliberately not planned. Since 2026-08-20 the only place open work is tracked. |
 | [docs/PLAN-DONE.md](docs/PLAN-DONE.md) | What was built and *why that way*, including the decisions that should not be re-opened. A plan that keeps its finished entries stops being a plan. |
 | [docs/WORKPLAN.md](docs/WORKPLAN.md) | The 2026-08-19 review this app grew out of: every request, and the measurement behind the answer to it. A record, not a queue. |
 | [docs/MENUBAR.md](docs/MENUBAR.md) | The menu's **design record**: why it is shaped the way it is, the four constraints that shaped it, and the three places the build went against the design. What the menu *does* is in USAGE.md. |
 | [docs/RELEASING.md](docs/RELEASING.md) | Cutting a release: what to check before tagging, what the workflow builds, and why the last step is a person opening the app. |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | What is built, what is next, and the reasoning behind each design decision. |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | Where this program is going, in prose — direction, not schedule. The slice-by-slice derivation it used to hold is now the appendix of `WORKPLAN.md`. |
 | [docs/HANDOVER.md](docs/HANDOVER.md) | How to work here: the state of the three repositories, what is installed on the machine, every gate and how to run it, and the traps that cost a day each. |
 
 ### The engine

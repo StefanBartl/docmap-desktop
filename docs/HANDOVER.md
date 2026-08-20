@@ -6,9 +6,17 @@ Aufteilen ist der Punkt:
 
 | Datei | Antwortet auf |
 |---|---|
-| [`PLAN.md`](PLAN.md) | **Was ist offen**, nach Aufwand geordnet |
+| [`PLAN.md`](PLAN.md) | **Was ist offen** — und zwar für **alle drei Repositories**, nach Aufwand geordnet. Seit 2026-08-20 die einzige Warteschlange |
 | [`PLAN-DONE.md`](PLAN-DONE.md) | **Was wurde gebaut und warum so** — inklusive der Entscheidungen, die nicht neu verhandelt werden |
+| [`ROADMAP.md`](ROADMAP.md) je Repo | **Wohin es geht**, in Prosa. Richtung, kein Fahrplan |
+| `WORKPLAN.md` · `FEATURES.md` · `FINISHED.md` | **Die Herleitung.** Protokolle, die wachsen und nie gekürzt werden |
 | dieses Dokument | **Wie man hier arbeitet**: Stand der Repos, installierte Werkzeuge, Gates, Fallstricke |
+
+**Die Warteschlange stand vorher an fünf Stellen** — zwei `WORKPLAN.md`,
+drei `ROADMAP.md`, eine `IDEAS.md` und dieser Plan — und dieselbe Aufgabe
+tauchte in mehreren davon in unterschiedlichem Zustand auf. Zusammengeführt
+2026-08-20: die Häkchen sind aus den Protokoll- und Begründungsdokumenten
+entfernt, ihr Text steht unverändert weiter da.
 
 Zusammengeführt 2026-08-20 aus diesem Dokument und `HANDOVER-2026-08-20.md`.
 Die Tageshandover ist entfallen, nicht verloren: was sie an Ergebnissen
