@@ -198,6 +198,38 @@ die Extension-API-Zusage vor der ersten Erweiterung. Alle drei in
 
 ---
 
+## Nachgezogen am 2026-08-20, nach dem Release
+
+Zwei Dinge aus dem Release-Schnitt sind erledigt, beide standen als offene
+Befunde in der Engine-`ROADMAP.md`:
+
+- **Der Shim-Contract-Spec** (`TESTS/shim_contract_spec.lua`) — die dritte der
+  drei dort notierten Optionen, und die einzige, die den *nächsten* Fehler vor
+  der CI fängt. Läuft auf jeder Maschine, braucht weder PUC Lua noch den
+  `lua_tree_sitter`-Rock: liest jeden `vim.*`-Pfad und jeden Methodennamen aus
+  einem **echten Parse** (grep meldete 44/43 gegen die 27/30 des Parsers) und
+  fragt `vim_shim.lua` selbst, was es kann — geladen mit gefälschtem
+  `lfs`/`dkjson` und ohne `_G.vim`, weil der Shim mit
+  `if _G.vim then return _G.vim end` öffnet und sonst Neovims eigene Tabelle
+  zurückgibt. Genau der Fehler ist mir beim Schreiben passiert: erst
+  antwortete jede Abfrage „ja", auch für Namen, die der Shim nachweislich
+  nicht hat. **Das Gate ist der unklassifizierte Name** — mutationsgeprüft
+  gegen beide historischen Formen.
+- **Der falsche relative Link im Artefakt** — im Generator behoben, nicht in
+  einem Header, weil die Messung sagte: *jeder* relative Link in einer
+  Zusammenfassung war kaputt (4 von 4 hier, 1 von 1 in `runtime-analysis`).
+  Und die Frage der Notiz („warum meldet der Neovim-Check das nicht?") hat
+  eine Antwort, die bleibt: `docs.corpus` schließt `out_dir` aus — man
+  repariert einen Generator, man lintet nicht seine Ausgabe.
+
+**Offen bleibt dort**, ausdrücklich: der `standalone`-Gate überspringt sich
+weiterhin still. Der Contract fängt, was statisch sichtbar ist — eine
+Shim-Funktion, die *existiert* und sich anders verhält, fängt er nicht. Die
+zwei billigeren Optionen (hart fehlschlagen, wenn die Rocks da sind; den Skip
+in der Zusammenfassung wiederholen) sind weiter offen und weiter richtig.
+
+---
+
 ## Wo ich weitermachen würde
 
 Nach Nutzen pro Aufwand, mit dem was sich zuletzt geändert hat:
