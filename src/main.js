@@ -28,6 +28,7 @@ import {
   summaryText,
   supportFor,
   callsSupportFor,
+  grammarDiagnosis,
   engineLanguageText,
   engineVerdict,
 } from "./lib/languages.js";
@@ -81,6 +82,7 @@ const els = {
   engine: document.getElementById("engine"),
   engineSummary: document.getElementById("engine-summary"),
   engineState: document.getElementById("engine-state"),
+  engineGrammars: document.getElementById("engine-grammars"),
   pickEngine: document.getElementById("pick-engine"),
   pickGrammars: document.getElementById("pick-grammars"),
   nvim: document.getElementById("nvim"),
@@ -114,6 +116,11 @@ let engineLangs = null;
  *
  * @type {"yes"|"no"|"unknown"}
  */
+/** What the grammars directory holds, for the diagnosis under the verdict.
+    `null` until asked, and asked again after `set_grammars` — pointing at
+    a different directory is precisely what changes the answer. */
+let grammarDir = null;
+
 let callsSupport = "unknown";
 let nvim = { path: null, from_path: true, config_dir: null, config_dir_from_default: true };
 
@@ -867,6 +874,36 @@ function shortPath(p) {
   return parts.length <= 3 ? p : ".../" + parts.slice(-2).join("/");
 }
 
+/**
+ * Which grammar file is missing from which directory.
+ *
+ * Written into the sidebar panel and into Settings from one place: Settings
+ * holds the button that fixes it, the sidebar holds the verdict that raises
+ * the question, and two copies of one sentence assembled twice would be two
+ * sentences the first time somebody edits one.
+ *
+ * `innerHTML` because the sentence sets a path and a file name as `<code>`,
+ * and both interpolated values are escaped first — a directory name is the
+ * user's content, not this program's text, the same rule the scope dialog's
+ * lead follows.
+ */
+function renderGrammarDiagnosis() {
+  const diag = grammarDiagnosis(engineLangs, grammarDir);
+  const html = diag
+    ? fill(
+        t(diag.key),
+        Object.fromEntries(
+          Object.entries(diag.params).map(([k, v]) => [k, escapeHtml(String(v))])
+        )
+      )
+    : "";
+  for (const el of [els.engineGrammars, document.getElementById("prefs-grammars-state")]) {
+    if (!el) continue;
+    el.innerHTML = html;
+    el.hidden = !html;
+  }
+}
+
 function renderEngine() {
   const e = els.engineState;
   const s = els.engineSummary;
@@ -913,6 +950,7 @@ function renderEngine() {
     els.engine.open = true;
   }
 
+  renderGrammarDiagnosis();
   syncActions();
 }
 
@@ -950,6 +988,19 @@ function probeEngineLanguages() {
     })
     .catch(() => {
       engineLangs = null;
+    });
+
+  // Asked separately and swallowed separately. A directory that cannot be
+  // read is a reason to say less, never a reason for the panel above to
+  // fail: `grammarDiagnosis` treats a missing answer as "no directory",
+  // which is the weaker sentence and the safe one.
+  invoke("grammar_dir")
+    .then((res) => {
+      grammarDir = res;
+      renderGrammarDiagnosis();
+    })
+    .catch(() => {
+      grammarDir = null;
     });
 }
 

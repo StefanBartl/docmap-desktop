@@ -278,6 +278,22 @@ const CATALOGS = {
     "scope.save": "Save",
     "scope.saved": "Saved. The next generation for {name} uses these.",
     "scope.failed": "Could not save the project settings: {error}",
+
+    // The diagnosis behind "no grammar for …". Four sentences rather than
+    // one with holes in it: "the directory holds other things", "it holds
+    // nothing", "it is gone" and "there is none" each have a different next
+    // step, and a single string with an optional clause would blur them.
+    // `{example}` is a grammar name the engine actually asked for, so the
+    // file name in the sentence is one that would work rather than an
+    // invented illustration.
+    "grammars.diag.dir":
+      "The engine reads grammars from <code>{dir}</code>, which holds {have}. A missing one is a shared library named after the grammar — <code>{example}.dll</code>, <code>.so</code> or <code>.dylib</code>.",
+    "grammars.diag.empty":
+      "The engine reads grammars from <code>{dir}</code>, and that directory is empty. Each one is a shared library named after the grammar — <code>{example}.dll</code>, <code>.so</code> or <code>.dylib</code>.",
+    "grammars.diag.gone":
+      "The configured grammars directory <code>{dir}</code> is not there any more — <strong>Grammars…</strong> in Settings points at another one.",
+    "grammars.diag.none":
+      "No grammars directory is configured and this build ships none — <strong>Grammars…</strong> in Settings points at one.",
     "scope.outside": "{path} is not inside this project, so it cannot be excluded from it.",
   },
 
@@ -507,6 +523,15 @@ const CATALOGS = {
     "scope.save": "Speichern",
     "scope.saved": "Gespeichert. Die nächste Erzeugung für {name} benutzt diese Einstellungen.",
     "scope.failed": "Die Projekteinstellungen konnten nicht gespeichert werden: {error}",
+
+    "grammars.diag.dir":
+      "Die Engine liest Grammatiken aus <code>{dir}</code>, dort liegen {have}. Eine fehlende ist eine Shared Library, benannt nach der Grammatik — <code>{example}.dll</code>, <code>.so</code> oder <code>.dylib</code>.",
+    "grammars.diag.empty":
+      "Die Engine liest Grammatiken aus <code>{dir}</code>, und dieses Verzeichnis ist leer. Jede ist eine Shared Library, benannt nach der Grammatik — <code>{example}.dll</code>, <code>.so</code> oder <code>.dylib</code>.",
+    "grammars.diag.gone":
+      "Das eingestellte Grammatikverzeichnis <code>{dir}</code> gibt es nicht mehr — <strong>Grammatiken…</strong> in den Einstellungen zeigt auf ein anderes.",
+    "grammars.diag.none":
+      "Es ist kein Grammatikverzeichnis eingestellt, und dieser Build bringt keines mit — <strong>Grammatiken…</strong> in den Einstellungen zeigt auf eines.",
     "scope.outside": "{path} liegt nicht in diesem Projekt und kann daher nicht daraus ausgeschlossen werden.",
   },
 };

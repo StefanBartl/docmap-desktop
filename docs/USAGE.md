@@ -383,6 +383,23 @@ correctly. With one, the same run also gets function-level detail
 (signatures, call graphs, parameters). `no grammars` in the summary reports
 that difference; it is not a problem to fix.
 
+**When one is missing, the panel says where it looked.** Under the verdict
+it names the directory the engine is given, lists what that directory
+actually holds, and gives the file name a missing grammar would have —
+`zig.dll`, `.so` or `.dylib`. It lists the directory's contents rather than
+computing which paths the engine would probe: the resolution order belongs
+to the engine, and a second copy of that rule here could disagree with it
+while looking authoritative. Three other answers replace it when they apply:
+the configured directory is gone, it is empty, or there is none at all.
+Settings shows the same sentence, because that is where the button that
+fixes it lives.
+
+**There is no download button, and that is a decision.** Fetching grammars
+would mean pulling native shared libraries from a rolling release tag with
+no published checksum and handing them to a program that `dlopen`s them —
+fine in CI, a silent update channel for unverified executable code in an
+installed app. Naming the missing file costs nothing and touches no network.
+
 **Not every language needs one.** The engine reads assembly without a
 grammar at all, because GAS, NASM and ARM are a fork rather than dialects
 and a line scanner is the instrument that is right across all three. The

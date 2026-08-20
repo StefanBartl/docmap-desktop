@@ -100,6 +100,12 @@
           <span id="engine-summary" class="engine-summary"></span>
         </summary>
         <p id="engine-state" class="engine-state"></p>
+        <!-- The diagnosis behind the verdict: which grammar file is missing
+             from which directory. Its own element rather than a third line
+             in `#engine-state`, because it carries markup (a path and a file
+             name are `<code>`, not prose) and because it is the one line
+             here that is only ever shown when something is wrong. -->
+        <p id="engine-grammars" class="engine-state engine-diag" hidden></p>
       </details>
 
       <!-- Same shape as #engine, for the same reason: spec-import runs a
@@ -403,6 +409,10 @@
           nothing to do here, ever.
         </p>
         <p id="prefs-engine-state" class="prefs-state"></p>
+        <!-- The same diagnosis the sidebar shows, repeated here because this
+             is where the button that fixes it lives. Filled from one place
+             so the two cannot disagree. -->
+        <p id="prefs-grammars-state" class="prefs-state engine-diag" hidden></p>
         <div class="prefs-buttons">
           <button id="pick-engine" data-i18n-help="help.engineLocate" type="button" data-i18n="engine.locate">Locate…</button>
           <button id="pick-grammars" data-i18n-help="help.grammars" type="button" data-i18n="engine.grammars">Grammars…</button>
