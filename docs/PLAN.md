@@ -509,7 +509,22 @@ Karte wäre maschinenabhängig und `--check` in CI dauerhaft rot.
 Die Workspace-Ebene, die kein einzelnes Repository haben kann. Diese App ist
 die einzige Stelle, die mehrere Projekte gleichzeitig hält.
 
-### M4 · Public-API-Surface-Panel — **S–M**, Engine (§2.2)
+### ~~M4 · Public-API-Surface-Panel~~ — gebaut 2026-08-20, `f9e2832`
+
+Zehntes Analysis-Panel. Kein neues IR-Feld, kein Schema-Bump: die Seite
+rechnet es aus `fn.internal`, `fn.documented` und den Call-Kanten, die die
+Payload schon trägt. Am wenigsten erreichte Zeilen zuerst — das sind die,
+wegen denen man das Panel öffnet.
+
+**Der zweite ehrliche Vorbehalt kam von der laufenden Seite, nicht vom
+Entwurf:** in einer Sprache, deren Sichtbarkeit ein *Tag* ist, sieht ein
+ungetaggter dateilokaler Helfer genauso aus wie ein Einstiegspunkt — `norm(p)`
+stand neben `M.render()`. Zwei von 776 Funktionen tragen hier `@internal`,
+also nennt das Panel diese Zahl und sagt, dass die Liste nur so sehr eine
+Oberfläche ist, wie der Baum es hingeschrieben hat.
+
+**Schaltet §1.3 frei** (API-Bruch-Erkennung), abgelehnt als „„public' ist
+undefiniert" — ist es nicht mehr.
 
 ### M5 · Picker-Integration (telescope/pickers.nvim) — **S–M**, Engine (§4.2)
 
