@@ -278,11 +278,21 @@ Ordered by how much of the confusion each removes:
    them is missing. This replaces the section of `docs/HANDOVER.md` that
    currently explains how to do it by hand.
 
-5. **Per-project settings, and somewhere to put them.** Languages on/off,
-   exclude paths, Python's docstring style, Rust's crate root. The two
-   `<details>` panels in the sidebar carry the current two settings fine and
-   will not carry per-language options — this is the point where a real
-   settings surface has to exist, not before.
+5. ~~**Per-project settings, and somewhere to put them.**~~ **Built
+   2026-08-20** — Project → Project settings…, carrying languages on/off and
+   excluded paths. The prediction in this entry was half right and half
+   wrong, both usefully.
+
+   Right: a real surface had to exist first, and it did not until Settings
+   shipped. Wrong: this is *not* a section inside Settings. Building it made
+   the split obvious — Settings is this **machine's** (theme, language,
+   engine paths), and these are the **repository's**. One dialog holding
+   both would apply one project's answer to every project.
+
+   The other two this entry named — Python's docstring style, Rust's crate
+   root — are **not** built and are not the same kind of thing. Both are
+   engine options that do not exist yet, and until they do there is nothing
+   here to expose. Which is this section's own rule working as intended.
 
 **Deliberately not here:** any of the extraction itself. Which languages can
 be read is the engine's question, and an app that started answering it would

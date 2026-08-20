@@ -892,6 +892,54 @@ button:focus-visible {
   border-top: 0;
 }
 
+/* ------------------------------------------------- per-project settings
+
+   The language list is a grid rather than a column: twenty-three entries in
+   one column is a scrollbar in a dialog, and the names are short enough that
+   two or three fit across without wrapping. `auto-fill` rather than a fixed
+   count, so a narrow window degrades to one column instead of clipping. */
+.scope-langs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 2px 12px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.scope-langs li {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.scope-langs input {
+  margin: 0;
+}
+
+.scope-langs code {
+  font-family: var(--mono);
+  color: var(--ink);
+}
+
+/* The grammar state, which decides fidelity rather than success — the same
+   three-valued answer the sidebar shows, said in fewer words because here it
+   sits beside a checkbox rather than alone. */
+.scope-langs .scope-hint {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.scope-exclude {
+  font-family: var(--mono);
+  font-size: 12px;
+  width: 100%;
+  resize: vertical;
+}
+
 /* ------------------------------------------------------- context menu
 
    Positioned in viewport coordinates because it must be able to sit over

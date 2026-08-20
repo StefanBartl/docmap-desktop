@@ -1191,8 +1191,47 @@ the line scanner assembly proved.
       the page, or a file written where you chose.
 - [ ] Turn GitHub Discussions on, if feedback should be a thread rather than
       an issue. One line per category in `src-tauri/src/feedback.rs`.
-- [ ] Per-project settings — languages on/off, excluded paths. The first
-      real tenant of [§4](#4-settings).
+- [x] ~~Per-project settings — languages on/off, excluded paths.~~ — built
+      2026-08-20, and **not** as a tenant of [§4](#4-settings). That entry
+      assumed Settings was where they would land; building it made the
+      opposite obvious. Settings is explicitly *this machine's* — theme,
+      language, engine paths — and the workspace dialog says so in its own
+      first sentence. Where your engine binary lives is a fact about this
+      computer; whether a repository vendors a copy of something is a fact
+      about the repository. Putting the second in the first would apply one
+      project's answer to every project in the list. So: **Project →
+      Project settings…**, its own dialog.
+
+      **The engine had neither option**, which is why this was carried for
+      as long as it was. `documentation.nvim` `a2363fd` added `opts.exclude`
+      and `opts.languages` plus `--exclude=`/`--languages=`; this app is
+      their first consumer.
+
+      **The languages list is read from the engine**, not from a list here —
+      `--capabilities`, the same handshake the sidebar already uses. A newer
+      engine shows more backends with no change in this app, and each entry
+      keeps the three grammar states apart: loaded, wanted and missing
+      (*module tree only*), and **needs no grammar**, which is full fidelity
+      rather than a degradation.
+
+      **Nothing ticked means all of them.** An untouched dialog has to mean
+      what an untouched project already does, and "an empty selection means
+      read nothing" would produce an empty map that looks like a broken
+      repository.
+
+      **The scope is looked up in Rust by root, not passed by each caller.**
+      Four paths run the engine and a parameter is something each of them can
+      forget — and `check_map` forgetting it is the one that would hurt:
+      asking without the project's own scope compares the committed map
+      against a map nobody would ever write, and reports the project stale
+      forever.
+
+      Verified structurally and by test, **not looked at in the running
+      window**: `cargo test` (59), `node --test` (60, including a new
+      `scope.test.js` that joins the markup, `main.js` and `main.rs` by the
+      ids, command names and catalog keys they share). See §12's note about
+      a panel that is empty for a reason — the same rule applies here and is
+      not yet built.
 - [ ] The extension API concept, three stages, in `docs/ROADMAP.md`.
 - [ ] **Compiler Explorer, two steps further** — noted 2026-08-20, not
       built, in `documentation.nvim`'s `IDEAS.md` §3.6. Compare two marked

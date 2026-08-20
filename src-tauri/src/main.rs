@@ -64,6 +64,73 @@ struct Project {
     name: String,
     root: String,
     map_dir: String,
+    /// Repository-relative paths the engine is told not to read.
+    ///
+    /// Per project rather than per machine, unlike everything in Settings:
+    /// "my engine lives here" is a fact about this computer, "this
+    /// repository vendors a copy of something" is a fact about the
+    /// repository, and putting the second one in the machine's settings
+    /// would apply one project's answer to all of them.
+    ///
+    /// `#[serde(default)]` on both of these fields, so a workspace file
+    /// written before per-project settings existed loads unchanged. An empty
+    /// list is the same as no list and needs no migration.
+    #[serde(default)]
+    exclude: Vec<String>,
+    /// Which language backends the engine may use for this project, by their
+    /// registered names, or `None` for all of them.
+    ///
+    /// `None` and `Some(vec![])` are deliberately **the same answer** here,
+    /// matching the engine: an empty selection is a reader who has not
+    /// chosen, not a reader asking for an empty map. The dialog can
+    /// therefore un-tick everything without producing a project that reports
+    /// nothing.
+    #[serde(default)]
+    languages: Option<Vec<String>>,
+}
+
+/// One project's scope settings, as the engine's flags want them.
+///
+/// Looked up from the workspace by `root` rather than passed in by the
+/// caller, and that is the point: `generate`, `check_map` and the
+/// generate-all loop all have to honour these, and a parameter is something
+/// each of them can forget. The project is the owner of the setting, so the
+/// lookup belongs on this side of the boundary.
+///
+/// A root that is not in the workspace is not an error — it is the ordinary
+/// answer for a tree nobody has added — and yields empty scope, which is
+/// exactly the behaviour before this existed.
+fn project_scope(app: &tauri::AppHandle, root: &str) -> (Vec<String>, Option<Vec<String>>) {
+    let normalised = root.replace('\\', "/");
+    match read_workspace(app) {
+        Ok(ws) => ws
+            .projects
+            .iter()
+            .find(|p| p.root.replace('\\', "/") == normalised)
+            .map(|p| (p.exclude.clone(), p.languages.clone()))
+            .unwrap_or_default(),
+        Err(_) => (Vec::new(), None),
+    }
+}
+
+/// Add `--exclude=`/`--languages=` to a command, if this project asked for
+/// any.
+///
+/// Nothing is passed when nothing was chosen, rather than an empty
+/// `--languages=`: the engine reads an empty list as "all", so both spellings
+/// work, and the one that adds no argument keeps the command line a reader
+/// sees in a bug report equal to the one they would have typed.
+fn apply_scope(cmd: &mut std::process::Command, exclude: &[String], languages: &Option<Vec<String>>) {
+    for path in exclude {
+        if !path.trim().is_empty() {
+            cmd.arg(format!("--exclude={}", path.trim()));
+        }
+    }
+    if let Some(names) = languages {
+        if !names.is_empty() {
+            cmd.arg(format!("--languages={}", names.join(",")));
+        }
+    }
 }
 
 /// Settings live beside the project list rather than in a second file: there
@@ -336,10 +403,87 @@ fn add_project(app: tauri::AppHandle, root: String) -> Result<Vec<Project>, Stri
                 name,
                 root: canonical.clone(),
                 map_dir: format!("{canonical}/docs/map"),
+                exclude: Vec::new(),
+                languages: None,
             });
             ws.projects.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
         }
         Ok(ws.projects.clone())
+    })
+}
+
+/// One project's scope, for the dialog to render.
+///
+/// Its own command rather than reading it off the `Project` the frontend
+/// already holds: `list_projects` is called on every workspace change and
+/// its result is passed around widely, and a dialog that edited a copy of
+/// that object would be one stale list away from writing back settings the
+/// user changed in another window.
+#[derive(Debug, Serialize)]
+struct ProjectScope {
+    exclude: Vec<String>,
+    languages: Option<Vec<String>>,
+}
+
+#[tauri::command]
+fn project_scope_get(app: tauri::AppHandle, id: String) -> Result<ProjectScope, String> {
+    let ws = read_workspace(&app)?;
+    let project = ws
+        .projects
+        .iter()
+        .find(|p| p.id == id)
+        .ok_or_else(|| format!("no such project: {id}"))?;
+    Ok(ProjectScope {
+        exclude: project.exclude.clone(),
+        languages: project.languages.clone(),
+    })
+}
+
+/// Write one project's scope.
+///
+/// **Normalised here, not in the dialog.** A path typed by a person arrives
+/// with backslashes on Windows, a leading `./`, a trailing slash, or
+/// surrounding whitespace, and the engine matches on an exact
+/// forward-slashed repository-relative path. Doing it on this side means
+/// every future caller gets it right, and means the stored value is the one
+/// that will actually be passed — so a reader comparing the dialog with a
+/// bug report sees the same string twice.
+///
+/// An empty `languages` list is stored as `None`: the two mean the same
+/// thing to the engine, and keeping one spelling means the dialog can
+/// un-tick everything without inventing a third state.
+#[tauri::command]
+fn project_scope_set(
+    app: tauri::AppHandle,
+    id: String,
+    exclude: Vec<String>,
+    languages: Option<Vec<String>>,
+) -> Result<ProjectScope, String> {
+    let cleaned: Vec<String> = exclude
+        .iter()
+        .map(|p| {
+            p.trim()
+                .replace('\\', "/")
+                .trim_start_matches("./")
+                .trim_matches('/')
+                .to_string()
+        })
+        .filter(|p| !p.is_empty())
+        .collect();
+    let langs = languages.filter(|l| !l.is_empty());
+
+    with_workspace(&app, |ws| {
+        let project = ws
+            .projects
+            .iter_mut()
+            .find(|p| p.id == id)
+            .ok_or_else(|| format!("no such project: {id}"))?;
+        project.exclude = cleaned.clone();
+        project.languages = langs.clone();
+        Ok(ProjectScope {
+            exclude: cleaned.clone(),
+            languages: langs.clone(),
+        })
     })
 }
 
@@ -1018,6 +1162,10 @@ async fn generate(
     root: String,
     full: bool,
 ) -> Result<GenerateResult, String> {
+    // Read before `engine_info` consumes the handle, and before the move
+    // into the blocking task: both need `app`, and the scope is a workspace
+    // read rather than a process launch, so it costs nothing to do first.
+    let (exclude, languages) = project_scope(&app, &root);
     let info = engine_info(app)?;
     let engine = info.path.ok_or_else(|| {
         "No docmap engine configured. It is documentation.nvim's standalone binary —          put it on PATH, or point at it in the sidebar."
@@ -1040,6 +1188,8 @@ async fn generate(
         if full {
             cmd.arg("--full");
         }
+        // This project's own scope, not the machine's: see `Project::exclude`.
+        apply_scope(&mut cmd, &exclude, &languages);
         if let Some(g) = info.grammars {
             cmd.env("DOCMAP_TS_DIR", g);
         }
@@ -1097,6 +1247,12 @@ struct CheckResult {
 /// that eventually gets passed the wrong way round.
 #[tauri::command]
 async fn check_map(app: tauri::AppHandle, root: String) -> Result<CheckResult, String> {
+    // **The same scope as `generate`, and it has to be.** This command
+    // answers "would regenerating change anything", and regenerating means
+    // regenerating *with this project's settings*. Asking without them would
+    // compare the committed map against a map nobody would ever write, and
+    // report a stale project every time somebody excluded a directory.
+    let (exclude, languages) = project_scope(&app, &root);
     let info = engine_info(app)?;
     let engine = info.path.ok_or_else(|| {
         "No docmap engine configured. It is documentation.nvim's standalone binary —          put it on PATH, or point at it in the sidebar."
@@ -1108,6 +1264,7 @@ async fn check_map(app: tauri::AppHandle, root: String) -> Result<CheckResult, S
         cmd.arg(&root);
         cmd.arg("--check");
         cmd.arg("--lenient");
+        apply_scope(&mut cmd, &exclude, &languages);
         if let Some(g) = info.grammars {
             cmd.env("DOCMAP_TS_DIR", g);
         }
@@ -1754,6 +1911,8 @@ fn main() {
             list_projects,
             add_project,
             remove_project,
+            project_scope_get,
+            project_scope_set,
             import_from_url,
             map_status,
             scan_languages,

@@ -143,6 +143,11 @@ const GROUPS: &[Group] = &[
             item("menu.project.regenerate", Some("F5"), true),
             Node::Separator,
             item("menu.project.generate_full", None, true),
+            Node::Separator,
+            // Per-project, so it belongs here rather than in File → Settings,
+            // which is explicitly this *machine's* preferences. `needs_project`
+            // for the same reason: there is nothing to configure without one.
+            item("menu.project.scope", None, true),
         ],
     },
     Group {

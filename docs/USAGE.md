@@ -19,6 +19,7 @@ the code, not recalled.
 - [Generate, Generate all, Generate the out-of-date ones](#generate-generate-all-generate-the-out-of-date-ones)
 - [The staleness mark](#the-staleness-mark)
 - [Settings](#settings)
+- [Project settings](#project-settings)
 - [The engine indicator](#the-engine-indicator)
 - [The note that appears over some panels](#the-note-that-appears-over-some-panels)
 - [Keyboard navigation](#keyboard-navigation)
@@ -279,6 +280,51 @@ registers telemetry under its own. The snapshots listed are captures taken
 with `:RATelemetry snapshot <name>`, never automatically; to compare two,
 the map's own **Analysis → Telemetry** panel is the place, since it can
 hold two at once.
+
+## Project settings
+
+**Project → Project settings…**, and the distinction from the section above
+is the whole reason it is a second dialog: **Settings belongs to this
+machine, Project settings belongs to the repository.** Where your engine
+binary lives is a fact about this computer. Whether a repository vendors a
+copy of something, or is worth reading as Go only, is a fact about the
+repository — and storing that in the machine's settings would apply one
+project's answer to every project in the list.
+
+Two controls, because there are exactly two questions the engine can be
+asked about scope.
+
+**Languages** is a tick list of the backends this engine actually has, read
+from the engine itself rather than from a list in this app — which is why a
+newer engine shows more of them without an update here, and why each entry
+can say whether its grammar loaded. **Nothing ticked means all of them.**
+That is not an empty selection quietly meaning "read nothing": a project
+that has never been narrowed already reads everything, and the untouched
+dialog has to mean the same thing the untouched project does.
+
+Three grammar states, not two, and they stay apart here as they do
+everywhere else: a grammar loaded, a grammar wanted and missing (*module
+tree only* — a complete tree with no function-level data), and **needs no
+grammar**, which is full fidelity rather than a degradation. Assembly is
+the one.
+
+**Excluded paths** is one path per line, relative to the project root, and a
+path excludes that file or folder and everything under it. It is a path and
+not a pattern: vendored and generated folders — `node_modules`, `target`,
+`dist`, `build`, `.venv` and a dozen more — are already skipped by the
+engine wherever they appear, with nothing to configure, so the shape worth
+having is the other one. *This path, in this repository.*
+
+**Add folder…** picks one and stores it relative to the root. A directory
+outside the project is refused rather than stored, because a path that can
+never match is a setting that appears to do something and does not.
+
+Both settings reach the engine as `--languages=` and `--exclude=` flags, and
+they are looked up **by the app, not by each button** — so *Generate*,
+*Generate all*, *Generate map (full)* and **Check exactly** all honour them.
+That last one matters most: a check that asked without the project's own
+scope would compare the committed map against a map nobody would ever
+write, and report the project stale forever.
 
 ## The engine indicator
 

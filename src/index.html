@@ -458,6 +458,52 @@
         </div>
       </section>
     </dialog>
+    <!-- Per-project settings.
+
+         Its own dialog rather than a section inside Settings, and the
+         reason is the sentence at the top of the workspace dialog: theme,
+         language and engine paths belong to *this machine*. What a
+         repository vendors and which languages it is worth reading are
+         facts about the repository, and putting them in the machine's
+         settings would apply one project's answer to every project.
+
+         Two controls, because there are exactly two questions the engine
+         can be asked about scope. Anything further belongs in the engine
+         first. -->
+    <dialog id="scopebox" class="addbox">
+      <form method="dialog" class="addbox-close-form">
+        <button class="addbox-x" value="cancel" aria-label="Close">&times;</button>
+      </form>
+
+      <h2 class="addbox-title" data-i18n="scope.title">Project settings</h2>
+      <p id="scope-lead" class="addbox-note"></p>
+
+      <section class="prefs-section">
+        <h3 data-i18n="scope.languages">Languages</h3>
+        <p class="addbox-note" data-i18n="scope.languages.note">
+          Which languages the engine reads here. Nothing ticked means
+          <strong>all of them</strong>.
+        </p>
+        <ul id="scope-langs" class="scope-langs"></ul>
+      </section>
+
+      <section class="prefs-section">
+        <h3 data-i18n="scope.exclude">Excluded paths</h3>
+        <p class="addbox-note" data-i18n="scope.exclude.note">
+          One path per line, relative to the project root.
+        </p>
+        <textarea id="scope-exclude" class="fb-field scope-exclude" rows="5"
+                  spellcheck="false" autocomplete="off"
+                  data-i18n-placeholder="scope.exclude.placeholder"></textarea>
+        <div class="prefs-buttons">
+          <button id="scope-add" type="button" data-i18n="scope.add">Add folder…</button>
+        </div>
+      </section>
+
+      <p id="scope-problem" class="addbox-note fb-problem" hidden></p>
+      <button id="scope-save" class="addbox-go" type="button" data-i18n="scope.save">Save</button>
+    </dialog>
+
     <!-- The per-project context menu.
 
          It hangs off the detail block under the picker rather than off the

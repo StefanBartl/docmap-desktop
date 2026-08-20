@@ -2351,6 +2351,7 @@ const MENU_ACTIONS = {
   "menu.file.remove": () => selectedId && removeProject(selectedId),
   "menu.file.workspaces": () => openWorkspaces(),
   "menu.file.settings": () => openPrefs(),
+  "menu.project.scope": () => selectedId && openScope(),
   "menu.project.generate": () => selectedId && generateFor(selectedId),
   "menu.project.generate_all": () => generateAll(),
   "menu.project.generate_stale": () => generateStale(),
@@ -2449,6 +2450,181 @@ function chooseLocale(code) {
   applyLocale();
   syncMenu();
 }
+
+
+/* ---------------------------------------------------- per-project settings
+
+   Two questions the engine can be asked about scope, and nothing else:
+   which languages to read here, and which paths to leave out. Both live on
+   the project rather than on this machine — see `scopebox`'s own comment in
+   `index.html` — and both are passed to the engine on the Rust side, looked
+   up by root, so `Generate`, `Generate all` and `Check exactly` honour them
+   without each remembering to.
+
+   Read on open and written on Save, rather than live: this is a form, and a
+   form that writes on every keystroke turns a half-typed path into a stored
+   setting. */
+
+/** The project the dialog is currently editing, so Save cannot follow a
+    selection change made behind the modal. */
+let scopeProject = null;
+
+/**
+ * Render the language checkboxes.
+ *
+ * Built from `engine_languages()` — the engine's own capability handshake —
+ * rather than from a list here. A list here would be a twenty-fourth backend
+ * away from lying, and it would also have nothing to say about grammars.
+ *
+ * **The three grammar states stay three.** `grammar_loaded: false` means a
+ * backend that wants a grammar and has none: a complete module tree and no
+ * function-level data. `null` means a backend that needs no parser at all,
+ * which is full fidelity rather than a degradation — assembly is the one.
+ * Collapsing them would report a healthy backend as broken, which is exactly
+ * what the engine keeps them apart to prevent.
+ *
+ * When the engine cannot be asked, the list is replaced by the sentence
+ * saying so. An empty list of checkboxes would read as "this engine supports
+ * no languages", which is a different and much worse claim.
+ *
+ * @param {string[]|null} chosen Names ticked, or null for "all of them".
+ */
+function renderScopeLanguages(chosen) {
+  const list = document.getElementById("scope-langs");
+  list.textContent = "";
+  const known = engineLangs && engineLangs.languages;
+  if (!known || known.length === 0) {
+    const li = document.createElement("li");
+    li.textContent = t("scope.languages.unknown");
+    li.className = "scope-hint";
+    list.appendChild(li);
+    return;
+  }
+  const picked = new Set(chosen || []);
+  for (const lang of known) {
+    const li = document.createElement("li");
+    const label = document.createElement("label");
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.value = lang.name;
+    box.checked = picked.has(lang.name);
+    const name = document.createElement("code");
+    name.textContent = lang.name;
+    label.appendChild(box);
+    label.appendChild(name);
+    li.appendChild(label);
+
+    let hint = null;
+    if (lang.grammar_loaded === false) {
+      hint = t("scope.languages.nogrammar");
+    } else if (lang.grammar_loaded === null || lang.grammar_loaded === undefined) {
+      hint = t("scope.languages.nogrammarneeded");
+    }
+    if (hint) {
+      const span = document.createElement("span");
+      span.className = "scope-hint";
+      span.textContent = hint;
+      li.appendChild(span);
+    }
+    list.appendChild(li);
+  }
+}
+
+/** Open the per-project settings dialog for the selected project. */
+async function openScope() {
+  const p = projects.find((x) => x.id === selectedId);
+  if (!p) return;
+  scopeProject = p;
+
+  const lead = document.getElementById("scope-lead");
+  // `innerHTML` because the sentence carries a `<strong>` around the project
+  // name, and the name is the one substituted value — escaped, because a
+  // directory name is not this program's text. Same rule the placeholder
+  // bodies follow.
+  lead.innerHTML = fill(t("scope.lead"), { name: escapeHtml(p.name) });
+
+  const problem = document.getElementById("scope-problem");
+  problem.hidden = true;
+  problem.textContent = "";
+
+  let scope = { exclude: [], languages: null };
+  try {
+    scope = await invoke("project_scope_get", { id: p.id });
+  } catch (e) {
+    void e;
+  }
+  document.getElementById("scope-exclude").value = (scope.exclude || []).join("\n");
+  renderScopeLanguages(scope.languages);
+  document.getElementById("scopebox").showModal();
+}
+
+document.getElementById("scope-save").addEventListener("click", async () => {
+  if (!scopeProject) return;
+  const boxes = [...document.querySelectorAll("#scope-langs input:checked")];
+  const exclude = document
+    .getElementById("scope-exclude")
+    .value.split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  try {
+    await invoke("project_scope_set", {
+      id: scopeProject.id,
+      exclude,
+      // Nothing ticked is `null`, not `[]`: the two mean the same thing to
+      // the engine, and one spelling means the dialog can un-tick everything
+      // without inventing a third state that reads as "an empty map, please".
+      languages: boxes.length > 0 ? boxes.map((b) => b.value) : null,
+    });
+    say(fill(t("scope.saved"), { name: scopeProject.name }));
+    document.getElementById("scopebox").close();
+  } catch (e) {
+    const problem = document.getElementById("scope-problem");
+    problem.textContent = fill(t("scope.failed"), { error: String(e) });
+    problem.hidden = false;
+  }
+});
+
+/* A folder picker beside the textarea, because the paths are
+   repository-relative and typing one by hand is where the typo lives. The
+   picker returns an absolute path; the only thing this has to do is refuse a
+   directory outside the project rather than storing a path that can never
+   match. */
+document.getElementById("scope-add").addEventListener("click", async () => {
+  if (!scopeProject) return;
+  const problem = document.getElementById("scope-problem");
+  try {
+    const dir = await open({
+      directory: true,
+      multiple: false,
+      defaultPath: scopeProject.root,
+      title: t("scope.add"),
+    });
+    if (!dir) return;
+    // `split`/`join` rather than a regex: the pattern would be a backslash
+    // class inside a literal, which is the one place this file has had to be
+    // escaped three deep. Two plain string operations say the same thing and
+    // cannot be misread.
+    const slash = (s) => s.split("\\").join("/").replace(/\/+$/, "");
+    const root = slash(scopeProject.root);
+    const picked = slash(String(dir));
+    if (picked === root || picked.indexOf(root + "/") !== 0) {
+      problem.textContent = fill(t("scope.outside"), { path: picked });
+      problem.hidden = false;
+      return;
+    }
+    const rel = picked.slice(root.length + 1);
+    const field = document.getElementById("scope-exclude");
+    const lines = field.value.split("\n").map((l) => l.trim()).filter(Boolean);
+    if (!lines.includes(rel)) {
+      lines.push(rel);
+    }
+    field.value = lines.join("\n");
+    problem.hidden = true;
+  } catch (e) {
+    problem.textContent = fill(t("scope.failed"), { error: String(e) });
+    problem.hidden = false;
+  }
+});
 
 /**
  * Open Settings.
