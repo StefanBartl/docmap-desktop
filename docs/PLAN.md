@@ -263,16 +263,28 @@ durch Ausführen des Tokenizers aus der *erzeugten Seite*.
 
 **M3 ist damit frei.** *Vorher: M7.*
 
-### M3 · `K` im Browser — **S**, Engine (§4.3), **nach M2**
+### ~~M3 · `K` im Browser~~ — **erledigt 2026-08-21**
 
-**Entschieden 2026-08-20:** die Glossar-Karte für das Wort unter dem Cursor —
-dieselbe Registry wie der Keyword-Hover der Seite, vierte Auslösefläche, so
-war der Eintrag gemeint.
+Die Glossar-Karte für das Wort unter dem Cursor, aus derselben Registry wie
+der Keyword-Hover der generierten Seite.
 
-**Und deshalb hinter M2**, nicht davor: wertvoll ist `K` erst, wenn es etwas
-nachzuschlagen *gibt*. Heute stünde der Cursor in einer Liste meist auf
-einem Namen, der kein Schlüsselwort ist, und die Taste schwiege. `K` lernt
-man einmal. *Vorher: Q8 / D5.*
+**Zwei Messungen haben die Form entschieden.** Ein Glossarbegriff steht im
+Browsertext dieses Repositorys **213-mal in einer Inline-`code`-Spanne und
+2 558-mal in normaler Prosa** — "and", "for", "in", "end", "type". Ein `K`,
+das überall antwortet, läge also etwa zwölfmal von dreizehn falsch, und zwar
+auf die unangenehmste verfügbare Art: eine korrekte Definition an einem Wort,
+das kein Code ist. Also ist die Spanne das Tor; außerhalb sagt die Taste,
+warum sie schweigt.
+
+Und die Spannen leben im **Detailpane**, das vorher gar nicht erreichbar war:
+alle Browser-Tasten hängen am Listenpuffer, und bei vier Fenstern im Layout
+landet ein natives `wincmd w` nicht dort. Deshalb waren auch zwei von sechzehn
+Wurzeleinträgen unlesbar — 46 Zeilen Detail in einem 14-Zeilen-Pane ohne
+Scrollmöglichkeit. `w` geht hinein, `q`/`<Esc>` zurück.
+
+Die Taste ist `w` und nicht das zuerst gewählte `<Tab>`: ein Terminal sendet
+für `<Tab>` und `<C-i>` dasselbe Byte, die Bindung hat also still `<C-i>` aus
+der Besuchshistorie genommen. `docmap_browse_spec` hat es gefangen.
 
 ### M4 · Cross-Repo-Dashboard — **M**, Desktop
 
@@ -446,8 +458,11 @@ Nach Nutzen pro Aufwand:
    Wrapper-Unterstützung und drei weitere Plugin-Manager.
 3. ~~**M2**~~ — **erledigt 2026-08-21**, die Antwort war *kein Tab*, und
    das Zählen dafür hat die 1004-zu-6-Lücke im Glossar aufgedeckt.
-   **M3 ist frei** ← hier weitermachen.
-4. **M4** (Cross-Repo-Dashboard) — das Einzige, was nur diese App kann.
+4. ~~**M3**~~ (`K` im Browser) — **erledigt 2026-08-21.** Das Zählen davor
+   hat die Taste auf Code-Spannen begrenzt und nebenbei ein unerreichbares
+   Detailpane aufgedeckt.
+   **M4 ist frei** ← hier weitermachen.
+5. **M4** (Cross-Repo-Dashboard) — das Einzige, was nur diese App kann.
 
 **Nicht als Nächstes**, obwohl sie groß und sichtbar sind: **L1** und **L2**.
 Beide sind mehrere Sitzungen und beide eine Umfangsentscheidung, keine
