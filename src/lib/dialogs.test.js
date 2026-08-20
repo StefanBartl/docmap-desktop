@@ -68,3 +68,38 @@ test("only the dialog's own action is pinned, not every button that shares the c
     "at least one dialog has an `.addbox-go` that is not its last word — that is what the selector protects"
   );
 });
+
+// The grammar diagnosis crosses three files by string equality alone: a
+// command name, two element ids and four catalog keys. Every one of them
+// fails the same way when it drifts — silently, in the running window.
+
+const MAIN = readFileSync(new URL("../main.js", import.meta.url), "utf8");
+const RUST = readFileSync(new URL("../../src-tauri/src/main.rs", import.meta.url), "utf8");
+
+test("the grammar_dir command is defined and registered", () => {
+  assert.ok(MAIN.includes('invoke("grammar_dir")'), "main.js should ask for it");
+  assert.ok(RUST.includes("fn grammar_dir("), "grammar_dir should be defined");
+  // Defined is not enough: an unregistered command compiles and fails at
+  // the call.
+  assert.ok(/^\s*grammar_dir,$/m.test(RUST), "grammar_dir should be in the invoke_handler list");
+});
+
+test("both places the diagnosis is written to exist in the markup", () => {
+  for (const id of ["engine-grammars", "prefs-grammars-state"]) {
+    assert.ok(HTML.includes(`id="${id}"`), `the markup should define #${id}`);
+    assert.ok(MAIN.includes(`"${id}"`), `main.js should write to #${id}`);
+  }
+});
+
+test("every field grammarDiagnosis reads is one the Rust struct serialises", () => {
+  // `GrammarDir` is `Serialize` with default naming, so the JSON keys are
+  // the field names. A renamed field would leave the diagnosis reading
+  // `undefined` and quietly reporting "no directory configured" on a
+  // machine that has one.
+  for (const field of ["dir", "from_setting", "exists", "files", "more"]) {
+    assert.ok(
+      new RegExp("^[ \\t]*" + field + ":", "m").test(RUST),
+      `GrammarDir should carry ${field}`
+    );
+  }
+});

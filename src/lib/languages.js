@@ -283,3 +283,72 @@ export function engineVerdict(engine, engineLanguages) {
   // them open the panel to find out.
   return `${known.length - wanting} of ${known.length} grammars`;
 }
+
+/**
+ * The diagnosis behind "no grammar for python, go, …".
+ *
+ * The verdict above answers *whether* fidelity is reduced. This answers the
+ * question it provokes — **what do I put where** — which is the half that
+ * was left when the grammar *manager* was rejected: downloading native
+ * shared libraries from a rolling tag with no published checksum is a
+ * silent update channel for unverified executable code, but saying which
+ * file is missing from which directory costs nothing and reaches the
+ * network not at all.
+ *
+ * Returns a catalog key and its parameters rather than a sentence, so the
+ * only thing this function knows about language is that it does not speak
+ * one. That is also `I18N.md`'s I18N-0 rule, applied early to the one place
+ * here that was going to need it.
+ *
+ * **It does not repeat which backends are missing a grammar.** The line
+ * directly above it in the panel already names them, in the engine's own
+ * vocabulary; measured in a browser, saying it twice cost 141px of a 259px
+ * sidebar column and said it in two vocabularies at once — backend names
+ * there (`csharp`), grammar names here (`c_sharp`) — which reads as two
+ * different problems rather than one fact.
+ *
+ * `null` means say nothing, and it covers two different silences that must
+ * both stay silent: every backend has its grammar (nothing to diagnose),
+ * and the engine is too old to be asked (`languages: null` — a guess here
+ * would be wrong for exactly the reader who most needs it right).
+ *
+ * @param {{languages: ({name: string, grammar: string|null, grammar_loaded: boolean|null}[])|null}|null} engineLanguages
+ * @param {{dir: string|null, from_setting: boolean, exists: boolean, files: string[], more: number}|null} dirInfo
+ * @returns {{key: string, params: Record<string, string|number>}|null}
+ */
+export function grammarDiagnosis(engineLanguages, dirInfo) {
+  const known = engineLanguages?.languages ?? null;
+  if (!known || !known.length) return null;
+
+  const missing = known.filter((b) => b.grammar_loaded === false);
+  if (!missing.length) return null;
+
+  // The grammar name, not the backend name: `csharp` is the backend and
+  // `c_sharp` is the file. Naming the backend here would send somebody
+  // looking for a file that is not what the engine asks for. Falls back to
+  // the backend name only if an engine ever reports a wanted grammar
+  // without naming it.
+  const names = missing.map((b) => b.grammar || b.name);
+  const files = dirInfo?.files || [];
+
+  // **The example must be a file that is not already there.** Seen in a
+  // browser before this rule existed: with nineteen backends wanting a
+  // grammar and four files present, the sentence read "…named after the
+  // grammar — `javascript.dll`" two clauses after listing `javascript.dll`
+  // among what the directory holds. A backend can want a grammar it cannot
+  // load for reasons that have nothing to do with the file being absent —
+  // a bad build, the wrong architecture — so "wanted" and "missing from
+  // this directory" are not the same set, and only the second one makes an
+  // example worth copying.
+  const absent = names.find((n) => !files.some((f) => f.startsWith(n + ".")));
+  const params = { example: absent || names[0] };
+
+  if (!dirInfo || !dirInfo.dir) return { key: "grammars.diag.none", params };
+  if (!dirInfo.exists) return { key: "grammars.diag.gone", params: { ...params, dir: dirInfo.dir } };
+
+  if (!files.length) {
+    return { key: "grammars.diag.empty", params: { ...params, dir: dirInfo.dir } };
+  }
+  const have = dirInfo.more ? `${files.join(", ")} (+${dirInfo.more})` : files.join(", ");
+  return { key: "grammars.diag.dir", params: { ...params, dir: dirInfo.dir, have } };
+}

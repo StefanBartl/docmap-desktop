@@ -9,6 +9,7 @@ import {
   summaryText,
   supportFor,
   callsSupportFor,
+  grammarDiagnosis,
   engineLanguageText,
   engineVerdict,
 } from "./languages.js";
@@ -358,4 +359,104 @@ test("a language no backend claims does not decide the answer", () => {
   // the one this note carries.
   const scan = { languages: [{ name: "COBOL", grammar: "cobol" }] };
   assert.equal(callsSupportFor(scan, ENGINE), "unknown");
+});
+
+// ---------------------------------------------------------------- grammars
+//
+// The diagnosis behind the verdict. What is asserted here is mostly what it
+// *refuses* to say: two different silences, and a file name that is the
+// grammar's rather than the backend's.
+
+const GRAMMAR_ENGINE = {
+  languages: [
+    { name: "lua", grammar: "lua", grammar_loaded: true },
+    { name: "csharp", grammar: "c_sharp", grammar_loaded: false },
+    { name: "go", grammar: "go", grammar_loaded: false },
+    { name: "asm", grammar: null, grammar_loaded: null },
+  ],
+};
+
+const GDIR = {
+  dir: "C:/tools/docmap-grammars",
+  from_setting: true,
+  exists: true,
+  files: ["lua.dll"],
+  more: 0,
+};
+
+test("nothing missing means nothing said", () => {
+  const all = { languages: [{ name: "lua", grammar: "lua", grammar_loaded: true }] };
+  assert.equal(grammarDiagnosis(all, GDIR), null);
+});
+
+test("an engine that cannot be asked stays silent rather than guessing", () => {
+  // `languages: null` is an engine older than the field. A diagnosis here
+  // would be advice about a machine this app has not looked at.
+  assert.equal(grammarDiagnosis({ languages: null }, GDIR), null);
+  assert.equal(grammarDiagnosis(null, GDIR), null);
+});
+
+test("a backend needing no grammar never becomes the example", () => {
+  // `grammar_loaded: null` is full fidelity, not a degradation. Assembly
+  // has no parser and needs none.
+  const d = grammarDiagnosis(GRAMMAR_ENGINE, GDIR);
+  assert.notEqual(d.params.example, "asm");
+});
+
+test("the file named is the grammar's, not the backend's", () => {
+  // The engine calls its C# backend `csharp` and its grammar `c_sharp`.
+  // Naming the backend would send somebody looking for a file the engine
+  // never asks for.
+  const d = grammarDiagnosis(GRAMMAR_ENGINE, GDIR);
+  assert.equal(d.params.example, "c_sharp");
+});
+
+test("the example is a file the directory does not already hold", () => {
+  // Found by looking at it: with `c_sharp.dll` present but unloadable, the
+  // sentence offered as an example the very file it had just listed as
+  // being there. "Wanted" and "absent from this directory" are different
+  // sets, and only the second one is worth copying.
+  const d = grammarDiagnosis(GRAMMAR_ENGINE, { ...GDIR, files: ["lua.dll", "c_sharp.dll"] });
+  assert.equal(d.params.example, "go", `got ${d.params.example}`);
+});
+
+test("when every wanted grammar is present it still names one", () => {
+  // All of them there and none loading is a real state — a bad build, the
+  // wrong architecture. Saying nothing at that point would leave the panel
+  // reporting a problem with no sentence under it.
+  const d = grammarDiagnosis(GRAMMAR_ENGINE, { ...GDIR, files: ["c_sharp.dll", "go.dll"] });
+  assert.ok(d.params.example, "an example is still offered");
+});
+
+test("the diagnosis does not repeat the list the panel already shows", () => {
+  const d = grammarDiagnosis(GRAMMAR_ENGINE, GDIR);
+  assert.equal(d.params.missing, undefined, "the line above it names the backends");
+});
+
+test("each state of the directory is its own sentence", () => {
+  assert.equal(grammarDiagnosis(GRAMMAR_ENGINE, GDIR).key, "grammars.diag.dir");
+  assert.equal(
+    grammarDiagnosis(GRAMMAR_ENGINE, { ...GDIR, files: [] }).key,
+    "grammars.diag.empty"
+  );
+  assert.equal(
+    grammarDiagnosis(GRAMMAR_ENGINE, { ...GDIR, exists: false, files: [] }).key,
+    "grammars.diag.gone"
+  );
+  assert.equal(grammarDiagnosis(GRAMMAR_ENGINE, { ...GDIR, dir: null }).key, "grammars.diag.none");
+  // A failed probe must degrade to the weakest sentence, not to a wrong one.
+  assert.equal(grammarDiagnosis(GRAMMAR_ENGINE, null).key, "grammars.diag.none");
+});
+
+test("a capped listing says it was capped", () => {
+  const d = grammarDiagnosis(GRAMMAR_ENGINE, { ...GDIR, files: ["a.dll", "b.dll"], more: 9 });
+  assert.equal(d.params.have, "a.dll, b.dll (+9)");
+});
+
+test("it returns a key and parameters, never a sentence", () => {
+  // I18N-0's rule, applied here because this is the one line in the panel
+  // that was going to need it: a finding carries params, not prose.
+  const d = grammarDiagnosis(GRAMMAR_ENGINE, GDIR);
+  assert.equal(typeof d.key, "string");
+  assert.ok(!/ /.test(d.key), "a catalog key, not a sentence");
 });

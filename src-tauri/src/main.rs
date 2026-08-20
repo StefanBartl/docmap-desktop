@@ -748,6 +748,100 @@ fn resolve_grammars<R: tauri::Runtime>(app: &tauri::AppHandle<R>, configured: Op
     }
 }
 
+/// What is actually in the grammars directory, so a missing grammar can be
+/// diagnosed rather than only reported.
+///
+/// The engine already says *which backends* have no grammar; that is a
+/// verdict, and the next question it provokes is "so what do I put where".
+/// Answering it needs two facts this side owns: the directory this app
+/// resolves and passes as `DOCMAP_TS_DIR`, and what that directory holds.
+///
+/// **File names, not a rule.** This deliberately reports the directory's
+/// own contents rather than computing which paths the engine would probe:
+/// the resolution order lives in `documentation.nvim`'s
+/// `standalone/treesitter.lua` (`$DOCMAP_TS_<LANG>` first, then
+/// `$DOCMAP_TS_DIR/<lang>.{so,dll,dylib}`), and a second implementation of
+/// it here would be a rule that can disagree with the engine's while
+/// looking authoritative.
+#[derive(Debug, Serialize)]
+struct GrammarDir {
+    /// The directory the engine is given, or `None` when neither a setting
+    /// nor a bundled directory resolved.
+    dir: Option<String>,
+    /// True when it came from Settings rather than from the bundle -- the
+    /// difference between "fix your setting" and "this build ships none".
+    from_setting: bool,
+    /// False when `dir` is set but is not there any more. A configured path
+    /// that has been deleted is a different problem from an empty one, and
+    /// the fix is different too.
+    exists: bool,
+    /// Base names, sorted, capped. Enough to see the pattern and to spot a
+    /// typo; not a file browser.
+    files: Vec<String>,
+    /// How many were left out by the cap, so a long list says it is long
+    /// rather than quietly looking short.
+    more: usize,
+}
+
+/// Names listed before [`GrammarDir::more`] takes over.
+const GRAMMAR_FILES_SHOWN: usize = 12;
+
+#[tauri::command]
+fn grammar_dir(app: tauri::AppHandle) -> Result<GrammarDir, String> {
+    let ws = read_workspace(&app)?;
+    let from_setting = ws
+        .grammars
+        .as_deref()
+        .map(|g| Path::new(g).is_dir())
+        .unwrap_or(false);
+    let dir = resolve_grammars(&app, ws.grammars);
+
+    let Some(d) = dir else {
+        return Ok(GrammarDir {
+            dir: None,
+            from_setting: false,
+            exists: false,
+            files: Vec::new(),
+            more: 0,
+        });
+    };
+
+    let path = Path::new(&d);
+    if !path.is_dir() {
+        return Ok(GrammarDir {
+            dir: Some(d),
+            from_setting,
+            exists: false,
+            files: Vec::new(),
+            more: 0,
+        });
+    }
+
+    let mut names: Vec<String> = match std::fs::read_dir(path) {
+        Ok(entries) => entries
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().is_file())
+            .filter_map(|e| e.file_name().into_string().ok())
+            .collect(),
+        // Unreadable is not empty, and saying "holds nothing" about a
+        // directory that refused to be read would send somebody looking for
+        // a missing file that is sitting right there.
+        Err(e) => return Err(format!("{}: {}", d, e)),
+    };
+    names.sort();
+
+    let more = names.len().saturating_sub(GRAMMAR_FILES_SHOWN);
+    names.truncate(GRAMMAR_FILES_SHOWN);
+
+    Ok(GrammarDir {
+        dir: Some(d),
+        from_setting,
+        exists: true,
+        files: names,
+        more,
+    })
+}
+
 #[derive(Debug, Serialize)]
 struct EngineInfo {
     /// The configured path, one found on PATH, the bundled sidecar's
@@ -1928,6 +2022,7 @@ fn main() {
             list_github_repos,
             engine_info,
             engine_languages,
+            grammar_dir,
             set_engine,
             set_grammars,
             generate,

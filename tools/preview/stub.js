@@ -62,6 +62,13 @@ const R = {
         { name: "JavaScript", files: 12, grammar: "javascript", backend: null },
         { name: "Rust", files: 6, grammar: "rust", backend: null }] }),
   project_scope_get: (a) => SCOPES[a.id] ?? { exclude: [], languages: null },
+  grammar_dir: () => ({
+    dir: "C:/tools/docmap-grammars",
+    from_setting: true,
+    exists: true,
+    files: ["javascript.dll", "lua.dll", "tsx.dll", "typescript.dll"],
+    more: 0
+  }),
   project_scope_set: () => null,
   telemetry_info: () => ({ enabled: false }),
   about_info: () => ({ app: "docmap-desktop", version: "0.1.0" }),

@@ -49,14 +49,24 @@ kostet mich Zeit; jede kostet dich einen Satz.
 Erst das, was in Stunden fertig ist. Reihenfolge innerhalb der Liste:
 Nutzen pro Aufwand.
 
-### Q1 · Grammatik-Diagnose: welche Datei fehlt wo — **S**, `docmap-desktop`
+### ~~Q1 · Grammatik-Diagnose: welche Datei fehlt wo~~ — gebaut 2026-08-20
 
-Die App sagt heute, *welche Backends* keine Grammatik haben („no grammar for
-js, ts, tsx — module tree only", `src/lib/languages.js`). Sie sagt nicht,
-**welche Datei in welchem Verzeichnis** fehlt. Genau das ist die Hälfte, die
-vom verworfenen Grammatik-Manager übrig blieb: kein Netz, keine neue
-Abhängigkeit, nur die Auskunft. `resolve_grammars` in Rust kennt die
-Suchpfade bereits.
+Die App sagte, *welche Backends* keine Grammatik haben, aber nicht, **welche
+Datei in welchem Verzeichnis** fehlt — die Hälfte, die vom verworfenen
+Grammatik-Manager übrig blieb: kein Netz, keine neue Abhängigkeit, nur die
+Auskunft.
+
+Gebaut als `grammar_dir` (Rust) plus `grammarDiagnosis` (rein, testbar),
+vier Sätze im Katalog statt einem mit Löchern. **Es listet den
+Verzeichnisinhalt, statt die Suchregel nachzubauen** — die Regel gehört der
+Engine (`standalone/treesitter.lua`), und eine zweite Fassung hier könnte
+ihr widersprechen und dabei maßgeblich aussehen.
+
+Zwei Befunde kamen erst vom Ansehen im Browser: der Satz wiederholte die
+neunzehn Namen aus der Zeile darüber (141px in einer 259px-Spalte, dazu in
+zwei Vokabularen — Backend-Namen oben, Grammatiknamen unten), und das
+Beispiel war eine Datei, die zwei Sätze vorher als *vorhanden* aufgezählt
+wurde. Beides behoben, beides jetzt durch Tests festgehalten.
 
 ### Q2 · Letzte Auswahl pro Workspace — **XS/S**, `docmap-desktop`
 
@@ -64,9 +74,14 @@ Suchpfade bereits.
 Wiederherstellung ganz übersprungen. In `WORKPLAN.md` §11 ausdrücklich als
 „nicht getan" benannt statt stillschweigend gelassen.
 
-### Q3 · Doku-Hygiene in der Engine — **S**
+### ~~Q3 · Doku-Hygiene in der Engine~~ — gebaut 2026-08-20, `8b98f86`
 
-Vier Stellen, alle in `documentation.nvim`: `ROADMAP/WORKPLAN.md:111` führt
+Vier Stellen waren benannt, **zehn Abschnitte waren betroffen** — vier davon
+ohne jede Markierung, also als offene Arbeit lesbar. Dazu eine Behauptung,
+die der Bau widerlegt hatte: der Owning-Scope-Eintrag sagte, er müsse vor
+jeder Sprache landen, die ihn braucht — Python, Rust, Go, Java, C++, Kotlin,
+Swift und Scala sind ohne ihn gebaut worden, über qualifizierte flache
+Namen. Ursprünglich benannt: `ROADMAP/WORKPLAN.md:111` führt
 „Doc-Coverage pro Sprache" offen, gebaut am 2026-08-20 · `IDEAS/IDEAS.md`
 markiert §3.4/§4.1/§8.2 inline als erledigt, statt sie zu entfernen ·
 `IDEAS_IMPLEMENTATION_PLAN.md` braucht eine Neubewertung, seit §9s Kosten
