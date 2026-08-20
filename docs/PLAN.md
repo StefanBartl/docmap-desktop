@@ -126,11 +126,19 @@ Paart mit `ReferenceTab.md`s billigster Hälfte (kuratierte Linkliste), die
 unabhängig vom Rest ausliefern kann. Der Keyword-Hover in der Seite existiert
 schon — das hier ist dieselbe Registry, vierte Auslösefläche.
 
-### Q9 · Eine GitHub Action — **S**, Engine (§6.2)
+### ~~Q9 · Eine GitHub Action~~ — gebaut 2026-08-20, `3ae9c83`
 
-Eigene Bewertung: S, Nutzen **mittel–hoch**. `--sarif=<pfad>` existiert
-bereits, `pages.yml` auch; was fehlt, ist die Action, die ein fremdes Repo in
-drei Zeilen anschließt.
+`action.yml` an der Wurzel plus `scripts/action_run.lua`. Anschließen kostet
+jetzt drei Zeilen statt zweier kopierter Dateien:
+
+```yaml
+- uses: StefanBartl/documentation.nvim@main
+  with:
+    source: lua/myplugin
+```
+
+`REUSE.md`s „zwei Dateien kopieren und fünf Zeilen ändern" bleibt daneben
+richtig — für ein Repository mit eigenen Layer-Regeln.
 
 ### ~~Q10 · Live-Call-Count-Badge im Annotation-Popup~~ — gebaut 2026-08-20, `9a1cd10`
 
@@ -218,18 +226,42 @@ Neovim.
 
 ## Teil 2 — Mittel
 
-### M1 · Call-Kanten: **eine** Sprache vollständig, als Muster — **M**
+### ~~M1 · Call-Kanten: **eine** Sprache vollständig, als Muster~~ — gebaut 2026-08-20, Go
 
-**Das größte Einzelloch im Werkzeug.** Vier Backends von dreiundzwanzig
-liefern Call-Kanten (`lua`, `js`, `ts`, `tsx`); die anderen neunzehn liefern
-`{}`. Damit sind Calls, Module Calls, `:DocMap why`, die
-Call-Hierarchie-Ansicht und `dead-function`s Call-Stufe in neunzehn Sprachen
-leer. Nichts an diesen Sprachen macht das unmöglich.
+**Das größte Einzelloch im Werkzeug**, und für eine Sprache ist es zu.
+Vorher lieferten vier Backends von dreiundzwanzig Call-Kanten (`lua`, `js`,
+`ts`, `tsx`); jetzt fünf, und achtzehn liefern weiter `{}`.
 
-**Zuerst genau eine Sprache**, gegen ein fremdes Repository gemessen, als
-Muster für die übrigen achtzehn — Go oder Python. Die Erfahrung der letzten
-vierzehn Backends ist eindeutig: *jede* Messung an fremdem Code hat etwas
-geändert, ohne Ausnahme.
+**Die Messung hat wieder etwas geändert — wie bei jedem der vierzehn
+Backends davor, ohne Ausnahme.** Und diesmal war es nicht der Extraktor,
+sondern der *Resolver*, was der eigentliche Fund für die übrigen achtzehn
+ist:
+
+- **Ein Go-Paket ist ein Verzeichnis.** Ein unqualifiziertes `double(n)` in
+  `widget.go` kann eine Funktion in `helper.go` daneben meinen, und nichts an
+  der Aufrufstelle sagt das. Go hat kein `module_file`, also sind das zwei
+  IR-Knoten — ein dateiweiser Resolver verliert damit *fast die Hälfte* eines
+  echten Go-Call-Graphen, nicht dessen Rand. Gemessen an `aws/smithy-go`:
+  883 Call-Kanten, **397 davon dateiübergreifend innerhalb eines Pakets**.
+- **Getragen von einem Feld, nicht von einem Sonderfall:**
+  `LangBackend.call_scope = "package"`. Die nächste Sprache, die das braucht,
+  ist ein Feld an ihrem Backend und keine Zeile in `core/calls.lua`.
+- **Ein Name, den zwei Dateien eines Verzeichnisses deklarieren, wird
+  verworfen statt geraten.** Echtes Go kompiliert das nur, wenn das
+  Verzeichnis *nicht* ein Paket ist (`widgets` neben `widgets_test`) — es gibt
+  keine ehrliche Wahl, und eine selbstsichere falsche Kante ist genau das,
+  wogegen `calls_heuristic` opt-in bleibt.
+- **Erste Messung ergab null Funktionen** — weil die Go-Grammatik gar nicht
+  geladen war. Auch das ein Fund: die Zahl sah aus wie ein Ergebnis.
+
+**Die Lehre für L1:** *zuerst fragen, was in dieser Sprache ein Scope ist,
+dann die Query schreiben.* Lua und die ECMA-Familie haben darüber nichts
+beigebracht, weil bei ihnen Datei und Scope zufällig dasselbe sind.
+
+**Offen und bewusst so:** `other.Bump` löst nicht auf. Ein Go-Import-Pfad ist
+absolut gegen den Modulgraphen, das bräuchte die `module`-Zeile aus `go.mod`
+— eine Build-Datei, keine Quelldatei — oder einen Suffix-Vergleich, also
+Raten. Der Callee-Text wird trotzdem ausgegeben.
 
 ### M2 · Cross-Repo-Checks über `tag_files` — **S–M**, Engine (§1.7)
 
@@ -369,9 +401,10 @@ alle, bevor das größte Loch angefangen ist:
 3. **Q2** Letzte Auswahl pro Workspace
 4. ~~**Q10 + Q11** die beiden Stundensachen aus `runtime-analysis.nvim`~~ — erledigt
 5. ~~**Q12** den gemeinsamen Projektschlüssel entscheiden, solange er billig ist~~ — erledigt
-6. **Q9** die GitHub Action (S, Nutzen mittel–hoch) ← **hier weitermachen**
-7. **M1** Call-Kanten für **eine** Sprache, gegen ein fremdes Repo gemessen
-8. **Q4 + Q5** die beiden neuen Checks
+6. ~~**Q9** die GitHub Action~~ — erledigt, `3ae9c83`
+7. ~~**M1** Call-Kanten für **eine** Sprache, gegen ein fremdes Repo
+   gemessen~~ — erledigt, Go
+8. **Q4 + Q5** die beiden neuen Checks ← **hier weitermachen**
 9. **M2** Cross-Repo-Checks — die Vorbedingung liegt seit Wochen erfüllt da
 10. **M8** I18N-0 samt Schema-Bump, gemeinsam mit `MULTILANG.md` C.1
 
