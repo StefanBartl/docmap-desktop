@@ -113,7 +113,7 @@ See [docs/USAGE.md](docs/USAGE.md) for what every button does,
 |---|---|
 | [docs/USAGE.md](docs/USAGE.md) | Using it, button by button: adding projects, workspaces, the project picker and its four sort orders, the files pane, opening a file in your editor, the four Generate commands, settings and per-project settings, the notes that appear over some panels, the menu bar, and where everything is stored. |
 | [docs/WORKPLAN.md](docs/WORKPLAN.md) | What is done, what is next, and the measurement behind each decision. The resume point. |
-| [docs/MENUBAR.md](docs/MENUBAR.md) | Why the menu is shaped the way it is, and the four constraints that shaped it. |
+| [docs/MENUBAR.md](docs/MENUBAR.md) | The menu's **design record**: why it is shaped the way it is, the four constraints that shaped it, and the three places the build went against the design. What the menu *does* is in USAGE.md. |
 | [docs/RELEASING.md](docs/RELEASING.md) | Cutting a release: what to check before tagging, what the workflow builds, and why the last step is a person opening the app. |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | What is built, what is next, and the reasoning behind each design decision. |
 | [docs/HANDOVER.md](docs/HANDOVER.md) | Cross-repo handoff state for continuing the work in a new session. |

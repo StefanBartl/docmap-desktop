@@ -1,8 +1,37 @@
-# A menu bar — concept
+# A menu bar — the design, and what shipped
 
-**Nothing here is built.** This is the design for moving from a sidebar of
-buttons to a conventional desktop menu bar, plus the things a menu bar makes
-a home for that currently have none.
+> **Built 2026-08-20. This page is the design record, not the reference.**
+> When it was written its first line was "Nothing here is built"; all five
+> stages have since shipped and the app has a full menu bar. For **what the
+> menu does today**, read [`USAGE.md` § The menu
+> bar](USAGE.md#the-menu-bar) — that one is kept current. This one is kept
+> because the reasoning is worth more than the outcome, and because the
+> three places the build went *against* the design are the useful part.
+>
+> **Where it differs from what shipped:**
+>
+> - **Tools is gone.** It held exactly the four things a Settings dialog
+>   now owns, so one File entry replaced a whole submenu. `MENUBAR.md`
+>   argued against a dialog while there were two controls to put in it and
+>   named the condition that would make it right — more than a handful, and
+>   somewhere for what comes next to live. Both became true, and the
+>   condition was met rather than the argument overturned.
+> - **About is a dialog, not `PredefinedMenuItem::about`.** What belongs in
+>   it is the answer to "which versions am I running", and that answer is
+>   only useful if it can be copied into a bug report. A native box shows
+>   text nobody can select.
+> - **The context menu hangs off the detail block, not the project row.**
+>   There is no project row any more — the list became a `<select>`, and a
+>   native control answers a right-click with the platform's own menu.
+>
+> Two entries also arrived that this page never proposed: **Export the
+> current view** (`Ctrl+E`), once the page's message channel existed to ask
+> for the diagram, and **Project settings…**, which per-project scope
+> needed and which deliberately did *not* go into Settings — that dialog is
+> this machine's, and what a repository vendors is the repository's.
+
+This was the design for moving from a sidebar of buttons to a conventional
+desktop menu bar, plus the things a menu bar makes a home for that had none.
 
 Written 2026-08-19. Every API claim below was checked against the `tauri`
 2.11.5 source in this machine's cargo registry, not against documentation.
