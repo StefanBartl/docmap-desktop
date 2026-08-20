@@ -1,24 +1,27 @@
 # Übergabe — offene Arbeit am Desktop/Ökosystem
 
-Arbeitsprotokoll für die Fortsetzung in einem neuen Chat. **Konvention:** ein
-Punkt, der fertig *und gepusht* ist, wird hier gestrichen — nicht als
-„erledigt" markiert stehengelassen, sonst wächst das Dokument, statt den
-Rest zu zeigen. Was gebaut wurde und warum, steht danach im jeweiligen Repo
-(`docs/ROADMAP/FEATURES/FEATURES.md`, `docs/FINISHED.md`), nicht hier.
+Was eine neue Sitzung über **diesen Rechner und diese Arbeitsweise** wissen
+muss. Kein Aufgabenspeicher — dafür gibt es zwei andere Dateien, und das
+Aufteilen ist der Punkt:
 
-> **Der Fahrplan liegt seit 2026-08-20 in [`PLAN.md`](PLAN.md)** — alles
-> Offene aus allen drei Repos, nach Aufwand geordnet (Quick Wins, Mittel,
-> Groß), mit den Entscheidungen, die dich blockieren, und dem, was
-> ausdrücklich nicht geplant ist. Dieses Dokument bleibt das Arbeitsprotokoll:
-> Stand der Repos, installierte Werkzeuge, Arbeitsweise.
+| Datei | Antwortet auf |
+|---|---|
+| [`PLAN.md`](PLAN.md) | **Was ist offen**, nach Aufwand geordnet |
+| [`PLAN-DONE.md`](PLAN-DONE.md) | **Was wurde gebaut und warum so** — inklusive der Entscheidungen, die nicht neu verhandelt werden |
+| dieses Dokument | **Wie man hier arbeitet**: Stand der Repos, installierte Werkzeuge, Gates, Fallstricke |
+
+Zusammengeführt 2026-08-20 aus diesem Dokument und `HANDOVER-2026-08-20.md`.
+Die Tageshandover ist entfallen, nicht verloren: was sie an Ergebnissen
+trug, steht in `PLAN-DONE.md` und in den `FEATURES.md` der Repos, und was
+sie an Bedienwissen trug, steht unten unter *Alles ausführen*.
 
 ## Stand
 
 | Repo | Branch | HEAD | CI |
 |---|---|---|---|
-| `E:\repos\documentation.nvim` | main | `d995ca3` | grün, 5/5 Gates. `release-engine.yml` publiziert die Engine + 4 Grammatiken als GitHub-Release `standalone-latest`, **jetzt inklusive `runtime-analysis.nvim`** |
-| `E:\repos\runtime-analysis.nvim` | main | `24fb842` | grün |
-| `E:\repos\docmap-desktop` | main | `ff8d252` | kein CI-Gate; Release-Workflow (Tag-getriggert), **lädt jetzt die Engine von `standalone-latest` vor `cargo tauri build`** |
+| `E:\repos\documentation.nvim` | main | `a8fc6d1` | grün, 5/5 Gates. `release-engine.yml` publiziert die Engine **und alle dreiundzwanzig Grammatiken** als rollendes GitHub-Release `standalone-latest` — das ist es, was `docmap-desktop`s Installer bündelt, und es rollt: zwei Installer einen Monat auseinander enthalten verschiedene Engines, weshalb *Über* den Commit der Engine nennt statt ihn aus der App-Version zu folgern |
+| `E:\repos\runtime-analysis.nvim` | main | `4c1cf53` | grün |
+| `E:\repos\docmap-desktop` | main | **`v0.2.0`** | kein CI-Gate, aber CI läuft; Release-Workflow ist Tag-getriggert (`v*`) und lädt die Engine von `standalone-latest`, bevor `cargo tauri build` startet. Ablauf in [`RELEASING.md`](RELEASING.md) |
 | `C:\Users\bartl\AppData\Local\nvim` (persönliche Config) | main | `597af5d5` | kein CI |
 
 Installiert, dauerhaft:
@@ -62,165 +65,20 @@ PORTABILITY.md, Step 5 (2026-08-12).
 
 ---
 
-## Offen — Sprachachsen, Stand 2026-08-18
+## Offene Arbeit — steht woanders
 
-Zwei Vorhaben, die den gleichen Wortstamm teilen und sonst nichts:
-**Multilang** (welche Programmiersprachen die Engine *liest*) und **i18n**
-(welche Oberflächensprache sie *spricht*). Beide sind geplant, eines hat
-angefangen.
+Dieser Abschnitt führte bis 2026-08-20 die Sprach- und i18n-Achsen samt
+Reihenfolge. Beide sind seither Einträge in [`PLAN.md`](PLAN.md) (L1, L2, L3),
+mit den Bewertungen und den Abhängigkeiten, die tatsächlich vorordnen. Hier
+stand die Liste ein zweites Mal, und zwei Listen für eine Frage sind die
+Drift, die dieses Ökosystem sonst überall bekämpft.
 
-**Die Pläne, kanonisch, nicht doppelt gepflegt:**
-
-| Dokument | Inhalt |
-|---|---|
-| `documentation.nvim/docs/ROADMAP/WORKPLAN.md` | **Der Wiedereinstiegspunkt.** Alles Besprochene, auch das nicht Gebaute, in einer Datei — geschrieben, damit die Arbeit einen Kaltstart in einer neuen Session übersteht. Dieser Abschnitt hier ist die Desktop-Hälfte davon |
-| `documentation.nvim/docs/ROADMAP/IDEAS/MULTILANG.md`, **Part 4** | Stufenplan 1–8. Ersetzt Part 2s Reihenfolge und folgt dabei Part 3s eigener Empfehlung: **C vor Python**, weil C weder Owning-Scope noch Ein-File-viele-Module braucht und deshalb *neben* den geteilten Nähten landen kann, wie JS/TS damals |
-| `documentation.nvim/docs/ROADMAP/IDEAS/I18N.md` | Neu. Drei Flächen, davon `render/html.lua` ~85 % der Arbeit (7 433 Zeilen gegen 14 `vim.notify`-Stellen im ganzen Plugin) |
-| `documentation.nvim/docs/ROADMAP/IDEAS/ReferenceTab.md`, Abschnitt „The lookup layer" | Keyword-Hover und Verwandtes. Eine Registry, vier Auslöseflächen |
-| `docmap-desktop/docs/ROADMAP.md`, Abschnitte „Languages" / „Interface languages" | Nur die Hüllen-Hälfte |
-
-**Branches:**
-
-| Repo | Branch | Enthält |
-|---|---|---|
-| `documentation.nvim` | `feat/lookup-layer` | 4 Commits: Planung (Doku), `lang_registry.report()` + `languages` in `--capabilities`, Keyword-Hover im Snippet, **Quellwurzel-Erkennung pro Sprache**. Alle 5 Gates grün, Karte regeneriert |
-| `docmap-desktop` | `claude/doc-apps-convergence-plan-b8c69f` | 4 Commits: `scan_languages` (Zählen), `engine_languages` (Fähigkeiten lesen), Join beider, ehrliches Engine-Verdikt. `cargo test` 12/12, `node --test` 31/31 |
-
-**Nichts ist gepusht.** Beide Branches sind lokal.
-
-### Was als Nächstes dran ist, in dieser Reihenfolge
-
-Vereinbart: **Desktop zuerst**, ausdebuggen, und erst was sich dort bewährt
-hat wandert dorthin, wo es in `documentation.nvim` auch passt.
-
-1. ~~**Sprach-Badges am echten Fenster ansehen.**~~ — **gemessen
-   2026-08-20**, und die Frage nach der dritten Zeile hat sich erledigt: die
-   Projektliste ist seither ein `<select>`, die Badges hängen am Detailblock
-   darunter (`#proj-langs`). Beides geprüft, im Browser statt im Fenster —
-   Badge „Go · Python“, Tooltip „71 % Go (150) — no grammar · 29 % Python
-   (60) — no grammar“. Womit: `tools/preview/` in `docmap-desktop`, die
-   echte Oberfläche mit gestubbter Tauri-Brücke. **Damit ist die
-   Screenshot-Schuld weiter unten kleiner, nicht bezahlt** — der Harness
-   misst Layout, nicht Verhalten, und rendert in einem Browser, nicht in
-   WebView2.
-2. ~~`--capabilities` um `languages` erweitern~~ — **gebaut.** Der Join
-   steht: Zählung (Desktop) mal Backend-Liste (Engine), verbunden über den
-   **Tree-sitter-Grammatiknamen**, nicht über den Backend-Namen. Die Engine
-   nennt ihr TypeScript-Backend `ts`; das weiß außerhalb der Engine niemand,
-   und es hier zu wissen wäre genau die Duplizierung, die `languages.rs`
-   verweigert. Vier Zustände, und die zwei leicht zu verwechselnden sind die
-   wichtigen: `degraded` (Backend da, Grammatik fehlt — nur Modulbaum) ist
-   nicht `none` (gar kein Backend), und `unknown` (ältere Engine) ist auch
-   nicht `none` — eine alte Engine liest Lua einwandfrei, und „kein Backend"
-   würde den Nutzer etwas reparieren schicken, das funktioniert.
-
-   **Was aber noch fehlt: eine Engine, die das Feld hat.** `C:\tools\docmap.exe`
-   ist älter und antwortet ohne `languages` — verifiziert, das ist der
-   `unknown`-Pfad. Voller Nutzen erst nach einem Engine-Rebuild (Rezept
-   weiter oben in diesem Dokument) oder einem neuen `standalone-latest`.
-3. ~~Grammatik-Manager~~ — **verworfen, mit Begründung.** Der Download-Teil
-   lädt native Shared Libraries nach, die die Engine per `dlopen` ausführt,
-   und zwar von einem rollenden Tag (`gh release delete standalone-latest`
-   dann `create`) ohne veröffentlichte Prüfsumme: was heute dort liegt, ist
-   nicht, was gestern dort lag, und es gibt keine Version zum Festnageln. Im
-   CI in Ordnung, als Knopf in einer installierten App ein stiller
-   Update-Kanal für ungeprüften ausführbaren Code. Dazu: `release.yml` bündelt
-   die Grammatiken ohnehin in jeden Installer (`resolve_grammars` fällt auf
-   das Ressourcenverzeichnis zurück), die Zielgruppe wäre also fast leer.
-
-   **Was davon offen bleibt und sich lohnt: die Diagnose-Hälfte** — welche
-   Grammatikdatei fehlt in welchem Verzeichnis. Kein Netz, keine neue
-   Abhängigkeit.
-4. ~~Keyword-Hover~~ — **gebaut** in `render/html.lua`, gegen zwölf echte
-   Eingaben gemessen (Keywords in Strings, Kommentaren, Long-Strings,
-   Template-Literalen bleiben undekoriert; `.rs` dekoriert gar nichts).
-   **Im Desktop-Fenster noch nicht angesehen** — das ist der eigentliche
-   nächste Schritt, zusammen mit Punkt 1.
-5. **Grammatik-Diagnose** (siehe 3) im Desktop: Liste plus Download aus
-   `standalone-latest` **entfällt** — nur noch: welche Datei fehlt wo.
-6. **Stufe 1 des Multilang-Plans** (Polyglot-Verifikation) — noch offen,
-   und die Voraussetzung für jedes weitere Backend.
-
-### Was schon gemessen ist
-
-- **Der Sprachzähler stimmt gegen Handzählung.** `documentation.nvim`: 142
-  Lua-Dateien = 98 (`lua/`) + 33 (`TESTS`) + 4 (`standalone`) + 6
-  (`scripts`) + 1 (`docs`). Erster Lauf meldete 448 — 306 davon waren
-  Kopien des Repos unter `.claude/worktrees/`. Deshalb überspringt der Walk
-  jetzt jedes Unterverzeichnis, das ein eigener Checkout ist (`.git`
-  *existiert*, nicht *ist ein Verzeichnis* — in Worktree und Submodul ist es
-  eine Datei).
-- **Der Fähigkeits-Join ist Ende zu Ende geprüft, ohne Engine-Rebuild.**
-  Echtes JSON aus der neuen Registry (unter Neovim erzeugt) durch die neue
-  Frontend-Schicht: Engine-Panel „lua · no grammar for js, ts, tsx — module
-  tree only", Tooltip für dieses Repo „54 % JavaScript (7) — no grammar ·
-  31 % Rust (4) — no backend". Beides wahr, beides vorher unsichtbar.
-  Dieses Neovim hat die Lua-Grammatik und die drei ECMA-Grammatiken nicht.
-- **Der Keyword-Tokenizer ist gegen zwölf echte Eingaben gemessen**, aus der
-  *generierten Seite* herausgezogen statt aus der Quelle nachgebaut: Keywords
-  in Strings, Zeilen- und Blockkommentaren, Lua-Long-Strings und
-  Template-Literalen bleiben undekoriert, während die umgebenden echten
-  Keywords gefunden werden; ein escapetes Anführungszeichen beendet den
-  String nicht zu früh; `constructor`/`toString` fallen nicht auf
-  `Object.prototype` herein (die Suche geht über `hasOwnProperty`);
-  `android` matcht nicht `and`; `.rs` dekoriert gar nichts.
-- **Nicht angesehen:** die Karte selbst. Kein Screenshot in dieser Umgebung.
-- **Stufe 1 ist gemessen, und der Verdacht lag an der falschen Stelle.** Der
-  Walk ist in Ordnung. Kaputt war ein Schritt davor: `config.detect_source`
-  war eine reine Lua-Heuristik und gab für *jeden* nicht erkannten Baum
-  `"lua"` zurück — ein reines JS/TS-Projekt starb an `scan.lua`s Assert
-  (`source directory not found: <root>/lua`). Die Engine liest seit Phase 1
-  JavaScript, und **kein JavaScript-Projekt konnte überhaupt gescannt
-  werden.** Behoben: die Backends beantworten es selbst (Lua besitzt
-  `lua/<plugin>`, ECMA `src`/`lib`/`app`), jedes lehnt ab statt zu raten,
-  und der Walk hat jetzt die Vendor-Skip-Liste, die eine `src`-oder-Wurzel
-  als `source` nötig macht. Gegengeprüft: die Karte dieses Repos ist
-  byte-identisch, und ein JS/TS-Projekt liefert mit geladenen Grammatiken
-  echte Funktionsdaten (`split/2`, `join/2`) — **ohne dass zwischen den
-  beiden Läufen irgendetwas umgestellt wurde.**
-- **Noch offen, und ein Entwurfsproblem statt eines Bugs:** ein Baum mit
-  Lua *und* JS in verschiedenen Verzeichnissen. `source` ist **ein**
-  Verzeichnis, also gewinnt das zuerst antwortende Backend — verifiziert an
-  einem Lua+JS+TS-Fixture: ein Lua-Modul, `src/` nie angesehen. Die zwei
-  ehrlichen Optionen stehen in `MULTILANG.md` Stufe 1. **Vor Stufe 4
-  entscheiden** — ein C-Backend landet genau in dieser Form (`src/` neben
-  `include/`).
-- **Noch nicht gemessen:** ob `scan.lua`s Walk wirklich polyglott ist. Er
-  fragt die Registry pro Datei (Z. 415) und pro Verzeichnis (Z. 310), also
-  *sollte* ein gemischter Baum funktionieren. Das ist genau die Art
-  Behauptung, die Part 2 des Multilang-Dokuments selbst zu prüfen verlangt,
-  statt sie zu glauben.
-
-### Entscheidungen, die noch offen sind
-
-1. **Hat die Engine inzwischen Nutzer?** Falls ja, wird die
-   Schema-Versionierung (Stufe 3.1) von einer Nebenaufgabe zur harten
-   Anforderung — die IR-Änderungen sind brechend.
-2. **Referenz-Links im Keyword-Hover.** Die Erklärung selbst ist offline und
-   veraltet nicht; der Link kann es. Entschieden: eine Basis-URL pro
-   Sprache mit abgeleiteten Ankern statt hunderter Einzel-URLs, Lua auf 5.1
-   gepinnt (Neovim läuft LuaJIT — die 5.4-Doku führt bei `goto`,
-   Integer-Division und `<close>` aktiv in die Irre). Ungeprüft ist, ob
-   MDNs URL-Struktur für JS/TS dasselbe hergibt.
-3. **Cross-Language-Kanten (Stufe 7)** sind der originellste Punkt der
-   Planung und der, der am ehesten Bedeutung erfindet, wo nur
-   Namensgleichheit ist.
-
-### Gates, unverändert
-
-`documentation.nvim`: `nvim --headless -l scripts/ci.lua` — 5 Gates. Eine
-Doku-Änderung macht die Karte stale; danach
-`nvim --headless -l scripts/gen_map.lua` und das Ergebnis mitcommitten.
-
-`docmap-desktop`: `cargo test` in `src-tauri/` und `node --test src/lib/*.test.js`.
-`cargo test` braucht vorher die Platzhalter, die CI auch anlegt (beide sind
-`.gitignore`d):
-
-```
-mkdir -p src-tauri/binaries src-tauri/resources/grammars
-touch src-tauri/binaries/docmap-x86_64-pc-windows-msvc.exe
-touch src-tauri/resources/grammars/placeholder.dll
-```
+**Was aus diesem Abschnitt bleibt, weil es Bedienwissen ist und keine
+Aufgabe:** die Karte eines Repos wird stale, sobald sich seine Doku ändert —
+danach `nvim --headless -l scripts/gen_map.lua` und das Ergebnis
+mitcommitten. Und `DOCMAP_TS_DIR` ist eine **Benutzervariable**: ein
+laufendes Neovim oder eine laufende App sieht eine Änderung erst nach
+Neustart.
 
 ---
 
@@ -243,6 +101,56 @@ Weg, und ein Browser ist nicht WebView2.
 
 **Phase 6 (Hosted Web, echt)** — braucht ein Multi-Tenant-Trust-Modell, das
 nirgends existiert. Die statische Hälfte ist erledigt.
+
+---
+
+## Alles ausführen
+
+```bash
+nvim --headless -l scripts/ci.lua
+```
+
+in `documentation.nvim` — five gates. A docs change makes the map stale;
+regenerate with `scripts/gen_map.lua` and commit the result.
+
+The language specs skip when their grammar is absent, which is the normal
+local state. To run them for real, point at the built grammars:
+
+```bash
+DOCMAP_PYTHON_PARSER=C:/tools/docmap-grammars/python.dll nvim --headless -u NONE -l TESTS/run.lua
+```
+
+Every backend spec reads its own `DOCMAP_<LANG>_PARSER` — the full list is in
+`documentation.nvim/docs/LANGUAGES.md § Running the language specs`, along
+with the four backends that have no variable because Neovim ships their
+grammars. All twenty-three
+grammars are built into `C:/tools/docmap-grammars/` on this machine, and
+`scripts/build_engine_release.sh` builds them from source for a release —
+**twenty-three files for twenty-two languages**, because OCaml needs two
+(`.ml` and `.mli` are different languages to the parser) and assembly needs
+none.
+
+In `docmap-desktop`:
+
+```bash
+cd src-tauri && cargo test
+```
+
+```bash
+node --test src/lib/*.test.js
+```
+
+`cargo test` needs the placeholder sidecar first — see *Gates* above.
+
+To look at the frontend without building the app:
+
+```bash
+python tools/preview/preview.py
+```
+
+Then open `http://localhost:8731/tools/preview/preview.html`. Real markup,
+real CSS, real `main.js`; every `invoke` answered by `tools/preview/stub.js`.
+Layout only — the commands do nothing, and a browser is not WebView2.
 
 ---
 
