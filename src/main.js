@@ -2199,14 +2199,38 @@ async function renderFiles() {
     name.textContent = e.name;
     row.append(name);
 
-    // Why the map ignores this folder, said here rather than left to be
-    // wondered about. Both are true statements about the disk: the folder is
-    // there, and nothing under it is in the map.
-    if (e.nestedRepo || e.skipped) {
-      const why = document.createElement("span");
-      why.className = "why";
-      why.textContent = t(e.nestedRepo ? "files.nested" : "files.skipped");
-      row.append(why);
+    // What the map does with this entry, and what git thinks of it — said
+    // here rather than left to be wondered about. Every one of these is a
+    // true statement about the disk.
+    //
+    // **The two halves answer opposite surprises**, which is why both exist.
+    // `skipped`/`nested` explain a folder that is on screen and *not* in the
+    // map. `ignored` explains the reverse and is the one nothing else in this
+    // window could say: the scan does not read `.gitignore` — a repository
+    // can quite reasonably ignore a directory the map should still describe —
+    // so a folder you ignore in git is mapped anyway, and only this line
+    // tells you that before you go looking for a bug.
+    //
+    // At most one, and in this order. A row that carried three notes would
+    // be a row nobody reads, and the outermost fact wins: a folder that is
+    // not scanned at all makes what git thinks of it beside the point.
+    const why = e.nestedRepo
+      ? "files.nested"
+      : e.skipped
+        ? "files.skipped"
+        : e.ignored
+          ? "files.ignored"
+          : e.untracked
+            ? "files.untracked"
+            : null;
+    if (why) {
+      const el = document.createElement("span");
+      // `ignored` and `untracked` are about git rather than about the scan,
+      // so they are toned differently — the reader is being told a fact, not
+      // given a reason the map is missing something.
+      el.className = "why" + (why === "files.ignored" || why === "files.untracked" ? " git" : "");
+      el.textContent = t(why);
+      row.append(el);
     }
 
     const meta = document.createElement("span");

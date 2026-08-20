@@ -1191,6 +1191,14 @@ button:focus-visible {
   font-style: italic;
 }
 
+/* `ignored`/`untracked` are facts about git, not reasons the map skipped
+   something — quieter, and without the "this is missing" reading the
+   scan-side notes carry. */
+.files-row .why.git {
+  font-style: italic;
+  opacity: 0.75;
+}
+
 .files-row .m {
   flex: 0 0 auto;
   color: var(--muted);

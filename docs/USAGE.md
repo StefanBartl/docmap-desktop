@@ -210,6 +210,30 @@ to make the map look consistent. The same goes for a nested checkout —
 which is the reason half a tree can be missing from a map, and the one
 thing a reader would otherwise have no way to find out.
 
+**Four notes, and they answer two opposite surprises.**
+
+| Note | Means |
+|---|---|
+| *its own repository — not scanned* | A nested checkout. The scan stops here. |
+| *not scanned* | This tool skips this folder by name, in every repository — `node_modules`, `target`, `dist` and a dozen more. |
+| *ignored by git — but still mapped* | Your `.gitignore` covers it, **and the map walked it anyway**. |
+| *not in git* | On disk, never committed — and therefore in the map like anything else. |
+
+The first two explain a folder that is on screen and **not** in the map. The
+last two explain the reverse, and *ignored by git* is the one nothing else in
+this window could tell you: **the scan does not read `.gitignore`**, because
+a repository can quite reasonably ignore a directory the map should still
+describe. So a folder you ignore in git is mapped anyway — and that line is
+what tells you before you go looking for a bug.
+
+At most one note per row, in that order: a folder that is not scanned at all
+makes what git thinks of it beside the point.
+
+The two git notes are read from `git status` once per directory listed, not
+once per file. **A project that is not a git repository shows neither** —
+absence of git is not evidence about a file, and calling every file in a
+non-repository "not in git" would be confidently wrong about all of them.
+
 Clicking a file opens it wherever the **Editor** setting says. Coming back
 to the map does not reload it.
 
