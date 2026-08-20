@@ -68,11 +68,19 @@ zwei Vokabularen — Backend-Namen oben, Grammatiknamen unten), und das
 Beispiel war eine Datei, die zwei Sätze vorher als *vorhanden* aufgezählt
 wurde. Beides behoben, beides jetzt durch Tests festgehalten.
 
-### Q2 · Letzte Auswahl pro Workspace — **XS/S**, `docmap-desktop`
+### ~~Q2 · Letzte Auswahl pro Workspace~~ — gebaut 2026-08-20
 
-`LAST_KEY` ist ein einziger Wert, also wird beim Workspace-Wechsel die
-Wiederherstellung ganz übersprungen. In `WORKPLAN.md` §11 ausdrücklich als
-„nicht getan" benannt statt stillschweigend gelassen.
+Ein Schlüssel pro Workspace, migriert in dem Moment, in dem der aktive
+Workspace bekannt wird — nicht beim ersten Wechsel, der würde die Auswahl des
+alten Workspace unter dem neuen ablegen.
+
+**Und „nirgendwo" war ein Zustand, den die Seitenleiste nicht ausdrücken
+konnte:** ein `<select>` hat immer eine gewählte Option, also nannte der
+Picker das erstsortierte Projekt, während die Fläche daneben „Nichts
+ausgewählt" sagte. Der erste Fix sah richtig aus und war es nicht — die
+Option wurde gesetzt und eine Zeile später überschrieben. **Beides fand der
+Blick auf die laufende Seite; der Strukturtest lief durch beide Fassungen
+grün.**
 
 ### ~~Q3 · Doku-Hygiene in der Engine~~ — gebaut 2026-08-20, `8b98f86`
 
