@@ -54,33 +54,86 @@ Handgriff.
 
 Stunden. Reihenfolge innerhalb der Liste: Nutzen pro Aufwand.
 
-### QW2 · Datei-Pane: die übrigen Unter-Einträge — **S**, Desktop
+**Alle bis auf eine sind erledigt.** Offen bleibt nur QW6 **Stufe 2** —
+Zaunblöcke *auf der Seite* — und die ist **M**, keine Stunde. Zwei der
+erledigten haben nicht das ergeben, was ihr Eintrag erwartete: QW4 endete
+mit „nichts zu tun", QW5 mit „nein, bleibt doppelt" — und beide sind
+deshalb festgehalten statt offen.
 
-Untracked-Dateien und „vorhanden, aber ignoriert". Was die Karte übersprungen
-hat und warum, beantwortet das Pane inzwischen teilweise pro Verzeichnis —
-diese beiden fehlen noch.
+### ~~QW2 · Datei-Pane: die übrigen Unter-Einträge~~ — **gebaut 2026-08-20**, `292f925`
 
-### QW3 · Erklär-Attribute auch *innerhalb* der Views — **XS**, Desktop
+Das Pane sagt jetzt auch, was git von einem Eintrag hält: **nicht in git**
+und **von git ignoriert — trotzdem in der Karte**.
 
-Annotiert sind heute die Tabs und der Findings-Block. Die Abschnitts­über­
-schriften in den Views selbst nicht. Der Mechanismus ist ein Attribut, also
-ist jede einzelne ein **Text**, keine Änderung.
+**Die beiden Hälften beantworten entgegengesetzte Überraschungen.**
+`nicht gescannt` und `eigenes Repository` erklären einen Ordner, der da ist
+und *nicht* in der Karte. Die zwei neuen erklären das Umgekehrte — und
+*ignoriert* ist das, was sonst nichts in diesem Fenster sagen könnte: der
+Scan liest `.gitignore` nicht, also wird ein in git ignorierter Ordner
+trotzdem kartiert.
 
-### QW4 · Den Fokus-Pfad des Erklär-Popups verifizieren — **XS**, Desktop
+`ignored` ist bewusst ein eigenes Feld statt Teil von `skipped`: `skipped`
+ist die Regel *dieses Werkzeugs* und überall gleich, `ignored` die des
+*Repositories*. Ein Verzeichnis kann beides, eines oder keines sein.
 
-Unverifiziert notiert: ein nicht-kompositierendes Pane nimmt hier nie
-Fensterfokus, also feuert `focusin` nicht — dieselbe Grenze, die der
-Engine-WORKPLAN §2.3 für die Keyword-Karte festhält. Hover und Escape sind
-geprüft, der Fokus-Pfad nicht. **Messen, dann entscheiden**, ob überhaupt
-etwas zu tun ist.
+**Ein Test hat einen echten Konstruktionsfehler gefunden**, keine
+Bestätigung: `-unormal` fasst ein untracked Verzeichnis zu einer Zeile
+zusammen und erwähnt seinen Inhalt nie — an der Wurzel richtig, eine Ebene
+tiefer stillschweigend falsch. Der Bericht über das Verzeichnis selbst wird
+jetzt an die Einträge weitergereicht.
 
-### QW5 · `proc_trace` und `:RAInspect` sind zweimal dieselbe Technik — **S**, runtime-analysis (§4.1)
+Höchstens eine Notiz pro Zeile, äußerste Tatsache zuerst.
 
-`lib.nvim.system.proc_trace` umhüllt `vim.fn.system`, die Telemetrie-Registry
-umhüllt beliebige Funktionen. **Die Aufgabe ist eine Entscheidung, kein
-Umbau** — und §4.2 daneben ist die Gegenkraft: nach unten schieben erst,
-wenn es einen *zweiten* Konsumenten gibt. Ergebnis darf „nein, bleibt
-doppelt" sein; dann ist es festgehalten statt offen.
+### ~~QW3 · Erklär-Attribute auch *innerhalb* der Views~~ — **gebaut 2026-08-20**, `f705e09`
+
+**Und es war die Engine, nicht der Desktop** — die Views sind die der
+erzeugten Seite. Zweiundzwanzig Controls haben eine Erklärkarte bekommen:
+die sechs Hierarchy-Graphen und alle sechzehn Analysis-Werkzeuge.
+
+**Sechs davon benutzten ein rohes `title`**, wogegen der Mechanismus im
+eigenen Code argumentiert: *„a `title` attribute would have been free and
+never appears on focus."* Umgestellt statt verdoppelt.
+
+Weil ein `title` von Screenreadern vorgelesen wird, ist die Karte jetzt per
+`aria-describedby` verknüpft — und die Verknüpfung wird beim Schließen
+entfernt, sonst beschreibt sie ein verstecktes Element.
+
+`explain_spec.lua` hält die Verbindung in beide Richtungen; in beide
+Richtungen mutationsgeprüft.
+
+### ~~QW4 · Den Fokus-Pfad des Erklär-Popups verifizieren~~ — **gemessen 2026-08-20: nichts zu tun**
+
+Im echten Browser durchgespielt statt begründet: **mit Fensterfokus feuert
+`focusin` korrekt** und trifft den richtigen `[data-help]`-Vorfahren — auch
+auf einem `<summary>`. Ohne Fensterfokus feuert nichts, und das ist eine
+Eigenschaft eines unfokussierten Fensters, nicht des Elements oder des
+Panes. Alle elf Controls im Desktop sind per Tastatur erreichbar.
+
+**Zwei Korrekturen an mir selbst**, beide aus dem Messen statt dem Lesen:
+`<summary>` *ist* fokussierbar (`tabIndex` 0), und die vier `sub.*`-Texte,
+die verwaist aussahen, sind per JavaScript verdrahtet. Ich hätte beinahe
+einen Defekt gemeldet, den es nicht gibt.
+
+### ~~QW5 · `proc_trace` und `:RAInspect` sind zweimal dieselbe Technik~~ — **entschieden 2026-08-20**, `c07fec7`
+
+**Ergebnis: keine gemeinsame Wrapper-Registry** — und trotzdem ist die
+Lücke zu.
+
+Dagegen sprach: es gibt **einen** Konsumenten, und §4.2 daneben sagt
+ausdrücklich, dass Herunterschieben auf einen *zweiten* wartet.
+`proc_trace` fragt nie, wer etwas umhüllt hat — es wäre Produzent, nicht
+Leser. Und der Fall, der eine Konvention rechtfertigen würde — ein fremdes
+Plugin, das `vim.notify` patcht — ist genau der, den eine Konvention **in
+`lib.nvim`** nicht erreicht.
+
+**Die zwei Wrapper, die dieses Ökosystem kontrolliert, brauchten sie nicht.**
+`proc_trace` veröffentlicht bereits `is_active()` und umhüllt vier
+*bekannte* Pfade, also nennt `:RA provenance vim.fn.system` es jetzt exakt —
+ohne neue Konvention, ohne Änderung in `lib.nvim`, dreißig Zeilen auf der
+Konsumentenseite.
+
+Dabei korrigiert: der Schlusssatz des Berichts behauptete, nichts hier kenne
+fremde Wraps — was ab dem zweiten exakten Fall dem Satz darüber widersprach.
 
 ### QW6 · Code in Beschreibungen — **Stufe 1 gebaut 2026-08-20**, Stufe 2 offen
 
