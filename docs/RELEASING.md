@@ -53,6 +53,33 @@ gh run view <run-id> --json jobs --jq '.jobs[] | "\(.conclusion)  \(.name)"'
 gh run view <run-id> --log-failed | tail -25
 ```
 
+**Refresh the engine first, and check that it actually built.** The Windows
+and Linux installers bundle whatever `documentation.nvim`'s rolling
+`standalone-latest` release holds *at build time*, so an app release with a
+stale engine ships features that talk to flags the bundled engine does not
+have. That is not hypothetical either: cutting `v0.2.0` found
+`standalone-latest` five weeks of engine work behind — 58 commits, including
+the `--exclude=`/`--languages=` flags that this app's own **Project
+settings…** dialog passes.
+
+```bash
+gh -R StefanBartl/documentation.nvim release view standalone-latest --json publishedAt
+gh -R StefanBartl/documentation.nvim workflow run release-engine.yml
+```
+
+Then watch it, because *both* platform jobs have to pass — the publish step
+is skipped if either fails, and the rolling tag then still holds the old
+engine while nothing says so:
+
+```bash
+gh -R StefanBartl/documentation.nvim run list --workflow=release-engine.yml --limit 1
+```
+
+Rebuilding the engine is also the only thing that runs its `standalone` gate
+on a clean machine, which is why it is where two Neovim-only API calls were
+caught in one afternoon. Expect it to find something if the engine has moved
+much since the last release.
+
 **The version in the manifests is the version you tag.** `src-tauri/tauri.conf.json`
 and `src-tauri/Cargo.toml` both carry it, and they must agree with each other
 and with the tag. Bump them in a commit of their own before tagging, so the
