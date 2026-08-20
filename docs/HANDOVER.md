@@ -10,10 +10,10 @@ Rest zu zeigen. Was gebaut wurde und warum, steht danach im jeweiligen Repo
 
 | Repo | Branch | HEAD | CI |
 |---|---|---|---|
-| `E:\repos\documentation.nvim` | main | `42d8cae` | grün, 5/5 Gates. `release-engine.yml` publiziert die Engine + 4 Grammatiken als GitHub-Release `standalone-latest`, **jetzt inklusive `runtime-analysis.nvim`** |
-| `E:\repos\runtime-analysis.nvim` | main | `5f51de8` | grün |
-| `E:\repos\docmap-desktop` | main | `053bf5e` | kein CI-Gate; Release-Workflow (Tag-getriggert), **lädt jetzt die Engine von `standalone-latest` vor `cargo tauri build`** |
-| `C:\Users\bartl\AppData\Local\nvim` (persönliche Config) | main | `707b3ed6` | kein CI |
+| `E:\repos\documentation.nvim` | main | `5d2b98d` | grün, 5/5 Gates. `release-engine.yml` publiziert die Engine + 4 Grammatiken als GitHub-Release `standalone-latest`, **jetzt inklusive `runtime-analysis.nvim`** |
+| `E:\repos\runtime-analysis.nvim` | main | `24fb842` | grün |
+| `E:\repos\docmap-desktop` | main | `54f4c41` | kein CI-Gate; Release-Workflow (Tag-getriggert), **lädt jetzt die Engine von `standalone-latest` vor `cargo tauri build`** |
+| `C:\Users\bartl\AppData\Local\nvim` (persönliche Config) | main | `597af5d5` | kein CI |
 
 Installiert, dauerhaft:
 
@@ -87,11 +87,16 @@ angefangen.
 Vereinbart: **Desktop zuerst**, ausdebuggen, und erst was sich dort bewährt
 hat wandert dorthin, wo es in `documentation.nvim` auch passt.
 
-1. **Sprach-Badges am echten Fenster ansehen.** Gebaut, aber **nicht visuell
-   geprüft** — dieselbe Schuld wie beim eingeklappten Engine-Panel und dem
-   Kanten-Popup weiter unten. Konkret zu prüfen: bricht die dritte Zeile in
-   der Projektliste die Zeilenhöhe, und ist der `title`-Tooltip mit der
-   vollen Aufschlüsselung erreichbar.
+1. ~~**Sprach-Badges am echten Fenster ansehen.**~~ — **gemessen
+   2026-08-20**, und die Frage nach der dritten Zeile hat sich erledigt: die
+   Projektliste ist seither ein `<select>`, die Badges hängen am Detailblock
+   darunter (`#proj-langs`). Beides geprüft, im Browser statt im Fenster —
+   Badge „Go · Python“, Tooltip „71 % Go (150) — no grammar · 29 % Python
+   (60) — no grammar“. Womit: `tools/preview/` in `docmap-desktop`, die
+   echte Oberfläche mit gestubbter Tauri-Brücke. **Damit ist die
+   Screenshot-Schuld weiter unten kleiner, nicht bezahlt** — der Harness
+   misst Layout, nicht Verhalten, und rendert in einem Browser, nicht in
+   WebView2.
 2. ~~`--capabilities` um `languages` erweitern~~ — **gebaut.** Der Join
    steht: Zählung (Desktop) mal Backend-Liste (Engine), verbunden über den
    **Tree-sitter-Grammatiknamen**, nicht über den Backend-Namen. Die Engine
@@ -217,11 +222,18 @@ touch src-tauri/resources/grammars/placeholder.dll
 
 **Phase 4 (UI-Politur) in `documentation.nvim`** — Typografie-Skala (16
 verschiedene `font-size`-Werte gemessen) und Zebra-Streifen. Beide brauchen
-visuelle Prüfung; in dieser Umgebung gibt es **keine Screenshot-Fähigkeit**,
-die Vorschau rendert nur statische Schnappschüsse. Aus demselben Grund sind
-zwei bereits gebaute Dinge **nicht visuell geprüft**: das eingeklappte
-Engine-Panel und das Kanten-Popup im Calls-Graph. Beide sind syntaktisch und
-strukturell geprüft — jemand sollte sie an einem echten Fenster ansehen.
+visuelle Prüfung. Aus demselben Grund sind zwei bereits gebaute Dinge
+**nicht visuell geprüft**: das eingeklappte Engine-Panel und das
+Kanten-Popup im Calls-Graph. Beide sind syntaktisch und strukturell geprüft
+— jemand sollte sie an einem echten Fenster ansehen.
+
+**Teilweise überholt seit 2026-08-20:** `docmap-desktop/tools/preview/`
+serviert die echte Oberfläche dieser App mit gestubbter Tauri-Brücke, also
+lässt sich Layout dort **messen** statt behaupten — genau so wurde der
+Save-Knopf gefunden, der unter dem Falz lag (`54f4c41`). Was das **nicht**
+löst: die generierte Seite von `documentation.nvim` (Typografie-Skala,
+Zebra-Streifen, Kanten-Popup) rendert sich selbst und braucht ihren eigenen
+Weg, und ein Browser ist nicht WebView2.
 
 **Phase 6 (Hosted Web, echt)** — braucht ein Multi-Tenant-Trust-Modell, das
 nirgends existiert. Die statische Hälfte ist erledigt.
