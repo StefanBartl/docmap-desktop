@@ -549,10 +549,22 @@ Nebenbei gemessen statt behauptet: die Karte ist bis auf Zeilennummern in
 `functions.lua` unverändert — mit einer Ausnahme, und die ist das Ergebnis:
 `parse_doc_block` fällt von Komplexität **25 auf 12**.
 
-**Als Nächstes hier:** §2.1 (Annotation-Adoption-Panel, laut eigener
-Bewertung das wertvollste Panel im Backlog — jetzt ein Quick Win) und die
-Tag-Karte als dritte Auslösefläche der Lookup-Schicht. Danach D5/Q8 (`K`),
-das erst dann etwas zu sagen hat.
+**Beide Konsumenten sind seither gebaut** (2026-08-20):
+
+- **§2.1, das Annotation-Adoption-Panel** (`d6a47f7`) — elftes
+  Analysis-Panel, zählt **pro Funktion**, nicht pro Vorkommen. Erster echter
+  Lauf: **zehn von vierzehn Funktions-Tags werden hier nirgends benutzt.**
+  `docs/ANNOTATIONS.md` behält seine Vorkommens-Tabelle und sagt jetzt, was
+  sie misst — ihre Zählung enthält Prosa *über* Tags, und genau so konnte
+  `@nodiscard` als 112 dastehen, während keine Funktion eines trug.
+- **Die Tag-Karte** (`a8fc6d1`) — dritte Auslösefläche: die Badges *sind* die
+  Tags. Keine neue Mechanik; `data-kw` bringt Verzögerung, Nachlauf,
+  Tastaturweg und Positionierung schon mit.
+
+**Bleibt in M7:** Schritt 5 (Check-Katalog als vierte Art, gehört zu
+`MULTILANG.md` 3.6 / I18N-0) und Schritt 6 (der Reference-Tab selbst —
+ausdrücklich offen, ob die Panels nach den In-Place-Lookups noch einen Tab
+verdienen). Danach D5/Q8 (`K`), das erst jetzt etwas zu sagen hätte.
 
 Zwei Panels plus eine „was ist das"-Fläche. **Die billige Hälfte zuerst**:
 die kuratierte Linkliste liefert unabhängig vom Rest aus. Offen und in
