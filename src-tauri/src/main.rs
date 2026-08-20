@@ -872,13 +872,32 @@ fn engine_info(app: tauri::AppHandle) -> Result<EngineInfo, String> {
         // through to detection and let the caller see `from_path`.
     }
 
-    if let Some(p) = engine_on_path() {
-        return Ok(EngineInfo { path: Some(p), from_path: true, bundled: false, grammars });
-    }
-
+    // **The bundled engine beats a stray PATH find, and that order changed on
+    // 2026-08-20 after it bit.** PATH used to win, on the reasoning that
+    // somebody who put an engine there meant it. Measured on the author's own
+    // machine right after shipping v0.2.0: the app used
+    // the engine on PATH from two days earlier — four languages, older
+    // schema — while its own installed sidecar next to the exe read
+    // twenty-three. Nothing said so; the project-settings dialog simply
+    // offered four checkboxes and was *correct* to, because it asks the
+    // engine.
+    //
+    // The sidecar is the version this build was tested against and installed
+    // beside itself. A binary on PATH is somebody's leftover as often as it
+    // is their intention, and this program cannot tell which — nor which is
+    // newer, since "newer file" and "newer engine" are not the same claim.
+    //
+    // **A configured path still beats both**, and that is the whole escape
+    // hatch: someone who genuinely wants their own build points at it in
+    // Settings, which is an act of intent rather than a coincidence of
+    // environment.
     if let Some(cmd) = engine_sidecar(&app) {
         let path = portable(Path::new(cmd.get_program()));
         return Ok(EngineInfo { path: Some(path), from_path: false, bundled: true, grammars });
+    }
+
+    if let Some(p) = engine_on_path() {
+        return Ok(EngineInfo { path: Some(p), from_path: true, bundled: false, grammars });
     }
 
     Ok(EngineInfo { path: None, from_path: true, bundled: false, grammars })

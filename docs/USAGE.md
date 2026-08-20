@@ -374,12 +374,30 @@ so in one word beside the header even while collapsed: `ready`,
 `no grammars`, or `not found`.
 
 The engine is `documentation.nvim`'s own standalone binary, a separate
-program this app runs as a subprocess, found on `PATH` or pointed at under
-**Settings → Engine**. The verdict stays visible because it decides whether
-the next action works, and a fact behind a click is a fact nobody reads. A
-path you set that stops existing is not remembered as broken: the app falls
-back to searching `PATH` again rather than failing later with a raw OS
-error.
+program this app runs as a subprocess. The verdict stays visible because it
+decides whether the next action works, and a fact behind a click is a fact
+nobody reads.
+
+**Three places it can come from, in this order:**
+
+1. **A path you set** under **Settings → Engine**. Setting one is an act of
+   intent, so it wins over everything.
+2. **The engine installed beside this app.** On Windows and Linux the
+   installer puts it next to the program, together with its grammars —
+   nothing to set up, and it is the exact build this version was tested
+   against.
+3. **An engine on your `PATH`**, if there is no bundled one (macOS, or a
+   build without it).
+
+**The bundled one beats `PATH`, and that order changed on 2026-08-20 after
+it bit.** `PATH` used to win. Measured right after v0.2.0 shipped: the app
+was using a `docmap.exe` from two days earlier — four languages, an older
+schema — while its own installed copy read twenty-three, and nothing said
+so. A binary on `PATH` is somebody's leftover as often as it is their
+intention, and this program cannot tell the two apart.
+
+A path you set that stops existing is not remembered as broken: the app
+falls back to the list above rather than failing later with a raw OS error.
 
 **Grammars…** points at a directory of compiled tree-sitter grammars and is
 optional. Without one, generation still succeeds — a complete module tree,
