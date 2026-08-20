@@ -182,9 +182,12 @@ as themselves.
 
 Asked for, and worth answering carefully rather than quickly. A plugin API
 is a promise that cannot be withdrawn, and the formats here are still
-moving: `module_map.json` reached schema 4 this week, from 2 the week
-before. An API pointing at a format that changes three more times produces
-exactly the disappointment that ends a plugin ecosystem before it starts.
+moving: `module_map.json` reached schema **5** on 2026-08-20, from 2 two
+weeks before — and the last bump *removed* three fields (`quicks`' English
+`headline`/`basis`/`detail`, which moved onto the page), which is exactly
+the kind of change an extension would not survive. An API pointing at a
+format that changes three more times produces the disappointment that ends
+a plugin ecosystem before it starts.
 
 The order that would work, each step useful on its own:
 
