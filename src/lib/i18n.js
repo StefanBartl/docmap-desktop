@@ -50,15 +50,15 @@ const CATALOGS = {
     "add.tab.nvim": "Neovim config",
     "add.tab.url": "URL",
     "add.folder.lead":
-      "Any directory on this machine. It does not need a <code>docs/map</code> yet — if it has none and an engine is configured, one is generated straight away, because there is nothing to overwrite.",
+      "Any folder on this machine. It does not need a <code>docs/map</code> yet — if it has none and an engine is set up, we build one right away, because there is nothing to overwrite.",
     "add.folder.go": "Choose a folder…",
     "add.nvim.lead":
-      "Reads the <strong>plugin specs your Neovim config declares</strong> and adds every plugin as its own project, cloning the ones that are not on this machine yet. It does not read anything else about the config, and it changes nothing in it.",
+      "Reads the <strong>plugin specs your Neovim config declares</strong> and adds every plugin as its own project, cloning the ones you do not have yet. It reads nothing else about your config, and changes nothing in it.",
     "add.nvim.note":
       "Which <code>nvim</code> and which config directory it uses is what the sidebar's <strong>Neovim</strong> panel shows — open it if this fails.",
     "add.nvim.go": "Read the config…",
     "add.url.lead":
-      "A repository URL, cloned shallow into this app's own cache and then added like any folder. Whatever a plain <code>git clone</code> of that URL needs on this machine is what runs here — this app holds no credentials of its own.",
+      "A repository URL. We clone it shallow into this app's own cache and then add it like any folder. Whatever a plain <code>git clone</code> of that URL needs on this machine is what runs here — this app keeps no credentials of its own.",
     "add.url.go": "Clone",
     "add.url.placeholder": "https://github.com/owner/repo",
     "add.repos.load": "List my GitHub repositories",
@@ -72,9 +72,9 @@ const CATALOGS = {
     "menu.help.engine":
       "documentation.nvim's standalone binary — this app runs it, it does not replace it. The word beside the label is the verdict that decides whether generation works, and at what fidelity.",
     "help.engineLocate":
-      "Point at documentation.nvim's standalone binary. Only needed when it is not on PATH — the line above says which one was found.",
+      "Point at documentation.nvim's standalone binary. You only need this if you want a different one than the app already uses — the line above says which that is.",
     "help.grammars":
-      "Point at a directory of compiled tree-sitter grammars. Decides fidelity, not success: without them you get a complete module tree and no per-function data.",
+      "Point at a folder of compiled tree-sitter grammars. This decides how much detail you get, not whether it works: without them you still get the full module tree, just no per-function data.",
     "help.nvim":
       "Which nvim binary and which config directory the plugin-spec import reads. Only needed when either is somewhere unusual — most machines resolve both on their own.",
     "help.nvimLocate":
@@ -169,7 +169,7 @@ const CATALOGS = {
     "menu.file.settings": "Settings…",
     "menu.file.workspaces": "Workspaces…",
     "ws.title": "Workspaces",
-    "ws.lead": "Each workspace is its own set of projects. Settings — theme, language, engine paths — belong to this machine and are shared by all of them.",
+    "ws.lead": "Each workspace is its own list of projects. Your settings — theme, language, paths — belong to this machine and apply in all of them.",
     "ws.count": "{n} project(s)",
     "ws.rename": "Rename",
     "ws.rename.prompt": "New name for this workspace",
@@ -182,9 +182,9 @@ const CATALOGS = {
     "prefs.appearance": "Appearance",
     "prefs.theme": "Theme",
     "prefs.engine": "Engine",
-    "prefs.engine.note": "The engine is <strong>documentation.nvim's standalone binary</strong> — this app runs it, it does not replace it. Where it is on PATH there is nothing to do here, ever.",
+    "prefs.engine.note": "The engine is <strong>documentation.nvim's standalone binary</strong> — this app runs it, it does not replace it. You normally do not need to set anything: the app brings its own along and uses that. Point at another one only if you want yours instead.",
     "prefs.telemetry": "Telemetry",
-    "prefs.telemetry.note": "Collected by <strong>runtime-analysis.nvim</strong> inside Neovim, per plugin. Switching it here takes effect from the next Neovim session — nothing in this window runs your plugin.",
+    "prefs.telemetry.note": "Collected by <strong>runtime-analysis.nvim</strong> inside Neovim, per plugin. Switching it here takes effect from your next Neovim session — your plugin does not run in this window.",
     // The notes shown over a panel the engine here cannot fill. Catalogued
     // 2026-08-19 with the placeholders, for the same reason and by the same
     // test: they were built as English literals inside `contextNoteFor`,
@@ -266,14 +266,14 @@ const CATALOGS = {
     "menu.help.settings_folder": "Open the settings folder",
     "menu.project.scope": "Project settings…",
     "scope.title": "Project settings",
-    "scope.lead": "These belong to <strong>{name}</strong>, not to this machine. Everything under File → Settings is the other way round.",
+    "scope.lead": "These settings apply to <strong>{name}</strong> only. The ones that apply to every project live under File → Settings.",
     "scope.languages": "Languages",
-    "scope.languages.note": "Which languages the engine reads here. Nothing ticked means <strong>all of them</strong>, which is what a project that has never been narrowed already does.",
-    "scope.languages.unknown": "The engine could not be asked which languages it reads. Locate it under File → Settings, or leave this empty and it will read everything.",
+    "scope.languages.note": "You normally do not need anything here — with nothing ticked, the engine reads <strong>every language it knows</strong>. Tick a few only if you want to narrow it down on purpose.",
+    "scope.languages.unknown": "We could not ask the engine which languages it reads. You can point at one under File → Settings — or just leave this empty, and it will read everything.",
     "scope.languages.nogrammar": "no grammar — module tree only",
     "scope.languages.nogrammarneeded": "needs no grammar",
     "scope.exclude": "Excluded paths",
-    "scope.exclude.note": "One path per line, relative to the project root. A path excludes that file or folder and everything under it. Vendored and generated folders — <code>node_modules</code>, <code>target</code>, <code>dist</code> and a dozen more — are already skipped without being listed here.",
+    "scope.exclude.note": "Folders to skip when the map is built — one per line, relative to the project folder. Everything underneath is skipped with it. You do not need to list vendored or generated folders like <code>node_modules</code>, <code>target</code> or <code>dist</code>: those are left out anyway.",
     "scope.exclude.placeholder": "src/generated\nthird_party",
     "scope.add": "Add folder…",
     "scope.save": "Save",
@@ -322,15 +322,15 @@ const CATALOGS = {
     "add.tab.nvim": "Neovim-Config",
     "add.tab.url": "URL",
     "add.folder.lead":
-      "Ein beliebiges Verzeichnis auf diesem Rechner. Es braucht noch kein <code>docs/map</code> — hat es keines und ist eine Engine eingerichtet, wird sofort eine Karte erzeugt, weil es nichts zu überschreiben gibt.",
+      "Ein beliebiger Ordner auf diesem Rechner. Er braucht noch kein <code>docs/map</code> — wenn keines da ist und eine Engine bereitsteht, erzeugen wir die Karte gleich, weil es nichts zu überschreiben gibt.",
     "add.folder.go": "Ordner wählen…",
     "add.nvim.lead":
-      "Liest die <strong>Plugin-Specs, die deine Neovim-Config deklariert</strong>, und fügt jedes Plugin als eigenes Projekt hinzu; die noch nicht vorhandenen werden geklont. Sonst wird nichts an der Config gelesen und nichts verändert.",
+      "Liest die <strong>Plugin-Specs, die deine Neovim-Config deklariert</strong>, und legt jedes Plugin als eigenes Projekt an; was du noch nicht hast, wird geklont. Sonst wird nichts aus deiner Config gelesen und nichts daran verändert.",
     "add.nvim.note":
       "Welches <code>nvim</code> und welches Config-Verzeichnis dabei benutzt werden, zeigt das <strong>Neovim</strong>-Panel in der Seitenleiste — öffne es, wenn das hier scheitert.",
     "add.nvim.go": "Config lesen…",
     "add.url.lead":
-      "Eine Repository-URL, flach in den eigenen Zwischenspeicher der App geklont und dann wie jeder Ordner hinzugefügt. Was ein einfaches <code>git clone</code> dieser URL auf diesem Rechner braucht, läuft auch hier — diese App hält keine eigenen Zugangsdaten.",
+      "Eine Repository-URL. Wir klonen sie flach in den Zwischenspeicher der App und legen sie dann an wie jeden Ordner. Was ein einfaches <code>git clone</code> dieser URL auf deinem Rechner braucht, läuft auch hier — eigene Zugangsdaten hält diese App nicht.",
     "add.url.go": "Klonen",
     "add.url.placeholder": "https://github.com/besitzer/repo",
     "add.repos.load": "Meine GitHub-Repositories auflisten",
@@ -344,9 +344,9 @@ const CATALOGS = {
     "menu.help.engine":
       "Das Standalone-Binary von documentation.nvim — diese App führt es aus, sie ersetzt es nicht. Das Wort neben der Beschriftung ist das Urteil darüber, ob und wie genau erzeugt werden kann.",
     "help.engineLocate":
-      "Auf das Standalone-Binary von documentation.nvim zeigen. Nur nötig, wenn es nicht auf PATH liegt — die Zeile darüber sagt, welches gefunden wurde.",
+      "Auf das Standalone-Binary von documentation.nvim zeigen. Brauchst du nur, wenn du eine andere als die bereits benutzte willst — welche das ist, sagt die Zeile darüber.",
     "help.grammars":
-      "Auf ein Verzeichnis mit kompilierten tree-sitter-Grammatiken zeigen. Entscheidet die Genauigkeit, nicht den Erfolg: ohne sie bekommst du einen vollständigen Modulbaum ohne Funktionsdaten.",
+      "Auf einen Ordner mit kompilierten tree-sitter-Grammatiken zeigen. Das entscheidet, wie viel Detail du bekommst — nicht, ob es funktioniert: ohne sie bekommst du weiterhin die vollständige Modulübersicht, nur eben nichts auf Funktionsebene.",
     "help.nvim":
       "Welches nvim-Binary und welches Config-Verzeichnis der Plugin-Spec-Import liest. Nur nötig, wenn eines davon an einem ungewöhnlichen Ort liegt — die meisten Rechner lösen beides selbst auf.",
     "help.nvimLocate":
@@ -430,7 +430,7 @@ const CATALOGS = {
     "menu.file.settings": "Einstellungen…",
     "menu.file.workspaces": "Arbeitsbereiche…",
     "ws.title": "Arbeitsbereiche",
-    "ws.lead": "Jeder Arbeitsbereich ist eine eigene Menge von Projekten. Einstellungen — Darstellung, Sprache, Engine-Pfade — gehören zu diesem Rechner und gelten für alle.",
+    "ws.lead": "Jeder Arbeitsbereich ist eine eigene Projektliste. Deine Einstellungen — Darstellung, Sprache, Pfade — gehören zu diesem Rechner und gelten überall.",
     "ws.count": "{n} Projekt(e)",
     "ws.rename": "Umbenennen",
     "ws.rename.prompt": "Neuer Name für diesen Arbeitsbereich",
@@ -443,9 +443,9 @@ const CATALOGS = {
     "prefs.appearance": "Darstellung",
     "prefs.theme": "Darstellung",
     "prefs.engine": "Engine",
-    "prefs.engine.note": "Die Engine ist <strong>das Standalone-Binary von documentation.nvim</strong> — diese App führt es aus, sie ersetzt es nicht. Liegt es auf PATH, gibt es hier nie etwas zu tun.",
+    "prefs.engine.note": "Die Engine ist <strong>das Standalone-Binary von documentation.nvim</strong> — diese App führt es aus, sie ersetzt es nicht. Normalerweise musst du hier nichts einstellen: die App bringt ihre eigene mit und benutzt sie. Zeig nur dann auf eine andere, wenn du deine eigene benutzen willst.",
     "prefs.telemetry": "Telemetry",
-    "prefs.telemetry.note": "Wird von <strong>runtime-analysis.nvim</strong> in Neovim erhoben, pro Plugin. Ein Umschalten hier wirkt ab der nächsten Neovim-Sitzung — in diesem Fenster läuft dein Plugin nicht.",
+    "prefs.telemetry.note": "Erhoben von <strong>runtime-analysis.nvim</strong> in Neovim, pro Plugin. Wenn du es hier umschaltest, gilt das ab deiner nächsten Neovim-Sitzung — in diesem Fenster läuft dein Plugin nicht.",
     "note.telemetry":
       "Telemetry erhebt <code>runtime-analysis.nvim</code> in einer laufenden Neovim-Sitzung. Diese App kann die Erhebung ab der nächsten Sitzung einschalten — <strong>Einstellungen → Telemetry</strong> —, aber sie kann deinen Plugin-Code nicht ausführen und zeigt daher nur, was dort erhoben wurde.",
     "note.types":
@@ -512,14 +512,14 @@ const CATALOGS = {
     "menu.help.settings_folder": "Einstellungsordner öffnen",
     "menu.project.scope": "Projekteinstellungen…",
     "scope.title": "Projekteinstellungen",
-    "scope.lead": "Diese gehören zu <strong>{name}</strong>, nicht zu diesem Rechner. Alles unter Datei → Einstellungen ist umgekehrt.",
+    "scope.lead": "Diese Einstellungen gelten nur für <strong>{name}</strong>. Was für alle deine Projekte gilt, findest du unter Datei → Einstellungen.",
     "scope.languages": "Sprachen",
-    "scope.languages.note": "Welche Sprachen die Engine hier liest. Nichts angehakt bedeutet <strong>alle</strong> — genau das, was ein nie eingeschränktes Projekt ohnehin tut.",
-    "scope.languages.unknown": "Die Engine konnte nicht gefragt werden, welche Sprachen sie liest. Unter Datei → Einstellungen auswählen, oder dieses Feld leer lassen — dann liest sie alles.",
-    "scope.languages.nogrammar": "keine Grammatik — nur der Modulbaum",
+    "scope.languages.note": "Hier musst du normalerweise nichts tun — ohne Häkchen liest die Engine <strong>alle Sprachen, die sie kann</strong>. Hake nur an, wenn du sie bewusst einschränken willst.",
+    "scope.languages.unknown": "Wir konnten die Engine nicht fragen, welche Sprachen sie liest. Du kannst unter Datei → Einstellungen eine auswählen — oder das hier einfach leer lassen, dann wird alles gelesen.",
+    "scope.languages.nogrammar": "ohne Grammatik — nur die Modulübersicht",
     "scope.languages.nogrammarneeded": "braucht keine Grammatik",
     "scope.exclude": "Ausgeschlossene Pfade",
-    "scope.exclude.note": "Ein Pfad pro Zeile, relativ zur Projektwurzel. Ein Pfad schließt diese Datei oder diesen Ordner samt allem darunter aus. Fremd- und Generatordner — <code>node_modules</code>, <code>target</code>, <code>dist</code> und ein Dutzend weitere — werden ohnehin übersprungen, ohne hier zu stehen.",
+    "scope.exclude.note": "Ordner, die beim Erzeugen übersprungen werden sollen — einer pro Zeile, relativ zum Projektordner. Alles darunter wird mit übersprungen. Um Fremd- und Generatordner wie <code>node_modules</code>, <code>target</code> oder <code>dist</code> musst du dich nicht kümmern, die bleiben ohnehin außen vor.",
     "scope.exclude.placeholder": "src/generated\nthird_party",
     "scope.add": "Ordner hinzufügen…",
     "scope.save": "Speichern",
