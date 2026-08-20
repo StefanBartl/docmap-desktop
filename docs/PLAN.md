@@ -132,21 +132,71 @@ Eigene Bewertung: S, Nutzen **mittel–hoch**. `--sarif=<pfad>` existiert
 bereits, `pages.yml` auch; was fehlt, ist die Action, die ein fremdes Repo in
 drei Zeilen anschließt.
 
-### Q10 · Live-Call-Count-Badge im Annotation-Popup — **XS**, `runtime-analysis.nvim` (§1.8)
+### ~~Q10 · Live-Call-Count-Badge im Annotation-Popup~~ — gebaut 2026-08-20, `9a1cd10`
 
-Nummer 2 auf der eigenen Fünferliste dieses Repos, dort beschrieben als „eine
-Zeile Render, an der Stelle, an die ein Leser ohnehin schaut".
+Gelandet in `documentation.nvim`s LSP-Hover statt in einem eigenen Popup:
+`K` auf einer Funktion liest jetzt
+`**3** incoming calls · **1** outgoing call · called **412**× in the last 7 days`.
 
-### Q11 · `:MDView preview-tab` als Report-Stil — **S**, `runtime-analysis.nvim` (§2.2)
+**Drei Zustände, und der mittlere ist der Grund für das Zeitfenster.** Echte
+jüngste Aufrufe heißen lebendig; aufgezeichnete ohne jüngste sind ein *kalter
+Pfad* — was die Gesamtzahl allein nicht sagen kann; gar keine dritte Klausel
+heißt „keine Telemetrie", nie „nicht aufgerufen".
 
-Nummer 1 dort: „Stunden, nicht Tage", und nimmt die
-Binär-Download-Pause aus dem Standardweg.
+**Der Fall, für den es gebaut wurde, ist der, in dem beide statischen Zahlen
+null sind.** Eine Funktion, die statisch niemand aufruft — als Callback-Wert
+gebunden, oder über dynamischen Dispatch erreicht — lieferte vorher *gar
+keinen* Hover. Genau das ist der blinde Fleck der statischen Analyse.
 
-### Q12 · Ein gemeinsamer Projektschlüssel — **S**, ökosystemweit (§3.4)
+**Eine Korrektur am Eintrag:** `(7d)` steht nicht in `Data.functions`, das
+zählt seit jeher. Ableitbar ist es aus `Data.days`' Kalenderkübeln, und daher
+kommt `Row.calls_recent`.
 
-Kein Feature, eine Entscheidung: worauf sich die drei Plugins einigen, wenn
-sie „dieses Projekt" sagen. **Jetzt billig, an jedem späteren Punkt teuer** —
-deshalb steht sie auf der Fünferliste.
+**Zwei echte Defekte auf dem Weg**, beide mehr wert als das Feature selbst:
+der Join traf fast nichts (`scan_full` gegen `M.scan_full` — dieselbe
+Schlüsselraum-Verwechslung, die auf der *Modul*-Seite schon einmal gefunden
+und behoben wurde, auf der *Funktions*-Seite überlebt), und ein zweites
+Repository in einer Sitzung bekam überhaupt keine Call-Hierarchie
+(`reuse_client` verglich nur den Namen).
+
+### ~~Q11 · `:MDView preview-tab` als Report-Stil~~ — gebaut 2026-08-20, `0d5ec4d`
+
+`report_style = "preview-tab"`: ein echter Puffer im eigenen Tab, kein Relay,
+kein Browser, nichts heruntergeladen.
+
+**Der Gewinn ist `conceallevel`, nicht der Puffer** — gemessen an
+`mdview.adapter.preview_tab`, nicht angenommen. Ein read-only Scratch-Puffer
+in einem Tab wäre zwanzig Zeilen hier gewesen; das Verbergen der `**` und
+Backticks ist der Teil, für den es sich lohnt, von einem anderen Plugin
+abzuhängen.
+
+**`"auto"` blieb unangetastet.** Den billigeren Tier zum Standard zu machen
+ist ein echtes Argument — und verliert gegen ein besseres: `"auto"` ist das,
+worauf jede bestehende Konfiguration schon auflöst.
+
+### ~~Q12 · Ein gemeinsamer Projektschlüssel~~ — entschieden 2026-08-20, `5f4083f`
+
+**Die Entscheidung ist `lib.nvim.fs.project_key`**, und es gab nie einen
+echten Wettbewerb: §3.4 nannte es selbst, es liegt in der Abhängigkeit, die
+alle drei teilen, und die Request-History schlüsselt heute darauf.
+
+`documentation.nvim` normalisiert `opts.root` jetzt durch dasselbe
+`lib.nvim.fs.normkey`, und die Registry schlüsselt Handles über dieselbe
+Funktion statt über eine zweite Kopie, die zufällig übereinstimmte.
+
+**Die Abweichung war gemessen, nicht vermutet:** bei explizit übergebenem
+Root — jeder Headless-Lauf, jeder CI-Job, jedes Projekt aus diesem Programm —
+waren `e:/repo` und `E:/repo` zwei Repositories.
+
+**Zwei Dinge vorher geprüft**, weil eine Schlüsseländerung die teure Sorte
+ist: kein absoluter Pfad steht im `module_map.json` (keine committete Karte
+wird stale), und `normkey` degradiert korrekt unter `standalone/vim_shim.lua`
+— gegen dessen echte `uv`-Oberfläche ausprobiert, was die eine reale Lücke
+zutage brachte (`normkey` schneidet keinen Schrägstrich am Ende ab; unter
+Neovim hatte `fs_realpath` das verdeckt).
+
+**Offen und jetzt billig:** Telemetrie-Namespaces sind Plugin-Namen, mdview
+schlüsselt auf `cwd`. Beides absichtlich, beides blockiert nichts.
 
 ### Q13 · Extension-API, Stufe 1 — **S**, `docmap-desktop`, reine Doku
 
@@ -317,9 +367,9 @@ alle, bevor das größte Loch angefangen ist:
 1. **Q3** Doku-Hygiene (billig, und findet erfahrungsgemäß echte Defekte)
 2. **Q1** Grammatik-Diagnose im Desktop
 3. **Q2** Letzte Auswahl pro Workspace
-4. **Q10 + Q11** die beiden Stundensachen aus `runtime-analysis.nvim`
-5. **Q12** den gemeinsamen Projektschlüssel entscheiden, solange er billig ist
-6. **Q9** die GitHub Action (S, Nutzen mittel–hoch)
+4. ~~**Q10 + Q11** die beiden Stundensachen aus `runtime-analysis.nvim`~~ — erledigt
+5. ~~**Q12** den gemeinsamen Projektschlüssel entscheiden, solange er billig ist~~ — erledigt
+6. **Q9** die GitHub Action (S, Nutzen mittel–hoch) ← **hier weitermachen**
 7. **M1** Call-Kanten für **eine** Sprache, gegen ein fremdes Repo gemessen
 8. **Q4 + Q5** die beiden neuen Checks
 9. **M2** Cross-Repo-Checks — die Vorbedingung liegt seit Wochen erfüllt da
