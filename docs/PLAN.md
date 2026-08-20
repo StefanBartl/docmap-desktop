@@ -68,7 +68,45 @@ Falls du (b) willst, ist es unabhängig von M7 sofort baubar.
 Die Workspace-Ebene, die kein einzelnes Repository haben kann. Diese App ist
 die einzige Stelle, die mehrere Projekte gleichzeitig hält.
 
-### M5 · Picker-Integration (telescope/pickers.nvim) — **S–M**, Engine (§4.2)
+### ~~M5 · Picker-Integration~~ — gebaut 2026-08-20
+
+`:DocMap pick` — Fuzzy-Suche über jedes Modul und jede Funktion, Sprung auf
+die Quellzeile. **Nicht** das `/` des Browsers: das springt *innerhalb* von
+`:DocBrowse` und lässt dich dort, was beim Erkunden richtig ist. Das hier
+endet in der Datei, der Browser geht gar nicht auf. §4.2 nennt sie
+ausdrücklich als zwei Interaktionen.
+
+Einträge lesen sich als `module` und `module#M.fn` — dieselben zwei Formen,
+die der Browser-Sprung baut. Gemessen an diesem Repo: **913 Einträge**, 907
+mit Datei, 784 mit Zeile.
+
+**`pickers.nvim` zuerst, `lib.nvim`s Kit als Rückfall.** Erstes löst
+telescope/fzf-lua/snacks auf und bietet
+`engines.pick_item{ items, prompt, on_select }` — ein Eintrag mit `file`
+bekommt die native Datei-Vorschau der Engine geschenkt. 913 Einträge sind
+die Aufgabe eines echten Pickers. Ohne das: `kit.select` mit
+`respect_override`, wie es `browse/init.lua` für seine Trail-Liste schon
+macht. Keins von beiden ist harte Abhängigkeit.
+
+**Drei Dinge aus `pickers.nvim` gelesen statt angenommen — eines änderte den
+Code:**
+
+- `on_select` gibt bei jeder Engine das Original-Item zurück (telescope über
+  `entry.value`, fzf-lua über eine eigene `by_line`-Tabelle). Nur ein Item
+  *ohne* `file` kommt bei fzf als blanker String zurück — ein Namespace-Knoten
+  ist genau das. Dafür gibt es eine Text→Eintrag-Tabelle; sie ist über das
+  Label geschlüsselt, was trägt, weil die Labels eindeutig sind (gemessen:
+  913 Einträge, 0 Kollisionen).
+- **`engines.load()` meldet einen Fehler**, wenn keine Engine installiert ist:
+  *„Install telescope.nvim, fzf-lua, or snacks.nvim."* Für `:Pickers` richtig,
+  hier falsch — wer `pickers.nvim` ohne Engine hat, hätte diesen Fehler
+  bekommen und unmittelbar danach einen funktionierenden Picker. Der Code
+  fragt jetzt erst `available()` und startet keine Auflösung, die nichts
+  aufzulösen hat. Ende-zu-Ende geprüft: Rückfall auf den Kit, 913 Einträge,
+  **null** Meldungen.
+
+`:checkhealth` meldet es in beide Richtungen als `info` — ein fehlendes
+Werkzeug, das nichts kostet, ist keine Warnung.
 
 ### M6 · Config-Analyse: die drei übrigen Punkte — **S–M je**, Engine
 
