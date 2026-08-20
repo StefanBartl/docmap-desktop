@@ -1,7 +1,9 @@
 # Work plan — the 2026-08-19 review, and what was already open
 
 **Resume point.** Everything below is either measured against the code or
-marked as a question. Items are struck through as they ship, and each one
+marked as a question. **For the 2026-08-20 language run, start at
+[docs/HANDOVER-2026-08-20.md](HANDOVER-2026-08-20.md)** — it ranks what to
+continue with and records four decisions that should not be re-opened. Items are struck through as they ship, and each one
 says what "done" means so the next session does not have to re-derive it.
 
 Written after a round of feedback on the running app. Where a request turned
