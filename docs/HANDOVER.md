@@ -24,6 +24,19 @@ sie an Bedienwissen trug, steht unten unter *Alles ausführen*.
 | `E:\repos\docmap-desktop` | main | **`v0.2.0`** | kein CI-Gate, aber CI läuft; Release-Workflow ist Tag-getriggert (`v*`) und lädt die Engine von `standalone-latest`, bevor `cargo tauri build` startet. Ablauf in [`RELEASING.md`](RELEASING.md) |
 | `C:\Users\bartl\AppData\Local\nvim` (persönliche Config) | main | `597af5d5` | kein CI |
 
+**`v0.2.0` geschnitten am 2026-08-20.** Der Release-Workflow baut die
+Installer aus dem Tag und legt sie als **Entwurf** an — der letzte Schritt ist
+ein Mensch, der die App öffnet, und das automatisiert nichts.
+
+**Was dieser Schnitt gelehrt hat und in `RELEASING.md` steht:** die Engine
+zuerst neu bauen. `standalone-latest` lag 58 Commits zurück, darunter die
+beiden Flags, die der Projekteinstellungs-Dialog schickt. Der Engine-Build ist
+außerdem die einzige Stelle, an der der `standalone`-Gate auf einer sauberen
+Maschine läuft — er fand drei echte Defekte in drei Anläufen (`node:start()`
+und `vim.pesc` fehlten im Shim, das Swift-Grammar baute ein Node-Binding, das
+niemand liest). Verifiziert vor dem Tag: die publizierte Engine meldet 23
+Sprachen, Schema 5, und akzeptiert `--exclude`/`--languages`.
+
 Installiert, dauerhaft:
 
 | Pfad | Inhalt |
