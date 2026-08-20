@@ -120,9 +120,13 @@ delete and switch.
   never a repository on disk.
 * **Switching clears the selection**, the map, and the cached freshness and
   page counts — a selection from the old workspace would leave the sidebar
-  naming one project while the map showed another. It does not remember a
-  last selection *per* workspace; there is one, and it is skipped whenever
-  the dashboard is shown.
+  naming one project while the map showed another.
+* **Each workspace remembers what it was left on**, and lands there when you
+  arrive. A workspace you have never opened lands on nothing: the picker says
+  *Pick a project…* rather than naming one you did not choose. An
+  installation from before this had one remembered project; it belongs to
+  whichever workspace was open then, and is filed under that one on the next
+  start rather than dropped.
 
 **When the dashboard appears at startup**: whenever there is more than one
 workspace. With a single workspace you never see it — a chooser with one

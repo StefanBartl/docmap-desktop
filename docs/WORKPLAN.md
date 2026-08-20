@@ -1071,12 +1071,27 @@ about.
       one**, which is the only time the answer is news. One workspace still
       reads `<project> — docmap`.
 
-Not done, and named rather than left implied: switching clears the
-selection, the map, and the cached freshness and page counts, because a
-selection from the old workspace would leave the sidebar naming one project
-and the map showing another. What it does *not* do is remember a last
-selection **per** workspace — `LAST_KEY` is still one value, so the restore
-is skipped entirely whenever the dashboard is shown.
+Switching clears the selection, the map, and the cached freshness and page
+counts, because a selection from the old workspace would leave the sidebar
+naming one project and the map showing another.
+
+**The per-workspace memory this entry named as missing is built** (2026-08-20).
+One key per workspace, migrated from the single old key the moment the active
+workspace is known — not at the first switch, which would file the old
+workspace's selection under the new one. Arriving in a workspace lands where
+that workspace was left; arriving in one that has never been opened lands
+nowhere, on purpose.
+
+**And "nowhere" turned out to be a state the sidebar could not express.** A
+`<select>` always has an option selected, so with nothing selected the picker
+named whichever project sorted first while the pane beside it said *nothing
+selected* and Generate stayed disabled — two answers to one question in
+adjacent controls. It has an empty-state option now. The first fix looked
+right and was not: the option was added and then overruled one line later by
+a fallback to the value the control had before the re-render, which after a
+switch is a project from the workspace you just left. **Both the defect and
+the bad fix were found by looking at the running page, and the structural
+test passed through both.**
 
 ---
 

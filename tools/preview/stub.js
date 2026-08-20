@@ -35,6 +35,9 @@ const PROJECTS = [
     languages: ["go", "python"] }
 ];
 
+let ACTIVE = "Default";
+const WORKSPACES = [{ name: "Default", projects: 2 }, { name: "Work", projects: 2 }];
+
 const SCOPES = {
   p1: { exclude: [], languages: null },
   p2: { exclude: ["vendor", "third_party/grpc"], languages: ["go", "python"] }
@@ -42,7 +45,12 @@ const SCOPES = {
 
 const R = {
   list_projects: () => PROJECTS,
-  list_workspaces: () => [{ id: "default", name: "Default", current: true, projects: 2 }],
+  list_workspaces: () => WORKSPACES.map((w) => ({ ...w, active: w.name === ACTIVE })),
+  switch_workspace: (a) => {
+    ACTIVE = a.name;
+    if (!WORKSPACES.some((w) => w.name === ACTIVE)) WORKSPACES.push({ name: ACTIVE, projects: 0 });
+    return PROJECTS;
+  },
   engine_info: () => ({ path: "C:/tools/docmap.exe", from_path: false, bundled: false,
                         grammars: "C:/tools/docmap-grammars" }),
   engine_languages: () => ({ languages: LANGS, schema: 3,

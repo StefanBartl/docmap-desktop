@@ -19,6 +19,7 @@
 // Both side-effect-free, so hoisting them above the `window.__TAURI__`
 // guard below changes nothing about what that guard catches.
 import { withBusyButton } from "./lib/busy-button.js";
+import { lastKey, migrateLastKey } from "./lib/last-selection.js";
 import { mapStatus, invalidate } from "./lib/status-cache.js";
 import { t, setLocale, initialLocale, LOCALES, keys } from "./lib/i18n.js";
 import {
@@ -127,8 +128,20 @@ let nvim = { path: null, from_path: true, config_dir: null, config_dir_from_defa
 let projects = [];
 let selectedId = null;
 
-/** Last selection, so a restart lands where the last session left off. */
-const LAST_KEY = "docmap.lastProject";
+/** The last selection for the workspace now open, or `null`.
+ *
+ * Never throws: a browser with storage disabled is a working app that
+ * forgets, not a broken one. The keying rule and the migration live in
+ * `lib/last-selection.js`, where they can be tested against a plain object
+ * — a one-shot migration is hard to observe twice in a running window. */
+function lastSelection() {
+  try {
+    return localStorage.getItem(lastKey(activeWorkspace));
+  } catch (e) {
+    void e;
+    return null;
+  }
+}
 
 /** Text into an `innerHTML` string, since `showPlaceholder` takes markup.
  *
@@ -447,11 +460,28 @@ async function measureAll() {
 }
 
 async function render() {
-  const previous = els.list.value;
   els.list.innerHTML = "";
   els.empty.hidden = projects.length > 0;
   els.list.hidden = projects.length === 0;
   els.sort.hidden = projects.length < 2;
+
+  // Nothing selected is a state a `<select>` cannot express on its own: it
+  // always has one option selected, so with no selection the control named
+  // whichever project sorted first while the pane beside it said "nothing
+  // selected" and Generate stayed disabled. Two answers to one question, in
+  // adjacent controls. Measured after workspaces gained their own last
+  // selection, which is when a switch can legitimately land on nothing.
+  //
+  // Disabled and hidden, so it cannot be chosen and does not sit in the open
+  // list as a row — it exists to be the closed control's label, once.
+  if (!selectedId && projects.length) {
+    const none = document.createElement("option");
+    none.value = "";
+    none.disabled = true;
+    none.hidden = true;
+    none.textContent = t("picker.none");
+    els.list.append(none);
+  }
 
   for (const p of sortedProjects()) {
     const o = document.createElement("option");
@@ -463,7 +493,15 @@ async function render() {
     els.list.append(o);
   }
 
-  els.list.value = selectedId ?? previous ?? "";
+  // `selectedId` or nothing. This used to fall back to whatever the control
+  // showed before the re-render, which reads as harmless and is not: after a
+  // workspace switch the previous value is a project from the workspace you
+  // just left, so the picker went on naming it while `selectedId` was null,
+  // the pane said "nothing selected" and Generate was disabled. Measured in
+  // a browser -- the structural test for the empty state passed while this
+  // was still wrong, because the option was being added and then overruled
+  // one line later.
+  els.list.value = selectedId ?? "";
   renderDetail();
 }
 
@@ -713,12 +751,21 @@ els.sort.addEventListener("change", async () => {
   render();
 });
 
+/** Re-open whatever this workspace had open last, if it is still there.
+ *
+ * Silent when it is not: a project removed since, or a workspace never
+ * opened, is not an error and has nothing to report. */
+async function restoreLast() {
+  const last = lastSelection();
+  if (last && projects.some((p) => p.id === last)) await select(last);
+}
+
 async function select(id) {
   selectedId = id;
   syncMenu();
   titleFor(projects.find((x) => x.id === id));
   try {
-    localStorage.setItem(LAST_KEY, id);
+    localStorage.setItem(lastKey(activeWorkspace), id);
   } catch (e) {
     // A workspace that cannot remember the last selection still works.
     void e;
@@ -1413,13 +1460,12 @@ window.addEventListener("message", (ev) => {
     await loadNvim();
     await refresh();
     // The dashboard decides for itself whether it is worth showing: one
-    // workspace is not a choice. When it does show, the last selection is
-    // not restored — it belongs to whichever workspace is picked, and
-    // restoring it first would flash a project from the old one.
+    // workspace is not a choice. When it does show, nothing is restored
+    // here — the selection belongs to whichever workspace is picked, and
+    // `switchWorkspace` restores that one's own.
     const chose = await maybeOpenWorkspaces();
     if (chose) return;
-    const last = localStorage.getItem(LAST_KEY);
-    if (last && projects.some((p) => p.id === last)) await select(last);
+    await restoreLast();
   } catch (e) {
     say(String(e));
   }
@@ -2262,6 +2308,7 @@ async function renderWorkspaces() {
     return [];
   }
   activeWorkspace = (entries.find((w) => w.active) || {}).name || null;
+  migrateLastKey(localStorage, activeWorkspace);
   workspaceCount = entries.length;
   ws.list.innerHTML = "";
   entries.forEach((w) => {
@@ -2341,6 +2388,10 @@ async function useWorkspace(name) {
     await renderWorkspaces();
     titleFor(null);
     ws.box.close();
+    // Land where this workspace was left, now that its own selection is
+    // stored under its own key. After `close()`, so the restore paints
+    // behind a dialog that is already gone rather than under one.
+    await restoreLast();
   } catch (e) {
     ws.problem.textContent = String(e);
     ws.problem.hidden = false;

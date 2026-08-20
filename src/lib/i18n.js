@@ -41,6 +41,7 @@ const CATALOGS = {
     "prefs.theme.light": "Light",
     "prefs.theme.dark": "Dark",
     "prefs.language": "Language",
+    "picker.none": "Pick a project…",
     "view.nothing": "Nothing selected",
     "view.pickOne": "Pick a project on the left.",
 
@@ -312,6 +313,7 @@ const CATALOGS = {
     "prefs.theme.light": "Hell",
     "prefs.theme.dark": "Dunkel",
     "prefs.language": "Sprache",
+    "picker.none": "Projekt wählen…",
     "view.nothing": "Nichts ausgewählt",
     "view.pickOne": "Wähle links ein Projekt.",
 
