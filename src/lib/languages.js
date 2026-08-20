@@ -178,6 +178,56 @@ export function supportFor(scan, engineLanguages) {
 }
 
 /**
+ * Whether anything in this project has call extraction behind it.
+ *
+ * The Calls and Module Calls views render empty for nineteen of the
+ * engine's twenty-three backends, and identically to how they render for a
+ * project that genuinely has no calls in it. Those are different facts. This
+ * is the join that lets the window say which — the same join `supportFor`
+ * does for grammars, over the same two inputs.
+ *
+ * Three answers, and the third is not a rounding of the second:
+ *
+ * - `"yes"` — at least one language here produces call edges, so an empty
+ *   panel is about the project.
+ * - `"no"` — none of them do, so an empty panel is about the build.
+ * - `"unknown"` — there is no scan yet, or the engine predates the field.
+ *   Saying nothing is right there: a note that guessed would be wrong for
+ *   exactly the reader who most needs it to be right.
+ *
+ * "At least one" rather than "all", deliberately. A repository with Lua
+ * beside Go does have a call graph — a partial one — and telling its reader
+ * the feature is unsupported would be false. The unhelpful case (a partial
+ * graph that looks whole) is a different problem and not one a note over an
+ * empty panel can fix, because that panel is not empty.
+ *
+ * @param {{languages: {name: string, grammar: string|null, backend?: string|null}[]}|null} scan
+ * @param {{languages: {name: string, grammar: string|null, calls?: boolean|null}[]|null}|null} engineLanguages
+ * @returns {"yes"|"no"|"unknown"}
+ */
+export function callsSupportFor(scan, engineLanguages) {
+  const known = engineLanguages?.languages ?? null;
+  if (!scan || !known || scan.languages.length === 0) return "unknown";
+
+  let sawAnswer = false;
+  for (const lang of scan.languages) {
+    const backend = lang.grammar
+      ? known.find((b) => b.grammar === lang.grammar)
+      : lang.backend
+        ? known.find((b) => b.name === lang.backend)
+        : undefined;
+    if (!backend) continue;
+    // Absent on an engine that predates the field. Skipped rather than read
+    // as `false`, so one old answer cannot turn the whole verdict into a
+    // claim the engine never made.
+    if (backend.calls === undefined || backend.calls === null) continue;
+    sawAnswer = true;
+    if (backend.calls === true) return "yes";
+  }
+  return sawAnswer ? "no" : "unknown";
+}
+
+/**
  * The engine's own backend list, for the Engine panel.
  *
  * Grouped rather than annotated per entry. Repeating "(no grammar — module

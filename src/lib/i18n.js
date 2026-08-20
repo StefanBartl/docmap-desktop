@@ -192,6 +192,8 @@ const CATALOGS = {
       "Telemetry is collected by <code>runtime-analysis.nvim</code> inside a live Neovim session. This app can switch collection on for the next session — <strong>Settings → Telemetry</strong> — but it cannot run your plugin code, so it shows only what was collected there.",
     "note.types":
       "Type data comes from <code>lua-language-server</code> (<code>:DocMap full</code>, inside Neovim). The standalone engine this app runs has no equivalent of that and cannot produce it.",
+    "note.calls":
+      "This panel is empty because the engine has no call extraction for this project's languages yet — not because the project has no calls. Four of its language backends produce a call graph; the rest do not, and nothing about those languages makes it impossible.",
     "tel.absent": "runtime-analysis.nvim has never written a cache on this machine.",
     "tel.unknown": "No telemetry for {name}. A namespace is a plugin name, so this only applies to a project that registers telemetry under its own.",
     "tel.on": "Collecting — {sessions} session(s), {days} day(s) recorded.",
@@ -430,6 +432,8 @@ const CATALOGS = {
       "Telemetry erhebt <code>runtime-analysis.nvim</code> in einer laufenden Neovim-Sitzung. Diese App kann die Erhebung ab der nächsten Sitzung einschalten — <strong>Einstellungen → Telemetry</strong> —, aber sie kann deinen Plugin-Code nicht ausführen und zeigt daher nur, was dort erhoben wurde.",
     "note.types":
       "Typdaten kommen von <code>lua-language-server</code> (<code>:DocMap full</code>, in Neovim). Die eigenständige Engine dieser App hat dafür keine Entsprechung und kann sie nicht erzeugen.",
+    "note.calls":
+      "Dieses Panel ist leer, weil die Engine für die Sprachen dieses Projekts noch keine Aufrufanalyse hat — nicht, weil das Projekt keine Aufrufe hätte. Vier ihrer Sprach-Backends erzeugen einen Aufrufgraphen, die übrigen nicht — und nichts an diesen Sprachen macht das unmöglich.",
     "tel.absent": "runtime-analysis.nvim hat auf diesem Rechner noch nie einen Cache geschrieben.",
     "tel.unknown": "Keine Telemetry für {name}. Ein Namespace ist ein Plugin-Name — das gilt also nur für ein Projekt, das sich unter seinem eigenen registriert.",
     "tel.on": "Erhebt — {sessions} Sitzung(en), {days} Tag(e) aufgezeichnet.",

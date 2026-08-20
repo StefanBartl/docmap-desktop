@@ -27,6 +27,7 @@ import {
   badgeText,
   summaryText,
   supportFor,
+  callsSupportFor,
   engineLanguageText,
   engineVerdict,
 } from "./lib/languages.js";
@@ -99,6 +100,21 @@ let engine = { path: null, from_path: true, bundled: false, grammars: null };
 // the two the same way (say nothing about support), but conflating them
 // here would make "not asked yet" unobservable.
 let engineLangs = null;
+
+/**
+ * Whether the selected project has call extraction behind it.
+ *
+ * Kept here rather than asked for when the note is rendered, because
+ * `contextNoteFor` runs synchronously inside a `postMessage` handler and the
+ * answer needs a directory walk. Recomputed with the language badge, which
+ * is already fetched per selected project, and reset to `"unknown"` while
+ * that is in flight — saying nothing is the right answer between two
+ * projects, and a stale `"no"` would put a wrong sentence over the right
+ * panel.
+ *
+ * @type {"yes"|"no"|"unknown"}
+ */
+let callsSupport = "unknown";
 let nvim = { path: null, from_path: true, config_dir: null, config_dir_from_default: true };
 
 let projects = [];
@@ -467,8 +483,13 @@ async function renderDetail() {
   // Not awaited with the above: this walks the project directory, and
   // blocking the sidebar on a filesystem walk would trade a rendered panel
   // for a blank one.
+  callsSupport = "unknown";
   scanLanguages(invoke, p.root, p.map_dir)
     .then((scan) => {
+      // Set before the early return below: a project whose badge is empty
+      // (no language clears the threshold) still has a Calls panel, and the
+      // note over it is exactly as true.
+      callsSupport = callsSupportFor(scan, engineLangs);
       const text = badgeText(scan);
       if (!text) return;
       els.langs.textContent = text;
@@ -1282,6 +1303,22 @@ function contextNoteFor(ctx) {
   }
   if (ctx.tab === "hierarchy" && ctx.view === "types") {
     return t("note.types");
+  }
+  // **An empty panel that says why.** The Calls and Module Calls views draw
+  // nothing for nineteen of the engine's twenty-three backends, and they
+  // draw nothing in exactly the same way for a project that genuinely has
+  // no calls in it. The reader cannot tell those apart, and the second is
+  // the one worth explaining.
+  //
+  // Only on `"no"`. `"unknown"` is a real third answer — no scan yet, or an
+  // engine too old to have the field — and a guess would be wrong for
+  // precisely the reader who most needs it to be right.
+  if (
+    ctx.tab === "hierarchy" &&
+    (ctx.view === "calls" || ctx.view === "modulecalls") &&
+    callsSupport === "no"
+  ) {
+    return t("note.calls");
   }
   return null;
 }
