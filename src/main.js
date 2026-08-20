@@ -21,6 +21,7 @@
 import { withBusyButton } from "./lib/busy-button.js";
 import { lastKey, migrateLastKey } from "./lib/last-selection.js";
 import { mapStatus, invalidate } from "./lib/status-cache.js";
+import { row as overviewRow, sortRows, summarize, RANK } from "./lib/overview.js";
 import { t, setLocale, initialLocale, LOCALES, keys } from "./lib/i18n.js";
 import {
   scanLanguages,
@@ -79,6 +80,11 @@ const els = {
   status: document.getElementById("status"),
   frame: document.getElementById("map"),
   placeholder: document.getElementById("placeholder"),
+  overview: document.getElementById("overview"),
+  ovHeadline: document.getElementById("ov-headline"),
+  ovActions: document.getElementById("ov-actions"),
+  ovGenBehind: document.getElementById("ov-gen-behind"),
+  ovList: document.getElementById("ov-list"),
   gen: document.getElementById("gen"),
   engine: document.getElementById("engine"),
   engineSummary: document.getElementById("engine-summary"),
@@ -163,6 +169,9 @@ function say(msg) {
 function showPlaceholder(title, body) {
   els.frame.hidden = true;
   els.frame.removeAttribute("src");
+  // The overview answers the same empty screen. A message about one project
+  // shown over a list of all of them is two subjects at once.
+  els.overview.hidden = true;
   els.placeholder.hidden = false;
   els.placeholder.innerHTML =
     "<h2></h2><p></p>";
@@ -472,14 +481,15 @@ async function render() {
   // adjacent controls. Measured after workspaces gained their own last
   // selection, which is when a switch can legitimately land on nothing.
   //
-  // Disabled and hidden, so it cannot be chosen and does not sit in the open
-  // list as a row — it exists to be the closed control's label, once.
-  if (!selectedId && projects.length) {
+  // It used to be disabled and hidden — it existed only to be the closed
+  // control's label, because choosing it led to a screen that said "pick a
+  // project on the left". That is no longer true: no selection now shows the
+  // workspace overview, which is a destination rather than a dead end, so
+  // the option is a real row and always present.
+  if (projects.length) {
     const none = document.createElement("option");
     none.value = "";
-    none.disabled = true;
-    none.hidden = true;
-    none.textContent = t("picker.none");
+    none.textContent = t("picker.overview");
     els.list.append(none);
   }
 
@@ -503,6 +513,180 @@ async function render() {
   // one line later.
   els.list.value = selectedId ?? "";
   renderDetail();
+  renderOverview();
+
+  // The overview ranks on freshness, and freshness arrives from a walk over
+  // every tree. Kicking it off here rather than only from the sort control
+  // is what makes the first screen after launch worth reading: without it
+  // the list rendered once, said "checking…" against everything, and never
+  // heard back — the measurement only ran when someone chose to sort by it.
+  if (!selectedId && projects.length) {
+    measureAll().then(() => {
+      // Only if nothing has been opened in the meantime; a walk finishing
+      // after the reader picked a project must not redraw over their map.
+      if (!selectedId) renderOverview();
+    });
+  }
+}
+
+// =====================================================================
+// The workspace overview
+//
+// Shown where "Nothing selected" used to be, because that state is not an
+// absence of subject — it *is* the workspace, and this app is the only
+// place a workspace exists. One repository's map cannot show it and the
+// picker cannot either: the picker names one project and the detail pane
+// describes that one.
+//
+// The ranking is `lib/overview.js`'s, and the measurement behind it is
+// written down there. The short version, because it decided the layout:
+// "behind the engine" leads and "stale" does not, even though staleness is
+// the louder number — over 30 generated maps, 27 were behind on schema and
+// 28 were stale, and for 17 of those the newest file was a `.gitignore`
+// touched in one sweep.
+//
+// Freshness is whatever `measureAll` has gathered so far. Rows render
+// immediately with what is known and say "checking…" for the rest, rather
+// than holding the whole screen back for a walk over thirty trees: the
+// ranking is useful before it is complete, and an empty window is not.
+// =====================================================================
+
+/**
+ * A rough age, in the largest unit that still reads as a number.
+ *
+ * One is its own string in both locales rather than `{n} hour(s)`. The
+ * bracketed plural is fine in a count beside a label — `9 module(s)` is read
+ * as a number with a unit — and wrong the moment the text is a sentence, and
+ * "changed 1 hour(s) ago" is a sentence. German needs the dative for the
+ * same phrase (`vor einer Stunde`, `vor 2 Stunden`), which a single form
+ * with a placeholder cannot produce either.
+ */
+function plural(key, n) {
+  const one = t(key + ".one");
+  return n === 1 && one ? one : t(key).replace("{n}", String(n));
+}
+
+function agoText(secs) {
+  if (typeof secs !== "number" || secs < 0) return null;
+  if (secs < 3600) return plural("ov.ago.min", Math.max(1, Math.round(secs / 60)));
+  if (secs < 86400) return plural("ov.ago.hour", Math.round(secs / 3600));
+  return plural("ov.ago.day", Math.round(secs / 86400));
+}
+
+/** The one sentence a row puts under the project name. */
+function stateText(r) {
+  if (r.hasMap === null) return t("ov.state.unknown");
+  if (!r.hasMap) return t("ov.state.noMap");
+  // The lag still orders the rows — it just is not read out. "1 version(s)
+  // back" is a number the reader can do nothing different with: the action
+  // for one version behind and for three is the same button.
+  if (r.schemaLag > 0) return t("ov.state.behind");
+  if (r.stale === true) {
+    const ago = agoText(r.behindSecs);
+    return ago ? t("ov.state.stale.for").replace("{ago}", ago) : t("ov.state.stale");
+  }
+  if (r.stale === null) return t("ov.state.unknown");
+  // The walk hit its file cap, so "nothing newer" is only "nothing newer
+  // among the files it reached". Saying `up to date` here would be a
+  // verdict the data does not support.
+  return r.truncated ? t("ov.state.maybe") : t("ov.state.ok");
+}
+
+const RANK_CLASS = {
+  [RANK.NO_MAP]: "ov-nomap",
+  [RANK.BEHIND_SCHEMA]: "ov-behind",
+  [RANK.STALE]: "ov-stale",
+  [RANK.OK]: "ov-ok",
+};
+
+/** Build the rows from whatever is known right now. */
+async function overviewRows() {
+  const engineSchema = engineLangs && engineLangs.schema;
+  const out = [];
+  for (const p of projects) {
+    let status = null;
+    try {
+      status = await mapStatus(invoke, p.map_dir);
+    } catch (e) {
+      // Unreadable is not "no map": one is a fact about the project, the
+      // other about this moment. `null` keeps it unmeasured, which is
+      // where the ranking already puts what it does not know.
+      void e;
+    }
+    out.push(overviewRow(p, status, freshness.get(p.id) ?? null, engineSchema));
+  }
+  return sortRows(out);
+}
+
+async function renderOverview() {
+  const show = !selectedId && projects.length > 0;
+  els.overview.hidden = !show;
+  if (!show) return;
+
+  // The placeholder and the overview are two answers to the same empty
+  // screen, and both showing at once is how that screen used to look for a
+  // frame after a workspace switch.
+  els.placeholder.hidden = true;
+
+  const rows = await overviewRows();
+  const s = summarize(rows);
+  const needs = s.noMap + s.behindSchema + s.stale;
+
+  const parts = [];
+  parts.push(
+    needs === 0 && s.unmeasured === 0
+      ? t("ov.headline.allGood").replace("{total}", String(s.total))
+      : t("ov.headline.needs")
+          .replace("{n}", String(needs))
+          .replace("{total}", String(s.total))
+  );
+  if (s.unmeasured > 0) {
+    parts.push(t("ov.headline.measuring").replace("{n}", String(s.unmeasured)));
+  }
+  parts.push(t("ov.pick"));
+  els.ovHeadline.textContent = parts.join(" ");
+
+  // Acting on the schema lag is the one bulk command the menu does not
+  // already have: `generate stale` reads modification times, and a map
+  // written by an older engine is not stale by that measure — it is
+  // exactly as old as its sources and still missing what the engine can
+  // do now. Same machinery, different set.
+  const behind = rows.filter((r) => r.rank === RANK.BEHIND_SCHEMA).map((r) => r.id);
+  els.ovActions.hidden = behind.length === 0 || !engine.path;
+  els.ovGenBehind.textContent = plural("ov.genBehind", behind.length);
+  els.ovGenBehind.onclick = () => generateAll(new Set(behind));
+
+  els.ovList.innerHTML = "";
+  for (const r of rows) {
+    const li = document.createElement("li");
+    li.className = "ov-row " + (RANK_CLASS[r.rank] || "");
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "ov-open";
+    // `textContent`, not innerHTML: a project name is the user's content
+    // and travels verbatim, the rule the whole catalog is built on.
+    const name = document.createElement("span");
+    name.className = "ov-name";
+    name.textContent = r.name;
+    const state = document.createElement("span");
+    state.className = "ov-state";
+    state.textContent = stateText(r);
+    btn.append(name, state);
+
+    if (r.modules !== null || r.files !== null) {
+      const counts = document.createElement("span");
+      counts.className = "ov-counts";
+      counts.textContent = t("ov.counts")
+        .replace("{modules}", String(r.modules ?? 0))
+        .replace("{files}", String(r.files ?? 0));
+      btn.append(counts);
+    }
+
+    btn.addEventListener("click", () => select(r.id));
+    li.append(btn);
+    els.ovList.append(li);
+  }
 }
 
 /** What the row used to carry, for the selected project only. */
@@ -761,7 +945,10 @@ async function restoreLast() {
 }
 
 async function select(id) {
-  selectedId = id;
+  // The picker's overview row carries an empty value, and `""` is not a
+  // project id. Normalised here rather than at the call site so every
+  // `!selectedId` test in this file keeps meaning one thing.
+  selectedId = id || null;
   syncMenu();
   titleFor(projects.find((x) => x.id === id));
   try {
@@ -777,9 +964,20 @@ async function select(id) {
   // one's map.
   els.contextNote.hidden = true;
 
-  const p = projects.find((x) => x.id === id);
+  const p = projects.find((x) => x.id === selectedId);
   await render();
-  if (!p) return;
+  if (!p) {
+    // Going back to the overview has to take the previous project's map off
+    // the screen with it. Without this the iframe stayed put and the
+    // overview rendered underneath a map it no longer describes.
+    els.frame.hidden = true;
+    els.frame.removeAttribute("src");
+    mapBase = null;
+    setFiles(false);
+    renderOverview();
+    say("");
+    return;
+  }
 
   const status = await mapStatus(invoke, p.map_dir);
   if (!status.exists) {
@@ -811,6 +1009,7 @@ async function select(id) {
   // fall back to the asset protocol rather than showing nothing: a readable
   // map with two panels that report "no host" beats a blank window.
   els.placeholder.hidden = true;
+  els.overview.hidden = true;
   els.frame.hidden = false;
   let served = null;
   try {
@@ -2263,7 +2462,8 @@ function setFiles(on) {
   // The map keeps its src: coming back should not cost a reload of a
   // two-megabyte page that has not changed.
   els.frame.hidden = on || !mapBase;
-  els.placeholder.hidden = on || !!mapBase;
+  els.placeholder.hidden = on || !!mapBase || (!selectedId && projects.length > 0);
+  els.overview.hidden = on || !!mapBase || !!selectedId || projects.length === 0;
   if (on) {
     filesPath = "";
     renderFiles();

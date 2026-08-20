@@ -97,10 +97,20 @@ test("the picker can say that nothing is selected", () => {
   // control named whichever project sorted first while the pane beside it
   // said "nothing selected" and Generate stayed disabled — two answers to
   // one question, in adjacent controls.
-  assert.ok(MAIN.includes('t("picker.none")'), "the empty state needs its own label");
+  //
+  // The option outgrew being a label. No selection now shows the workspace
+  // overview, so the row is a destination and is offered whenever there is
+  // more than nothing to list — the `!selectedId` guard this used to assert
+  // was there to keep an unreachable option out of the open list, and it
+  // would now hide the only way back to that screen.
+  assert.ok(MAIN.includes('t("picker.overview")'), "the empty state needs its own label");
   assert.ok(
-    /if \(!selectedId && projects\.length\)/.test(MAIN),
-    "and it is added only when there is no selection to show"
+    /if \(projects\.length\) \{[\s\S]{0,120}createElement\("option"\)/.test(MAIN),
+    "and it is offered whenever there are projects to survey"
+  );
+  assert.ok(
+    !/none\.disabled = true/.test(MAIN),
+    "a destination is choosable — it was disabled only while it led nowhere"
   );
   assert.ok(HTML.includes('id="projects"'), "the picker itself still exists");
 });

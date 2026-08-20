@@ -286,12 +286,40 @@ Die Taste ist `w` und nicht das zuerst gewählte `<Tab>`: ein Terminal sendet
 für `<Tab>` und `<C-i>` dasselbe Byte, die Bindung hat also still `<C-i>` aus
 der Besuchshistorie genommen. `docmap_browse_spec` hat es gefangen.
 
-### M4 · Cross-Repo-Dashboard — **M**, Desktop
+### ~~M4 · Cross-Repo-Dashboard~~ — **erledigt 2026-08-21**
 
-Die Workspace-Ebene, die kein einzelnes Repository haben kann. Diese App ist
-die einzige Stelle, die mehrere Projekte gleichzeitig hält — und das Erste,
-was von den dreiunddreißig Repositories im Korpus wirklich profitiert.
-*Vorher: M3.*
+Die Workspace-Ebene, die kein einzelnes Repository haben kann — dort, wo
+vorher „Nichts ausgewählt" stand. Dieser Zustand ist kein fehlendes Thema, er
+*ist* der Workspace.
+
+**Die Rangfolge ist gemessen, nicht gewählt.** Über den eigenen Baum — 54
+Repositories, 30 mit erzeugter Karte:
+
+* **27 von 30 Karten stammten von Schema 2, während die Engine 5 schreibt.**
+  Drei Artefaktversionen zurück, alle in einem Lauf fünf Tage zuvor erzeugt.
+* **28 von 30 waren „veraltet"** — Quellen neuer als die Karte. Die lautere
+  Zahl, und die schwächere: bei 17 davon war die neuste Datei ein
+  `.gitignore` aus einem einzigen Rutsch, bei 22 das von `:helptags`
+  geschriebene `doc/tags`. Generierte `tags` auszunehmen änderte die Zahl um
+  exakt null.
+
+Beide Signale feuern also fast überall; unterschieden werden sie dadurch,
+*worauf* sie zeigen. Eine ältere Engine bedeutet konkret fehlende Inhalte,
+und Neuerzeugen holt sie zurück. Deshalb führt sie, und „veraltet" nicht —
+die naheliegende Ordnung war die, die die Zahlen verworfen haben.
+
+Dazu die eine Sammelaktion, die das Menü noch nicht hatte: *Veraltete
+erzeugen* vergleicht Änderungszeiten, und eine von einer älteren Engine
+gebaute Karte ist danach gar nicht veraltet.
+
+**Zwei Fehler hat erst der Blick in ein echtes Fenster gefunden**, beide
+dieselbe Falle: `#map` und `.placeholder` setzen eigene `display`-Regeln, die
+das `[hidden]`-Attribut überstimmen. Ein verstecktes `<iframe>` behielt damit
+volle Höhe und schob die Übersicht in einem 720-Pixel-Fenster auf y=702. Es
+fiel nie auf, solange der Platzhalter das Einzige dahinter war: er ist in
+einer Box gleicher Höhe zentriert, ein Bildschirm nach unten geschoben sieht
+aus wie ein Bildschirm nach unten zentriert. Genau der Fehlertyp, für den
+`tools/preview/preview.py` existiert.
 
 ### M5 · Extension-API, Stufe 2 — **M**, Desktop
 
@@ -461,8 +489,10 @@ Nach Nutzen pro Aufwand:
 4. ~~**M3**~~ (`K` im Browser) — **erledigt 2026-08-21.** Das Zählen davor
    hat die Taste auf Code-Spannen begrenzt und nebenbei ein unerreichbares
    Detailpane aufgedeckt.
-   **M4 ist frei** ← hier weitermachen.
-5. **M4** (Cross-Repo-Dashboard) — das Einzige, was nur diese App kann.
+5. ~~**M4**~~ (Cross-Repo-Dashboard) — **erledigt 2026-08-21.** Das Messen
+   davor hat die naheliegende Rangfolge verworfen und zwei CSS-Fallen im
+   bestehenden Fenster aufgedeckt.
+   **M5 ist frei** ← hier weitermachen.
 
 **Nicht als Nächstes**, obwohl sie groß und sichtbar sind: **L1** und **L2**.
 Beide sind mehrere Sitzungen und beide eine Umfangsentscheidung, keine

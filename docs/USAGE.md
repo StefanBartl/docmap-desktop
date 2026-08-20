@@ -148,12 +148,45 @@ feature.
 | Part | What it is |
 |---|---|
 | **Sidebar** | The project picker, the per-project detail block, and the Engine panel. Toggled with **View → Sidebar** (`Ctrl+B`). |
-| **Main pane** | The generated map, embedded. Everything inside it is `documentation.nvim`'s surface, not this app's. |
+| **Main pane** | The generated map, embedded. Everything inside it is `documentation.nvim`'s surface, not this app's. With nothing selected it shows the whole workspace instead — see below. |
 | **Files pane** | The live file tree — see below. **View → Files on disk** (`Ctrl+Shift+F`). |
 | **Status bar** | Spans the bottom, carrying the project path and the progress of anything long-running. |
 
 **Zoom** is in **View** (`Ctrl+plus`, `Ctrl+-`, `Ctrl+0`). The map is a
 dense page and this is the single most useful thing a menu bar adds to it.
+
+### All projects — the first screen
+
+With nothing selected, the main pane lists **every project in the workspace
+at once**, ranked by what wants doing. It is where the app opens, and the
+picker's first row — **All projects** — is how you get back to it after
+opening a map.
+
+Each row says the project's name and one sentence about its map:
+
+| It says | It means |
+|---|---|
+| **no map yet** | Nothing has been generated for it. Nothing to read, and nothing behind either. |
+| **made by an older engine** | There is a map, but a newer engine is installed now. The page is built at generation time, so anything the engine learned since is simply not in it. |
+| **changed since it was made** | Files in the repository are newer than the map. |
+| **up to date** | Nothing found. |
+| **nothing found, though not everything was checked** | The freshness walk hit its file limit, so this is the honest version of *up to date*. |
+
+**Why that order, and not newest-changes-first.** Because the obvious order
+was measured and it lost. Over the author's own tree — 54 repositories, 30
+with a generated map — 28 were "changed since made" and 27 were "made by an
+older engine". Both fire on nearly everything, so neither is useful as a
+count; what separates them is *what they point at*. For 17 of those 28 the
+newest file was a `.gitignore` touched in one sweep, and excluding generated
+files changed the number by exactly zero. A map written by an older engine,
+by contrast, is missing something concrete and regenerating it gets that
+back. So it leads.
+
+When any project is behind the engine, a button above the list offers to
+remake just those. That is the one bulk action the menu does not already
+have: **Generate the out-of-date ones** compares modification times, and a
+map built by an older engine is not out of date by that measure — it is
+exactly as old as its sources and still missing what the engine can do now.
 
 ### The project picker, and how to sort it
 
