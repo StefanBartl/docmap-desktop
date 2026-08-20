@@ -26,3 +26,6 @@ tags
 # program and they are regenerable noise in a diff.
 /src-tauri/icons/android/
 /src-tauri/icons/ios/
+
+# Generated from src/index.html on every run of tools/preview/preview.py.
+/tools/preview/preview.html

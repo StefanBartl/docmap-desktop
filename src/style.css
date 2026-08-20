@@ -580,6 +580,34 @@ button:focus-visible {
   font-size: 12.5px;
   cursor: pointer;
 }
+
+/* A dialog's own action stays visible while the dialog scrolls.
+   `<dialog>` caps itself at the viewport, so at the window's minimum height
+   (600, from tauri.conf.json) the three long dialogs — feedback, settings and
+   project settings — are taller than the space they get and scroll. Measured
+   at 900x600: `scopebox` wants 715px and gets 564, which put **Save** 149px
+   below the fold on open. A primary action that has to be found by scrolling
+   is a primary action people believe is missing, and the wheel makes it
+   worse: over the language grid or the textarea it scrolls those, not the
+   dialog.
+
+   Only `> .addbox-go` — the button that is the dialog's own last word
+   (`fb-go`, `about-copy`, `scope-save`). The same class inside a pane or a
+   button row (`pick-folder`, `ws-create`) belongs where it sits and must not
+   be pinned.
+
+   `bottom: 0` is measured against the scrollport, which includes the
+   dialog's own bottom padding -- so it is the position the button already
+   had, and reaching the end of the scroll moves it by nothing. The ring is
+   the dialog's background: without it the content being scrolled shows
+   through beside a button that is floating over it. */
+.addbox > .addbox-go {
+  position: sticky;
+  bottom: 0;
+  display: block;
+  width: fit-content;
+  box-shadow: 0 0 0 7px var(--bg);
+}
 .addbox-secondary {
   padding: 6px 10px;
   border: 1px solid var(--line);
@@ -905,7 +933,11 @@ button:focus-visible {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
   gap: 2px 12px;
-  max-height: 220px;
+  /* Twenty-three backends today and the list is read from the engine, so it
+     grows on its own. Capped so the languages cannot push everything below
+     them off the dialog -- and capped against the window too, because 220px
+     of grid is a third of the dialog's whole height at 600. */
+  max-height: min(220px, 30vh);
   overflow-y: auto;
 }
 

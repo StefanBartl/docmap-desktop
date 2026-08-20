@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "preview",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["tools/preview/preview.py"],
+      "port": 8731,
+      "url": "http://localhost:8731"
+    }
+  ]
+}
