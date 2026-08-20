@@ -535,7 +535,24 @@ Extraktoren, keine gebogene Version des einen) · Lazy-Load-Inventar
 (beantwortet „warum ist das noch nicht geladen") · verwaiste Spec-Dateien.
 Keymap-Konflikte sind gebaut.
 
-### M7 · Reference-Tab — **M**, Engine
+### M7 · Reference-Tab — **M**, Engine — *Schritt 4 von 6 gebaut*
+
+**Gebaut 2026-08-20, `645950e`: der `TAGS`-Refactor** — der geteilte
+Vorbedingungs-Punkt, der dreifach zahlt (Tag-Panel hier, Adoption-Panel
+§2.1, dritte Art der Lookup-Schicht). `core/tags.lua` katalogisiert jeden
+Tag, den die Pipeline wirklich liest; die Anker sind **aus der
+veröffentlichten LuaLS-Seite gelesen**, nicht geraten. Der Katalog liegt
+schon als `IR.tags` auf der Seite, also sind beide verbleibenden Konsumenten
+jetzt das, was ihre eigenen Schätzungen versprochen haben.
+
+Nebenbei gemessen statt behauptet: die Karte ist bis auf Zeilennummern in
+`functions.lua` unverändert — mit einer Ausnahme, und die ist das Ergebnis:
+`parse_doc_block` fällt von Komplexität **25 auf 12**.
+
+**Als Nächstes hier:** §2.1 (Annotation-Adoption-Panel, laut eigener
+Bewertung das wertvollste Panel im Backlog — jetzt ein Quick Win) und die
+Tag-Karte als dritte Auslösefläche der Lookup-Schicht. Danach D5/Q8 (`K`),
+das erst dann etwas zu sagen hat.
 
 Zwei Panels plus eine „was ist das"-Fläche. **Die billige Hälfte zuerst**:
 die kuratierte Linkliste liefert unabhängig vom Rest aus. Offen und in
