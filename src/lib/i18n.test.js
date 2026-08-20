@@ -4,6 +4,18 @@ import { readFileSync } from "node:fs";
 
 import { t, setLocale, locale, initialLocale, keys, keysOf, LOCALES } from "./i18n.js";
 
+// Three of the tests below read `main.js` and assert on its shape rather than
+// on its behaviour, and a checkout with `core.autocrlf` on hands them CRLF.
+// A pattern written with a bare newline then matches nothing at all: the
+// `indexOf("\n}\n")` further down returns -1, the slice comes back two
+// characters long, and the test reports on the line endings of the machine it
+// ran on rather than on the code — passing in CI and failing on Windows for a
+// function that was never wrong. Normalising once, here, is what makes these
+// assertions mean the same thing on every platform.
+function readSource(path) {
+  return readFileSync(new URL(path, import.meta.url), "utf8").replace(/\r\n/g, "\n");
+}
+
 test("a shipped locale is complete, or it should not be in the picker", () => {
   // I18N.md's own bar: a locale at 60 % that looks finished is the silent-
   // degradation failure one level up. This is the gate that keeps a
@@ -94,7 +106,7 @@ function setLocaleAndGet(code, key) {
 // case worth catching.
 // ---------------------------------------------------------------------
 test("no showPlaceholder call passes a literal instead of a catalog key", () => {
-  const src = readFileSync(new URL("../main.js", import.meta.url), "utf8");
+  const src = readSource("../main.js");
   const calls = [...src.matchAll(/showPlaceholder\(\s*([^,]+),/g)]
     // The definition itself, whose parameter is named `title`.
     .filter((m) => !/^title\b/.test(m[1].trim()));
@@ -109,7 +121,7 @@ test("no showPlaceholder call passes a literal instead of a catalog key", () => 
 });
 
 test("every placeholder key exists in both shipped locales", () => {
-  const src = readFileSync(new URL("../main.js", import.meta.url), "utf8");
+  const src = readSource("../main.js");
   const used = new Set([...src.matchAll(/t\("(ph\.[a-z.]+)"\)/g)].map((m) => m[1]));
   assert.ok(used.size >= 8, `expected the placeholder keys, found ${used.size}`);
   for (const key of used) {
@@ -136,7 +148,7 @@ test("every placeholder key exists in both shipped locales", () => {
 // would ever have reached it. Asserting the shape rather than the strings,
 // for the reason the placeholder guard gives.
 test("contextNoteFor returns catalog keys, never prose", () => {
-  const src = readFileSync(new URL("../main.js", import.meta.url), "utf8");
+  const src = readSource("../main.js");
   const body = src.slice(src.indexOf("function contextNoteFor"));
   const fn = body.slice(0, body.indexOf("\n}\n") + 3);
   const returns = [...fn.matchAll(/return\s+([^;]+);/g)].map((m) => m[1].trim());
