@@ -299,12 +299,28 @@ Neovim hatte `fs_realpath` das verdeckt).
 **Offen und jetzt billig:** Telemetrie-Namespaces sind Plugin-Namen, mdview
 schlüsselt auf `cwd`. Beides absichtlich, beides blockiert nichts.
 
-### Q13 · Extension-API, Stufe 1 — **S**, `docmap-desktop`, reine Doku
+### ~~Q13 · Extension-API, Stufe 1~~ — gebaut 2026-08-20
 
-`ROADMAP.md` sagt es selbst: *das Artefakt ist bereits die API.*
-`module_map.json` ist byte-deterministisch, versioniert und dokumentiert. Was
-fehlt, ist der Satz — und eine Kompatibilitätszusage, was ein Schema-Bump
-ändern darf. Stufen 2 und 3 stehen in Teil 2 und 3.
+Geschrieben, wo das Artefakt herkommt statt wo darüber geredet wurde:
+[`documentation.nvim/docs/HOSTING.md` § *The artifact is the extension
+point*](../../documentation.nvim/docs/HOSTING.md). Die Engine besitzt das
+Schema; eine Zusage darüber gehört neben den Schreiber, nicht neben einen
+Leser.
+
+Der Satz („es gibt keine Plugin-API, und das *ist* die Antwort") plus vier
+Dinge, auf die man sich verlassen kann, drei, die ein Bump tun darf, drei,
+die er nicht darf.
+
+**Beim Schreiben fand sich sofort eine falsche Zusage**, die dort schon
+stand: „bumped when the artifact **gains** a field". Schema 5 hat drei
+*entfernt*. Korrigiert — und die Regel dahinter festgehalten: eine Entfernung
+darf die *Tatsache* nicht verlieren, nur ihre Formulierung. Derselbe Bump hat
+`n`/`total` neben `value` ergänzt, damit „45 of 72" ohne das Englisch
+überlebt.
+
+Die Leseregel ist die, der dieses Projekt selbst folgt: **vorwärts
+tolerieren, rückwärts ablehnen.** `core/diff.lua` vergleicht `schema >= 2`,
+nie `== 2`, und degradiert, indem es *benennt, was es nicht sagen kann*.
 
 ### Q14 · Den fehlenden Werkzeugnamen nennen — **S**, Engine (§6.8)
 
