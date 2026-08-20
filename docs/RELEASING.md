@@ -130,6 +130,14 @@ publish a macOS build of the engine. A macOS build of this app still works —
 it simply starts with no bundled fallback and finds an engine on `PATH`, or
 says it found none.
 
+**Which engine the check actually exercises.** Since 2026-08-20 the bundled
+one wins over anything on `PATH`, so opening the installed app verifies the
+engine that shipped in it — which is the point of the step. Before that
+change it did not: an older `docmap.exe` on the tester's `PATH` silently
+took precedence, and the app looked correct while running a two-day-old
+engine with four languages instead of twenty-three. If you want to confirm
+which one is in use, the sidebar says `(bundled)` or `(found on PATH)`.
+
 Watch it:
 
 ```bash
