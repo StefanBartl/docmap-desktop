@@ -90,6 +90,11 @@ and the interface language, see which projects need regenerating and
 regenerate exactly those, and file a bug report with the versions already
 filled in.
 
+Each project also carries **its own settings** — which languages the engine
+reads there, and which paths it leaves out — kept apart from the settings
+that belong to this machine, because "my engine lives here" and "this
+repository vendors a copy of something" are facts about different things.
+
 **One thing to know before anything else: a generated map is a snapshot of
 the engine that wrote it.** The map is an HTML document produced at the
 moment you pressed Generate, not something this window renders live — so a
@@ -106,7 +111,7 @@ See [docs/USAGE.md](docs/USAGE.md) for what every button does,
 
 | Document | Covers |
 |---|---|
-| [docs/USAGE.md](docs/USAGE.md) | Using it, button by button: adding projects, workspaces, the files pane, opening a file in your editor, the four Generate commands, settings, the menu bar, and where everything is stored. |
+| [docs/USAGE.md](docs/USAGE.md) | Using it, button by button: adding projects, workspaces, the project picker and its four sort orders, the files pane, opening a file in your editor, the four Generate commands, settings and per-project settings, the notes that appear over some panels, the menu bar, and where everything is stored. |
 | [docs/WORKPLAN.md](docs/WORKPLAN.md) | What is done, what is next, and the measurement behind each decision. The resume point. |
 | [docs/MENUBAR.md](docs/MENUBAR.md) | Why the menu is shaped the way it is, and the four constraints that shaped it. |
 | [docs/RELEASING.md](docs/RELEASING.md) | Cutting a release: what to check before tagging, what the workflow builds, and why the last step is a person opening the app. |
