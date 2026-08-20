@@ -38,6 +38,36 @@ test("no locale defines a key the source does not have", () => {
   }
 });
 
+test("a locale's placeholders match English, or a sentence loses a fact", () => {
+  // The failure a copy rewrite introduces and key parity cannot see:
+  // `{dir}`, `{name}` and `{sessions}` are substituted by the caller, so
+  // dropping one while rephrasing quietly removes the fact it carried, and
+  // inventing one shows the reader a literal `{dir}`. Both look like ordinary
+  // prose in a diff.
+  //
+  // Read through `t()` rather than by parsing the file: substitution is the
+  // caller's job, so `t()` hands back the raw string with its placeholders
+  // still in it, which is exactly what needs comparing.
+  const placeholders = (s) => new Set((s.match(/\{[a-zA-Z0-9_]+\}/g) || []).sort());
+  const before = locale();
+  setLocale("en");
+  const english = new Map(keys().map((k) => [k, placeholders(t(k))]));
+
+  for (const code of LOCALES.map((l) => l.code)) {
+    if (code === "en") continue;
+    setLocale(code);
+    for (const key of keysOf(code)) {
+      const mine = placeholders(t(key));
+      assert.deepEqual(
+        [...mine],
+        [...(english.get(key) || new Set())],
+        `${code} ${key}: placeholders differ from English`
+      );
+    }
+  }
+  setLocale(before);
+});
+
 test("a missing key falls back to English rather than to a blank", () => {
   setLocale("de");
   // Simulated by asking for a key no catalog has: the fallback chain must

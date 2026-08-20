@@ -70,26 +70,26 @@ const CATALOGS = {
     "help.generate":
       "Rebuild the selected project's map, overwriting what is there. Writes into that repository's docs/map.",
     "menu.help.engine":
-      "documentation.nvim's standalone binary — this app runs it, it does not replace it. The word beside the label is the verdict that decides whether generation works, and at what fidelity.",
+      "documentation.nvim's standalone binary — this app runs it, it does not replace it. The word beside the label tells you whether it was found, and how much detail it can read.",
     "help.engineLocate":
       "Point at documentation.nvim's standalone binary. You only need this if you want a different one than the app already uses — the line above says which that is.",
     "help.grammars":
       "Point at a folder of compiled tree-sitter grammars. This decides how much detail you get, not whether it works: without them you still get the full module tree, just no per-function data.",
     "help.nvim":
-      "Which nvim binary and which config directory the plugin-spec import reads. Only needed when either is somewhere unusual — most machines resolve both on their own.",
+      "Which nvim binary and which config folder the plugin-spec import reads. You only need this if one of them sits somewhere unusual — most machines find both on their own.",
     "help.nvimLocate":
-      "Point at the nvim binary used for importing plugin specs. Only needed when it is not on PATH.",
+      "Point at the nvim binary used for importing plugin specs. You only need this if it is not on your PATH.",
     "help.nvimConfig":
-      "Point at the Neovim config directory to read plugin specs from, when it is not in the platform-conventional place.",
+      "Point at the Neovim config folder to read plugin specs from, if yours is not in the usual place for this platform.",
     "help.theme":
-      "Light, dark, or whatever the operating system is set to. System is the default and stays choosable, so a choice made once can be handed back.",
+      "Light, dark, or whatever your operating system is set to. System is the default and stays available, so you can always hand the choice back.",
     "help.language":
       "The language of this window. It does not change the generated map, which is a separate artifact with its own translation.",
 
     "repos.notInstalled":
-      "GitHub CLI (gh) is not on PATH. Install it to pick from your repositories, or paste a URL above — that works either way.",
+      "The GitHub CLI (gh) is not on your PATH. Install it to pick from your own repositories — or paste a URL above, which works either way.",
     "repos.notAuthenticated":
-      "GitHub CLI is installed but not signed in. Run `gh auth login` once, then try again. Pasting a URL above works either way.",
+      "The GitHub CLI is installed but not signed in. Run `gh auth login` once and try again — or paste a URL above, which works either way.",
     "repos.failed": "GitHub CLI could not list your repositories.",
     "repos.asking": "Asking gh…",
     "repos.none": "That account has no repositories.",
@@ -113,8 +113,8 @@ const CATALOGS = {
     "count.errors": "errors",
     "count.warnings": "warnings",
     "detail.stale": "sources are newer than the map",
-    "detail.oldSchema": "written by an older engine (schema {map}, this one writes {engine}) — regenerate to get what it can do now",
-    "detail.staleWhy": "Compared by modification time, which is cheap and approximate: a file saved without an edit in it counts. Generating again is the only thing that says for certain.",
+    "detail.oldSchema": "written by an older engine (schema {map}, this one writes {engine}) — generate it again to get what the engine can do now",
+    "detail.staleWhy": "We compare modification times, which is quick but only approximate — a file you saved without changing anything counts too. Generating again is the only way to know for sure.",
     "menu.view": "View",
     "menu.view.theme": "Theme",
     // Three states: "system" is a choice, not the absence of one.
@@ -138,8 +138,8 @@ const CATALOGS = {
     "about.copy": "Copy for a bug report",
     "about.copied": "Copied.",
     "about.engineNone": "no engine configured",
-    "about.dirty": "built from a modified tree — the commit does not describe this binary",
-    "about.buildNone": "no build stamp — run from a source checkout, or built before stamping existed",
+    "about.dirty": "built from a modified working tree, so the commit does not describe this build exactly",
+    "about.buildNone": "no build stamp — started from a source checkout, or built before stamping existed",
     "fb.title": "Send feedback",
     "fb.lead":
       "This opens a prefilled report on GitHub in your browser. Nothing is sent from here — you read it there and press Submit yourself, signed in as you.",
@@ -159,9 +159,9 @@ const CATALOGS = {
       "What you did, what you expected, what happened instead. For a feature request: what you were trying to get done.",
     "fb.attach": "Attach version and platform",
     "fb.attach.note":
-      "Shown below exactly as it will be sent. Almost every report needs it, and almost nobody remembers to include it.",
+      "Below is exactly what will be sent along. It helps with almost every report, and it is easy to forget.",
     "fb.go": "Open on GitHub…",
-    "fb.needsSubject": "A one-line summary, at least — an untitled report is the one nobody opens.",
+    "fb.needsSubject": "A short title, please — a report without one is the one nobody opens.",
     "menu.file": "File",
     "menu.project": "Project",
     "menu.help": "Help",
@@ -174,7 +174,7 @@ const CATALOGS = {
     "ws.rename": "Rename",
     "ws.rename.prompt": "New name for this workspace",
     "ws.delete": "Delete",
-    "ws.delete.confirm": "Delete the workspace {name}? This removes the list only — every repository in it stays exactly where it is.",
+    "ws.delete.confirm": "Delete the workspace {name}? That removes the list only — every repository in it stays exactly where it is.",
     "ws.new.placeholder": "New workspace…",
     "ws.create": "Create",
     "ws.skip": "Don't show this again — open the last workspace",
@@ -190,20 +190,20 @@ const CATALOGS = {
     // test: they were built as English literals inside `contextNoteFor`,
     // where nothing walking `data-i18n` attributes would ever find them.
     "note.telemetry":
-      "Telemetry is collected by <code>runtime-analysis.nvim</code> inside a live Neovim session. This app can switch collection on for the next session — <strong>Settings → Telemetry</strong> — but it cannot run your plugin code, so it shows only what was collected there.",
+      "Telemetry is collected by <code>runtime-analysis.nvim</code> inside a running Neovim session. This app can switch collection on for your next session — <strong>Settings → Telemetry</strong> — but it cannot run your plugin, so it only shows what was collected there.",
     "note.types":
-      "Type data comes from <code>lua-language-server</code> (<code>:DocMap full</code>, inside Neovim). The standalone engine this app runs has no equivalent of that and cannot produce it.",
+      "Type data comes from <code>lua-language-server</code> (<code>:DocMap full</code>, inside Neovim). The standalone engine this app runs has no equivalent, so it cannot produce it.",
     "note.calls":
-      "This panel is empty because the engine has no call extraction for this project's languages yet — not because the project has no calls. Four of its language backends produce a call graph; the rest do not, and nothing about those languages makes it impossible.",
+      "This panel is empty because the engine cannot extract calls for this project's languages yet — not because the project has no calls. Five of its language backends produce a call graph; the rest do not, and nothing about those languages makes it impossible.",
     "tel.absent": "runtime-analysis.nvim has never written a cache on this machine.",
-    "tel.unknown": "No telemetry for {name}. A namespace is a plugin name, so this only applies to a project that registers telemetry under its own.",
+    "tel.unknown": "No telemetry for {name}. A namespace is a plugin name, so you will only see data for a project that registers telemetry under its own.",
     "tel.on": "Collecting — {sessions} session(s), {days} day(s) recorded.",
     "tel.off": "Switched off. {sessions} session(s) already recorded are kept.",
     "tel.enable": "Switch on for the next session",
     "tel.disable": "Switch off from the next session",
     "tel.snaps": "Snapshots, newest first",
     "tel.snapItem": "{name} — {when} · {sessions} session(s)",
-    "tel.snaps.none": "No snapshots. They are only taken by <code>:RATelemetry snapshot &lt;name&gt;</code> — never automatically, so that retention never evicts one nobody meant to take.",
+    "tel.snaps.none": "No snapshots yet. They are only taken by <code>:RATelemetry snapshot &lt;name&gt;</code> — never automatically, so nothing you meant to keep gets cleaned away.",
     "tel.failed": "Could not read the telemetry cache.",
     "prefs.editor": "Editor",
     "prefs.editor.note": "What <strong>Open in editor</strong> runs, from the map's own right-click menu. <code>{file}</code> and <code>{line}</code> are substituted. Leave it empty to hand the file to whatever your desktop opens it with.",
@@ -215,7 +215,7 @@ const CATALOGS = {
     "menu.file.copy_path": "Copy project path",
     "copy.path.done": "Copied: {path}",
     "menu.file.export": "Export current view…",
-    "export.none": "Nothing to export: the current view has no diagram. Hierarchy draws one.",
+    "export.none": "There is nothing to export here — this view does not draw a diagram. Switch to Hierarchy, which does.",
     // The view-area placeholders. Catalogued as a set rather than one at a
     // time: `showPlaceholder` was called from eight places with English
     // literals, so a German window showed a translated sentence under an
@@ -225,7 +225,7 @@ const CATALOGS = {
     "ph.nomap.title": "No map in this project yet",
     "ph.nomap.generate": "Press <strong>Generate map</strong> to build one.",
     "ph.nomap.noengine":
-      "Locate the engine in the sidebar first — it is <code>documentation.nvim</code>'s standalone binary.",
+      "Find the engine in the sidebar first — that is <code>documentation.nvim</code>'s standalone binary.",
     "ph.generating.title": "Generating…",
     "ph.generating.body": "Running the engine over <code>{root}</code>.",
     "ph.genall.title": "Generating all projects",
@@ -288,13 +288,13 @@ const CATALOGS = {
     // file name in the sentence is one that would work rather than an
     // invented illustration.
     "grammars.diag.dir":
-      "The engine reads grammars from <code>{dir}</code>, which holds {have}. A missing one is a shared library named after the grammar — <code>{example}.dll</code>, <code>.so</code> or <code>.dylib</code>.",
+      "The engine reads grammars from <code>{dir}</code>, which currently holds {have}. Each one is a shared library named after its grammar — <code>{example}.dll</code>, <code>.so</code> or <code>.dylib</code>.",
     "grammars.diag.empty":
-      "The engine reads grammars from <code>{dir}</code>, and that directory is empty. Each one is a shared library named after the grammar — <code>{example}.dll</code>, <code>.so</code> or <code>.dylib</code>.",
+      "The engine reads grammars from <code>{dir}</code>, and that folder is empty right now. Each one is a shared library named after its grammar — <code>{example}.dll</code>, <code>.so</code> or <code>.dylib</code>.",
     "grammars.diag.gone":
-      "The configured grammars directory <code>{dir}</code> is not there any more — <strong>Grammars…</strong> in Settings points at another one.",
+      "The grammars folder you set, <code>{dir}</code>, is not there any more. Point at another one with <strong>Grammars…</strong> in Settings.",
     "grammars.diag.none":
-      "No grammars directory is configured and this build ships none — <strong>Grammars…</strong> in Settings points at one.",
+      "No grammars folder is set, and this build does not bring one along. You can point at one with <strong>Grammars…</strong> in Settings.",
     "scope.outside": "{path} is not inside this project, so it cannot be excluded from it.",
   },
 
@@ -342,26 +342,26 @@ const CATALOGS = {
     "help.generate":
       "Die Karte des gewählten Projekts neu bauen und die vorhandene überschreiben. Schreibt in dessen docs/map.",
     "menu.help.engine":
-      "Das Standalone-Binary von documentation.nvim — diese App führt es aus, sie ersetzt es nicht. Das Wort neben der Beschriftung ist das Urteil darüber, ob und wie genau erzeugt werden kann.",
+      "Das Standalone-Binary von documentation.nvim — diese App führt es aus, sie ersetzt es nicht. Das Wort daneben sagt dir, ob sie gefunden wurde und wie viel Detail sie lesen kann.",
     "help.engineLocate":
       "Auf das Standalone-Binary von documentation.nvim zeigen. Brauchst du nur, wenn du eine andere als die bereits benutzte willst — welche das ist, sagt die Zeile darüber.",
     "help.grammars":
       "Auf einen Ordner mit kompilierten tree-sitter-Grammatiken zeigen. Das entscheidet, wie viel Detail du bekommst — nicht, ob es funktioniert: ohne sie bekommst du weiterhin die vollständige Modulübersicht, nur eben nichts auf Funktionsebene.",
     "help.nvim":
-      "Welches nvim-Binary und welches Config-Verzeichnis der Plugin-Spec-Import liest. Nur nötig, wenn eines davon an einem ungewöhnlichen Ort liegt — die meisten Rechner lösen beides selbst auf.",
+      "Welches nvim-Binary und welchen Config-Ordner der Plugin-Spec-Import liest. Brauchst du nur, wenn eines davon an einem ungewöhnlichen Ort liegt — die meisten Rechner finden beides von allein.",
     "help.nvimLocate":
-      "Auf das nvim-Binary zeigen, mit dem Plugin-Specs gelesen werden. Nur nötig, wenn es nicht auf PATH liegt.",
+      "Auf das nvim-Binary zeigen, mit dem Plugin-Specs gelesen werden. Brauchst du nur, wenn es nicht auf deinem PATH liegt.",
     "help.nvimConfig":
-      "Auf das Neovim-Config-Verzeichnis zeigen, aus dem Plugin-Specs gelesen werden, wenn es nicht am plattformüblichen Ort liegt.",
+      "Auf den Neovim-Config-Ordner zeigen, aus dem Plugin-Specs gelesen werden — falls deiner nicht am plattformüblichen Ort liegt.",
     "help.theme":
-      "Hell, dunkel, oder was das Betriebssystem eingestellt hat. System ist die Vorgabe und bleibt wählbar, damit eine einmal getroffene Wahl zurückgegeben werden kann.",
+      "Hell, dunkel, oder was dein Betriebssystem eingestellt hat. System ist die Vorgabe und bleibt wählbar — du kannst die Wahl also jederzeit wieder abgeben.",
     "help.language":
       "Die Sprache dieses Fensters. Sie ändert nichts an der erzeugten Karte — die ist ein eigenes Artefakt mit eigener Übersetzung.",
 
     "repos.notInstalled":
-      "Die GitHub-CLI (gh) liegt nicht auf PATH. Installiere sie, um aus deinen Repositories zu wählen — oder füge oben eine URL ein, das geht so oder so.",
+      "Die GitHub-CLI (gh) liegt nicht auf deinem PATH. Installiere sie, um aus deinen eigenen Repositories zu wählen — oder füge oben eine URL ein, das geht so oder so.",
     "repos.notAuthenticated":
-      "Die GitHub-CLI ist installiert, aber nicht angemeldet. Einmal `gh auth login` ausführen, dann erneut versuchen. Eine URL oben einzufügen geht so oder so.",
+      "Die GitHub-CLI ist installiert, aber nicht angemeldet. Melde dich einmal mit `gh auth login` an und versuch es erneut — oder füge oben eine URL ein, das geht so oder so.",
     "repos.failed": "Die GitHub-CLI konnte deine Repositories nicht auflisten.",
     "repos.asking": "Frage gh…",
     "repos.none": "Dieses Konto hat keine Repositories.",
@@ -377,8 +377,8 @@ const CATALOGS = {
     "count.errors": "Fehler",
     "count.warnings": "Warnungen",
     "detail.stale": "Quellen sind neuer als die Karte",
-    "detail.oldSchema": "von einer älteren Engine geschrieben (Schema {map}, diese schreibt {engine}) — neu erzeugen, um zu bekommen, was sie inzwischen kann",
-    "detail.staleWhy": "Verglichen über den Änderungszeitpunkt — billig und ungefähr: eine Datei, die ohne Änderung gespeichert wurde, zählt mit. Sicher weiß man es erst nach dem Neuerzeugen.",
+    "detail.oldSchema": "von einer älteren Engine geschrieben (Schema {map}, aktuell {engine}) — erzeuge sie neu, dann bekommst du, was die Engine inzwischen kann",
+    "detail.staleWhy": "Wir vergleichen die Änderungszeiten. Das geht schnell, ist aber nur ungefähr — eine Datei, die du ohne Änderung gespeichert hast, zählt mit. Sicher weißt du es erst, wenn du neu erzeugst.",
     "menu.view": "Ansicht",
     "menu.view.theme": "Darstellung",
     "menu.view.theme.system": "System",
@@ -399,11 +399,11 @@ const CATALOGS = {
     "about.copy": "Für einen Fehlerbericht kopieren",
     "about.copied": "Kopiert.",
     "about.engineNone": "keine Engine konfiguriert",
-    "about.dirty": "aus einem geänderten Baum gebaut — der Commit beschreibt dieses Binary nicht",
-    "about.buildNone": "kein Build-Stempel — aus einem Quell-Checkout gestartet, oder gebaut bevor es den Stempel gab",
+    "about.dirty": "aus einem geänderten Arbeitsstand gebaut — der Commit beschreibt dieses Programm also nicht genau",
+    "about.buildNone": "kein Build-Stempel — aus einem Quell-Checkout gestartet, oder gebaut, bevor es den Stempel gab",
     "fb.title": "Feedback senden",
     "fb.lead":
-      "Das öffnet einen vorausgefüllten Bericht auf GitHub im Browser. Von hier wird nichts gesendet — du liest ihn dort und schickst ihn selbst ab, angemeldet als du.",
+      "Das öffnet einen vorausgefüllten Bericht auf GitHub in deinem Browser. Von hier wird nichts gesendet — du liest ihn dort und schickst ihn selbst ab, angemeldet als du.",
     "fb.topic": "Thema",
     "fb.topic.feature": "Featurewunsch",
     "fb.topic.bug": "Etwas ist kaputt",
@@ -420,9 +420,9 @@ const CATALOGS = {
       "Was du getan hast, was du erwartet hast, was stattdessen passiert ist. Bei einem Featurewunsch: was du eigentlich erreichen wolltest.",
     "fb.attach": "Version und Plattform anhängen",
     "fb.attach.note":
-      "Unten steht genau das, was mitgeschickt wird. Fast jeder Bericht braucht es, und fast niemand denkt daran.",
+      "Unten siehst du genau, was mitgeschickt wird. Das hilft bei fast jedem Bericht — und geht leicht vergessen.",
     "fb.go": "Auf GitHub öffnen…",
-    "fb.needsSubject": "Wenigstens eine Kurzfassung — einen Bericht ohne Titel öffnet niemand.",
+    "fb.needsSubject": "Bitte noch einen kurzen Titel — ohne den geht ein Bericht leicht unter.",
     "menu.file": "Datei",
     "menu.project": "Projekt",
     "menu.help": "Hilfe",
@@ -447,20 +447,20 @@ const CATALOGS = {
     "prefs.telemetry": "Telemetry",
     "prefs.telemetry.note": "Erhoben von <strong>runtime-analysis.nvim</strong> in Neovim, pro Plugin. Wenn du es hier umschaltest, gilt das ab deiner nächsten Neovim-Sitzung — in diesem Fenster läuft dein Plugin nicht.",
     "note.telemetry":
-      "Telemetry erhebt <code>runtime-analysis.nvim</code> in einer laufenden Neovim-Sitzung. Diese App kann die Erhebung ab der nächsten Sitzung einschalten — <strong>Einstellungen → Telemetry</strong> —, aber sie kann deinen Plugin-Code nicht ausführen und zeigt daher nur, was dort erhoben wurde.",
+      "Telemetry erhebt <code>runtime-analysis.nvim</code> in einer laufenden Neovim-Sitzung. Diese App kann die Erhebung für deine nächste Sitzung einschalten — <strong>Einstellungen → Telemetry</strong> —, aber sie kann dein Plugin nicht ausführen und zeigt daher nur, was dort erhoben wurde.",
     "note.types":
-      "Typdaten kommen von <code>lua-language-server</code> (<code>:DocMap full</code>, in Neovim). Die eigenständige Engine dieser App hat dafür keine Entsprechung und kann sie nicht erzeugen.",
+      "Typdaten kommen von <code>lua-language-server</code> (<code>:DocMap full</code>, in Neovim). Die eigenständige Engine, die diese App ausführt, hat dafür keine Entsprechung und kann sie deshalb nicht erzeugen.",
     "note.calls":
-      "Dieses Panel ist leer, weil die Engine für die Sprachen dieses Projekts noch keine Aufrufanalyse hat — nicht, weil das Projekt keine Aufrufe hätte. Vier ihrer Sprach-Backends erzeugen einen Aufrufgraphen, die übrigen nicht — und nichts an diesen Sprachen macht das unmöglich.",
+      "Dieses Panel ist leer, weil die Engine für die Sprachen dieses Projekts noch keine Aufrufe auslesen kann — nicht, weil das Projekt keine hätte. Fünf ihrer Sprach-Backends erzeugen einen Aufrufgraphen, die übrigen noch nicht — unmöglich ist es bei keiner davon.",
     "tel.absent": "runtime-analysis.nvim hat auf diesem Rechner noch nie einen Cache geschrieben.",
-    "tel.unknown": "Keine Telemetry für {name}. Ein Namespace ist ein Plugin-Name — das gilt also nur für ein Projekt, das sich unter seinem eigenen registriert.",
+    "tel.unknown": "Keine Telemetry für {name}. Ein Namespace ist ein Plugin-Name — du siehst hier also nur Daten für ein Projekt, das sich unter seinem eigenen registriert.",
     "tel.on": "Erhebt — {sessions} Sitzung(en), {days} Tag(e) aufgezeichnet.",
     "tel.off": "Abgeschaltet. Die {sessions} bereits aufgezeichneten Sitzung(en) bleiben erhalten.",
     "tel.enable": "Ab der nächsten Sitzung einschalten",
     "tel.disable": "Ab der nächsten Sitzung abschalten",
     "tel.snaps": "Snapshots, neueste zuerst",
     "tel.snapItem": "{name} — {when} · {sessions} Sitzung(en)",
-    "tel.snaps.none": "Keine Snapshots. Die legt nur <code>:RATelemetry snapshot &lt;name&gt;</code> an — nie automatisch, damit die Retention keinen verdrängt, den niemand nehmen wollte.",
+    "tel.snaps.none": "Noch keine Snapshots. Die legt nur <code>:RATelemetry snapshot &lt;name&gt;</code> an — nie automatisch, damit nichts weggeräumt wird, das du behalten wolltest.",
     "tel.failed": "Der Telemetry-Cache konnte nicht gelesen werden.",
     "prefs.editor": "Editor",
     "prefs.editor.note": "Was <strong>Im Editor öffnen</strong> ausführt, aus dem Rechtsklick-Menü der Karte. <code>{file}</code> und <code>{line}</code> werden ersetzt. Leer lassen, um die Datei dem zu übergeben, womit dein System sie öffnet.",
@@ -472,13 +472,13 @@ const CATALOGS = {
     "menu.file.copy_path": "Projektpfad kopieren",
     "copy.path.done": "Kopiert: {path}",
     "menu.file.export": "Aktuelle Ansicht exportieren…",
-    "export.none": "Nichts zu exportieren: die aktuelle Ansicht hat kein Diagramm. Hierarchy zeichnet eines.",
+    "export.none": "Hier gibt es nichts zu exportieren — diese Ansicht zeichnet kein Diagramm. Wechsle auf Hierarchy, dort gibt es eines.",
     "ph.none.title": "Nichts ausgewählt",
     "ph.none.body": "Wähle links ein Projekt.",
     "ph.nomap.title": "Noch keine Karte in diesem Projekt",
     "ph.nomap.generate": "Mit <strong>Karte erzeugen</strong> eine anlegen.",
     "ph.nomap.noengine":
-      "Zuerst die Engine in der Seitenleiste suchen — sie ist das eigenständige Binary von <code>documentation.nvim</code>.",
+      "Suche zuerst die Engine in der Seitenleiste — das ist das eigenständige Binary von <code>documentation.nvim</code>.",
     "ph.generating.title": "Wird erzeugt…",
     "ph.generating.body": "Die Engine läuft über <code>{root}</code>.",
     "ph.genall.title": "Alle Projekte werden erzeugt",
@@ -527,13 +527,13 @@ const CATALOGS = {
     "scope.failed": "Die Projekteinstellungen konnten nicht gespeichert werden: {error}",
 
     "grammars.diag.dir":
-      "Die Engine liest Grammatiken aus <code>{dir}</code>, dort liegen {have}. Eine fehlende ist eine Shared Library, benannt nach der Grammatik — <code>{example}.dll</code>, <code>.so</code> oder <code>.dylib</code>.",
+      "Die Engine liest Grammatiken aus <code>{dir}</code>, dort liegen gerade {have}. Jede ist eine Shared Library, benannt nach ihrer Grammatik — <code>{example}.dll</code>, <code>.so</code> oder <code>.dylib</code>.",
     "grammars.diag.empty":
-      "Die Engine liest Grammatiken aus <code>{dir}</code>, und dieses Verzeichnis ist leer. Jede ist eine Shared Library, benannt nach der Grammatik — <code>{example}.dll</code>, <code>.so</code> oder <code>.dylib</code>.",
+      "Die Engine liest Grammatiken aus <code>{dir}</code>, und dieser Ordner ist gerade leer. Jede ist eine Shared Library, benannt nach ihrer Grammatik — <code>{example}.dll</code>, <code>.so</code> oder <code>.dylib</code>.",
     "grammars.diag.gone":
-      "Das eingestellte Grammatikverzeichnis <code>{dir}</code> gibt es nicht mehr — <strong>Grammatiken…</strong> in den Einstellungen zeigt auf ein anderes.",
+      "Den eingestellten Grammatik-Ordner <code>{dir}</code> gibt es nicht mehr. Zeig mit <strong>Grammatiken…</strong> in den Einstellungen auf einen anderen.",
     "grammars.diag.none":
-      "Es ist kein Grammatikverzeichnis eingestellt, und dieser Build bringt keines mit — <strong>Grammatiken…</strong> in den Einstellungen zeigt auf eines.",
+      "Es ist kein Grammatik-Ordner eingestellt, und dieser Build bringt keinen mit. Du kannst mit <strong>Grammatiken…</strong> in den Einstellungen auf einen zeigen.",
     "scope.outside": "{path} liegt nicht in diesem Projekt und kann daher nicht daraus ausgeschlossen werden.",
   },
 };
