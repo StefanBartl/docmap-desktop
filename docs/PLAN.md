@@ -100,15 +100,52 @@ Phase-0-Liste zeigt Punkte, die geschlossen sind.
 einen echten Defekt gefunden, weil jemand die Doku gegen den Code gelesen hat
 statt gegen die Erinnerung.
 
-### Q4 · `orphaned-class-alias` — **S**, Engine (`IDEAS` §1.5)
+### ~~Q4 · `orphaned-class-alias`~~ — gebaut 2026-08-20
 
-Ein `@class`/`@alias`, auf den nichts mehr zeigt. Eigene Bewertung dort: S,
-Nutzen mittel, Kandidat.
+Ein `@class`/`@alias`, auf den nichts mehr zeigt — `unreferenced-module` eine
+Ebene tiefer. `info`, wie sein Geschwister-Check: ein veröffentlichter Typ
+kann legitim nur von einem *Konsumenten* außerhalb dieses Baums referenziert
+werden.
 
-### Q5 · Tests, die eine verschwundene Funktion nennen — **S**, Engine (§1.4)
+**Gemessen: 28 in `lib.nvim`, 1 in `runtime-analysis.nvim`, 1 im eigenen
+Repo** — `Documentation.Browse`, eine Aggregat-Klasse für die Modul-
+Oberfläche, auf die nichts zeigt; exakt dieselbe Form wie `lib.nvim`s
+`Lib.Fs.ALL` und `Lib.Modules`. Stichprobenartig von Hand geprüft, kein
+Fehlalarm darunter.
 
-Dieselbe Klasse wie `doc-references-missing`, andere Richtung: der Test nennt
-`M.foo`, das es nicht mehr gibt.
+**Der Fund steckte in der Messmethode.** Die erste Fassung fragte
+`line:find(name)` — ein Teilstring-Vergleich, mit dem `Lib.Fs.Read` von jeder
+Erwähnung von `Lib.Fs.ReadAsync` als „referenziert" galt. Das verdeckte vier
+der achtundzwanzig echten Funde. Jetzt ein Token-Vergleich; die eigene
+Deklarationszeile zählt nicht als Verwendung, **der Rest der Zeile schon** —
+`---@class Child : Parent` ist oft die einzige Stelle, an der `Parent`
+überhaupt genannt wird.
+
+### ~~Q5 · Tests, die eine verschwundene Funktion nennen~~ — gebaut 2026-08-20
+
+`test-references-missing`, `warn`: ein Spec nennt `mod.member` über eine
+`local mod = require(…)`-Bindung, und das Modul hat das nicht mehr. Dieselbe
+Klasse wie `doc-references-missing`, andere Richtung — und die Richtung, die
+`coverage.lua`s `fn.tested` nicht abdeckt.
+
+**Drei Fehlalarm-Klassen, jede an echtem Code gemessen statt ausgedacht.** Die
+erste Fassung lieferte neun Treffer an drei Repositories, und alle neun waren
+falsch: ein **Re-Export** (`M.x = require(…).x`, für `symbols.lua`
+absichtlich unsichtbar, weil `deps` ihn besitzt), eine **zur Laufzeit
+zusammengesetzte Oberfläche** (`lib/init.lua` ist wörtlich
+`return require(require("lib.config").strategy_module())`; `Path` bekommt sein
+`new` aus einer Klassenfabrik) und ein **überdeckendes Local**
+(`local config = { host = … }` in einem Testkörper). Alle drei sind jetzt
+Negativ-Fixtures im Spec.
+
+**Und der eigentliche Fund kam vom Profiler, nicht vom Lesen.** Die erste
+Fassung verankerte die require-Query auf `(chunk …)` — die traf **einmal** in
+75 Spec-Dateien, weil ein Spec hier `return function(H) … end` ist und jedes
+`require` darin steht. Der Check meldete nichts, weil er nichts ansah. Null
+Treffer sind kein Beweis: was ihn belegt, sind die 713 / 760 / 547
+aufgelösten Zugriffe pro Baum und die Positivkontrolle im Spec.
+
+Kosten: ~150 ms, 5,9 % von Scan+Check — bleibt daher an statt opt-in.
 
 ### Q6 · Per-entry reference anchors — **S**, Engine
 
@@ -404,8 +441,9 @@ alle, bevor das größte Loch angefangen ist:
 6. ~~**Q9** die GitHub Action~~ — erledigt, `3ae9c83`
 7. ~~**M1** Call-Kanten für **eine** Sprache, gegen ein fremdes Repo
    gemessen~~ — erledigt, Go
-8. **Q4 + Q5** die beiden neuen Checks ← **hier weitermachen**
+8. ~~**Q4 + Q5** die beiden neuen Checks~~ — erledigt
 9. **M2** Cross-Repo-Checks — die Vorbedingung liegt seit Wochen erfüllt da
+   ← **hier weitermachen**
 10. **M8** I18N-0 samt Schema-Bump, gemeinsam mit `MULTILANG.md` C.1
 
 Danach ist der nächste große Block **L1** (die achtzehn übrigen Sprachen für
