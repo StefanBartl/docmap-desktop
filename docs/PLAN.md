@@ -581,13 +581,28 @@ die das Duplikate-Panel aufwirft und nicht beantworten kann), und ein
 einzige Feature der erzeugten Seite, das überhaupt ins Netz greift. Die
 committete Seite darf niemals den `localhost` einer Maschine fest verdrahten.
 
-### M10 · Die beiden Joins aus `runtime-analysis` — **M**
+### ~~M10 · Die beiden Joins aus `runtime-analysis`~~ — gebaut 2026-08-20, `103ceb7`
 
-§1.1 Churn × Call-Count (trennt „refaktorieren" von „löschen", was heute
-nichts tut) und §1.2 Auto-Coverage × Telemetrie (ergibt die
-heiß-und-ungetestet-Warteschlange und repariert nebenbei `coverage.lua`s
-selbst benannten blinden Fleck). Beide brauchen **keine neue Erhebung** auf
-keiner der beiden Seiten.
+§1.1 als **Spalte auf `:DocMap churn`**, §1.2 als **`:DocMap untested`**. Die
+Vorhersage stimmte: keine neue Erhebung auf beiden Seiten — die Join-Schicht
+war schon von §1.5 und dem Telemetry-Browse-Modus bezahlt.
+
+**Die Entscheidung, die keiner der beiden Einträge gestellt hatte:** die
+Laufzeitachse darf die Reihenfolge **nicht** ändern. Telemetrie ist die
+Nutzung *einer* Maschine; sie in den Score zu falten macht aus einer
+Rangfolge, die sich wie eine Eigenschaft des Codes liest, eine, die zur
+Hälfte davon abhängt, wer zuletzt gelaufen ist — zwei Entwickler, zwei
+Reihenfolgen, keine falsch. Die Spalte trennt die Zeilen, die Sortierung
+bleibt.
+
+Gemessen an den echten 41 Sessions dieses Ökosystems: `editor.browse.view`,
+Komplexität 383, oberste Zeile, *47 Aufrufe, keiner in der letzten Woche* —
+und `core.check` eine Zeile darunter, *37 722 Aufrufe, 4 839 diese Woche*.
+Zwei Zeilen, die am Tag davor identisch aussahen.
+
+Beide Zusicherungen sind **absichtlich gebrochen worden**, um zu sehen, ob
+der Spec rot wird: Aufrufe in den Score falten dreht die Reihenfolge (Zeile
+108), „unused" statt „not called in your sessions" fällt bei Zeile 138.
 
 ### M11 · Phase-0-IR: Owning Scope, ein File / viele Module — **M**, Engine
 
@@ -679,6 +694,21 @@ alle, bevor das größte Loch angefangen ist:
 9. ~~**M2** Cross-Repo-Checks~~ — erledigt (die Vorbedingung stimmte nicht:
    die Karten sind absichtlich nicht committet)
 10. ~~**M8** I18N-0 samt Schema-Bump~~ — erledigt
+
+11. ~~**M10** die beiden `runtime-analysis`-Joins~~ — erledigt, `103ceb7`
+
+**Offen sind jetzt nur noch mittlere und große Punkte.** Nach Nutzen pro
+Aufwand, mit dem, was sich seit der ersten Fassung geändert hat:
+
+* **M4** (Public-API-Surface-Panel) ist von S–M auf **S** gefallen und von
+  mittel-hoch auf **hoch**: `internal` ist ein Vertragsfeld, das neunzehn
+  Backend-Dateien aus der Sprache selbst füllen. Und **M4 schaltet M1.3
+  frei** (API-Bruch-Erkennung), die als „„public' ist undefiniert" abgelehnt
+  war — sie ist es nicht mehr, es fehlt nur eine benannte Fläche zum
+  Vergleichen.
+* **M7** (Reference-Tab, billige Hälfte zuerst) schaltet **D5/Q8** frei —
+  `K` ist erst dann eine Taste, die etwas zu sagen hat.
+* **M3, M5, M6, M9, M11, M12** unverändert.
 
 Danach ist der nächste große Block **L1** (die achtzehn übrigen Sprachen für
 Call-Kanten) oder **L2** (i18n) — und das ist dann wieder eine Entscheidung
