@@ -363,14 +363,50 @@ die kuratierte Linkliste liefert unabhängig vom Rest aus. Offen und in
 5.4-Doku führt bei `goto`, Integer-Division und `<close>` aktiv in die Irre),
 und ob MDNs URL-Struktur für JS/TS dasselbe hergibt.
 
-### M8 · I18N-0 — Findings tragen Parameter statt Prosa — **M**, Engine
+### ~~M8 · I18N-0 — Findings tragen Parameter statt Prosa~~ — gebaut 2026-08-20
 
-`check.lua`s `add()` bekommt `(severity, check, node_id, params)`, ein
-Formatter an jeder Kante, `module_map.json` verliert die englischen Sätze.
-**Braucht einen Schema-Bump — und zwar denselben, den `MULTILANG.md` C.1 auch
-braucht.** Zwei Bumps für eine Gelegenheit wären eine vermeidbare Bruchstelle
-für jeden Konsumenten. Abnahme: `--check`-Ausgabe unter `LANG=en`
-byte-identisch.
+`add()` nimmt jetzt `(severity, check, node_id, params)` — alle **24**
+Aufrufstellen, nicht 16 wie notiert. `core/findings.lua` hält den englischen
+Katalog und macht daraus einen Satz an jeder der **zehn** Kanten. Schema 5.
+
+**Benannte Platzhalter statt positioneller**, und das ist der eigentliche
+Punkt: `%s requires %s, but %s must not reach into %s` gibt einer Übersetzerin
+vier anonyme Slots, die sie nicht umstellen kann — Deutsch, Japanisch und
+Arabisch brauchen je eine andere Reihenfolge.
+
+**Zwei Korrekturen, beide aus dem Messen:**
+
+1. **Findings standen nie in `module_map.json`.** Die Aufgabenliste nahm es
+   an; `init.lua` serialisiert eine explizite Whitelist und hat sie nie
+   enthalten. Diese Hälfte der Abnahme war also längst erfüllt, und der
+   Schema-Bump war etwas ganz anderem geschuldet.
+2. **Das Englisch im Artefakt ist fast vollständig *Subjekt*.** Über die
+   eigene Karte gezählt: **820** Sätze sind Modul-Zusammenfassungen, **118**
+   weitere die eigenen Docs und Features — alles Dinge, die Regel 2.4
+   ausdrücklich **nie** übersetzt. Genau **10** waren Interface-Text, und alle
+   zehn lagen in `quicks`. Die reiten jetzt auf der Seite (die ihre eigene
+   Nutzlast baut), das Artefakt bekommt `n`/`total` neben `value` — „45 of
+   72" bleibt als *Tatsache* erhalten, nur nicht als *Satz*.
+
+„Kein englischer Satz in `module_map.json`" ist damit **kein richtiges Ziel**
+und ist so festgehalten: wörtlich erreicht hieße es, Modul-Zusammenfassungen
+zu übersetzen, was Regel 2.4 verbietet.
+
+`MULTILANG.md` C.1 gibt es übrigens nicht — die Schema-Versionierung dort ist
+seit `language` (3) und `markers` (4) abgehakt; Bumps passieren pro Feld, und
+`diff.lua` toleriert sie ungeändert (`>= 2`).
+
+**Abnahme dreifach erfüllt:** 140 gerenderte Findings aus drei echten
+Repositories byte-verglichen; die 21 Specs, die exakten Wortlaut festnageln,
+unverändert in dem, was sie behaupten; und `findings_spec.lua` für die zwei
+Checks, die keiner von beiden erreicht.
+
+**Der dritte Wächter hat sich sofort bezahlt gemacht:** der erste Formatter
+escapte `%` in eingesetzten Werten — nötig für eine `gsub`-Ersetzung als
+*String*, nie für den Rückgabewert einer Ersetzungs*funktion* —, also wurde
+aus einem `%s` in einem @example-Fehler ein `%%s`. Kein Finding in drei echten
+Repositories enthielt ein Prozentzeichen. **Ein Korpus, der einen Fall zufällig
+nicht enthält, ist kein Beleg, dass der Fall funktioniert.**
 
 ### M9 · Compiler Explorer, zwei Schritte weiter — **M**
 
@@ -477,8 +513,7 @@ alle, bevor das größte Loch angefangen ist:
 8. ~~**Q4 + Q5** die beiden neuen Checks~~ — erledigt
 9. ~~**M2** Cross-Repo-Checks~~ — erledigt (die Vorbedingung stimmte nicht:
    die Karten sind absichtlich nicht committet)
-10. **M8** I18N-0 samt Schema-Bump, gemeinsam mit `MULTILANG.md` C.1
-    ← **hier weitermachen**
+10. ~~**M8** I18N-0 samt Schema-Bump~~ — erledigt
 
 Danach ist der nächste große Block **L1** (die achtzehn übrigen Sprachen für
 Call-Kanten) oder **L2** (i18n) — und das ist dann wieder eine Entscheidung
