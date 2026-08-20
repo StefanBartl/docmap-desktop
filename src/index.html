@@ -163,6 +163,25 @@
            the moment the page reports anything else. -->
       <div id="context-note" class="context-note" hidden></div>
 
+      <!-- The workspace level, which no single repository can show.
+           Lives where "nothing selected" used to be a dead end: that state
+           is not an absence of subject, it *is* the workspace, and a screen
+           reading "pick a project on the left" was the app declining to
+           answer the one question only it can — which of these needs
+           attention.
+
+           The ranking behind it is measured rather than chosen; the argument
+           is written down in `lib/overview.js`, next to the code that
+           implements it. -->
+      <section id="overview" class="overview" hidden>
+        <h2 data-i18n="ov.title">Workspace</h2>
+        <p id="ov-headline" class="ov-headline"></p>
+        <p id="ov-actions" class="ov-actions" hidden>
+          <button id="ov-gen-behind" type="button"></button>
+        </p>
+        <ul id="ov-list" class="ov-list"></ul>
+      </section>
+
       <div id="placeholder" class="placeholder">
          <h2 data-i18n="view.nothing">Nothing selected</h2>
          <p data-i18n="view.pickOne">Pick a project on the left.</p>

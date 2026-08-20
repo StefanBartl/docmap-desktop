@@ -280,6 +280,17 @@ button:focus-visible {
   display: block;
 }
 
+/* Same trap as `.placeholder[hidden]` below, and the one that made it
+   visible: `display: block` outranks the UA's `[hidden] { display: none }`,
+   so a hidden iframe kept its full height and pushed every later child of
+   `#view` down by one viewport. Nothing noticed while the placeholder was
+   the only thing after it -- it is `place-content: center` in a box of the
+   same height, so being pushed a screen down looked like being centred a
+   screen down, which is to say like nothing at all. */
+#map[hidden] {
+  display: none;
+}
+
 /* Overlays the top of the iframe rather than pushing it down: it comes and
    goes with whatever panel the page itself reports, and reflowing the
    iframe's height on every such change would visibly jump the content
@@ -307,6 +318,16 @@ button:focus-visible {
   color: var(--muted);
 }
 
+/* `display: grid` above outranks the UA's `[hidden] { display: none }`, so
+   `els.placeholder.hidden = true` styled the element and did not remove it.
+   That went unnoticed for as long as nothing else shared the view: the
+   placeholder was simply the bottom layer. The overview stacks in the same
+   box, and the first look in a browser found it pushed to y=702 in a
+   720-pixel window — on screen by one row, and only by luck. */
+.placeholder[hidden] {
+  display: none;
+}
+
 .placeholder h2 {
   margin: 0 0 4px;
   font-size: 16px;
@@ -332,6 +353,116 @@ button:focus-visible {
   color: var(--muted);
   max-width: 60ch;
   user-select: text;
+}
+
+/* ----------------------------------------------------------- overview */
+
+/* The workspace, where "nothing selected" used to be. Scrolls on its own
+   rather than growing the window: this is a list of every project, and a
+   corpus of fifty is a normal size for it. */
+.overview {
+  height: 100%;
+  overflow-y: auto;
+  padding: 22px 24px 28px;
+  box-sizing: border-box;
+}
+
+.overview h2 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  color: var(--ink);
+}
+
+.ov-headline {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.ov-actions {
+  margin: 0 0 14px;
+}
+
+.ov-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+/* The whole row is the control. A row that looks clickable and has a small
+   button in one corner is two targets where the reader sees one. */
+.ov-open {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "name counts" "state counts";
+  align-items: center;
+  gap: 0 12px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ov-open:hover {
+  border-color: var(--accent);
+}
+
+.ov-open:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.ov-name {
+  grid-area: name;
+  font-size: 13.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ov-state {
+  grid-area: state;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.ov-counts {
+  grid-area: counts;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* A stripe down the left edge rather than coloured text: the state is
+   already written out in words beside it, and colour that carries meaning
+   on its own is meaning a colour-blind reader does not get. This only has
+   to make the ranked groups visible as groups while scrolling. */
+.ov-row .ov-open {
+  border-left-width: 3px;
+}
+
+.ov-nomap .ov-open {
+  border-left-color: var(--muted);
+}
+
+.ov-behind .ov-open {
+  border-left-color: var(--accent);
+}
+
+.ov-stale .ov-open {
+  border-left-color: var(--line);
+}
+
+.ov-ok .ov-open {
+  border-left-color: transparent;
 }
 
 /* ------------------------------------------------------------- engine */

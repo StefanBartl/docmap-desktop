@@ -79,6 +79,13 @@ dozen files. Around that: a menu bar with the commands, a settings dialog,
 an interface in English and German, and a mark on any project whose sources
 have moved on since its map was built.
 
+And the level above a project. With nothing selected the window lists **every
+project in the workspace at once**, ranked by what wants doing — no map yet,
+built by an older engine, changed since it was built, fine. A single
+repository cannot show that and neither can the picker, which names one
+project at a time; on a tree of fifty it is the difference between a question
+and fifty answers.
+
 ## Status
 
 Usable. Add projects — from a folder, a URL, or the plugin specs your
