@@ -1074,7 +1074,23 @@ the line scanner assembly proved.
    Deliberately last: written once against the finished set of languages
    rather than rewritten thirty times.
 
-- [ ] Build the thirty, in the order MULTILANG.md sets, committing each.
+- [~] Build the thirty, in the order MULTILANG.md sets, committing each.
+      **Fourteen done 2026-08-20** — wave 1 complete (Python, C#, Go, Rust,
+      PHP, Ruby, Kotlin, Swift, Dart, Scala) and four of wave 2 (Haskell,
+      Elixir, Erlang, OCaml). **Twenty-three language backends in total.**
+      Sixteen remain, all of wave 2's tail and waves 3–5: F#, Julia, R,
+      Perl, Groovy, Solidity, Bash, PowerShell, Fortran, Ada, COBOL, Delphi,
+      MATLAB, VB.NET, SQL.
+- [ ] **User-supplied checklists, applied by an agent** — noted 2026-08-20
+      in `documentation.nvim`'s `IDEAS.md` §6.9. A reader deposits a
+      checklist scoped to a *language* or to every project; a tab runs it
+      against a tree as a **report first** — which items hold, which do not,
+      and the evidence — and only then applies the ones chosen, with an
+      agent writing the diffs through the MCP tools that already exist. This
+      app is where the tab and the choosing live. Two things to decide
+      first, both about trust: a hand-written claim and a measured
+      observation must not render alike, and an agent's edit is a proposal
+      rather than a result.
 - [ ] The parity pass, once every backend exists.
 - [ ] Then §10.7's remainder.
 
