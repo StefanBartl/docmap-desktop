@@ -1,5 +1,12 @@
 # Work plan — the 2026-08-19 review, and what was already open
 
+> **Protokoll, keine Warteschlange.** Die offenen Punkte aller drei
+> Repositories stehen seit 2026-08-20 in **einem** Plan:
+> [`PLAN.md`](PLAN.md). Was hier noch als offener Punkt gelesen werden
+> könnte, ist ein *Vorbehalt* oder eine unbeantwortete Frage aus der
+> Herleitung — die Häkchen sind entfernt, damit dieses Dokument nicht wie
+> eine zweite Warteschlange aussieht.
+
 **A record, not the queue.** Everything below is either measured against the
 code or marked as a question, and items are struck through as they ship —
 each saying what "done" meant, so nobody re-derives it.
@@ -334,7 +341,7 @@ were taken and how much is in them.
       captures today, better than a list in Settings could. This entry was
       counting a feature as waiting on the inbound channel that turned out
       not to need it — the same correction §8 records for the other two.
-- [ ] The dated `SetupAll` backups: none exist on this machine, so nothing
+- The dated `SetupAll` backups: none exist on this machine, so nothing
       was lost by not reading them. The directory is prompted per run and
       recorded nowhere, which is why this cannot find them in general.
 ### Choosing which data point — corrected: the mechanism exists
@@ -382,7 +389,7 @@ run:
       state carries `:RATelemetry snapshot <name>` and the reason snapshots
       are never automatic, so it reads as a state rather than as a broken
       feature.
-- [ ] The dated `SetupAll` backups are a second, differently-shaped
+- The dated `SetupAll` backups are a second, differently-shaped
       archive. Worth reading too, but only once the directory is known —
       it is prompted per run and stored nowhere this app can find.
 ### One note this makes stale
@@ -494,7 +501,7 @@ a breadcrumb of one entry is a label pretending to be navigation. And the
 tab's hover explanation now names the double-click, since a gesture nobody
 can discover is a gesture nobody uses.
 
-- [ ] **Single click still leaves the hierarchy** for the Tree view, which
+- **Single click still leaves the hierarchy** for the Tree view, which
       is the gesture people try first and the most surprising thing in the
       view. Not changed here: it is existing behaviour with existing muscle
       memory, and swapping it deserves its own decision rather than riding
@@ -584,11 +591,11 @@ thing a reader would otherwise have no way to find out.
 Clicking a file opens it wherever §9.4's editor setting says. Coming back
 to the map does not reload it: two megabytes that have not changed.
 
-- [ ] **Not folded in with History.** That was floated as "eventuell" and
+- **Not folded in with History.** That was floated as "eventuell" and
       it cannot be: History is a page tab computed from git by the engine,
       this is an app pane read from disk. They answer adjacent questions
       from opposite sides of the origin boundary.
-- [ ] Other sub-entries this pane could grow — untracked files,
+- Other sub-entries this pane could grow — untracked files,
       ignored-but-present, and what the map skipped and why — the last of
       which it now partly answers per directory.
 
@@ -605,7 +612,7 @@ confirmed, are in the entries below; the pattern worth carrying forward is
 that **both changes came from scanning somebody else's repository, and
 neither would have come from a fixture.**
 
-- [ ] The seam exists: `lang_registry` plus the `Documentation.LangBackend`
+- The seam exists: `lang_registry` plus the `Documentation.LangBackend`
       contract, and `backend_contract_spec.lua` now fails a backend that
       forgets its comment syntax. So a new language is a known amount of
       work rather than an open question.
@@ -655,7 +662,7 @@ neither would have come from a fixture.**
       one filter against commented-out code, and the file-header rule
       still demands Doxygen style so a license banner never becomes a file
       summary. Same tree, after: 34 of 45.
-- [ ] **What "full" costs, per language, measured on the ones that exist:**
+- **What "full" costs, per language, measured on the ones that exist:**
       a tree-sitter grammar, `is_source`/`extensions`/`detect_source`, a
       header parser, a function scanner, a glossary for the keyword hover,
       and comment syntax. Lua and the ECMA family took very different
@@ -735,7 +742,7 @@ pane says it stayed blank and names the URL it was asked for. That is proof
 the page **ran**, where an `onload` handler would only prove the browser
 fetched something.
 
-- [ ] Still open as a cause. If it recurs, the placeholder now carries the
+- Still open as a cause. If it recurs, the placeholder now carries the
       URL, which is the first thing anybody would ask for.
 
 ### 10.2 ~~The theme still stops at the sidebar~~ — answered 2026-08-19
@@ -846,11 +853,11 @@ view.
 bubbles exist: `title` never appears on keyboard focus, which would leave
 exactly the controls a keyboard user reaches as the only unexplained ones.
 
-- [ ] **The focus path is unverified.** A non-compositing pane never takes
+- **The focus path is unverified.** A non-compositing pane never takes
       window focus here, so `focusin` does not fire — the same limitation
       §2.3 of the engine's own workplan records for the keyword card. Hover
       and Escape are verified.
-- [ ] Section headings *inside* the views are not annotated yet, only the
+- Section headings *inside* the views are not annotated yet, only the
       tabs and the findings block. The mechanism is one attribute, so each
       is a text rather than a change.
 
@@ -1156,7 +1163,7 @@ the line scanner assembly proved.
       Sixteen remain, all of wave 2's tail and waves 3–5: F#, Julia, R,
       Perl, Groovy, Solidity, Bash, PowerShell, Fortran, Ada, COBOL, Delphi,
       MATLAB, VB.NET, SQL.
-- [ ] **User-supplied checklists, applied by an agent** — noted 2026-08-20
+- **User-supplied checklists, applied by an agent** — noted 2026-08-20
       in `documentation.nvim`'s `IDEAS.md` §6.9. A reader deposits a
       checklist scoped to a *language* or to every project; a tab runs it
       against a tree as a **report first** — which items hold, which do not,
@@ -1246,7 +1253,7 @@ the line scanner assembly proved.
       once the channel landed, and it is the channel's one real consumer.
       `Ctrl+E`, three named outcomes: no diagram on this tab, no answer from
       the page, or a file written where you chose.
-- [ ] Turn GitHub Discussions on, if feedback should be a thread rather than
+- Turn GitHub Discussions on, if feedback should be a thread rather than
       an issue. One line per category in `src-tauri/src/feedback.rs`.
 - [x] ~~Per-project settings — languages on/off, excluded paths.~~ — built
       2026-08-20, and **not** as a tenant of [§4](#4-settings). That entry
@@ -1300,8 +1307,8 @@ the line scanner assembly proved.
       rather than asserted. It proves layout, not behaviour, and a browser
       is not WebView2 — but a test that reads the DOM could never have seen
       this.
-- [ ] The extension API concept, three stages, in `docs/ROADMAP.md`.
-- [ ] **Compiler Explorer, two steps further** — noted 2026-08-20, not
+- The extension API concept, three stages, in `docs/ROADMAP.md`.
+- **Compiler Explorer, two steps further** — noted 2026-08-20, not
       built, in `documentation.nvim`'s `IDEAS.md` §3.6. Compare two marked
       functions there side by side (one `clientstate`, two panes — the
       question the duplicates panel raises and cannot settle), and offer a
@@ -1309,7 +1316,7 @@ the line scanner assembly proved.
       the one feature in the generated page that reaches the network at all.
       This app is where the "open online or point at a local one" choice
       would live, beside the engine and editor paths it already keeps.
-- [ ] **Name the tool a missing panel needs** — noted 2026-08-20 in
+- **Name the tool a missing panel needs** — noted 2026-08-20 in
       `documentation.nvim`'s `IDEAS.md` §6.8, and this app already does the
       best version of it: the note over Hierarchy → Types names
       `lua-language-server` where the editor and a plain browser say nothing.
@@ -1318,7 +1325,7 @@ the line scanner assembly proved.
       panel is Types. A mason.nvim hint belongs in Neovim only; the same
       sentence here would be advice about a program the reader may not be
       running.
-- [ ] **API traffic as a measurement** — noted 2026-08-20 in
+- **API traffic as a measurement** — noted 2026-08-20 in
       `runtime-analysis.nvim`'s `IDEAS.md` §1.7b. Sizes, durations, retries
       to success and error taxonomy, in both directions (this project's own
       endpoints answering, and its calls out to somebody else's). Shown in
@@ -1345,7 +1352,7 @@ the line scanner assembly proved.
       fail the repository that wrote its defect down and pass the one that
       kept quiet. `recorded-defects`, `FIX` family only, `bad = 1`, `tab:
       notes`, no severity anywhere.
-- [ ] Per-entry reference anchors — the renderer supports them, they are
+- Per-entry reference anchors — the renderer supports them, they are
       unfilled on purpose.
 - [x] ~~Doc coverage per language rather than one average~~ — built
       2026-08-20, and **it found a defect on its first real run**, which is
@@ -1367,7 +1374,7 @@ the line scanner assembly proved.
       the pattern that pass is looking for: a capability Lua has, applied to
       a language that cannot have it, producing a wrong number rather than a
       low one.
-- [ ] Plugin managers other than lazy.nvim; lazy-load inventory; orphaned
+- Plugin managers other than lazy.nvim; lazy-load inventory; orphaned
       spec files.
 - [x] ~~Document hygiene: `IDEAS.md`, `IDEAS_IMPLEMENTATION_PLAN.md` and
       `MULTILANG.md`~~ — done 2026-08-20, audited against `lua/` rather than
@@ -1393,3 +1400,408 @@ the line scanner assembly proved.
 - [x] ~~`claude/documentation-nvim-browser-title-805562`~~ — its content
       was already on `main` by another branch, and the branch is deleted
       (tip `31144d9`). See §6.
+
+
+---
+
+## Anhang — die alte `ROADMAP.md`, unverändert (verschoben 2026-08-20)
+
+`ROADMAP.md` ist seit der Zusammenführung ein **kurzer öffentlicher
+Ausblick**; die Warteschlange steht in [`PLAN.md`](PLAN.md). Was sie vorher
+war — die Scheiben-für-Scheiben-Herleitung dieser App, samt der Fragen, die
+sich unterwegs als falsch gestellt herausstellten — steht hier weiter, weil
+genau das der Teil ist, den man in fünf Jahren sucht. Wortgleich übernommen,
+nichts gekürzt.
+
+# Roadmap
+
+What this is for, in one line: **a project list and a window, in front of
+maps that are already generated by something else.** Everything below is
+scoped against that — the analysis and the view are not this program's job,
+and anything that starts to reimplement them is a wrong turn.
+
+## Table of content
+
+  - [NEW](#new)
+  - [Built](#built)
+  - [The shell (slice 1)](#the-shell-slice-1)
+  - [Generation (slice 2)](#generation-slice-2)
+  - [Then — a repository URL](#then-a-repository-url)
+  - [The panels that need a host](#the-panels-that-need-a-host)
+  - [Languages](#languages--saying-which-ones-this-can-read)
+  - [Interface languages](#interface-languages--a-separate-axis-planned-separately)
+  - [Idea, not scheduled — executing the checklist](#idea-not-scheduled-executing-the-checklist)
+  - [Idea, not scheduled — the analysis itself, not just the engine](#idea-not-scheduled-the-analysis-itself-not-just-the-engine)
+
+---
+
+## NEW
+
+- Fullstack-Webapp version von docmap-desktop
+
+---
+
+## Built
+
+**Slice 1 — the shell.** A window with a project list; add a folder, select
+it, see its map. The list and the last selection survive a restart.
+
+**Slice 2 — generation.** A selected project can be built from the app:
+one process call to the engine, its own report shown verbatim, the view
+refreshed on success.
+
+---
+
+## The shell (slice 1)
+
+The smallest version that is genuinely usable, and the one that proves the
+three unknowns at once:
+
+1. A window with a sidebar (project list) and a view area.
+2. **Add project** → pick a folder → it is remembered.
+3. Selecting a project shows that project's existing
+   `docs/map/index.html`.
+4. The list survives a restart.
+
+Deliberately no generation in this slice. Displaying a map that already
+exists answers the questions that decide the architecture — can the webview
+load a self-contained page off disk, how does state persist, does switching
+feel instant — without also depending on a build pipeline.
+
+---
+
+## Generation (slice 2)
+
+The engine is `documentation.nvim`'s standalone binary — no Neovim, no Lua
+install. The app runs `<engine> <root>` and nothing more: `source` is
+detected by the engine itself, verified against three unrelated
+repositories, so passing a guess would only be a way to be wrong.
+
+**The open question was settled the smaller way, on purpose.** It was
+"bundle per platform, or find on `PATH`?" — and bundling is both the better
+experience and a release problem (a binary per target, plus grammars per
+target). So: found on `PATH`, or pointed at, with the sidebar saying which
+of the two happened. A configured path that no longer exists falls back to
+detection rather than failing later with an OS error.
+
+Bundling stays the right end state and is now a packaging question rather
+than a blocking one.
+
+**Grammars are optional and decide fidelity, not success.** Pointed at a
+directory of compiled tree-sitter grammars, the engine produces
+function-level data; without one it still produces a complete module tree
+and says so. The app passes the directory through as `DOCMAP_TS_DIR`; that
+is the whole integration.
+
+Two smaller decisions worth keeping:
+
+- Generation runs on a blocking task, not on the command thread. It takes
+  seconds on a large tree, and a window that stops repainting while it works
+  looks broken in exactly the way the work is meant to prevent.
+- The engine's own report is shown verbatim rather than summarised. It
+  already says what it found — counts, coverage, findings — and a summary
+  would be this program inventing an opinion about someone else's output.
+
+---
+
+## Then — a repository URL
+
+"Paste a repo URL, get a map" is `git clone` into a cache directory, then
+slice 2's generation against it. Small once slice 2 exists, and worth
+keeping separate from it: cloning has its own failure modes (auth, size,
+network) that have nothing to do with mapping.
+
+---
+
+## The panels that need a host
+
+The generated page distinguishes three kinds of host today: a `file://`
+page that cannot fetch at all, a served page with `:DocMap serve` behind
+it, and a published copy on a static host. **This app is a fourth**, and a
+better one than either of the read-only cases: it has the filesystem and it
+can run `git`.
+
+That means History (commit analysis, computed from `git` plus the map
+committed at each revision) is answerable *here*, unlike on a published
+page. It needs the app to provide the same endpoints the local server does.
+
+**Telemetry and Loaded are different, and the difference is not a
+limitation to fix.** Those numbers exist only because
+[`runtime-analysis.nvim`](https://github.com/StefanBartl/runtime-analysis.nvim)
+instruments Lua functions *while Neovim runs them*. No desktop app can
+produce them; it can only read what a Neovim session already wrote. So the
+rule for these tabs is:
+
+- Data present → show it.
+- Data absent → **the tab still exists and is still reachable**, and says
+  plainly that the numbers come from running `runtime-analysis.nvim` in the
+  editor. Not hidden, not greyed out, not an error.
+
+That is the same shape the page already uses when the plugin is not
+installed, so it is a matter of wiring the data source, not of inventing a
+new message.
+
+---
+
+## A menu bar
+
+The sidebar grew three different kinds of thing into one column: the subject
+(the project list), commands (seven buttons, four of them configuration
+touched once per machine), and state (the engine verdict, the language
+badges). A conventional menu bar is the right home for the middle one.
+
+Designed in full in [docs/MENUBAR.md](MENUBAR.md), including the rule that
+decides every item — **a menu is for things you do, the window is for things
+that are true** — and four constraints that are invisible from outside: the
+page channel is one-way, so exporting the current view needs a change in
+`documentation.nvim`; native menu labels are not in the DOM, so the i18n
+catalog has to reach Rust without becoming a second catalog; macOS needs its
+own tree; and menu items cannot carry the help bubbles, so their explanations
+belong in the status line.
+
+### Open, in build order
+
+Struck through as each ships. The order is `docs/MENUBAR.md`'s own, chosen
+so the cross-repository piece comes last rather than blocking the rest.
+
+1. ~~**The menu with the commands that already exist**~~ — built
+   2026-08-19. File, Project, Tools, Help, with accelerators. Two File
+   items had no command behind them yet and were written rather than
+   shipped dead: open the map in the system browser, and reveal the
+   project root in the file manager.
+2. ~~**View: theme, language, zoom, sidebar toggle**~~ — built 2026-08-19. Theme and language
+   leave the sidebar footer. The catalog-to-Rust handoff gets built here,
+   on two items whose behaviour is already understood.
+3. **A context menu on a project row**, sharing the Project handlers.
+4. **About**, once something knows the engine version — the engine does
+   not report one today, so this is blocked on that, not on the menu.
+5. **Export the current view**, last, together with the inbound page
+   channel in `documentation.nvim`.
+
+### Feedback — built, with one thing left to the repository owner
+
+**Help → Send feedback…** ships (2026-08-19). It opens a prefilled GitHub
+issue rather than posting one, because this app holds no credentials and
+filing to a public tracker is publishing — the writer submits it there,
+as themselves.
+
+- [ ] **Turn Discussions on**, if the intent is a discussion thread rather
+      than an issue tracker. Both repositories have `has_discussions:
+      false` today, so the topic table in `src-tauri/src/feedback.rs` maps
+      every category to a labelled issue instead. Moving *Feature request*
+      and *Question* to `discussions/new?category=…` is one line each once
+      the categories exist — and a link into a disabled feature is a dead
+      end, which is why it was not written that way on spec.
+
+### An extension API — a concept, not a plan
+
+Asked for, and worth answering carefully rather than quickly. A plugin API
+is a promise that cannot be withdrawn, and the formats here are still
+moving: `module_map.json` reached schema **5** on 2026-08-20, from 2 two
+weeks before — and the last bump *removed* three fields (`quicks`' English
+`headline`/`basis`/`detail`, which moved onto the page), which is exactly
+the kind of change an extension would not survive. An API pointing at a
+format that changes three more times produces the disappointment that ends
+a plugin ecosystem before it starts.
+
+The order that would work, each step useful on its own:
+
+1. **The artifact is already the API.** `module_map.json` is
+   byte-deterministic, versioned and documented — anything that reads a
+   repository's map is an extension today, with no code in this app. What
+   is missing is saying so, and a compatibility statement about what a
+   schema bump may change.
+2. **Reading extensions**: a panel that shows something computed from the
+   artifact. The local server is the seam, and it already exists.
+3. **Writing extensions**, last, because the page channel is one-way
+   today — the generated page posts to the app and the app never posts
+   back. That inbound protocol has to be designed deliberately, not as an
+   afterthought: a page that executes arbitrary messages from its host is
+   a different security posture than one that only speaks.
+
+### Two open questions this touches
+
+- ~~**The window title says `docmap` twice**~~ — fixed 2026-08-19. The
+  sidebar heading keeps the application's name and the title bar takes the
+  subject: `<project> — docmap`, which is also what the taskbar and the
+  window switcher show. Through a `set_window_title` command, because
+  `core:window:default` grants `allow-title` (read) and not
+  `allow-set-title`, and widening the webview's permissions for one string
+  would be a larger grant than the need.
+- ~~**A bundled font.**~~ — done 2026-08-19. JetBrains Mono 2.304 ships
+  with the app as `--mono`, under SIL OFL 1.1 with `src/fonts/OFL.txt`
+  beside it. The upstream release, not a Nerd Font patch: the patched
+  builds carry thousands of icon glyphs and nothing here renders one.
+
+  **No font picker**, and that is the decision rather than the omission. A
+  typeface choice is a setting made once and never again, and it costs
+  permanent surface, a persistence path and a fallback branch forever.
+  What people actually reach for is *size*, and that is what
+  `View → Zoom in` is. If someone genuinely wants their own face, the
+  honest place is a settings file, not a dropdown.
+
+### One branch deliberately not merged
+
+`claude/docnvim-title-branding-f5c876` (`ee93745`) adds branding to the
+window. Left unmerged on purpose: it adds a *third* repetition of the name
+to a window that already says it twice, which is the problem above rather
+than a fix for it. Its sibling half lives on `documentation.nvim`'s
+`claude/documentation-nvim-browser-title-805562` (two commits, also
+unmerged) and adds a topbar with the brand and a tagline to the generated
+page — a different question, and one worth answering separately from this
+app's own chrome.
+
+---
+
+## Languages — saying which ones this can read
+
+The engine gained a language seam (`core/lang_registry.lua`) and four
+backends: Lua, JavaScript, TypeScript, TSX. Python, Rust, Go and C are
+planned there, staged in
+[`documentation.nvim/docs/ROADMAP/IDEAS/MULTILANG.md`](https://github.com/StefanBartl/documentation.nvim/blob/main/docs/ROADMAP/IDEAS/MULTILANG.md)
+Part 4. **This app currently knows nothing about any of it** — it passes
+`DOCMAP_TS_DIR` through and prints the engine's report verbatim.
+
+That is fine while the answer is always "Lua". It stops being fine the moment
+a project is half Python: the map comes back thin, and nothing on screen says
+why. The work below is the app's half of that question, and it is worth doing
+even if no further backend is ever built — three of these five items apply to
+today's four languages already.
+
+Ordered by how much of the confusion each removes:
+
+1. **Read the engine's language list.** `--capabilities` is already asked
+   before anything else (`server.rs`), and already distinguishes a modern
+   engine from one predating `--api`. The engine grows a `languages` field
+   there (MULTILANG Part 4, Stage 2); this app reads it, and the Engine panel
+   says *which* language is missing a grammar instead of the current
+   all-or-nothing `ready` / `no grammars`.
+
+2. **Language distribution at "Add project…", before the first generate.**
+   "68 % Python, 20 % C" shown when the folder is picked. The unwelcome news
+   costs nothing at that point and costs a 40-second scan and an empty map
+   at every later one. This is a file-extension count, not a parse — it needs
+   no engine support and could land first.
+
+3. **Language badges in the project list.** `Lua · TS` next to the name, from
+   the map's own per-node `language` field once the engine emits one, from
+   the extension count until then. With five backends, "why is this map
+   empty" is nearly always a language question, and the answer belongs in the
+   list rather than in an error after the fact.
+
+4. **A grammar manager.** `lua ✓ · javascript ✓ · typescript ✓ · tsx ✓ ·
+   python ✗` with a button that fetches the artifacts from the engine repo's
+   `standalone-latest` release into the directory `DOCMAP_TS_DIR` already
+   points at. `release-engine.yml` publishes them; only the page that fetches
+   them is missing. This replaces the section of `docs/HANDOVER.md` that
+   currently explains how to do it by hand.
+
+5. ~~**Per-project settings, and somewhere to put them.**~~ **Built
+   2026-08-20** — Project → Project settings…, carrying languages on/off and
+   excluded paths. The prediction in this entry was half right and half
+   wrong, both usefully.
+
+   Right: a real surface had to exist first, and it did not until Settings
+   shipped. Wrong: this is *not* a section inside Settings. Building it made
+   the split obvious — Settings is this **machine's** (theme, language,
+   engine paths), and these are the **repository's**. One dialog holding
+   both would apply one project's answer to every project.
+
+   The other two this entry named — Python's docstring style, Rust's crate
+   root — are **not** built and are not the same kind of thing. Both are
+   engine options that do not exist yet, and until they do there is nothing
+   here to expose. Which is this section's own rule working as intended.
+
+**Deliberately not here:** any of the extraction itself. Which languages can
+be read is the engine's question, and an app that started answering it would
+be the wrong turn this document's first paragraph warns about.
+
+---
+
+## Interface languages — a separate axis, planned separately
+
+Not the same thing as the section above, despite sharing the word. Reading
+Python and speaking German are unrelated problems; the plan is
+[`documentation.nvim/docs/ROADMAP/IDEAS/I18N.md`](https://github.com/StefanBartl/documentation.nvim/blob/main/docs/ROADMAP/IDEAS/I18N.md),
+covering all three surfaces at once — the generated page (roughly 85 % of the
+work), the plugin's editor messages, and this app.
+
+This app's share is small and lands as that plan's phase I18N-4:
+`src/index.html`, `src/main.js`, and the Rust `Err(String)` messages. The
+Rust half is the one with a real design decision in it — those strings cross
+the IPC boundary as data and are then displayed verbatim, so they have to
+travel as a key plus parameters, exactly like the engine's drift findings,
+rather than as a sentence translated on the Rust side.
+
+---
+
+## Idea, not scheduled — executing the checklist
+
+`documentation.nvim` has a checklist feature: hand-verified facts, each
+cited to a file, with a changed-since-verified verdict computed from `git`.
+Today a human writes the verdict; the tool only tracks whether the cited
+code has moved since.
+
+The idea is to let that be *executed* rather than only tracked: hand a
+checklist item, its citation and the surrounding code to a model, and get a
+verdict back — either through a plain API call with the relevant context, or
+by starting agents that work through the list and fill it in.
+
+Recorded here as a direction, not a plan. It is worth writing down now
+because it changes what the app is for — from a viewer to something that
+acts on what it shows — and that is exactly the kind of intent that should
+be visible before the architecture hardens around "read-only viewer".
+
+Two things it would need that do not exist yet: a way to select which
+provider/model and to supply a key, and a clear boundary around what a
+generated verdict is allowed to claim. The second matters more: this
+ecosystem's whole posture is that a confident wrong answer is worse than an
+incomplete one, and a machine-written checklist verdict is precisely where
+that could go wrong quietly.
+
+---
+
+## Idea, not scheduled — the analysis itself, not just the engine
+
+Everything this app runs today is still, underneath, `documentation.nvim`
+and `runtime-analysis.nvim` — a subprocess for the first, a live editor
+process supplying the second. "Does not need Neovim" so far means *this
+window* does not; a project still needs an actual Neovim session, with
+both plugins installed and telemetry running, for the data those two
+panels show to exist at all.
+
+The idea is the harder version of the same goal: reimplement what each
+plugin *does* — the module scan and drift checks `core/scan.lua` and
+friends already do statelessly, and the call-counting instrumentation
+`runtime-analysis.telemetry`'s `wrap()` does at the Lua level — directly in
+this app, so a project can be scanned and its runtime behaviour observed
+without a Neovim process anywhere, ever. Full standalone, not
+standalone-*engine*.
+
+**Why this is not scheduled, and not a small step from here:**
+
+- The scan half is the closer one — `documentation.nvim`'s own
+  `standalone/` build already proves the analysis has no *structural*
+  dependency on Neovim, only on Lua. The remaining gap is instrumenting
+  *this app's own* runtime, not someone else's Lua project — a different
+  problem than the one `standalone/docmap.lua` solves.
+- The telemetry half is the harder one. `runtime-analysis.telemetry`
+  counts calls by wrapping functions *inside a running Lua process*
+  (`wrap()`, `auto()`) — there is no equivalent notion for an arbitrary
+  target project unless something actually executes that project's code
+  under instrumentation. That is not a viewer feature; it is closer to a
+  second, general-purpose runtime.
+- Even if both existed, this app would then own two independent
+  reimplementations to keep behaviourally identical to their Neovim-side
+  originals — exactly the "two hosts computing the same join separately"
+  failure `core/api.lua` was built to avoid for the *data*, now at the
+  scale of the whole analysis.
+
+Recorded because it is the honest end state of "does not need Neovim," not
+because there is a plan to get there. The nearer, already-scheduled version
+of "no Neovim" is #1 in `docs/HANDOVER.md`: not needing Neovim *running*
+while the app is open, while still depending on it (or the standalone
+binary it produces) to have generated the data in the first place.
+
+---
+
