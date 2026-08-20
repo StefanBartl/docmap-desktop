@@ -300,11 +300,44 @@ absolut gegen den Modulgraphen, das bräuchte die `module`-Zeile aus `go.mod`
 — eine Build-Datei, keine Quelldatei — oder einen Suffix-Vergleich, also
 Raten. Der Callee-Text wird trotzdem ausgegeben.
 
-### M2 · Cross-Repo-Checks über `tag_files` — **S–M**, Engine (§1.7)
+### ~~M2 · Cross-Repo-Checks über `tag_files`~~ — gebaut 2026-08-20
 
-**Die Vorbedingung ist erfüllt** und war es lange, ohne dass es jemand
-gemerkt hat: 33 `.nvim`-Repositories, ~30 mit committeter Karte, ein
-geteiltes `lib.nvim`.
+`tag-require-missing` (warn) und `tag-file-unavailable` (info). Keine neue
+Extraktion, genau wie veranschlagt — beide Artefakte gibt es schon.
+
+**Aber nicht der Check, den §1.7 vorschlug, und der Grund ist eine
+Messung.** Der Entwurf war `@see otherplugin.module.fn`. Vorher gezählt:
+**`documentation.nvim` hat 0 `@see`-Ziele, `runtime-analysis.nvim` 0,
+`lib.nvim` 4** — und alle vier lösen intern auf. Ein Cross-Repo-`@see`-Check
+hätte an keinem Repository hier etwas zu prüfen gehabt, und keine Möglichkeit
+festzustellen, ob er funktioniert.
+
+Die **Requires** sind die Stelle, an der die Cross-Repo-Kanten tatsächlich
+liegen: 18 unter `lib` aus `documentation.nvim`, 23 aus
+`runtime-analysis.nvim`, 41 zusammen — heute alle intakt gegen `lib.nvim`s
+Karte.
+
+**Zwei Dinge, die erst beim Bauen sichtbar wurden:**
+
+- **Die Vorbedingung war *nicht* erfüllt, wie sie hier stand.** Die Notiz
+  sagte „~30 mit committeter Karte". Tatsächlich ignoriert jedes Plugin
+  dieses Ökosystems außer `documentation.nvim` selbst `docs/map/` per
+  `.gitignore` — aus gutem eigenen Grund: eine committete Karte ist mit der
+  ersten Änderung veraltet, nur dieses Repo prüft das in CI, und über die
+  Plugins hinweg waren es ~40 MB Artefakte, die niemand wollte. Damit ist
+  das ein **Arbeitskopie-Check** mit Geschwister-Checkouts, kein CI-Check.
+- **Deshalb gibt es `tag-file-unavailable`.** Ohne ihn wäre eine nicht
+  lesbare Karte von einer sauberen nicht zu unterscheiden — das ist das eine
+  Ergebnis, das ein Drift-Check nie liefern darf.
+
+Nur `tag_files` ist maßgeblich, nie `external_repos`: der zweite Resolver
+füllt dieselbe `ir.tag_links`-Tabelle aus einer *geratenen* GitHub-URL, und
+darauf hin eine Abhängigkeit für kaputt zu erklären wäre eine andere
+Behauptung. Der Check liest `ir.tag_audit`, das nur `tagfiles.lua` schreibt.
+
+**Dieses Repo konfiguriert `tag_files` bewusst nicht selbst:** `tag_links`
+steht im committeten Artefakt und trüge dann absolute lokale Pfade — die
+Karte wäre maschinenabhängig und `--check` in CI dauerhaft rot.
 
 ### M3 · Cross-Repo-Dashboard — **M**, `docmap-desktop`
 
@@ -442,9 +475,10 @@ alle, bevor das größte Loch angefangen ist:
 7. ~~**M1** Call-Kanten für **eine** Sprache, gegen ein fremdes Repo
    gemessen~~ — erledigt, Go
 8. ~~**Q4 + Q5** die beiden neuen Checks~~ — erledigt
-9. **M2** Cross-Repo-Checks — die Vorbedingung liegt seit Wochen erfüllt da
-   ← **hier weitermachen**
+9. ~~**M2** Cross-Repo-Checks~~ — erledigt (die Vorbedingung stimmte nicht:
+   die Karten sind absichtlich nicht committet)
 10. **M8** I18N-0 samt Schema-Bump, gemeinsam mit `MULTILANG.md` C.1
+    ← **hier weitermachen**
 
 Danach ist der nächste große Block **L1** (die achtzehn übrigen Sprachen für
 Call-Kanten) oder **L2** (i18n) — und das ist dann wieder eine Entscheidung
