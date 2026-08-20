@@ -6,6 +6,12 @@ Punkt, der fertig *und gepusht* ist, wird hier gestrichen — nicht als
 Rest zu zeigen. Was gebaut wurde und warum, steht danach im jeweiligen Repo
 (`docs/ROADMAP/FEATURES/FEATURES.md`, `docs/FINISHED.md`), nicht hier.
 
+> **Der Fahrplan liegt seit 2026-08-20 in [`PLAN.md`](PLAN.md)** — alles
+> Offene aus allen drei Repos, nach Aufwand geordnet (Quick Wins, Mittel,
+> Groß), mit den Entscheidungen, die dich blockieren, und dem, was
+> ausdrücklich nicht geplant ist. Dieses Dokument bleibt das Arbeitsprotokoll:
+> Stand der Repos, installierte Werkzeuge, Arbeitsweise.
+
 ## Stand
 
 | Repo | Branch | HEAD | CI |
