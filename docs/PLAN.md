@@ -30,17 +30,73 @@ abgehakt stehengelassen — dieselbe Konvention wie in `HANDOVER.md`.
 
 ---
 
-## Teil 0 — was nur du entscheiden kannst
+## Teil 0 — ~~was nur du entscheiden kannst~~ — alle vier beantwortet 2026-08-20
 
-Diese vier blockieren Arbeit, die sonst sofort laufen könnte. Keine davon
-kostet mich Zeit; jede kostet dich einen Satz.
-
-| # | Frage | Was danach passiert |
+| # | Frage | Antwort |
 |---|---|---|
-| **D1** | **GitHub Discussions einschalten?** Eine Einstellung in deinen Repos | Danach XS: eine Zeile pro Kategorie in `src-tauri/src/feedback.rs`, und Feedback wird ein Thread statt eines Issues |
-| **D2** | **Gestentausch in der Hierarchie** (§9.2): Einfachklick verlässt die Ansicht Richtung Tree. Sollen Einfach- und Doppelklick tauschen? | Es gibt Muskelgedächtnis dagegen. Die *Überraschung* ist bereits behandelt (der Hover nennt beide Gesten) — offen ist nur der Tausch selbst |
-| **D3** | **Welche neue Ansicht** (§9.3)? „Wie Hierarchy, aber mit anderem Fokus" ist eine Richtung, keine Aufgabe | Eine benannte Ansicht mit einer Frage, die sie beantwortet, schlägt drei allgemeine |
-| **D4** | **Die sechzehn übrigen Sprachen** bleiben „verfügbar, nicht geplant"? | Wave 4 ist abgesagt (`MULTILANG.md`, Entscheidung 4). Sie werden wieder baubar, sobald jemand eine anfragt — die protokollierten Entscheidungen machen den Wiedereinstieg zu einem Tag statt zu einer Wiederentdeckung |
+| **D1** | GitHub Discussions einschalten? | **Vorerst nein** — mit Auslösebedingung, siehe unten |
+| **D2** | Gestentausch in der Hierarchie (§9.2) | **Ja, getauscht** — plus Umschalter. Gebaut, `ed27425` |
+| **D3** | Welche neue Ansicht (§9.3)? | War ein **Brainstorming-Auftrag**. Erledigt: `IDEAS.md` §2.5 |
+| **D4** | Die übrigen Sprachen | **Genug für's Erste**, aber die Liste steht jetzt — und es sind **fünfzehn**, nicht sechzehn |
+
+### D1 · Discussions — es gibt einen Grund, er greift nur noch nicht
+
+Die Frage war „gibt es einen Grund". Es gibt genau einen, und er ist
+schmaler als die fünf Kategorien vermuten lassen. Von `feature`, `bug`,
+`question`, `docs` und `other` gehören vier eindeutig in Issues: ein Bug,
+ein Doku-Fehler und „sonstiges" sind Arbeitsposten, die geschlossen werden.
+
+**Nur `question` passt wirklich zu Discussions**, und dort passt es gut: eine
+Frage ist kein Defekt, sie wird nie „geschlossen", sie verstopft als Issue
+die Arbeitsliste, und ihre Antwort ist später nicht auffindbar wie ein
+Q&A-Thread mit akzeptierter Antwort. `feature` wäre als *Ideas* vertretbar,
+aber für ein Ein-Personen-Projekt ist eine Issue-Liste genau die Arbeitsliste,
+die man will.
+
+**Dagegen steht ein zweiter Posteingang.** Der Nutzen — Auffindbarkeit von
+Antworten, Tracker bleibt Arbeitsliste — entsteht erst, wenn jemand
+tatsächlich fragt. Heute würde das Einschalten einen leeren Posteingang in
+zwei leere teilen.
+
+**Empfehlung: aus lassen. Auslöser für „an":** die erste echte Frage von
+jemandem, der nicht du ist. Dann `question` auf `discussions/new?category=q-a`
+umstellen — eine Zeile in `TOPICS`, genau wie `feedback.rs`' eigener Header
+es vorsieht. Damit ist das keine offene Frage mehr, sondern eine Entscheidung
+mit Stolperdraht.
+
+### D4 · Es sind fünfzehn, und hier sind sie
+
+Die Zahl „sechzehn" stimmte, bis Entscheidung 1 **Scratch** ausschloss —
+keine Textsprache, für diesen Contract nichts zu lesen. Danach wurde sie nie
+nachgezogen. Genau die Drift, für die es dieses Werkzeug gibt, im eigenen
+Backlog.
+
+Die vollständige Liste mit Doku-Konvention, Sichtbarkeitsregel, dem
+bestehenden Backend, dessen Entscheidung sie wiederverwendet, und einer
+Kostenschätzung steht in
+[`MULTILANG.md` § *The fifteen that are available*](../../documentation.nvim/docs/ROADMAP/IDEAS/MULTILANG.md).
+
+Kurzfassung, nach Kosten:
+
+- **Billig (S), weil ein bestehendes Backend die harte Entscheidung schon
+  getroffen hat:** **VB.NET** (fast C#), **Groovy** (fast Java/Kotlin),
+  **R** (Roxygen2 — das LuaCATS-ähnlichste außerhalb von Lua), **Bash**
+  (Pfad-Identität wie Zig, `source` ist die Require-Kante).
+- **S–M:** **PowerShell** (Export-Liste wie Erlang), **F#** (`.fsi` — die
+  `.mli`-Form, einmal gelöst), **Julia**, **Solidity** (NatSpec ist
+  tag-förmig).
+- **M, eigene Form:** **Perl** (POD ist *kein* Kommentar — bisher nur Python
+  als Präzedenzfall), **SQL** (Entscheidung 3), **Delphi**
+  (`interface`/`implementation` in *einer* Datei — die hat weder C noch
+  OCaml), **Ada** (Spec und Body in zwei Dateien — die dritte Sprache, die
+  das erzwingt, und damit ein Muster, das die IR vielleicht tragen sollte).
+- **M und eine andere Art Backend:** **Fortran**, **COBOL**, **MATLAB** —
+  kein gepflegter Grammar, also Zeilen-Scanner. Das ist eine *zweite* Sorte
+  Backend; wer hier anfängt, bezahlt das Muster.
+
+**Empfehlung, falls doch eine kommt:** aus den oberen zehn wählen, nicht weil
+die unteren fünf schwer wären, sondern weil der erste Zeilen-Scanner ein
+neues Muster etabliert und das teurer ist als die Sprache selbst.
 
 ---
 
