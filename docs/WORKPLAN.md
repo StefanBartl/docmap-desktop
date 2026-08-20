@@ -1118,6 +1118,15 @@ the line scanner assembly proved.
       the one feature in the generated page that reaches the network at all.
       This app is where the "open online or point at a local one" choice
       would live, beside the engine and editor paths it already keeps.
+- [ ] **Name the tool a missing panel needs** — noted 2026-08-20 in
+      `documentation.nvim`'s `IDEAS.md` §6.8, and this app already does the
+      best version of it: the note over Hierarchy → Types names
+      `lua-language-server` where the editor and a plain browser say nothing.
+      **One correction worth carrying:** the map's twenty drift checks are
+      its own and need no linter in any language — the only tool-dependent
+      panel is Types. A mason.nvim hint belongs in Neovim only; the same
+      sentence here would be advice about a program the reader may not be
+      running.
 - [ ] **API traffic as a measurement** — noted 2026-08-20 in
       `runtime-analysis.nvim`'s `IDEAS.md` §1.7b. Sizes, durations, retries
       to success and error taxonomy, in both directions (this project's own
