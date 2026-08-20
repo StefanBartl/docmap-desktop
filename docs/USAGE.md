@@ -151,6 +151,42 @@ feature.
 **Zoom** is in **View** (`Ctrl+plus`, `Ctrl+-`, `Ctrl+0`). The map is a
 dense page and this is the single most useful thing a menu bar adds to it.
 
+### The project picker, and how to sort it
+
+A native `<select>`, so it already answers Arrow, `Home`/`End`, `Enter` and
+type-ahead the way your platform does. Beside it is a sort control with four
+orders, and each is **named for the question rather than the field**, because
+nobody sorts by a timestamp:
+
+| Order | Answers |
+|---|---|
+| **Name** | Alphabetical. The default, and the one you use to find a project you can already name. |
+| **Needs regenerating** | Which maps have fallen behind their code — the staleness mark, gathered into an order. |
+| **Least recently generated** | Which have you left alone the longest. |
+| **Added** | The order you added them in. |
+
+**The last two are not the same question**, which is the reason both exist.
+Staleness cannot answer for a tree that did not move: a repository nobody has
+touched stays un-stale forever however old its map is, and those are exactly
+the ones worth finding.
+
+Sorting by staleness **measures first** rather than reading whatever happens
+to be known — before that was noticed, a fresh window sorted by one entry and
+produced alphabetical order while claiming to sort by staleness. It takes a
+moment on a long list, and a sort control that appears to work and does not
+is worse than one that makes you wait.
+
+Under the picker is the detail block for the selected project: its counts,
+its languages, its staleness mark, and the right-click menu (see
+[The menu bar](#the-menu-bar)). A project that ships an icon by one of the
+conventions other tools already use shows it there, in five places worth
+looking and no more: a `manifest.json`'s `icons` array (the W3C standard for
+this exact question), `apple-touch-icon.png`, a favicon (`.svg` before `.png`
+before `.ico`), an Android launcher icon, an iOS app icon set. **Nothing
+matches for most repositories** — a Neovim plugin has no icon and is not
+supposed to — and nothing is exactly what they get. An absent icon is a real
+answer, not a missing one, so nothing is invented to fill the space.
+
 ## Files on disk
 
 **View → Files on disk** (`Ctrl+Shift+F`) is a pane in the app, not a tab
