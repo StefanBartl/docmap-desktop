@@ -203,10 +203,35 @@ aufgelösten Zugriffe pro Baum und die Positivkontrolle im Spec.
 
 Kosten: ~150 ms, 5,9 % von Scan+Check — bleibt daher an statt opt-in.
 
-### Q6 · Per-entry reference anchors — **S**, Engine
+### ~~Q6 · Per-entry reference anchors~~ — gebaut 2026-08-20
 
-Der Renderer kann sie längst; sie sind absichtlich leer. Es fehlt, sie zu
-füllen.
+Leer waren sie aus einem genannten Grund: die Anker des Lua-5.1-Manuals waren
+nie **geprüft**, und ein Referenz-Panel voller Links, die falsch landen, ist
+genau der Fehler, für den es in diesem Repo schon einen `dead-readme-link`-
+Check gibt. Füllen hieß also prüfen, nicht schreiben.
+
+Das veröffentlichte Manual wurde geholt, seine 397 `<a name>`-Anker
+extrahiert, jeder Eintrag dagegen abgeglichen:
+
+- **35 Bibliotheksfunktionen** → `#pdf-<name>`, die Konvention des Manuals
+  selbst, für jede einzeln bestätigt.
+- **22 Schlüsselwörter** → Abschnittsanker, gefunden durch Suche im
+  *Fließtext* nach dem Satz, der das Wort dokumentiert — nicht durch
+  Inhaltsverzeichnis-Raten. Deshalb landen `do` und `end` bei **2.4.2**
+  (Blocks) statt neben `if` bei 2.4.4, und `self` bei **2.5.9**.
+- **`goto` bekommt keinen**, und das ist der Punkt: es existiert in 5.1 gar
+  nicht — was seine eigene `note` sagt — ein Link hätte dem Satz daneben
+  widersprochen.
+- **Die 18 `vim.*`-Einträge bekommen keinen**, wie es der Renderer ohnehin
+  schon kodiert.
+
+`glossary_spec.lua` prüft die *Form*, nicht die Ziele — ein Spec, der ins Netz
+greift, fällt im Zug um. Mutationsgeprüft.
+
+**ECMA bleibt leer**, und der Grund ist die Form, nicht der Aufwand: Lua ist
+eine Seite mit Fragmenten (ein Fetch prüft alles), MDN ist *eine Seite pro
+Schlüsselwort* — ein Eintrag müsste einen Pfad anhängen, und das zu prüfen
+sind Dutzende Requests gegen eine Site, die umbaut.
 
 ### ~~Q7 · Print-/PDF-Stylesheet~~ — gebaut 2026-08-20
 
