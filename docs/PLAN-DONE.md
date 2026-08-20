@@ -538,3 +538,35 @@ Zwei Zeilen, die am Tag davor identisch aussahen.
 Beide Zusicherungen sind **absichtlich gebrochen worden**, um zu sehen, ob
 der Spec rot wird: Aufrufe in den Score falten dreht die Reihenfolge (Zeile
 108), „unused" statt „not called in your sessions" fällt bei Zeile 138.
+
+
+---
+
+### ~~QW1 · Der `standalone`-Gate soll laut sein~~ — gebaut 2026-08-20, `49246b2`
+
+Die Schlusszeile sagte **„All 5 gates passed"**, während einer vierzig Zeilen
+vorher *skipped* gedruckt hatte. Genau hinter diesem Satz sind drei echte
+Defekte bis in ein Release gekommen — „vier Gates und ein Achselzucken" las
+sich exakt wie fünf von fünf.
+
+Jetzt: **`4 gates passed, 1 skipped: standalone`**, plus der Satz, auf den es
+ankommt — *ein übersprungener Gate hat nichts geprüft.* Die Skips werden
+gesammelt, wenn sie passieren, nicht am Ende gezählt: ein sechster Gate, der
+irgendwann überspringen lernt, ist automatisch dabei.
+
+**Der Skip bleibt ein Skip.** Ein Rechner mit Neovim und sonst nichts ist der
+häufige lokale Fall; ihn rot zu machen macht `scripts/ci.sh` für genau die
+Leute unbrauchbar, für die es da ist — und so wird ein Gate dauerhaft
+abgeschaltet. Geändert hat sich die Genauigkeit, nicht die Schwere.
+
+**Und die alte Meldung war auf diesem Rechner schlicht falsch.** „No PUC Lua
+on PATH with lfs + dkjson" war ein Satz für zwei Probleme: hier liegt
+`lua5.4` sehr wohl auf dem PATH, es kann nur die Rocks nicht laden. Nimmt man
+`C:\tools` aus dem PATH, taucht ein zweites `lua` auf, dem allein `dkjson`
+fehlt. Wer der alten Meldung folgte, suchte einen Interpreter, den er längst
+hatte. Jetzt nennt sie den Interpreter, den fehlenden Rock und die
+Installationszeile.
+
+Alle drei Zweige durch Ausführen belegt, nicht durch Lesen: beide Rocks
+fehlen, ein Rock fehlt (PATH ohne `C:\tools`), kein Interpreter vorhanden
+(PATH nur mit Neovims eigenem Verzeichnis).

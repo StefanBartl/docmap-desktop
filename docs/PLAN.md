@@ -54,26 +54,6 @@ Handgriff.
 
 Stunden. Reihenfolge innerhalb der Liste: Nutzen pro Aufwand.
 
-### QW1 · Der `standalone`-Gate soll laut sein — **S**, Engine
-
-**Der Prozessfund des Release-Schnitts, halb behoben.** `scripts/ci.lua`
-sucht PUC Lua auf dem `PATH` mit `lfs` und `dkjson`; findet es keins, druckt
-es *skipped* — und der Lauf meldet trotzdem fünf grüne Gates. Lokal heißt
-grün also **„vier Gates und ein Achselzucken"**. Drei echte Defekte sind
-dahinter bis in ein Release gekommen.
-
-Der Contract-Spec (`TESTS/shim_contract_spec.lua`) fängt jetzt, was *statisch*
-sichtbar ist. Was er nicht sieht: eine Shim-Funktion, die **existiert und
-sich anders verhält**. Dafür bleiben die zwei billigeren Optionen richtig:
-
-- **hart fehlschlagen statt überspringen, wenn die *Rocks* da sind** und nur
-  der Interpreter fehlt — dann ist der Skip eine Konfigurationslücke, kein
-  Umstand;
-- **den Skip in der Abschlusszeile wiederholen**, damit „5/5 grün" nicht
-  dasselbe aussieht wie „4/5 grün und einer hat geschwiegen".
-
-*Vorher: der offene Befund in `documentation.nvim/docs/ROADMAP/ROADMAP.md`.*
-
 ### QW2 · Datei-Pane: die übrigen Unter-Einträge — **S**, Desktop
 
 Untracked-Dateien und „vorhanden, aber ignoriert". Was die Karte übersprungen
@@ -101,6 +81,83 @@ umhüllt beliebige Funktionen. **Die Aufgabe ist eine Entscheidung, kein
 Umbau** — und §4.2 daneben ist die Gegenkraft: nach unten schieben erst,
 wenn es einen *zweiten* Konsumenten gibt. Ergebnis darf „nein, bleibt
 doppelt" sein; dann ist es festgehalten statt offen.
+
+### QW6 · Code in Beschreibungen hervorheben — **S–M**, Engine
+
+**Die Doku-Kommentare schreiben längst Markdown, die Seite zeigt es als
+Text.** Ein Modul-Summary wie
+
+> Registers the single `` `:Debug` `` user command, built via …
+
+erscheint in den Hierarchy-Kästen mit sichtbaren Backticks. Gemessen an
+diesem Repo: **123 Modul-Zusammenfassungen, 368 Backtick-Stellen** — das ist
+keine Randerscheinung, das ist die Regel.
+
+**Die Markdown-Ausgabe kann es schon.** `overview.md` rendert diese Stellen
+korrekt, weil Markdown das nativ tut; nur die HTML-Seite escaped sie zu
+literalen Backticks. Die Seite ist hier also *hinter* ihrer eigenen
+Schwester-Ausgabe.
+
+Zwei Stufen, und die erste liefert allein aus:
+
+- **Inline-Code** (`` ` ``) → `<code>`, monospaced und getönt. Klein, und
+  deckt praktisch alle 368 Stellen ab. **S.**
+- **Zaunblöcke** (```` ``` ````) mit Syntax-Hervorhebung, wie
+  `color_my_ascii.nvim` es für Markdown tut. Deutlich mehr Arbeit und nur
+  dort sinnvoll, wo mehrzeilige Beispiele stehen — `@example`-Blöcke sind
+  der eigentliche Kandidat, nicht die einzeiligen Summaries. **M.**
+
+**Und überall, wo es Sinn ergibt** — das ist der Teil, der Sorgfalt braucht,
+weil es mehr Flächen sind als man denkt: Hierarchy-Kästen, Tree-Detailpane,
+Index, Features-Tab, Notes, `:DocBrowse`s Detailpane, und die Desktop-App
+erbt es über die Seite. Eine gemeinsame Funktion, kein Rendern pro Fläche.
+
+**Die eine Falle, vorab benannt:** diese Texte werden heute mit `esc()`
+escaped, und Markdown-Rendering heißt, danach wieder Tags einzufügen. Das
+muss in dieser Reihenfolge passieren und darf nur die Tags erzeugen, die es
+selbst kennt — sonst wird aus einem Doku-Kommentar eine
+Injektionsmöglichkeit. Das ist kein Grund, es zu lassen, sondern der Grund,
+es an *einer* Stelle zu tun.
+
+### QW7 · Erst einrasten, dann springen — **S**, Engine
+
+**Heute verschwindet der Hover-Fokus, sobald die Maus weggeht.** Über einem
+Kasten hebt die Hierarchy ihn und seine direkten Nachbarn hervor und blendet
+alles andere ab — aber nur, solange der Zeiger draufsteht. Man kann die
+hervorgehobene Teilmenge also nicht lesen, nicht daran entlangfahren und
+nicht in Ruhe verfolgen, wohin die Kanten gehen.
+
+Gewünscht: **erster Klick rastet ein**, was der Hover zeigt (Nachbarn,
+Kanten, Abblendung bleiben stehen), **zweiter Klick löst die Aktion aus**.
+Hovern selbst bleibt genau wie heute.
+
+**Das berührt die Gesten-Entscheidung von 2026-08-20 (D2) und muss mit ihr
+zusammen gedacht werden.** Dort wurde getauscht: Einfachklick verwurzelt den
+Graphen und bleibt, Doppelklick öffnet im Tree — plus eine
+*Classic-clicks*-Pille für die alte Paarung. Mit QW7 würde daraus:
+
+| | Klick 1 | Klick 2 |
+|---|---|---|
+| **Standard** | Fokus einrasten | verwurzeln und hierbleiben |
+| **Classic clicks** | Fokus einrasten | im Tree öffnen |
+
+Drei Fragen, die vor dem Bauen zu klären sind — jede ändert das Ergebnis:
+
+1. **Wie löst man wieder?** Escape, Klick ins Leere, oder ein Klick auf einen
+   *anderen* Kasten, der dort neu einrastet. Vermutlich alle drei.
+2. **Was macht der Doppelklick dann?** Wenn Klick 1 einrastet und Klick 2
+   handelt, ist ein schneller Doppelklick genau diese Folge — das passt, muss
+   aber ausgesprochen werden, sonst kollidiert es mit dem bestehenden
+   `dblclick`-Handler.
+3. **Kostet es jeden Sprung einen Klick mehr?** Ja. Für das Erkunden ist das
+   ein Gewinn, für „ich weiß wo ich hinwill" ein Verlust — deshalb gehört es
+   vermutlich an dieselbe Pille wie D2 und nicht als dritte, unabhängige
+   Einstellung.
+
+**Der Screenshot dazu stammt von einer älteren Karte** (die Seitenleiste
+sagt es selbst: *von einer älteren Engine geschrieben*), zeigt also noch die
+Gesten **vor** D2. Nach einem Neuerzeugen springt der Einfachklick schon
+heute nicht mehr in den Tree.
 
 ---
 
@@ -305,9 +362,9 @@ weiteren Join.
 
 Nach Nutzen pro Aufwand:
 
-1. **QW1** — der `standalone`-Gate. Billig, und er ist der Grund, warum drei
-   Defekte in ein Release gekommen sind. Solange „grün" auch „hat
-   geschwiegen" heißen kann, ist jede andere Zahl in diesem Plan weniger wert.
+1. **QW6** — Code in Beschreibungen. 368 Stellen in diesem Repo allein,
+   und die Markdown-Ausgabe kann es bereits: die Seite hinkt ihrer eigenen
+   Schwester hinterher.
 2. **M1** (Config-Analyse) — drei getrennte Stücke, jedes für sich nützlich,
    keines von einem anderen abhängig. Das Lazy-Load-Inventar ist davon das
    billigste und beantwortet eine Frage, die man wirklich hat.
