@@ -82,42 +82,27 @@ Umbau** — und §4.2 daneben ist die Gegenkraft: nach unten schieben erst,
 wenn es einen *zweiten* Konsumenten gibt. Ergebnis darf „nein, bleibt
 doppelt" sein; dann ist es festgehalten statt offen.
 
-### QW6 · Code in Beschreibungen hervorheben — **S–M**, Engine
+### QW6 · Code in Beschreibungen — **Stufe 1 gebaut 2026-08-20**, Stufe 2 offen
 
-**Die Doku-Kommentare schreiben längst Markdown, die Seite zeigt es als
-Text.** Ein Modul-Summary wie
+**Inline-Code ist erledigt** (`7d3f859`): eine Funktion `prose()`, in
+**dreizehn** Flächen verdrahtet — die Hierarchy-Kästen, das
+Annotations-Popup, Funktions- und Knotenzeilen, das Detailpane, Symbole,
+Keymap-Zeilen, beide Feature-Ansichten, die Tag-Tabelle, die Keyword-Karte
+und die Compare-Matrix. Im Browser nachgemessen: **750 `<code>`-Elemente,
+96 davon in den Hierarchy-Kästen**, keins leer, keins verschachtelt.
 
-> Registers the single `` `:Debug` `` user command, built via …
+**Offen bleibt Stufe 2: Zaunblöcke** (```` ``` ````) mit
+Syntax-Hervorhebung. Bewusst nicht mitgemacht — eine Zusammenfassung ist
+einzeilig, der mehrzeilige Fall ist `@example`, und das ist eine andere
+Fläche mit anderer Form. **M.**
 
-erscheint in den Hierarchy-Kästen mit sichtbaren Backticks. Gemessen an
-diesem Repo: **123 Modul-Zusammenfassungen, 368 Backtick-Stellen** — das ist
-keine Randerscheinung, das ist die Regel.
-
-**Die Markdown-Ausgabe kann es schon.** `overview.md` rendert diese Stellen
-korrekt, weil Markdown das nativ tut; nur die HTML-Seite escaped sie zu
-literalen Backticks. Die Seite ist hier also *hinter* ihrer eigenen
-Schwester-Ausgabe.
-
-Zwei Stufen, und die erste liefert allein aus:
-
-- **Inline-Code** (`` ` ``) → `<code>`, monospaced und getönt. Klein, und
-  deckt praktisch alle 368 Stellen ab. **S.**
-- **Zaunblöcke** (```` ``` ````) mit Syntax-Hervorhebung, wie
-  `color_my_ascii.nvim` es für Markdown tut. Deutlich mehr Arbeit und nur
-  dort sinnvoll, wo mehrzeilige Beispiele stehen — `@example`-Blöcke sind
-  der eigentliche Kandidat, nicht die einzeiligen Summaries. **M.**
-
-**Und überall, wo es Sinn ergibt** — das ist der Teil, der Sorgfalt braucht,
-weil es mehr Flächen sind als man denkt: Hierarchy-Kästen, Tree-Detailpane,
-Index, Features-Tab, Notes, `:DocBrowse`s Detailpane, und die Desktop-App
-erbt es über die Seite. Eine gemeinsame Funktion, kein Rendern pro Fläche.
-
-**Die eine Falle, vorab benannt:** diese Texte werden heute mit `esc()`
-escaped, und Markdown-Rendering heißt, danach wieder Tags einzufügen. Das
-muss in dieser Reihenfolge passieren und darf nur die Tags erzeugen, die es
-selbst kennt — sonst wird aus einem Doku-Kommentar eine
-Injektionsmöglichkeit. Das ist kein Grund, es zu lassen, sondern der Grund,
-es an *einer* Stelle zu tun.
+**`color_my_ascii.nvim` hilft dabei nicht, und das ist eine Eigenschaft der
+Flächen, keine Wertung.** Seine öffentliche Fence-API ist puffer-basiert
+(`list_blocks(bufnr, …)`) — sie braucht einen Neovim-Puffer. Die erzeugte
+Seite ist ein eigenständiges Artefakt, das im Browser geöffnet wird und
+committet weitergegeben wird; sie kann kein Neovim-Plugin aufrufen, und die
+Standalone-Engine läuft ganz ohne Neovim. **Wohl aber für `:DocBrowse`** —
+siehe QW8.
 
 ### QW7 · Erst einrasten, dann springen — **S**, Engine
 
@@ -158,6 +143,22 @@ Drei Fragen, die vor dem Bauen zu klären sind — jede ändert das Ergebnis:
 sagt es selbst: *von einer älteren Engine geschrieben*), zeigt also noch die
 Gesten **vor** D2. Nach einem Neuerzeugen springt der Einfachklick schon
 heute nicht mehr in den Tree.
+
+### QW8 · Code auch im Editor hervorheben — **S**, Engine
+
+Dieselbe Frage wie QW6, andere Fläche: `:DocBrowse`s Detailpane zeigt
+dieselben Zusammenfassungen, und dort stehen die Backticks weiterhin als
+Text.
+
+**Hier ist `color_my_ascii.nvim` genau richtig**, anders als für die Seite:
+das Detailpane *ist* ein Neovim-Puffer, und die öffentliche Fence-API
+(`require("color_my_ascii").fences.list_blocks(bufnr, …)`) ist
+puffer-basiert. `highlight_buffer(bufnr)` käme obendrauf.
+
+**Als weiche Abhängigkeit**, wie `pdfport.nvim` und `runtime-analysis.nvim`:
+über `soft_require.probe`, mit unverändertem Verhalten, wenn es fehlt. Der
+Fallback ist kein Verlust — Inline-Code ohne Plugin als
+`@markup.raw`-Hervorhebung ist ein paar Zeilen `nvim_buf_add_highlight`.
 
 ---
 
@@ -362,9 +363,9 @@ weiteren Join.
 
 Nach Nutzen pro Aufwand:
 
-1. **QW6** — Code in Beschreibungen. 368 Stellen in diesem Repo allein,
-   und die Markdown-Ausgabe kann es bereits: die Seite hinkt ihrer eigenen
-   Schwester hinterher.
+1. **QW7** — erst einrasten, dann springen. Klein, und es macht die
+   Hierarchy-Ansicht zum ersten Mal *lesbar*: heute verschwindet der Fokus,
+   bevor man ihm folgen kann. Vorher die drei Fragen im Eintrag klären.
 2. **M1** (Config-Analyse) — drei getrennte Stücke, jedes für sich nützlich,
    keines von einem anderen abhängig. Das Lazy-Load-Inventar ist davon das
    billigste und beantwortet eine Frage, die man wirklich hat.
