@@ -208,10 +208,33 @@ Kosten: ~150 ms, 5,9 % von Scan+Check — bleibt daher an statt opt-in.
 Der Renderer kann sie längst; sie sind absichtlich leer. Es fehlt, sie zu
 füllen.
 
-### Q7 · Print-/PDF-Stylesheet — **S**, Engine (§3.3)
+### ~~Q7 · Print-/PDF-Stylesheet~~ — gebaut 2026-08-20
 
-Die Seite ist ein einzelnes Artefakt; ausdruckbar zu sein ist eine
-Medien-Query, kein Feature.
+Ein `@media print`-Block in `render/html.lua`. Vier Dinge, die sonst
+*schlecht* statt nur schlicht gedruckt hätten:
+
+1. **Die Panes sind beschnitten, nicht lang.** `#tree`, `#detail` und die
+   beiden History-Panes tragen `max-height:calc(100vh - Npx)` mit
+   `overflow:auto` — auf Papier heißt das: der erste Bildschirm wird
+   gedruckt, der Rest existiert stillschweigend nicht. Das Aufheben ist die
+   eine Änderung, ohne die es gar nicht funktioniert.
+2. **Dark Mode geht mit zum Drucker.** `prefers-color-scheme` gehört dem
+   Leser, nicht dem Blatt, und Browser überschreiben das nicht.
+3. **Bedienelemente, die auf Papier keine sind** — Tabs, Suchfeld,
+   Graph-Steuerzeile, alle Buttons. Die Tab-*Leiste* geht, die aktuelle
+   Ansicht bleibt: `.view` blendet die anderen ohnehin aus, ein Ausdruck ist
+   also der Tab, auf dem man stand.
+4. **Zeilen, die am Falz zerreißen** — `break-inside:avoid`.
+
+**Bewusst nicht:** eingeklappte Tree-Äste aufklappen. Gedruckt wird, was auf
+dem Schirm steht.
+
+**Verifiziert statt angenommen:** die Seite wurde mit `@media print` auf
+`@media screen` umgeschrieben, im Browser geladen und die berechneten Stile
+abgefragt — `#tree` bei `max-height:none`/`overflow:visible`, Tabs, Toolbar,
+Steuerzeile und Buttons auf `display:none`, Body weiß auf schwarz,
+`.row` auf `break-inside:avoid`, und `main` einspaltig, wenn der Tree-Tab
+aktiv ist.
 
 ### Q8 · `K` — das Zeichen unter dem Cursor nachschlagen — **S**, Engine (§4.3)
 
