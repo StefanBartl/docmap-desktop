@@ -188,6 +188,37 @@ have: **Generate the out-of-date ones** compares modification times, and a
 map built by an older engine is not out of date by that measure — it is
 exactly as old as its sources and still missing what the engine can do now.
 
+### What depends on what
+
+Under the list, collapsed, is the one question a single repository cannot
+answer: **who would find out if I changed this.**
+
+Every map records `requires_external` — a module that was required from
+outside this repository. The engine can say nothing more about it, because
+it never saw where that module lives. Several maps can, and the workspace is
+the only place several exist. So the names are matched against the modules
+other projects *declare*, and each row reads: this project, used by that many
+others, in that many places, and which of its modules they reach for.
+
+**The matching is exact, not clever.** Measured over 30 generated maps: 1 820
+declared module names, and not one claimed by two repositories — so a hit is
+a fact. The obvious fallback, walking down to the longest declared prefix,
+was written for that measurement and resolved *zero* additional names, so it
+is not in the app. Of 1 175 external requires, 852 resolved and 323 did not.
+
+The 323 are the answer working rather than failing: `telescope`, `fzf-lua`,
+`which-key` and friends are not in your workspace and have no map to be found
+in. They get their own line, because "this leans on things you do not have
+open" is the other half of the question.
+
+**Two numbers, not one.** *Used by five projects* and *in 197 places* answer
+different questions, and the interesting cases are where they disagree: one
+project reaching for something sixty times is a coupling, twenty projects
+reaching once each is a convention.
+
+Nothing here asks the engine anything — it is all read from the artifacts on
+disk, so it works in a workspace whose engine is not configured at all.
+
 ### The project picker, and how to sort it
 
 A native `<select>`, so it already answers Arrow, `Home`/`End`, `Enter` and
