@@ -9,6 +9,7 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod deps;
 mod feedback;
 mod filetree;
 mod freshness;
@@ -1808,6 +1809,29 @@ fn map_freshness(app: tauri::AppHandle, id: String) -> Result<freshness::Freshne
     freshness::check(Path::new(&project.root), Path::new(&project.map_dir))
 }
 
+/// Which projects in this workspace depend on which others.
+///
+/// The whole workspace in one call rather than one per project: the answer
+/// is a graph, and a graph assembled from N independent answers would be N
+/// reads of the same module index. On the author's tree that index is 1 820
+/// names built from 30 artifacts, and it is the same index for every row of
+/// the result.
+///
+/// Everything it needs is on disk, so it needs no engine and works for a
+/// workspace whose engine is not configured at all — the artifact really is
+/// the extension point, and this is the first consumer of it that is not the
+/// engine itself.
+#[tauri::command]
+fn workspace_deps(app: tauri::AppHandle) -> Result<deps::Deps, String> {
+    let ws = read_workspace(&app)?;
+    let list: Vec<(String, String)> = ws
+        .projects
+        .iter()
+        .map(|p| (p.id.clone(), p.map_dir.clone()))
+        .collect();
+    Ok(deps::resolve(&list))
+}
+
 /// Hand a path or URL to whatever the desktop opens it with.
 ///
 /// Written here rather than reached for through a plugin because it is
@@ -2037,6 +2061,7 @@ fn main() {
             project_scope_set,
             import_from_url,
             map_status,
+            workspace_deps,
             scan_languages,
             list_github_repos,
             engine_info,

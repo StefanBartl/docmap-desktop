@@ -86,6 +86,16 @@ repository cannot show that and neither can the picker, which names one
 project at a time; on a tree of fifty it is the difference between a question
 and fifty answers.
 
+Under it, **what depends on what**. Every map records the modules it required
+from outside itself and cannot say where they live, because it never saw
+them; several maps together can. Matched against the module names other
+projects declare — exactly, not by guesswork — that becomes *this project is
+used by five others, in 197 places, and here is what they reach for*. It asks
+the engine nothing: the artifacts on disk are the whole input, which is
+[`HOSTING.md`'s "the artifact is the extension
+point"](https://github.com/StefanBartl/documentation.nvim/blob/main/docs/HOSTING.md)
+with its first consumer attached.
+
 ## Status
 
 Usable. Add projects — from a folder, a URL, or the plugin specs your

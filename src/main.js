@@ -22,6 +22,7 @@ import { withBusyButton } from "./lib/busy-button.js";
 import { lastKey, migrateLastKey } from "./lib/last-selection.js";
 import { mapStatus, invalidate } from "./lib/status-cache.js";
 import { row as overviewRow, sortRows, summarize, RANK } from "./lib/overview.js";
+import { usedBy, summarizeDeps } from "./lib/deps.js";
 import { t, setLocale, initialLocale, LOCALES, keys } from "./lib/i18n.js";
 import {
   scanLanguages,
@@ -85,6 +86,10 @@ const els = {
   ovActions: document.getElementById("ov-actions"),
   ovGenBehind: document.getElementById("ov-gen-behind"),
   ovList: document.getElementById("ov-list"),
+  ovDeps: document.getElementById("ov-deps"),
+  ovDepsSum: document.getElementById("ov-deps-sum"),
+  ovDepsList: document.getElementById("ov-deps-list"),
+  ovDepsOutside: document.getElementById("ov-deps-outside"),
   gen: document.getElementById("gen"),
   engine: document.getElementById("engine"),
   engineSummary: document.getElementById("engine-summary"),
@@ -618,6 +623,88 @@ async function overviewRows() {
   return sortRows(out);
 }
 
+/**
+ * Who depends on whom, across the workspace.
+ *
+ * This is `HOSTING.md`'s "the artifact is the extension point" with a
+ * consumer attached: nothing here asks the engine anything. `requires_external`
+ * is exactly where one repository's map runs out of tree — it records that a
+ * module outside was required and cannot say where it lives, because it never
+ * saw it. Several artifacts can, and this window is the only place that holds
+ * several.
+ *
+ * Failure is silent by design. The block simply does not appear: a workspace
+ * whose projects have no maps yet has nothing to say here, and that is the
+ * common case on a first run rather than an error worth a sentence.
+ */
+async function renderDeps() {
+  els.ovDeps.hidden = true;
+  let deps = null;
+  try {
+    deps = await invoke("workspace_deps");
+  } catch (e) {
+    void e;
+    return;
+  }
+
+  const s = summarizeDeps(deps);
+  if (s.edges === 0 && s.outsideNames === 0) return;
+
+  const names = {};
+  for (const p of projects) names[p.id] = p.name;
+  const rows = usedBy(deps.edges, names);
+
+  els.ovDeps.hidden = false;
+  els.ovDepsSum.textContent = rows.length
+    ? t("deps.summary.some").replace("{n}", String(rows.length))
+    : t("deps.summary.none");
+
+  els.ovDepsList.innerHTML = "";
+  for (const r of rows) {
+    const li = document.createElement("li");
+
+    const name = document.createElement("span");
+    name.className = "ov-deps-name";
+    name.textContent = r.name;
+
+    const who = document.createElement("span");
+    who.className = "ov-deps-who";
+    who.textContent =
+      plural("deps.usedBy", r.users.length) + " · " + plural("deps.sites", r.sites);
+
+    li.append(name, who);
+
+    // Three names, because the list exists to answer "which parts" and a
+    // full one is `lib.nvim`'s 124 modules. The rank is how many projects
+    // reach for each, which is the only cross-project count the edge
+    // carries — and the more useful one anyway.
+    if (r.modules.length) {
+      const mods = document.createElement("span");
+      mods.className = "ov-deps-mods";
+      mods.textContent = t("deps.modules").replace("{list}", r.modules.slice(0, 3).join(", "));
+      li.append(mods);
+    }
+
+    els.ovDepsList.append(li);
+  }
+
+  // Third-party names get one line rather than a list. They are not projects
+  // in this workspace, nothing here can act on them, and the fact worth
+  // carrying is that they exist and roughly how many.
+  const parts = [];
+  const top = (deps.outside || []).slice(0, 5).map((o) => o.name);
+  if (top.length) {
+    const rest = (deps.outside || []).length - top.length;
+    parts.push(
+      rest > 0
+        ? plural("deps.outside", rest).replace("{list}", top.join(", "))
+        : t("deps.outside.all").replace("{list}", top.join(", "))
+    );
+  }
+  if (s.unread > 0) parts.push(plural("deps.unread", s.unread));
+  els.ovDepsOutside.textContent = parts.join(" ");
+}
+
 async function renderOverview() {
   const show = !selectedId && projects.length > 0;
   els.overview.hidden = !show;
@@ -687,6 +774,11 @@ async function renderOverview() {
     li.append(btn);
     els.ovList.append(li);
   }
+
+  // After the list, and not awaited into it: the graph reads every artifact
+  // in the workspace, and the ranked list is the thing worth having on
+  // screen first.
+  renderDeps();
 }
 
 /** What the row used to carry, for the selected project only. */

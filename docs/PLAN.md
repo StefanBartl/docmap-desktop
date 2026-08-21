@@ -321,11 +321,38 @@ einer Box gleicher Höhe zentriert, ein Bildschirm nach unten geschoben sieht
 aus wie ein Bildschirm nach unten zentriert. Genau der Fehlertyp, für den
 `tools/preview/preview.py` existiert.
 
-### M5 · Extension-API, Stufe 2 — **M**, Desktop
+### ~~M5 · Extension-API, Stufe 2~~ — **erledigt 2026-08-21**
 
-Lesende Erweiterungen: ein Panel, das etwas aus dem Artefakt Berechnetes
-zeigt. Der lokale Server ist die Naht und existiert. Stufe 1 (die
-Kompatibilitätszusage) steht in `HOSTING.md`. *Vorher: M12.*
+Gebaut als *ein* lesender Konsument, nicht als Plugin-Lader — und das ist die
+Entscheidung, nicht die Abkürzung. `WORKPLAN.md` hat es selbst begründet: eine
+Plugin-API ist ein Versprechen, das man nicht zurücknehmen kann, und
+`module_map.json` stand in zwei Wochen von Schema 2 auf 5, wobei der letzte
+Sprung drei Felder *entfernt* hat. Ein Lader auf ein Format, das sich noch
+dreimal bewegt, erzeugt genau die Enttäuschung, die ein Ökosystem beendet,
+bevor es anfängt. Stufe 2 zeigt stattdessen, dass die Zusage trägt, indem
+etwas darauf steht.
+
+**Was berechnet wird:** `requires_external` über alle Karten des Workspace
+aufgelöst. Das ist präzise die Stelle, an der eine einzelne Karte aufhört —
+sie hält fest, dass ein Modul außerhalb des Repositorys verlangt wurde, und
+kann nicht sagen, wo es lebt, weil sie es nie gesehen hat. Mehrere Karten
+können es, und dieses Fenster ist der einzige Ort, an dem mehrere liegen.
+Ohne Engine, ohne Registrierung — nur die Dateien auf der Platte.
+
+**Gemessen, bevor es geschrieben wurde**, über 30 erzeugte Karten: **1 820
+deklarierte Modulnamen, kein einziger von zwei Repositories beansprucht.** Ein
+Treffer ist damit eine Tatsache, kein Raten. Der naheliegende Rückfall — auf
+das längste deklarierte Präfix hinuntergehen — wurde für die Messung gebaut
+und löste **exakt null** zusätzliche Namen auf; er steht nicht im Code. Von
+1 175 externen Requires trafen 852, 323 nicht, und die 323 sind die Antwort
+bei der Arbeit: `telescope`, `fzf-lua`, `which-key` liegen nicht im
+Workspace. Der Rust-Code reproduziert beide Zahlen zeichengenau.
+
+**Zwei Zahlen statt einer**, weil sie verschiedene Fragen beantworten: *von
+fünf Projekten benutzt* und *an 197 Stellen*. Einmal sechzigmal gegriffen ist
+eine Kopplung, zwanzigmal einmal ist eine Konvention.
+
+Stufe 3 (schreibend) bleibt **L7** und ist unverändert offen.
 
 ### M6 · Compiler Explorer, zwei Schritte weiter — **M**, Engine
 
@@ -492,7 +519,10 @@ Nach Nutzen pro Aufwand:
 5. ~~**M4**~~ (Cross-Repo-Dashboard) — **erledigt 2026-08-21.** Das Messen
    davor hat die naheliegende Rangfolge verworfen und zwei CSS-Fallen im
    bestehenden Fenster aufgedeckt.
-   **M5 ist frei** ← hier weitermachen.
+6. ~~**M5**~~ (Extension-API Stufe 2) — **erledigt 2026-08-21.** Ein lesender
+   Konsument statt eines Plugin-Laders, und die Auflösung ist exakt: 1 820
+   Modulnamen ohne eine einzige Kollision.
+   **M6 ist frei** ← hier weitermachen.
 
 **Nicht als Nächstes**, obwohl sie groß und sichtbar sind: **L1** und **L2**.
 Beide sind mehrere Sitzungen und beide eine Umfangsentscheidung, keine

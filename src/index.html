@@ -180,6 +180,18 @@
           <button id="ov-gen-behind" type="button"></button>
         </p>
         <ul id="ov-list" class="ov-list"></ul>
+
+        <!-- Who depends on whom, across the workspace. `<details>` because
+             it is the second question: the list above answers "what needs
+             doing", and this answers "what breaks if I touch it". Same
+             reasoning as the Engine panel — the platform implements the
+             disclosure, the summary line carries the answer for anyone who
+             never opens it. -->
+        <details id="ov-deps" class="ov-deps" hidden>
+          <summary><span id="ov-deps-sum"></span></summary>
+          <ul id="ov-deps-list" class="ov-deps-list"></ul>
+          <p id="ov-deps-outside" class="ov-deps-outside"></p>
+        </details>
       </section>
 
       <div id="placeholder" class="placeholder">

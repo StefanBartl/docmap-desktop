@@ -102,6 +102,38 @@ const R = {
                              build: { commit: "5d2b98d", committed_at: "2026-08-20", clean: true } }),
   nvim_info: () => ({ path: "C:/Program Files/Neovim/bin/nvim.exe", from_path: true,
                       config_dir: "C:/Users/bartl/AppData/Local/nvim", config_dir_from_default: true }),
+  // Measured, like everything else here: these are the real edges between
+  // the projects listed above, on 2026-08-21. The single reverse edge
+  // (lib.nvim requiring runtime-analysis.telemetry once) is in deliberately
+  // -- a graph where every arrow points the same way hides whether the
+  // layout can show one that does not.
+  workspace_deps: () => ({
+    edges: [
+      { from: "p6", to: "p3", count: 57,
+        modules: ["lib.nvim.notify", "lib.nvim.window", "lib.nvim.buf_win_tab.buffer_utils",
+                  "lib.nvim.cache.memory"] },
+      { from: "p1", to: "p3", count: 43,
+        modules: ["lib.nvim.fs.read", "lib.nvim.safe_api", "lib.nvim.autocmd"] },
+      { from: "p5", to: "p3", count: 43,
+        modules: ["lib.nvim.notify", "lib.nvim.autocmd", "lib.nvim.cache.disk"] },
+      { from: "p8", to: "p3", count: 30,
+        modules: ["lib.nvim.cross.fs.expand_path", "lib.nvim.ui.kit",
+                  "lib.nvim.cross.uv.spawn_capture"] },
+      { from: "p4", to: "p3", count: 24,
+        modules: ["lib.nvim.window", "lib.nvim.ui.kit", "lib.nvim.usercmd.composer"] },
+      { from: "p3", to: "p5", count: 1, modules: ["runtime-analysis.telemetry"] }
+    ],
+    outside: [
+      { name: "which-key", count: 21, projects: ["p1"] },
+      { name: "telescope.actions", count: 19, projects: ["p1"] },
+      { name: "fzf-lua", count: 19, projects: ["p8"] },
+      { name: "telescope.actions.state", count: 18, projects: ["p1"] },
+      { name: "telescope", count: 16, projects: ["p1"] },
+      { name: "dap", count: 16, projects: ["p6"] },
+      { name: "telescope.pickers", count: 15, projects: ["p1"] }
+    ],
+    unread: ["p7"]
+  }),
   map_status: (a) => {
     const st = STATE[idForDir(a && a.mapDir)].st;
     return st
