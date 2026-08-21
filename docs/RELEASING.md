@@ -12,6 +12,7 @@ that ought to work.
 - [What the workflow does](#what-the-workflow-does)
 - [Checking the draft](#checking-the-draft)
 - [Publishing](#publishing)
+- [A draft ages, and it ages fast](#a-draft-ages-and-it-ages-fast)
 - [If something is wrong](#if-something-is-wrong)
 - [Two things worth knowing before you publish](#two-things-worth-knowing-before-you-publish)
 
@@ -188,6 +189,42 @@ gh release edit v0.2.0 --draft=false
 Or on the release page: **Edit**, then **Publish release** at the bottom.
 
 It is then at `/releases/latest`, and the badge in the README follows it.
+
+**Until something is published, both of those are broken, and they say so
+out loud.** Checked on 2026-08-21, with `v0.1.0` and `v0.2.0` sitting in the
+Releases page as drafts and nothing public:
+
+```
+$ curl -sI .../releases/latest            # 302, to the releases list
+$ curl -s .../badge/v/release/...         # "release: no releases or repo not found"
+```
+
+The README's *Download the latest release* link and its version badge are the
+first two things a visitor sees, and a repository with three tags and two
+drafts renders as a repository with no releases at all. That is not an
+argument against the draft step — it is an argument for finishing it.
+
+---
+
+## A draft ages, and it ages fast
+
+`v0.2.0` was cut on 2026-08-20 with nine green assets and never published.
+By the next morning **22 desktop commits and 17 engine commits** had landed
+on top of it. Publishing it then would have shipped a version nobody would
+ever install, and the walkthrough below — install it, open it, click four
+things — would have been done on software that was already history.
+
+So: **the check is part of the cut, not a task for later.** If a draft
+cannot be opened within a day or so of building it, the honest move is to
+let it go stale on purpose and re-cut from `main` when there is time to
+check it.
+
+What to do with the number is a smaller question with a clear answer.
+`v0.2.0` was never public, so 0.2.0 was technically free — but `HANDOVER.md`
+and `PLAN-DONE.md` already described what was *in* it, and a tag pointing at
+a different tree than the prose written about it is worse than a gap in the
+sequence. The draft was deleted, the tag left standing as a point in the
+history, and the next release took the next number.
 
 ---
 
