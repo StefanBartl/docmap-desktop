@@ -1,6 +1,6 @@
 # Implementierungsplan — `documentation.nvim` · `docmap-desktop` · `runtime-analysis.nvim`
 
-**Ein Plan für alle drei Repositories.** Stand 2026-08-20. Vorher stand die
+**Ein Plan für alle drei Repositories.** Stand 2026-08-21. Vorher stand die
 Warteschlange an fünf Stellen — zwei `WORKPLAN.md`, drei `ROADMAP.md`, eine
 `IDEAS.md` und dieser Plan —, und dieselbe Aufgabe tauchte in mehreren davon
 in unterschiedlichem Zustand auf. Jetzt steht sie hier und sonst nirgends.
@@ -52,336 +52,31 @@ Handgriff.
 
 ## Quick Wins
 
-Stunden. Reihenfolge innerhalb der Liste: Nutzen pro Aufwand.
+Stunden. **Nichts mehr, und das ist wörtlich gemeint:** alle acht sind
+erledigt und stehen in [`PLAN-DONE.md`](PLAN-DONE.md). Was hier unter der
+alten Nummer QW6 übrig blieb, ist keine Stunde mehr, sondern **M** — es steht
+nur deshalb noch in diesem Abschnitt, weil die Nummer sonst ins Leere zeigte.
 
-**Alle bis auf eine sind erledigt.** Offen bleibt nur QW6 **Stufe 2** —
-Zaunblöcke *auf der Seite* — und die ist **M**, keine Stunde. Zwei der
-erledigten haben nicht das ergeben, was ihr Eintrag erwartete: QW4 endete
-mit „nichts zu tun", QW5 mit „nein, bleibt doppelt" — und beide sind
-deshalb festgehalten statt offen.
+### QW6 · Zaunblöcke auf der Seite — **M**, Engine
 
-### ~~QW2 · Datei-Pane: die übrigen Unter-Einträge~~ — **gebaut 2026-08-20**, `292f925`
+Mehrzeilige ```` ``` ````-Blöcke mit Syntax-Hervorhebung im erzeugten HTML.
 
-Das Pane sagt jetzt auch, was git von einem Eintrag hält: **nicht in git**
-und **von git ignoriert — trotzdem in der Karte**.
+Stufe 1 — Inline-Code über eine einzige `prose()`-Funktion in dreizehn
+Flächen — ist gebaut und steht in
+[`PLAN-DONE.md`](PLAN-DONE.md). Stufe 2 wurde damals bewusst nicht
+mitgemacht: eine Zusammenfassung ist einzeilig, der mehrzeilige Fall ist
+`@example`, und das ist eine andere Fläche mit anderer Form. Beides in einem
+Regex ist der Weg zu einem Renderer, über den niemand mehr nachdenken kann.
 
-**Die beiden Hälften beantworten entgegengesetzte Überraschungen.**
-`nicht gescannt` und `eigenes Repository` erklären einen Ordner, der da ist
-und *nicht* in der Karte. Die zwei neuen erklären das Umgekehrte — und
-*ignoriert* ist das, was sonst nichts in diesem Fenster sagen könnte: der
-Scan liest `.gitignore` nicht, also wird ein in git ignorierter Ordner
-trotzdem kartiert.
-
-`ignored` ist bewusst ein eigenes Feld statt Teil von `skipped`: `skipped`
-ist die Regel *dieses Werkzeugs* und überall gleich, `ignored` die des
-*Repositories*. Ein Verzeichnis kann beides, eines oder keines sein.
-
-**Ein Test hat einen echten Konstruktionsfehler gefunden**, keine
-Bestätigung: `-unormal` fasst ein untracked Verzeichnis zu einer Zeile
-zusammen und erwähnt seinen Inhalt nie — an der Wurzel richtig, eine Ebene
-tiefer stillschweigend falsch. Der Bericht über das Verzeichnis selbst wird
-jetzt an die Einträge weitergereicht.
-
-Höchstens eine Notiz pro Zeile, äußerste Tatsache zuerst.
-
-### ~~QW3 · Erklär-Attribute auch *innerhalb* der Views~~ — **gebaut 2026-08-20**, `f705e09`
-
-**Und es war die Engine, nicht der Desktop** — die Views sind die der
-erzeugten Seite. Zweiundzwanzig Controls haben eine Erklärkarte bekommen:
-die sechs Hierarchy-Graphen und alle sechzehn Analysis-Werkzeuge.
-
-**Sechs davon benutzten ein rohes `title`**, wogegen der Mechanismus im
-eigenen Code argumentiert: *„a `title` attribute would have been free and
-never appears on focus."* Umgestellt statt verdoppelt.
-
-Weil ein `title` von Screenreadern vorgelesen wird, ist die Karte jetzt per
-`aria-describedby` verknüpft — und die Verknüpfung wird beim Schließen
-entfernt, sonst beschreibt sie ein verstecktes Element.
-
-`explain_spec.lua` hält die Verbindung in beide Richtungen; in beide
-Richtungen mutationsgeprüft.
-
-### ~~QW4 · Den Fokus-Pfad des Erklär-Popups verifizieren~~ — **gemessen 2026-08-20: nichts zu tun**
-
-Im echten Browser durchgespielt statt begründet: **mit Fensterfokus feuert
-`focusin` korrekt** und trifft den richtigen `[data-help]`-Vorfahren — auch
-auf einem `<summary>`. Ohne Fensterfokus feuert nichts, und das ist eine
-Eigenschaft eines unfokussierten Fensters, nicht des Elements oder des
-Panes. Alle elf Controls im Desktop sind per Tastatur erreichbar.
-
-**Zwei Korrekturen an mir selbst**, beide aus dem Messen statt dem Lesen:
-`<summary>` *ist* fokussierbar (`tabIndex` 0), und die vier `sub.*`-Texte,
-die verwaist aussahen, sind per JavaScript verdrahtet. Ich hätte beinahe
-einen Defekt gemeldet, den es nicht gibt.
-
-### ~~QW5 · `proc_trace` und `:RAInspect` sind zweimal dieselbe Technik~~ — **entschieden 2026-08-20**, `c07fec7`
-
-**Ergebnis: keine gemeinsame Wrapper-Registry** — und trotzdem ist die
-Lücke zu.
-
-Dagegen sprach: es gibt **einen** Konsumenten, und §4.2 daneben sagt
-ausdrücklich, dass Herunterschieben auf einen *zweiten* wartet.
-`proc_trace` fragt nie, wer etwas umhüllt hat — es wäre Produzent, nicht
-Leser. Und der Fall, der eine Konvention rechtfertigen würde — ein fremdes
-Plugin, das `vim.notify` patcht — ist genau der, den eine Konvention **in
-`lib.nvim`** nicht erreicht.
-
-**Die zwei Wrapper, die dieses Ökosystem kontrolliert, brauchten sie nicht.**
-`proc_trace` veröffentlicht bereits `is_active()` und umhüllt vier
-*bekannte* Pfade, also nennt `:RA provenance vim.fn.system` es jetzt exakt —
-ohne neue Konvention, ohne Änderung in `lib.nvim`, dreißig Zeilen auf der
-Konsumentenseite.
-
-Dabei korrigiert: der Schlusssatz des Berichts behauptete, nichts hier kenne
-fremde Wraps — was ab dem zweiten exakten Fall dem Satz darüber widersprach.
-
-### QW6 · Code in Beschreibungen — **Stufe 1 gebaut 2026-08-20**, Stufe 2 offen
-
-**Inline-Code ist erledigt** (`7d3f859`): eine Funktion `prose()`, in
-**dreizehn** Flächen verdrahtet — die Hierarchy-Kästen, das
-Annotations-Popup, Funktions- und Knotenzeilen, das Detailpane, Symbole,
-Keymap-Zeilen, beide Feature-Ansichten, die Tag-Tabelle, die Keyword-Karte
-und die Compare-Matrix. Im Browser nachgemessen: **750 `<code>`-Elemente,
-96 davon in den Hierarchy-Kästen**, keins leer, keins verschachtelt.
-
-**Offen bleibt Stufe 2: Zaunblöcke** (```` ``` ````) mit
-Syntax-Hervorhebung. Bewusst nicht mitgemacht — eine Zusammenfassung ist
-einzeilig, der mehrzeilige Fall ist `@example`, und das ist eine andere
-Fläche mit anderer Form. **M.**
-
-**`color_my_ascii.nvim` hilft dabei nicht, und das ist eine Eigenschaft der
-Flächen, keine Wertung.** Seine öffentliche Fence-API ist puffer-basiert
-(`list_blocks(bufnr, …)`) — sie braucht einen Neovim-Puffer. Die erzeugte
-Seite ist ein eigenständiges Artefakt, das im Browser geöffnet wird und
-committet weitergegeben wird; sie kann kein Neovim-Plugin aufrufen, und die
-Standalone-Engine läuft ganz ohne Neovim. **Wohl aber für `:DocBrowse`** —
-siehe QW8.
-
-### ~~QW8 · Code auch im Editor hervorheben~~ — **gebaut 2026-08-20**, `4aab630`
-
-`:DocBrowse`s Detailpane zeigt Inline-Code jetzt als Code statt als
-Backticks — die Fläche, die QW6 offengelassen hatte.
-
-**Die Messung hat die Gewichtung dieses Eintrags umgedreht.** Vor dem Bauen
-gezählt statt angenommen: **2 132** Inline-Spans sind in diesem Pane
-erreichbar, dagegen **vier** Node-Bodies von hundertdreiundzwanzig mit einem
-```` ``` ````-Zaun und **null** `@example`-Blöcke. Inline-Code ist also *das
-Feature* und braucht gar keine Abhängigkeit — ein Pattern-Match und ein
-Extmark. Der Eintrag hier las sich, als sei das der Fallback.
-
-**`color_my_ascii.nvim` ist damit die Ergänzung, nicht der Mechanismus** —
-weiche Abhängigkeit über `soft_require.probe`, und nur aufgerufen, wenn
-`list_blocks` wirklich einen Block meldet. Die Begründung des Eintrags
-stimmt unverändert: die Fence-API ist puffer-basiert, und dieses Pane *ist*
-ein Neovim-Puffer.
-
-**Drei Marken pro Span statt einer:** die Ticks als
-`@punctuation.special`, der Text dazwischen als `@markup.raw` — sonst läse
-sich die Interpunktion wie Inhalt. Die Backticks bleiben sichtbar; `conceal`
-würde jede Spalte danach verschieben, und dieses Pane richtet mehrere von
-Hand aus.
-
-`show_detail` ist entstanden, weil es **zwei** Render-Pfade auf dasselbe
-Pane gab. Genau die Form, die auseinanderläuft: eine Hervorhebung in nur
-einem hätte den anderen mit Backticks stehen lassen, je nachdem wie der
-Leser dorthin kam.
-
-Mutationsgeprüft: nimmt man den Aufruf aus `show_detail`, fällt der Spec
-namentlich (`expected 30, got 0`).
-
-**Stufe 2 von QW6 bleibt offen** — Zaunblöcke *auf der Seite*. Das ist eine
-andere Fläche als diese hier und nach wie vor **M**.
-
----
+**`color_my_ascii.nvim` hilft hier nicht**, und das ist eine Eigenschaft der
+Flächen, keine Wertung: seine Fence-API ist puffer-basiert und braucht einen
+Neovim-Puffer. Die erzeugte Seite ist ein eigenständiges Artefakt im Browser,
+und die Standalone-Engine läuft ganz ohne Neovim. Für `:DocBrowse` half es
+sehr wohl — das war QW8.
 
 ## Mittel
 
 Ein Arbeitstag oder mehr.
-
-### ~~M1 · Config-Analyse: die drei übrigen Punkte~~ — **erledigt 2026-08-21**, Engine
-
-Drei getrennte Stücke, keines vom anderen abhängig. **Zwei sind erledigt,
-eines davon anders als geplant.**
-
-- ~~**Lazy-Load-Inventar**~~ — **gebaut 2026-08-21.** Eigener Analyse-Tab:
-  welches Plugin lädt auf welches Event/ft/cmd/keys, und was beim Start
-  liegt. Die Messung an einer echten Config hat den Entwurf korrigiert:
-  7 von 52 Specs standen unter dem falschen Ladezustand, weil `lazy = true`
-  ohne jeden Trigger gelesen wurde, als lüde es später — es lädt nie.
-  Daher drei Zustände statt zwei.
-- ~~**Verwaiste Spec-Dateien**~~ — **entschieden 2026-08-21: wird nicht
-  gebaut.** Gemessen, statt geschätzt: der einzige echte Fund in der einen
-  verfügbaren Config war ein **Falsch-Positiv** (die Datei registriert über
-  einen eigenen Helper, siehe unten), und die übrigen Kandidaten deklarieren
-  nichts, weil ihr Inhalt bewusst auskommentiert ist. „Nennt kein Plugin"
-  trennt also nicht Leiche von Parkplatz — das Kriterium trägt nicht, und
-  ein Panel, das geparkte Dateien als tot meldet, ist schlechter als keins.
-- **Statt dessen gebaut: `opts.plugins.wrappers`** — genau dieses
-  Falsch-Positiv war der weit größere Fund. `core/plugins.lua` las nur das
-  `return { … }` einer Datei; eine Config, die über `plugins.add({ … })`
-  registriert, trug **nichts** bei — schweigend, ohne Fehler. Gemessen:
-  **52 Specs gefunden, 85 nach Deklaration des einen Wrappers**, die
-  fehlenden 33 in einer einzigen 906-Zeilen-Datei. 63 % dieser Config waren
-  unsichtbar, und jedes Panel über `n.plugins` — inklusive des neuen
-  Lazy-Tabs — beantwortete Fragen über die Hälfte, die zufällig ein
-  Tabellen-Literal benutzt. Deklariert, nicht erraten, wie bei
-  `bindings.wrappers`.
-- ~~**Andere Plugin-Manager als lazy.nvim**~~ — **gebaut 2026-08-21, und es
-  war kein M.** Die Schätzung sagte drei eigene Extraktoren; gemessen an je
-  einer Datei in der Form jedes Managers sind es keine. packers `use`,
-  vim-plugs `Plug` und mini.deps' `add` registrieren alle über einen Aufruf
-  mit Tabelle oder String — genau das, was der Wrapper-Lauf schon liest.
-  Wirklich gefehlt haben zwei Kleinigkeiten: ein **String**-Argument
-  (`use "a/b"` — so listet jede packer-Config packer selbst, und so sieht
-  bei vim-plug *jedes* Plugin aus) und drei Schreibweisen: `requires` und
-  `depends` sind dieselbe Kante wie `dependencies`, `source` derselbe Repo
-  wie der positionale String. Die Trigger-Keys heißen überall gleich.
-  vim-plug nur in der Lua-Aufrufform — `Plug 'a/b'` in einer `.vim`-Datei
-  ist VimScript, und das steht so da, statt halb gelesen zu werden.
-
-Keymap-Konflikte sind gebaut. **M1 ist damit abgeschlossen.** Beide
-Schätzungen dieses Blocks lagen in dieselbe Richtung daneben — sie
-beschrieben das Feature statt der Lücke, und die Lücke sieht man erst, wenn
-man das Ding gegen echten Code laufen lässt. *Vorher: M6.*
-
-### ~~M2 · Reference-Tab, Schritt 6~~ — **entschieden 2026-08-21: kein Tab**, Engine
-
-Die Antwort lautet *nein*, und sie wurde gezählt statt diskutiert. Über die
-791 gerenderten Snippets dieses Repos: **64 von 76 Lua-Glossareinträgen sind
-per Hover erreichbar**, 18.807 Dekorationen. Die zwölf übrigen fehlen *hier*
-und wären im nächsten Repo da. Ein Tab wäre also ein Index über Antworten,
-die der Leser ohnehin an der Frage trifft — genau der „Tab, zu dem niemand
-navigiert", vor dem `ReferenceTab.md` selbst gewarnt hat.
-
-**Das Zählen hat trotzdem etwas gefunden, nur nicht den Tab.** Das
-Stdlib-Glossar war nach Punktnamen verschlüsselt, Lua wird aber mit
-Doppelpunkt geschrieben: **1004 Doppelpunkt-Aufrufe gegen 6 mit Punkt** für
-dieselben elf Funktionen. Die häufigste Aufrufform der Sprache war für ein
-Feature unsichtbar, dessen ganzer Zweck das Erklären von Stdlib-Aufrufen ist.
-`syntax.method_namespace` behebt das, **+934 Dekorationen**, verifiziert
-durch Ausführen des Tokenizers aus der *erzeugten Seite*.
-
-**M3 ist damit frei.** *Vorher: M7.*
-
-### ~~M3 · `K` im Browser~~ — **erledigt 2026-08-21**
-
-Die Glossar-Karte für das Wort unter dem Cursor, aus derselben Registry wie
-der Keyword-Hover der generierten Seite.
-
-**Zwei Messungen haben die Form entschieden.** Ein Glossarbegriff steht im
-Browsertext dieses Repositorys **213-mal in einer Inline-`code`-Spanne und
-2 558-mal in normaler Prosa** — "and", "for", "in", "end", "type". Ein `K`,
-das überall antwortet, läge also etwa zwölfmal von dreizehn falsch, und zwar
-auf die unangenehmste verfügbare Art: eine korrekte Definition an einem Wort,
-das kein Code ist. Also ist die Spanne das Tor; außerhalb sagt die Taste,
-warum sie schweigt.
-
-Und die Spannen leben im **Detailpane**, das vorher gar nicht erreichbar war:
-alle Browser-Tasten hängen am Listenpuffer, und bei vier Fenstern im Layout
-landet ein natives `wincmd w` nicht dort. Deshalb waren auch zwei von sechzehn
-Wurzeleinträgen unlesbar — 46 Zeilen Detail in einem 14-Zeilen-Pane ohne
-Scrollmöglichkeit. `w` geht hinein, `q`/`<Esc>` zurück.
-
-Die Taste ist `w` und nicht das zuerst gewählte `<Tab>`: ein Terminal sendet
-für `<Tab>` und `<C-i>` dasselbe Byte, die Bindung hat also still `<C-i>` aus
-der Besuchshistorie genommen. `docmap_browse_spec` hat es gefangen.
-
-### ~~M4 · Cross-Repo-Dashboard~~ — **erledigt 2026-08-21**
-
-Die Workspace-Ebene, die kein einzelnes Repository haben kann — dort, wo
-vorher „Nichts ausgewählt" stand. Dieser Zustand ist kein fehlendes Thema, er
-*ist* der Workspace.
-
-**Die Rangfolge ist gemessen, nicht gewählt.** Über den eigenen Baum — 54
-Repositories, 30 mit erzeugter Karte:
-
-* **27 von 30 Karten stammten von Schema 2, während die Engine 5 schreibt.**
-  Drei Artefaktversionen zurück, alle in einem Lauf fünf Tage zuvor erzeugt.
-* **28 von 30 waren „veraltet"** — Quellen neuer als die Karte. Die lautere
-  Zahl, und die schwächere: bei 17 davon war die neuste Datei ein
-  `.gitignore` aus einem einzigen Rutsch, bei 22 das von `:helptags`
-  geschriebene `doc/tags`. Generierte `tags` auszunehmen änderte die Zahl um
-  exakt null.
-
-Beide Signale feuern also fast überall; unterschieden werden sie dadurch,
-*worauf* sie zeigen. Eine ältere Engine bedeutet konkret fehlende Inhalte,
-und Neuerzeugen holt sie zurück. Deshalb führt sie, und „veraltet" nicht —
-die naheliegende Ordnung war die, die die Zahlen verworfen haben.
-
-Dazu die eine Sammelaktion, die das Menü noch nicht hatte: *Veraltete
-erzeugen* vergleicht Änderungszeiten, und eine von einer älteren Engine
-gebaute Karte ist danach gar nicht veraltet.
-
-**Zwei Fehler hat erst der Blick in ein echtes Fenster gefunden**, beide
-dieselbe Falle: `#map` und `.placeholder` setzen eigene `display`-Regeln, die
-das `[hidden]`-Attribut überstimmen. Ein verstecktes `<iframe>` behielt damit
-volle Höhe und schob die Übersicht in einem 720-Pixel-Fenster auf y=702. Es
-fiel nie auf, solange der Platzhalter das Einzige dahinter war: er ist in
-einer Box gleicher Höhe zentriert, ein Bildschirm nach unten geschoben sieht
-aus wie ein Bildschirm nach unten zentriert. Genau der Fehlertyp, für den
-`tools/preview/preview.py` existiert.
-
-### ~~M5 · Extension-API, Stufe 2~~ — **erledigt 2026-08-21**
-
-Gebaut als *ein* lesender Konsument, nicht als Plugin-Lader — und das ist die
-Entscheidung, nicht die Abkürzung. `WORKPLAN.md` hat es selbst begründet: eine
-Plugin-API ist ein Versprechen, das man nicht zurücknehmen kann, und
-`module_map.json` stand in zwei Wochen von Schema 2 auf 5, wobei der letzte
-Sprung drei Felder *entfernt* hat. Ein Lader auf ein Format, das sich noch
-dreimal bewegt, erzeugt genau die Enttäuschung, die ein Ökosystem beendet,
-bevor es anfängt. Stufe 2 zeigt stattdessen, dass die Zusage trägt, indem
-etwas darauf steht.
-
-**Was berechnet wird:** `requires_external` über alle Karten des Workspace
-aufgelöst. Das ist präzise die Stelle, an der eine einzelne Karte aufhört —
-sie hält fest, dass ein Modul außerhalb des Repositorys verlangt wurde, und
-kann nicht sagen, wo es lebt, weil sie es nie gesehen hat. Mehrere Karten
-können es, und dieses Fenster ist der einzige Ort, an dem mehrere liegen.
-Ohne Engine, ohne Registrierung — nur die Dateien auf der Platte.
-
-**Gemessen, bevor es geschrieben wurde**, über 30 erzeugte Karten: **1 820
-deklarierte Modulnamen, kein einziger von zwei Repositories beansprucht.** Ein
-Treffer ist damit eine Tatsache, kein Raten. Der naheliegende Rückfall — auf
-das längste deklarierte Präfix hinuntergehen — wurde für die Messung gebaut
-und löste **exakt null** zusätzliche Namen auf; er steht nicht im Code. Von
-1 175 externen Requires trafen 852, 323 nicht, und die 323 sind die Antwort
-bei der Arbeit: `telescope`, `fzf-lua`, `which-key` liegen nicht im
-Workspace. Der Rust-Code reproduziert beide Zahlen zeichengenau.
-
-**Zwei Zahlen statt einer**, weil sie verschiedene Fragen beantworten: *von
-fünf Projekten benutzt* und *an 197 Stellen*. Einmal sechzigmal gegriffen ist
-eine Kopplung, zwanzigmal einmal ist eine Konvention.
-
-Stufe 3 (schreibend) bleibt **L7** und ist unverändert offen.
-
-### ~~M6 · Compiler Explorer, zwei Schritte weiter~~ — **erledigt 2026-08-21**
-
-Beide Hälften gebaut. Zwei markierte Funktionen liegen jetzt in *einem*
-`clientstate`, je ein Editor — `sessions` ist ein Array, also das
-dokumentierte Format wie dokumentiert benutzt.
-
-**Marken statt eines Knopfes an der Duplikatgruppe, und das war gemessen.**
-Über 232 Gruppen in 27 Repositories haben **144 genau zwei Mitglieder** — ein
-Paar ist der Normalfall. Ein Paar dieses Repositories kommt auf höchstens
-**3 104 Zeichen**, bequem in godbolt.orgs 8-KB-Anfragezeile, während **zwei
-der 17 ganzen Gruppen sie reißen**. Ein „ganze Gruppe kompilieren" hätte also
-ausgerechnet dort versagt, wo man am ehesten hinsieht. Marken sind zudem nicht
-auf eine Gruppe beschränkt, und das wiegt schwerer: der lohnende Vergleich ist
-oft der zwischen einem Duplikat und dem, was es hätte sein sollen.
-
-**Die lokale Instanz steht im `localStorage`, nie im Artefakt.** Genau die
-Bedingung, die dieser Eintrag gestellt hat: eine committete Seite mit einem
-eingebackenen `localhost:10240` wäre ein Link, der für den Autor funktioniert
-und für alle anderen still ins Leere läuft. `compiler_explorer_spec.lua` hält
-fest, dass die einzige Adresse im Quelltext die öffentliche ist.
-
-Zwei Stellen, an denen die naheliegende Umsetzung falsch liegt: die
-8-KB-Grenze gehört godbolt.orgs CloudFront und nicht Compiler Explorer, gilt
-für eine eigene Instanz also nicht — sonst erfände die Seite eine
-Beschränkung, die ihr Ziel nicht hat. Und die Warnung wird *umgeschrieben*,
-nicht umetikettiert: „verlässt deinen Rechner" ist bei einer Adresse auf
-diesem Rechner unwahr, und eine Warnung, die Wolf ruft, lernt man
-wegzuklicken.
 
 ### M7 · Phase-0-IR: Owning Scope, ein File / viele Module — **M**, Engine
 
@@ -511,40 +206,31 @@ Nur die, die die Reihenfolge tatsächlich erzwingen:
 
 | Erst | Dann | Warum |
 |---|---|---|
-| **M2** (Reference-Tab, Schritt 6) | **M3** (`K` im Browser) | `K` ist erst wertvoll, wenn es etwas nachzuschlagen gibt |
-| **M5** (Extension-API Stufe 2) | **L7** (Stufe 3, schreibend) | Lesen, bevor geschrieben wird — und die Zusage steht schon |
 | **M7** (Phase-0-IR) | tieferes Python/Rust | Klassen und `impl`-Blöcke haben ohne Owning Scope keinen Ort |
 | **M12** (Runtime-Tab) | **L4** (API-Traffic) | Erst die Fläche, dann die reichere Messung darauf |
 | **A2** | die Discussions-Zeile | Eine Einstellung in deinen Repos |
 
-Nicht mehr blockierend, weil erledigt: **Go** hat das Muster für **L1**
-geliefert, **I18N-0** die Parameter für **L2**, der **Projektschlüssel** jeden
-weiteren Join.
+**Nicht mehr blockierend, weil die erste Hälfte gebaut ist:** Go hat das
+Muster für **L1** geliefert, I18N-0 die Parameter für **L2**, der
+Projektschlüssel jeden weiteren Join — und die Extension-API Stufe 2 die
+Grundlage für **L7**, das damit als Einziges aus dieser Liste frei geworden
+und trotzdem nicht als Nächstes dran ist.
 
 ---
 
 ## Wo ich weitermachen würde
 
-Nach Nutzen pro Aufwand:
+Vierzehn Punkte sind seit dem 2026-08-20 abgearbeitet; sie stehen mit ihrer
+Begründung in [`PLAN-DONE.md`](PLAN-DONE.md), nicht mehr hier.
 
-1. ~~**QW8**~~ — erledigt 2026-08-20.
-2. ~~**M1**~~ (Config-Analyse) — **erledigt 2026-08-21.** Lazy-Inventar
-   gebaut, verwaiste Spec-Dateien gemessen und verworfen, dafür
-   Wrapper-Unterstützung und drei weitere Plugin-Manager.
-3. ~~**M2**~~ — **erledigt 2026-08-21**, die Antwort war *kein Tab*, und
-   das Zählen dafür hat die 1004-zu-6-Lücke im Glossar aufgedeckt.
-4. ~~**M3**~~ (`K` im Browser) — **erledigt 2026-08-21.** Das Zählen davor
-   hat die Taste auf Code-Spannen begrenzt und nebenbei ein unerreichbares
-   Detailpane aufgedeckt.
-5. ~~**M4**~~ (Cross-Repo-Dashboard) — **erledigt 2026-08-21.** Das Messen
-   davor hat die naheliegende Rangfolge verworfen und zwei CSS-Fallen im
-   bestehenden Fenster aufgedeckt.
-6. ~~**M5**~~ (Extension-API Stufe 2) — **erledigt 2026-08-21.** Ein lesender
-   Konsument statt eines Plugin-Laders, und die Auflösung ist exakt: 1 820
-   Modulnamen ohne eine einzige Kollision.
-7. ~~**M6**~~ (Compiler Explorer) — **erledigt 2026-08-21.** Beide Hälften;
-   die Rangfolge Paar-vor-Gruppe kam aus 232 gemessenen Duplikatgruppen.
-   **M7 ist frei** ← hier weitermachen.
+**Als Nächstes M7** (Phase-0-IR: Owning Scope). Es ist der einzige offene
+Punkt, der etwas *anderes* aufhält — tieferes Python und Rust haben ohne ihn
+keinen Ort für Klassen und `impl`-Blöcke —, und es berührt jeden Konsumenten
+von `Documentation.FunctionInfo`, weshalb es besser vor als nach den fünf
+runtime-analysis-Punkten kommt.
+
+Danach **M12** (Runtime-Tab), aus demselben Grund: es ist die Fläche, auf der
+M8 bis M11 überhaupt erst etwas zeigen können.
 
 **Nicht als Nächstes**, obwohl sie groß und sichtbar sind: **L1** und **L2**.
 Beide sind mehrere Sitzungen und beide eine Umfangsentscheidung, keine
