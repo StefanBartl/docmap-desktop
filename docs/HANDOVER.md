@@ -27,14 +27,24 @@ sie an Bedienwissen trug, steht unten unter *Alles ausführen*.
 
 | Repo | Branch | HEAD | CI |
 |---|---|---|---|
-| `E:\repos\documentation.nvim` | main | `a8fc6d1` | grün, 5/5 Gates. `release-engine.yml` publiziert die Engine **und alle dreiundzwanzig Grammatiken** als rollendes GitHub-Release `standalone-latest` — das ist es, was `docmap-desktop`s Installer bündelt, und es rollt: zwei Installer einen Monat auseinander enthalten verschiedene Engines, weshalb *Über* den Commit der Engine nennt statt ihn aus der App-Version zu folgern |
-| `E:\repos\runtime-analysis.nvim` | main | `4c1cf53` | grün |
-| `E:\repos\docmap-desktop` | main | **`v0.2.0`** | kein CI-Gate, aber CI läuft; Release-Workflow ist Tag-getriggert (`v*`) und lädt die Engine von `standalone-latest`, bevor `cargo tauri build` startet. Ablauf in [`RELEASING.md`](RELEASING.md) |
+| `E:\repos\documentation.nvim` | main | `04b6501` | grün, 5/5 Gates. `release-engine.yml` publiziert die Engine **und alle dreiundzwanzig Grammatiken** als rollendes GitHub-Release `standalone-latest` — das ist es, was `docmap-desktop`s Installer bündelt, und es rollt: zwei Installer einen Monat auseinander enthalten verschiedene Engines, weshalb *Über* den Commit der Engine nennt statt ihn aus der App-Version zu folgern |
+| `E:\repos\runtime-analysis.nvim` | main | `e10c374` | grün |
+| `E:\repos\docmap-desktop` | main | **`v0.3.0`** | kein CI-Gate, aber CI läuft; Release-Workflow ist Tag-getriggert (`v*`) und lädt die Engine von `standalone-latest`, bevor `cargo tauri build` startet. Ablauf in [`RELEASING.md`](RELEASING.md) |
 | `C:\Users\bartl\AppData\Local\nvim` (persönliche Config) | main | `597af5d5` | kein CI |
 
-**`v0.2.0` geschnitten am 2026-08-20.** Der Release-Workflow baut die
+**`v0.3.0` geschnitten am 2026-08-21.** Der Release-Workflow baut die
 Installer aus dem Tag und legt sie als **Entwurf** an — der letzte Schritt ist
 ein Mensch, der die App öffnet, und das automatisiert nichts.
+
+**`v0.2.0` wurde nie veröffentlicht.** Der Entwurf stand vollständig, und
+dann landeten 22 Desktop- und 17 Engine-Commits darauf — die
+Workspace-Übersicht, Extension-API Stufe 2, die zweisprachigen Dialoge, und
+in der Engine alles von `opts.plugins.wrappers` bis `K` im Browser. Eine
+öffentliche Version, die niemand je installiert hätte, ist keine Version.
+Der Entwurf ist gelöscht, der Tag bleibt als Punkt in der Historie stehen,
+und 0.2.0 wird nicht wiederverwendet: ein Tag, der auf einen anderen Baum
+zeigt als das, was über ihn geschrieben steht, ist teurer als eine
+übersprungene Nummer.
 
 **Was dieser Schnitt gelehrt hat und in `RELEASING.md` steht:** die Engine
 zuerst neu bauen. `standalone-latest` lag 58 Commits zurück, darunter die

@@ -45,7 +45,7 @@ Handgriff.
 
 | # | Was | Warum du |
 |---|---|---|
-| **A1** | **`v0.2.0` veröffentlichen.** Der Entwurf steht mit neun Assets, alle vier Plattform-Jobs grün. `RELEASING.md` sagt es selbst: *der letzte Schritt ist ein Mensch, der die App öffnet.* Vier Dinge durchgehen (Projekt lädt seine Karte · Karte erzeugen läuft · Einstellungen öffnen · Hilfe → Über nennt Engine und Build), plus **Projekt → Projekteinstellungen…** — das Feature, dessen Flags der Grund für den Engine-Build waren | Nichts automatisiert das, und nichts sollte |
+| **A1** | **`v0.3.0` veröffentlichen.** Der Entwurf steht mit neun Assets, alle vier Plattform-Jobs grün. (`v0.2.0` wurde nie veröffentlicht und ist gelöscht — 39 Commits landeten darauf, bevor jemand die App geöffnet hatte.) `RELEASING.md` sagt es selbst: *der letzte Schritt ist ein Mensch, der die App öffnet.* Vier Dinge durchgehen (Projekt lädt seine Karte · Karte erzeugen läuft · Einstellungen öffnen · Hilfe → Über nennt Engine und Build), plus **Projekt → Projekteinstellungen…** — das Feature, dessen Flags der Grund für den Engine-Build waren | Nichts automatisiert das, und nichts sollte |
 | **A2** | **Discussions einschalten** — sobald **jemand anderes** eine echte Frage stellt. Dann wandert `question` auf `discussions/new?category=q-a`, eine Zeile in `TOPICS` | Entschieden (aus, mit Stolperdraht). Der Auslöser ist ein Ereignis, keine Aufgabe |
 
 ---
