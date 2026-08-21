@@ -354,14 +354,34 @@ eine Kopplung, zwanzigmal einmal ist eine Konvention.
 
 Stufe 3 (schreibend) bleibt **L7** und ist unverändert offen.
 
-### M6 · Compiler Explorer, zwei Schritte weiter — **M**, Engine
+### ~~M6 · Compiler Explorer, zwei Schritte weiter~~ — **erledigt 2026-08-21**
 
-Zwei markierte Funktionen nebeneinander in einem `clientstate` — die Frage,
-die das Duplikate-Panel aufwirft und nicht beantworten kann —, und ein
-**lokaler** Compiler Explorer statt godbolt.org. Der Link ist heute das
-einzige Feature der erzeugten Seite, das überhaupt ins Netz greift. Die
-committete Seite darf niemals den `localhost` einer Maschine fest verdrahten.
-*Vorher: M9.*
+Beide Hälften gebaut. Zwei markierte Funktionen liegen jetzt in *einem*
+`clientstate`, je ein Editor — `sessions` ist ein Array, also das
+dokumentierte Format wie dokumentiert benutzt.
+
+**Marken statt eines Knopfes an der Duplikatgruppe, und das war gemessen.**
+Über 232 Gruppen in 27 Repositories haben **144 genau zwei Mitglieder** — ein
+Paar ist der Normalfall. Ein Paar dieses Repositories kommt auf höchstens
+**3 104 Zeichen**, bequem in godbolt.orgs 8-KB-Anfragezeile, während **zwei
+der 17 ganzen Gruppen sie reißen**. Ein „ganze Gruppe kompilieren" hätte also
+ausgerechnet dort versagt, wo man am ehesten hinsieht. Marken sind zudem nicht
+auf eine Gruppe beschränkt, und das wiegt schwerer: der lohnende Vergleich ist
+oft der zwischen einem Duplikat und dem, was es hätte sein sollen.
+
+**Die lokale Instanz steht im `localStorage`, nie im Artefakt.** Genau die
+Bedingung, die dieser Eintrag gestellt hat: eine committete Seite mit einem
+eingebackenen `localhost:10240` wäre ein Link, der für den Autor funktioniert
+und für alle anderen still ins Leere läuft. `compiler_explorer_spec.lua` hält
+fest, dass die einzige Adresse im Quelltext die öffentliche ist.
+
+Zwei Stellen, an denen die naheliegende Umsetzung falsch liegt: die
+8-KB-Grenze gehört godbolt.orgs CloudFront und nicht Compiler Explorer, gilt
+für eine eigene Instanz also nicht — sonst erfände die Seite eine
+Beschränkung, die ihr Ziel nicht hat. Und die Warnung wird *umgeschrieben*,
+nicht umetikettiert: „verlässt deinen Rechner" ist bei einer Adresse auf
+diesem Rechner unwahr, und eine Warnung, die Wolf ruft, lernt man
+wegzuklicken.
 
 ### M7 · Phase-0-IR: Owning Scope, ein File / viele Module — **M**, Engine
 
@@ -522,7 +542,9 @@ Nach Nutzen pro Aufwand:
 6. ~~**M5**~~ (Extension-API Stufe 2) — **erledigt 2026-08-21.** Ein lesender
    Konsument statt eines Plugin-Laders, und die Auflösung ist exakt: 1 820
    Modulnamen ohne eine einzige Kollision.
-   **M6 ist frei** ← hier weitermachen.
+7. ~~**M6**~~ (Compiler Explorer) — **erledigt 2026-08-21.** Beide Hälften;
+   die Rangfolge Paar-vor-Gruppe kam aus 232 gemessenen Duplikatgruppen.
+   **M7 ist frei** ← hier weitermachen.
 
 **Nicht als Nächstes**, obwohl sie groß und sichtbar sind: **L1** und **L2**.
 Beide sind mehrere Sitzungen und beide eine Umfangsentscheidung, keine
