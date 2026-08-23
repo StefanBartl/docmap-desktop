@@ -99,13 +99,69 @@ test("nothing ticked is stored as null, not as an empty list", () => {
   );
 });
 
-test("generate and check_map both apply the project's scope", () => {
+test("generate and check_map both apply the project's settings", () => {
   // The reason the lookup lives in Rust rather than in the caller: three
   // paths run the engine, and a parameter is something each of them can
   // forget. `check_map` forgetting it is the worse one — it would compare
   // the committed map against a map nobody would ever write and report a
   // stale project every time somebody excluded a directory.
-  const calls = [...RUST.matchAll(/apply_scope\(&mut cmd,/g)];
+  const calls = [...RUST.matchAll(/apply_flags\(&mut cmd,/g)];
   assert.ok(calls.length >= 2, `expected generate and check_map, found ${calls.length}`);
-  assert.ok(RUST.includes("fn project_scope("), "the lookup should exist");
+  assert.ok(RUST.includes("fn project_flags("), "the lookup should exist");
+});
+
+test("every engine flag the dialog offers actually reaches the engine", () => {
+  // The join this dialog is most likely to break, and the one that breaks
+  // silently: a field can be added to the markup, read in `main.js`, stored
+  // in Rust — and never passed on the command line, at which point the
+  // setting saves, persists, reloads into the dialog, and does nothing.
+  // Every row below is one field's whole path.
+  const rows = [
+    ["scope-source", "source", "--source"],
+    ["scope-outdir", "outDir", "--out-dir"],
+    ["scope-repourl", "repoUrl", "--repo-url"],
+    ["scope-branch", "branch", "--branch"],
+  ];
+  for (const [id, arg, flag] of rows) {
+    assert.ok(HTML.includes(`id="${id}"`), `${id} should exist in the markup`);
+    assert.ok(MAIN.includes(`${arg}: scopeField("${id}")`), `Save should send ${arg}`);
+    assert.ok(RUST.includes(`"${flag}"`), `${flag} should be passed to the engine`);
+  }
+
+  // `full` is the one that is deliberately *not* in `apply_flags`, because
+  // `generate` folds it into its own parameter instead — passing it in both
+  // places would put `--full` on the command line twice.
+  assert.ok(MAIN.includes('document.getElementById("scope-full").checked'), "Save should send full");
+  assert.ok(RUST.includes("let full = full || flags.full;"), "generate should honour the stored default");
+});
+
+test("an emptied field is stored as null rather than as an empty string", () => {
+  // The engine now reads a `.docmap.json` in the repository itself, and a
+  // flag beats that file. So `""` is not "no opinion" — it would reach the
+  // engine as a real `--out-dir=` and override whatever the repository
+  // states with nothing.
+  // `includes` rather than a regex: the line contains a `?`, which is a
+  // quantifier, and the escaping is one backslash away from silently
+  // matching something else. There is nothing to match loosely here.
+  assert.ok(
+    MAIN.includes('return value === "" ? null : value;'),
+    "scopeField should return null for an empty field"
+  );
+  assert.ok(
+    RUST.includes("(!cleaned.is_empty()).then_some(cleaned)"),
+    "and Rust should collapse an empty value to None on the way in"
+  );
+});
+
+test("moving the map directory moves what this window reads", () => {
+  // `map_dir` is the absolute path every reader here opens the map through,
+  // and it used to be written once at add time and never again. A project
+  // pointed at a new `out_dir` with a stale `map_dir` would generate into
+  // one directory and read from another — everything succeeds and the
+  // window shows the old map.
+  assert.ok(RUST.includes("project.map_dir = format!("), "out_dir should rewrite map_dir");
+  assert.ok(
+    MAIN.includes("freshness.delete(scopeProject.id)"),
+    "and the window should re-measure the project it just moved"
+  );
 });

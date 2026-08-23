@@ -376,11 +376,12 @@ a command for yet.
 
 ## Settings
 
-**File → Settings…** (`Ctrl+,`), in five sections.
+**File → Settings…** (`Ctrl+,`), in six sections.
 
 | Section | What it holds |
 |---|---|
 | **Appearance** | Theme and interface language. |
+| **Behaviour** | The order the project list is in, and whether the app starts on the workspace overview. |
 | **Engine** | Where the engine binary is, and optionally a directory of compiled tree-sitter grammars. |
 | **Telemetry** | Whether `runtime-analysis.nvim` collects for the selected project, and the snapshots it has taken. |
 | **Editor** | The command used to open a file — see [above](#opening-a-file-where-an-entity-lives). |
@@ -389,6 +390,19 @@ a command for yet.
 **Theme** has three states, and *System* is one of them: a two-way toggle
 can only ever leave you pinned to a choice you made once, with no way to
 hand the decision back to the OS.
+
+**Order projects by** is the same control as the dropdown over the project
+list, and the same setting — changing either moves both. It is repeated
+here because on the sidebar it reads as a view of *this* list rather than as
+something the app remembers, and it is remembered.
+
+**Start with the workspace overview** is the other half of the *don't show
+this again* checkbox on the overview itself. One stored answer, two places
+to give it: the overview phrases it as the negative because that is what
+somebody looking at it wants to say, and a preference list reads better
+when every line is a thing that is on. Without this, the switch was
+findable exactly once — by the person who had already decided to stop
+seeing the thing it lives in.
 
 **Language** changes this window and nothing else. The generated map is a
 separate artifact with its own translation — English is the source
@@ -419,8 +433,21 @@ copy of something, or is worth reading as Go only, is a fact about the
 repository — and storing that in the machine's settings would apply one
 project's answer to every project in the list.
 
-Two controls, because there are exactly two questions the engine can be
-asked about scope.
+Five groups, because the engine takes more than the two flags this dialog
+started with. It always did: `--source=`, `--out-dir=`, `--repo-url=` and
+`--branch=` were there before this window existed, and the dialog simply
+never grew into them — so a repository whose map does not live in
+`docs/map` was unusable here, and every map generated in this window came
+out with no source links at all.
+
+**Every field is optional, and empty means "the engine decides".** That is
+not the same as "the default": the engine reads a `.docmap.json` in the
+repository itself, so an empty field leaves whatever the repository states
+about itself alone. A filled one overrides it, because a flag beats a config
+file — you are answering for this machine, the file is answering for
+everyone.
+
+### Scope
 
 **Languages** is a tick list of the backends this engine actually has, read
 from the engine itself rather than from a list in this app — which is why a
@@ -447,12 +474,52 @@ having is the other one. *This path, in this repository.*
 outside the project is refused rather than stored, because a path that can
 never match is a setting that appears to do something and does not.
 
-Both settings reach the engine as `--languages=` and `--exclude=` flags, and
-they are looked up **by the app, not by each button** — so *Generate*,
-*Generate all*, *Generate map (full)* and **Check exactly** all honour them.
-That last one matters most: a check that asked without the project's own
-scope would compare the committed map against a map nobody would ever
-write, and report the project stale forever.
+### Layout
+
+**Sources** is where the code is, relative to the project — one folder, or
+several separated by commas. Left empty the engine finds them itself, which
+is right for almost every tree. It exists for the ones where that search is
+a wager you could not correct: a repository with `lua/` beside `src/`, or
+sources under `packages/`. `exclude` and `languages` were already
+correctable and this was not, which was an arbitrary place to stop.
+
+**Map directory** is where the map is written inside the project, relative
+to its folder. Empty means `docs/map`. Change it and **this window follows
+the map to its new home** — the picker, the freshness mark and the overview
+row all read the new location immediately. That mattered enough to name:
+the alternative is a project that generates into one directory, reads from
+another, succeeds at both, and shows you the old map.
+
+### Source links
+
+**Repository URL** is what the *view source* links in the generated page
+point at, and **Branch** is which branch they point at (empty means `main`).
+
+Without a URL the page still works and simply has no links out. That was
+the one visible difference between a map made in this window and the same
+map made by the same engine in CI, and nothing here explained it — the CI
+job passes `--repo-url` and this app did not.
+
+### Generating
+
+**Always generate this project fully** makes plain *Generate* do what
+*Generate map (full)* does: add the `lua-language-server` enrichment behind
+the Types panel. It needs that tool installed, takes longer, and gains a
+non-Lua project nothing — which is exactly why it is a choice per project
+rather than a setting for this machine. *Generate all* honours it too, and
+never offered the choice at all before.
+
+### How they reach the engine
+
+Every one of these becomes a flag, and they are looked up **by the app, not
+by each button** — so *Generate*, *Generate all*, *Generate map (full)* and
+**Check exactly** all honour them. That last one matters most: a check that
+asked without the project's own settings would compare the committed map
+against a map nobody would ever write, and report the project stale forever.
+
+`--full` is the one deliberate exception: **Check exactly** does not mirror
+it, because enrichment adds detail the committed artifact may legitimately
+not contain.
 
 ## The engine indicator
 

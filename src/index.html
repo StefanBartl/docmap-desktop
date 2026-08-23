@@ -432,6 +432,25 @@
         </div>
       </section>
 
+      <!-- What the window does on its own, as opposed to what it looks
+           like. Both controls already existed and neither was reachable
+           from here: the sort order lives on the sidebar, where it reads as
+           a view of *this* list rather than as a preference, and the
+           dashboard switch was a checkbox inside the dashboard it turns
+           off — findable exactly once, by the person who had already
+           decided to stop seeing it. -->
+      <section class="prefs-section">
+        <h3 data-i18n="prefs.behaviour">Behaviour</h3>
+        <div class="prefs-row">
+          <label for="prefs-sort" data-i18n="prefs.sort">Order projects by</label>
+          <select id="prefs-sort" data-i18n-help="help.sort"></select>
+        </div>
+        <label class="prefs-check" data-i18n-help="help.startDashboard">
+          <input id="prefs-dashboard" type="checkbox" />
+          <span data-i18n="prefs.startDashboard">Start with the workspace overview</span>
+        </label>
+      </section>
+
       <section class="prefs-section">
         <h3 data-i18n="prefs.engine">Engine</h3>
         <p class="addbox-note" data-i18n="prefs.engine.note">
@@ -508,9 +527,20 @@
          facts about the repository, and putting them in the machine's
          settings would apply one project's answer to every project.
 
-         Two controls, because there are exactly two questions the engine
-         can be asked about scope. Anything further belongs in the engine
-         first. -->
+         It used to carry two controls, "because there are exactly two
+         questions the engine can be asked about scope. Anything further
+         belongs in the engine first." That was true of the engine at the
+         time — the standalone binary took `--exclude=` and `--languages=`
+         and nothing else this dialog could use. It takes `--source=`,
+         `--out-dir=`, `--repo-url=` and `--branch=` too, and always did;
+         the dialog simply never grew into them, so a project whose map
+         lives outside `docs/map` was unusable here and every map generated
+         in this window came out with no source links at all.
+
+         Grouped rather than listed flat: "where the code is" and "where the
+         map goes" are different questions from "what a link in the page
+         should point at", and a column of eight fields makes them look like
+         one list of eight equal decisions. -->
     <dialog id="scopebox" class="addbox">
       <form method="dialog" class="addbox-close-form">
         <button class="addbox-x" value="cancel" aria-label="Close">&times;</button>
@@ -539,6 +569,67 @@
         <div class="prefs-buttons">
           <button id="scope-add" type="button" data-i18n="scope.add">Add folder…</button>
         </div>
+      </section>
+
+      <section class="prefs-section">
+        <h3 data-i18n="scope.layout">Layout</h3>
+        <p class="addbox-note" data-i18n="scope.layout.note">
+          Where this repository keeps its code and its map. Leave both empty
+          to let the engine decide — it detects the sources itself and writes
+          to <code>docs/map</code>, which is right for almost every project.
+        </p>
+        <div class="prefs-row">
+          <label for="scope-source" data-i18n="scope.source">Sources</label>
+          <input id="scope-source" class="fb-field" type="text" autocomplete="off"
+                 spellcheck="false" data-i18n-help="help.scopeSource"
+                 data-i18n-placeholder="scope.source.placeholder"
+                 placeholder="lua, src" />
+        </div>
+        <div class="prefs-row">
+          <label for="scope-outdir" data-i18n="scope.outdir">Map directory</label>
+          <input id="scope-outdir" class="fb-field" type="text" autocomplete="off"
+                 spellcheck="false" data-i18n-help="help.scopeOutDir"
+                 data-i18n-placeholder="scope.outdir.placeholder"
+                 placeholder="docs/map" />
+        </div>
+      </section>
+
+      <section class="prefs-section">
+        <h3 data-i18n="scope.links">Source links</h3>
+        <p class="addbox-note" data-i18n="scope.links.note">
+          What the <em>view source</em> links in the generated page point at.
+          Without a URL the page still works and simply has no links out —
+          which is the difference people notice between a map made here and
+          one made by the same engine in CI.
+        </p>
+        <div class="prefs-row">
+          <label for="scope-repourl" data-i18n="scope.repourl">Repository URL</label>
+          <input id="scope-repourl" class="fb-field" type="text" autocomplete="off"
+                 spellcheck="false" data-i18n-help="help.scopeRepoUrl"
+                 data-i18n-placeholder="scope.repourl.placeholder"
+                 placeholder="https://github.com/user/repo" />
+        </div>
+        <div class="prefs-row">
+          <label for="scope-branch" data-i18n="scope.branch">Branch</label>
+          <input id="scope-branch" class="fb-field" type="text" autocomplete="off"
+                 spellcheck="false" data-i18n-help="help.scopeBranch"
+                 data-i18n-placeholder="scope.branch.placeholder"
+                 placeholder="main" />
+        </div>
+      </section>
+
+      <section class="prefs-section">
+        <h3 data-i18n="scope.generate">Generating</h3>
+        <label class="prefs-check" data-i18n-help="help.scopeFull">
+          <input id="scope-full" type="checkbox" />
+          <span data-i18n="scope.full">Always generate this project fully</span>
+        </label>
+        <p class="addbox-note" data-i18n="scope.full.note">
+          Adds the <code>lua-language-server</code> enrichment behind the
+          Types panel. It needs that tool installed, takes longer, and gains
+          a non-Lua project nothing — so it is a choice per project, not a
+          setting for this machine.
+        </p>
       </section>
 
       <p id="scope-problem" class="addbox-note fb-problem" hidden></p>
