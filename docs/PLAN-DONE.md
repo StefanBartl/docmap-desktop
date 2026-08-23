@@ -920,3 +920,92 @@ Beschränkung, die ihr Ziel nicht hat. Und die Warnung wird *umgeschrieben*,
 nicht umetikettiert: „verlässt deinen Rechner" ist bei einer Adresse auf
 diesem Rechner unwahr, und eine Warnung, die Wolf ruft, lernt man
 wegzuklicken.
+
+---
+
+## Nach dem zusammengeführten Plan, 2026-08-23
+
+### ~~Die Optionsfläche: was ein Nutzer einstellen können sollte und nicht konnte~~ — **gebaut 2026-08-23**
+
+Kein Eintrag aus `PLAN.md` — die Frage kam von außen („welche Optionen
+gibt es sicher, die ein Nutzer konfigurieren könnte, aber noch nicht
+kann?"), und die Durchsicht beider Repositories fand genug, um sie hier
+festzuhalten.
+
+Engine: [`documentation.nvim@8e3f8c6`](https://github.com/StefanBartl/documentation.nvim/commit/8e3f8c6) ·
+App: [`docmap-desktop@df8e4a4`](https://github.com/StefanBartl/docmap-desktop/commit/df8e4a4)
+
+**Der größte Teil der Antwort war nicht „es fehlt eine Funktion".** Es war
+„der Weg von der Spec dorthin fehlt". `Documentation.Browse.Opts` trug
+`width`/`height`/`list_width`/`theme`/`depth` und `browse.open` las sie
+alle — `usrcmds/browse.lua` gab davon nichts weiter, also war eine
+konfigurierte Fenstergröße nur erreichbar, indem man die Lua-API von Hand
+aufrief. `render.dot` liest `rankdir`/`cluster_depth`/`hops`,
+`render.mermaid` liest `direction`/`max_depth`/`depth`, und beide Kommandos
+übergaben `{}`. Dasselbe Muster, zweimal, in Code der jahrelang so aussah,
+als sei er konfigurierbar.
+
+**`.docmap.json`, und warum das die Antwort auf drei Löcher gleichzeitig
+ist.** `IDEAS.md` §6.2 hält fest, warum die GitHub Action `layers` nicht
+anbietet: es passe in keinen Input, ohne eine Konfigurationssprache zu
+erfinden. Das stimmt — über *Inputs*. Die Antwort auf „das passt nicht auf
+eine Kommandozeile" ist eine Datei und nicht mehr Kommandozeile. Dieselbe
+Datei löst die anderen zwei: das Standalone-Binary nimmt sieben Flags,
+weshalb der Projekteinstellungen-Dialog dieser App genau zwei Regler
+anbieten konnte (sein eigener Kommentar sagte das auch: *„anything further
+belongs in the engine first"*), und `standalone/docmap.lua` hatte
+`documentation.nvim`s **eigene drei Layer-Regeln fest eingebaut**, in jedem
+Lauf über jeden fremden Baum — nicht weil das gewollt war, sondern weil
+eine generische CLI keinen anderen Weg hatte, welche zu bekommen.
+
+Allowlist statt Denylist, und das ist der Entwurf und keine
+Sicherheitsmaßnahme: ein Repository sagt Fakten über *sich selbst*, nicht
+über *deine Sitzung*. `command_name`, `keys`, `watch`, `diagnostics`,
+`telemetry` werden mit namentlicher Warnung abgelehnt — ein Checkout, den
+du geklont hast, darf weder deine Tasten neu belegen noch einen Watcher
+starten. Aus demselben Grund Daten und kein Code: die Datei wird aus einem
+Baum gelesen, den die CI gerade geklont hat, und sie auszuführen machte
+„schau dir die Karte an" zu einem Code-Execution-Primitiv. `extra_checks`
+bleibt deshalb host-seitig — es ist der einzige Verlust, und ein kleiner.
+
+**`opts.checks`, und die zwei gemessenen Gründe dafür.**
+`missing-module-tag` ist ein `error`, also hatte ein Repository, das seinen
+Baum Datei für Datei annotiert, ein rotes `--check` vom ersten bis zum
+letzten Commit — und ein Gate, das einen Monat rot ist, lernt man zu
+ignorieren. Und `dead_code` meldet die öffentliche API jeder Bibliothek,
+was sein eigener Doc-Kommentar ausspricht; der Rat war „lass es aus", weil
+es keinen Weg gab, den Check zu behalten und die sechs absichtlich
+veröffentlichten Funktionen still zu stellen. Ein *unbrauchbarer* Wert wird
+ignoriert und gerade nicht wie `false` behandelt: Findings wegen eines
+vertippten Severity-Namens stillschweigend zu löschen wäre das einzige
+Ergebnis, das schlimmer ist als die Zeile zu übergehen.
+
+**Die App hatte zwei sichtbare Folgen ihrer zwei Regler.** Ein Repository,
+dessen Karte nicht in `docs/map` liegt, war hier nicht benutzbar —
+`map_dir` wurde beim Hinzufügen einmal geschrieben und nie wieder, obwohl
+der Kommentar am Feld sagte, es sei gespeichert statt abgeleitet, *„so a
+project whose map lives somewhere other than `docs/map` is representable
+later without a migration"*. Und **jede in diesem Fenster erzeugte Karte
+hatte keinen einzigen Quelltext-Link**, weil `--repo-url` nie mitging;
+dieselbe Engine erzeugt in der CI welche. Das ist der Unterschied, den man
+zwischen beiden Karten tatsächlich sieht, und nichts hier erklärte ihn.
+
+**Und dabei kam heraus, dass die Warnungen der Engine in genau den zwei
+Hosts ins Leere gingen, in denen niemand hinschaut.** `config.build` warnt
+über eine unbekannte Option, ein kaputtes `.docmap.json` und einen
+vertippten `checks`-Key — über ein `notify`, das ihm übergeben wird.
+`standalone/docmap.lua` und `scripts/action_run.lua` übergaben keins. Ein
+CI-Log, das schweigt und grün wird, ist die schlechteste der drei Stellen,
+an denen das passieren kann. Beide haben jetzt einen stderr-Shim.
+
+**Gegengeprüft statt behauptet:** 5 Spec-Fehler vor und nach der Arbeit —
+dieselben fünf, alle umgebungsbedingt auf dem Rechner (8.3-Kurzpfade,
+Historientiefe, LSP-Attach). Zwei neue Specs in der Engine, drei neue
+Rust-Tests und vier neue Frontend-Tests in der App; die letzten vier prüfen
+jeden neuen Flag-Pfad von Markup über JS bis zum Kommandozeilenargument,
+weil genau dort ein Feld sich speichern, neu laden und nichts tun kann.
+
+**Nicht gebaut, mit Absicht:** `tauri-plugin-window-state`
+(Fenstergröße merken) — eine neue Dependency, deren Bundling hier nicht
+verifizierbar war. Und ein Freitextfeld für zusätzliche Engine-Argumente:
+mit `.docmap.json` ist der bessere Ort dafür das Repository selbst.
