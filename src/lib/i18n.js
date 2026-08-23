@@ -86,6 +86,16 @@ const CATALOGS = {
       "Light, dark, or whatever your operating system is set to. System is the default and stays available, so you can always hand the choice back.",
     "help.language":
       "The language of this window. It does not change the generated map, which is a separate artifact with its own translation.",
+    "help.scopeSource":
+      "Which folder or folders the engine reads code from, relative to the project. Leave it empty and it finds them itself, which is right almost always — set it for a repository that keeps two languages in two places, or sources somewhere unusual.",
+    "help.scopeOutDir":
+      "Where the map is written inside the project, relative to its folder. Empty means docs/map. Change it and this window follows the map to its new home.",
+    "help.scopeRepoUrl":
+      "The repository's address online. It is what the “view source” links in the generated page point at — without it the page works and simply has no links out.",
+    "help.scopeBranch":
+      "Which branch those source links point at. Empty means main.",
+    "help.scopeFull":
+      "Always use the fuller, slower generation for this project. It needs lua-language-server installed and only adds anything to a Lua project.",
 
     "repos.notInstalled":
       "The GitHub CLI (gh) is not on your PATH. Install it to pick from your own repositories — or paste a URL above, which works either way.",
@@ -184,6 +194,11 @@ const CATALOGS = {
     "prefs.title": "Settings",
     "prefs.appearance": "Appearance",
     "prefs.theme": "Theme",
+    "prefs.behaviour": "Behaviour",
+    "prefs.sort": "Order projects by",
+    "prefs.startDashboard": "Start with the workspace overview",
+    "help.startDashboard":
+      "Whether opening the app shows the list of all your projects first, or goes straight back to the one you had open. You can switch this from the overview itself too.",
     "prefs.engine": "Engine",
     "prefs.engine.note": "The engine is <strong>documentation.nvim's standalone binary</strong> — this app runs it, it does not replace it. You normally do not need to set anything: the app brings its own along and uses that. Point at another one only if you want yours instead.",
     "prefs.telemetry": "Telemetry",
@@ -316,6 +331,24 @@ const CATALOGS = {
     "scope.save": "Save",
     "scope.saved": "Saved. The next generation for {name} uses these.",
     "scope.failed": "Could not save the project settings: {error}",
+    "scope.layout": "Layout",
+    "scope.layout.note":
+      "Where this repository keeps its code and its map. Leave both empty to let the engine decide — it finds the sources itself and writes to <code>docs/map</code>, which is right for almost every project.",
+    "scope.source": "Sources",
+    "scope.source.placeholder": "lua, src",
+    "scope.outdir": "Map directory",
+    "scope.outdir.placeholder": "docs/map",
+    "scope.links": "Source links",
+    "scope.links.note":
+      "What the <em>view source</em> links in the generated page point at. Without a URL the page still works and simply has no links out — which is the difference people notice between a map made here and one made by the same engine in CI.",
+    "scope.repourl": "Repository URL",
+    "scope.repourl.placeholder": "https://github.com/user/repo",
+    "scope.branch": "Branch",
+    "scope.branch.placeholder": "main",
+    "scope.generate": "Generating",
+    "scope.full": "Always generate this project fully",
+    "scope.full.note":
+      "Adds the <code>lua-language-server</code> enrichment behind the Types panel. It needs that tool installed, takes longer, and gains a non-Lua project nothing — so it is a choice per project, not a setting for this machine.",
 
     // The diagnosis behind "no grammar for …". Four sentences rather than
     // one with holes in it: "the directory holds other things", "it holds
@@ -395,6 +428,16 @@ const CATALOGS = {
       "Hell, dunkel, oder was dein Betriebssystem eingestellt hat. System ist die Vorgabe und bleibt wählbar — du kannst die Wahl also jederzeit wieder abgeben.",
     "help.language":
       "Die Sprache dieses Fensters. Sie ändert nichts an der erzeugten Karte — die ist ein eigenes Artefakt mit eigener Übersetzung.",
+    "help.scopeSource":
+      "Aus welchem Ordner oder welchen Ordnern die Engine hier Code liest, relativ zum Projekt. Lass es leer, dann findet sie sie selbst — das ist fast immer richtig. Setze es für ein Repository mit zwei Sprachen an zwei Orten oder mit Quellen an einer ungewöhnlichen Stelle.",
+    "help.scopeOutDir":
+      "Wohin die Karte im Projekt geschrieben wird, relativ zum Projektordner. Leer bedeutet docs/map. Änderst du es, folgt dieses Fenster der Karte an den neuen Ort.",
+    "help.scopeRepoUrl":
+      "Die Online-Adresse des Repositorys. Darauf zeigen die „Quelltext“-Links in der erzeugten Seite — ohne sie funktioniert die Seite und hat einfach keine Links nach draußen.",
+    "help.scopeBranch":
+      "Auf welchen Branch diese Quelltext-Links zeigen. Leer bedeutet main.",
+    "help.scopeFull":
+      "Für dieses Projekt immer die vollständigere, langsamere Erzeugung verwenden. Sie braucht lua-language-server und bringt nur einem Lua-Projekt etwas.",
 
     "repos.notInstalled":
       "Die GitHub-CLI (gh) liegt nicht auf deinem PATH. Installiere sie, um aus deinen eigenen Repositories zu wählen — oder füge oben eine URL ein, das geht so oder so.",
@@ -482,6 +525,11 @@ const CATALOGS = {
     "prefs.title": "Einstellungen",
     "prefs.appearance": "Darstellung",
     "prefs.theme": "Darstellung",
+    "prefs.behaviour": "Verhalten",
+    "prefs.sort": "Projekte sortieren nach",
+    "prefs.startDashboard": "Mit der Workspace-Übersicht starten",
+    "help.startDashboard":
+      "Ob beim Öffnen der App zuerst die Liste aller Projekte erscheint oder direkt wieder das zuletzt geöffnete. Du kannst das auch in der Übersicht selbst umstellen.",
     "prefs.engine": "Engine",
     "prefs.engine.note": "Die Engine ist <strong>das Standalone-Binary von documentation.nvim</strong> — diese App führt es aus, sie ersetzt es nicht. Normalerweise musst du hier nichts einstellen: die App bringt ihre eigene mit und benutzt sie. Zeig nur dann auf eine andere, wenn du deine eigene benutzen willst.",
     "prefs.telemetry": "Telemetry",
@@ -599,6 +647,24 @@ const CATALOGS = {
     "scope.save": "Speichern",
     "scope.saved": "Gespeichert. Die nächste Erzeugung für {name} benutzt diese Einstellungen.",
     "scope.failed": "Die Projekteinstellungen konnten nicht gespeichert werden: {error}",
+    "scope.layout": "Aufbau",
+    "scope.layout.note":
+      "Wo dieses Repository seinen Code und seine Karte hat. Lass beides leer, dann entscheidet die Engine — sie findet die Quellen selbst und schreibt nach <code>docs/map</code>, was für fast jedes Projekt richtig ist.",
+    "scope.source": "Quellen",
+    "scope.source.placeholder": "lua, src",
+    "scope.outdir": "Kartenordner",
+    "scope.outdir.placeholder": "docs/map",
+    "scope.links": "Quelltext-Links",
+    "scope.links.note":
+      "Worauf die <em>Quelltext</em>-Links in der erzeugten Seite zeigen. Ohne URL funktioniert die Seite weiterhin und hat einfach keine Links nach draußen — genau der Unterschied, der zwischen einer hier erzeugten Karte und einer aus der CI auffällt.",
+    "scope.repourl": "Repository-URL",
+    "scope.repourl.placeholder": "https://github.com/benutzer/repo",
+    "scope.branch": "Branch",
+    "scope.branch.placeholder": "main",
+    "scope.generate": "Erzeugen",
+    "scope.full": "Dieses Projekt immer vollständig erzeugen",
+    "scope.full.note":
+      "Ergänzt die <code>lua-language-server</code>-Anreicherung hinter dem Typen-Panel. Sie braucht dieses Werkzeug installiert, dauert länger und bringt einem Nicht-Lua-Projekt nichts — deshalb ist es eine Entscheidung pro Projekt und keine Einstellung für diesen Rechner.",
 
     "grammars.diag.dir":
       "Die Engine liest Grammatiken aus <code>{dir}</code>, dort liegen gerade {have}. Jede ist eine Shared Library, benannt nach ihrer Grammatik — <code>{example}.dll</code>, <code>.so</code> oder <code>.dylib</code>.",

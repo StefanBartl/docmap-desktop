@@ -1012,8 +1012,23 @@ async function refreshFreshness(id) {
 els.list.addEventListener("change", () => select(els.list.value));
 
 els.sort.value = sortBy;
-els.sort.addEventListener("change", async () => {
-  sortBy = els.sort.value;
+
+/**
+ * Adopt a sort order, from wherever it was chosen.
+ *
+ * Two controls now set the same thing — the sidebar dropdown and the one in
+ * Settings — so the write, the persistence and the "measure before you can
+ * order by it" rule live here rather than twice. The other control is
+ * updated too, because both are on screen in the same session and a pair
+ * that disagrees about the current order is worse than having only one.
+ *
+ * @param {string} value
+ */
+async function applySort(value) {
+  sortBy = value;
+  els.sort.value = value;
+  const inPrefs = document.getElementById("prefs-sort");
+  if (inPrefs) inPrefs.value = value;
   try {
     localStorage.setItem(SORT_KEY, sortBy);
   } catch (e) {
@@ -1025,7 +1040,9 @@ els.sort.addEventListener("change", async () => {
   // silently falls back to alphabetical on a fresh window.
   if (sortBy === "stale" || sortBy === "generated") await measureAll();
   render();
-});
+}
+
+els.sort.addEventListener("change", () => applySort(els.sort.value));
 
 /** Re-open whatever this workspace had open last, if it is still there.
  *
@@ -2721,13 +2738,30 @@ ws.create.addEventListener("click", () => {
   useWorkspace(name);
 });
 
-ws.skip.addEventListener("change", () => {
+/**
+ * Store "start with the workspace overview", from either control.
+ *
+ * The dashboard's own checkbox is phrased as the negative ("do not show
+ * this again") because that is what somebody looking at the dashboard wants
+ * to say; Settings phrases it as the positive, because a list of
+ * preferences reads better when every line is a thing that is on. One
+ * stored value, inverted at one of the two ends — see `setStartDashboard`'s
+ * single caller pair below.
+ *
+ * @param {boolean} show
+ */
+function setStartDashboard(show) {
   try {
-    localStorage.setItem(WS_SKIP_KEY, ws.skip.checked ? "1" : "0");
+    localStorage.setItem(WS_SKIP_KEY, show ? "0" : "1");
   } catch (e) {
     void e;
   }
-});
+  ws.skip.checked = !show;
+  const box = document.getElementById("prefs-dashboard");
+  if (box) box.checked = show;
+}
+
+ws.skip.addEventListener("change", () => setStartDashboard(!ws.skip.checked));
 
 async function openWorkspaces() {
   ws.problem.hidden = true;
@@ -2909,12 +2943,20 @@ function chooseLocale(code) {
 
 /* ---------------------------------------------------- per-project settings
 
-   Two questions the engine can be asked about scope, and nothing else:
-   which languages to read here, and which paths to leave out. Both live on
-   the project rather than on this machine — see `scopebox`'s own comment in
-   `index.html` — and both are passed to the engine on the Rust side, looked
-   up by root, so `Generate`, `Generate all` and `Check exactly` honour them
-   without each remembering to.
+   What this repository is, as opposed to what this machine is: which
+   languages to read here, which paths to leave out, where the sources and
+   the map live, what a source link should point at, and whether generating
+   it means generating it fully. All of it lives on the project rather than
+   on this machine — see `scopebox`'s own comment in `index.html` — and all
+   of it is passed to the engine on the Rust side, looked up by root, so
+   `Generate`, `Generate all` and `Check exactly` honour it without each
+   remembering to.
+
+   The engine also reads a `.docmap.json` in the repository itself now. What
+   is set here wins over that file, because a flag beats a config file in the
+   engine's own precedence — so an empty field here is not "override with
+   nothing", it is "leave whatever the repository says alone". That is why
+   every field stores `null` when cleared rather than an empty string.
 
    Read on open and written on Save, rather than live: this is a form, and a
    form that writes on every keystroke turns a half-typed path into a stored
@@ -3009,8 +3051,31 @@ async function openScope() {
     void e;
   }
   document.getElementById("scope-exclude").value = (scope.exclude || []).join("\n");
+  // `?? ""` rather than `|| ""`: identical for these values today, and the
+  // one that stays right if a field ever legitimately holds a falsy value
+  // somebody meant.
+  document.getElementById("scope-source").value = scope.source ?? "";
+  document.getElementById("scope-outdir").value = scope.outDir ?? "";
+  document.getElementById("scope-repourl").value = scope.repoUrl ?? "";
+  document.getElementById("scope-branch").value = scope.branch ?? "";
+  document.getElementById("scope-full").checked = Boolean(scope.full);
   renderScopeLanguages(scope.languages);
   document.getElementById("scopebox").showModal();
+}
+
+/** A field's value, or `null` when it was left empty.
+
+    `null`, never `""`: an empty field means "the engine decides", and the
+    engine's answer includes whatever the repository's own `.docmap.json`
+    says. An empty string would reach it as a real `--out-dir=` and override
+    that file with nothing. Rust normalises the non-empty case; this only has
+    to get the empty one right.
+
+    @param {string} id
+    @returns {string|null} */
+function scopeField(id) {
+  const value = document.getElementById(id).value.trim();
+  return value === "" ? null : value;
 }
 
 document.getElementById("scope-save").addEventListener("click", async () => {
@@ -3029,9 +3094,22 @@ document.getElementById("scope-save").addEventListener("click", async () => {
       // the engine, and one spelling means the dialog can un-tick everything
       // without inventing a third state that reads as "an empty map, please".
       languages: boxes.length > 0 ? boxes.map((b) => b.value) : null,
+      outDir: scopeField("scope-outdir"),
+      source: scopeField("scope-source"),
+      repoUrl: scopeField("scope-repourl"),
+      branch: scopeField("scope-branch"),
+      full: document.getElementById("scope-full").checked,
     });
     say(fill(t("scope.saved"), { name: scopeProject.name }));
     document.getElementById("scopebox").close();
+    // The map directory may have moved, and `map_dir` moved with it on the
+    // Rust side. Everything on screen that names a map — the picker's
+    // detail block, the freshness mark, the overview row — is drawn from
+    // the project list this call did not refresh, so without this the
+    // window keeps reading the old location and looks like the setting did
+    // not take.
+    freshness.delete(scopeProject.id);
+    await refresh();
   } catch (e) {
     const problem = document.getElementById("scope-problem");
     problem.textContent = fill(t("scope.failed"), { error: String(e) });
@@ -3091,6 +3169,24 @@ document.getElementById("scope-add").addEventListener("click", async () => {
  * different one.
  */
 function openPrefs() {
+  // The two behaviour controls mirror state that lives elsewhere — the
+  // sidebar's dropdown and the dashboard's own checkbox — so they are filled
+  // on open for the same reason the engine state is: the dialog is modal,
+  // nothing can change them behind it, and reading them here means there is
+  // no second copy to keep in step while it is shut.
+  //
+  // The options are cloned from the sidebar's own `<select>` rather than
+  // written out again in the markup: they are the same four orders, and a
+  // second list would be a second place to add the fifth.
+  const sortBox = document.getElementById("prefs-sort");
+  if (sortBox && sortBox.options.length === 0) {
+    for (const option of els.sort.options) {
+      sortBox.appendChild(option.cloneNode(true));
+    }
+  }
+  if (sortBox) sortBox.value = sortBy;
+  document.getElementById("prefs-dashboard").checked = !wsSkipped();
+
   document.getElementById("prefs-engine-state").textContent =
     els.engineState.textContent;
   // Read on open rather than kept in sync: it is a text field nothing else
@@ -3168,6 +3264,14 @@ document.getElementById("about-copy").addEventListener("click", async () => {
 
 document.getElementById("editor-cmd").addEventListener("change", (ev) => {
   invoke("editor_command", { set: ev.target.value }).catch((e) => say(String(e)));
+});
+
+document.getElementById("prefs-sort").addEventListener("change", (ev) => {
+  applySort(ev.target.value);
+});
+
+document.getElementById("prefs-dashboard").addEventListener("change", (ev) => {
+  setStartDashboard(ev.target.checked);
 });
 
 async function openDocs(page) {
