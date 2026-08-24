@@ -45,7 +45,7 @@ Handgriff.
 
 | # | Was | Warum du |
 |---|---|---|
-| **A1** | **`v0.3.0` veröffentlichen.** Der Entwurf steht mit neun Assets, alle vier Plattform-Jobs grün. (`v0.2.0` wurde nie veröffentlicht und ist gelöscht — 39 Commits landeten darauf, bevor jemand die App geöffnet hatte.) `RELEASING.md` sagt es selbst: *der letzte Schritt ist ein Mensch, der die App öffnet.* Vier Dinge durchgehen (Projekt lädt seine Karte · Karte erzeugen läuft · Einstellungen öffnen · Hilfe → Über nennt Engine und Build), plus **Projekt → Projekteinstellungen…** — das Feature, dessen Flags der Grund für den Engine-Build waren | Nichts automatisiert das, und nichts sollte |
+| **A1** | **`v0.4.0` veröffentlichen.** Getaggt und gebaut am 2026-08-24 — Projekteinstellungen kennt jetzt alle Flags der Engine (`df8e4a4`), plus `.docmap.json` auf der Engine-Seite. `RELEASING.md`s letzter Schritt bleibt ein Mensch: die vier Standardpunkte durchgehen, plus **Projekt → Projekteinstellungen…** selbst öffnen und ein paar der neuen Flags setzen | Nichts automatisiert das, und nichts sollte |
 | **A2** | **Discussions einschalten** — sobald **jemand anderes** eine echte Frage stellt. Dann wandert `question` auf `discussions/new?category=q-a`, eine Zeile in `TOPICS` | Entschieden (aus, mit Stolperdraht). Der Auslöser ist ein Ereignis, keine Aufgabe |
 
 ---
