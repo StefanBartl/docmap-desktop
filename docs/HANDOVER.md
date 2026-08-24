@@ -27,14 +27,38 @@ sie an Bedienwissen trug, steht unten unter *Alles ausführen*.
 
 | Repo | Branch | HEAD | CI |
 |---|---|---|---|
-| `E:\repos\documentation.nvim` | main | `04b6501` | grün, 5/5 Gates. `release-engine.yml` publiziert die Engine **und alle dreiundzwanzig Grammatiken** als rollendes GitHub-Release `standalone-latest` — das ist es, was `docmap-desktop`s Installer bündelt, und es rollt: zwei Installer einen Monat auseinander enthalten verschiedene Engines, weshalb *Über* den Commit der Engine nennt statt ihn aus der App-Version zu folgern |
+| `C:\repos\documentation.nvim` | main | `21d0a51`, getaggt **`v0.1.0`** | grün, 5/5 Gates |
 | `E:\repos\runtime-analysis.nvim` | main | `e10c374` | grün |
-| `E:\repos\docmap-desktop` | main | **`v0.3.0`** | kein CI-Gate, aber CI läuft; Release-Workflow ist Tag-getriggert (`v*`) und lädt die Engine von `standalone-latest`, bevor `cargo tauri build` startet. Ablauf in [`RELEASING.md`](RELEASING.md) |
+| `C:\repos\docmap-desktop` | main | `faf39e9`, getaggt **`v0.4.0`** (Draft, s. u.) | grün; Release-Workflow ist Tag-getriggert (`v*`) und lädt die Engine von `standalone-latest`, bevor `cargo tauri build` startet. Ablauf in [`RELEASING.md`](RELEASING.md) |
 | `C:\Users\bartl\AppData\Local\nvim` (persönliche Config) | main | `597af5d5` | kein CI |
 
-**`v0.3.0` geschnitten am 2026-08-21.** Der Release-Workflow baut die
-Installer aus dem Tag und legt sie als **Entwurf** an — der letzte Schritt ist
-ein Mensch, der die App öffnet, und das automatisiert nichts.
+**2026-08-24: `v0.1.0` und `v0.4.0` getaggt, in dieser Reihenfolge.**
+`documentation.nvim` hatte bis dahin gar kein Versionsschema — nur
+`standalone-latest`, den rollenden Pre-Release. Anlass war die Frage, ob
+man auf weitere Roadmap-Punkte (Multilang L3 u. a., allesamt „mehrere
+Sitzungen" ohne Termin) warten oder mit dem fertigen, getesteten Stand
+(Projekteinstellungen-Dialog, `.docmap.json`, drei frisch behobene
+CI-Defekte — Details in [`PLAN-DONE.md`](PLAN-DONE.md)) releasen soll.
+Entscheidung: releasen, jetzt. Eine leere Roadmap gibt es nie, und
+`RELEASING.md`s eigene Lehre aus `v0.2.0` ist, dass ein Entwurf schnell
+altert — warten kostet mehr als es bringt.
+
+Reihenfolge war wichtig: erst `standalone-latest` frisch bauen lassen
+(`publishedAt` 2026-08-24T18:52:45Z, ausgelöst automatisch durch den
+`lua/**`-Push auf `documentation.nvim`), **dann** `v0.4.0` taggen — sonst
+hätte der gebündelte Sidecar hinter den eigenen Fixes zurückgelegen,
+genau der Fehler, den `RELEASING.md` aus `v0.2.0` dokumentiert.
+
+**`v0.4.0` ist ein Draft, noch nicht veröffentlicht.** Der Build lief beim
+Schreiben dieser Zeile noch — Status mit `gh run list --workflow=release.yml
+--limit 1` prüfen. Sobald grün, steht **A1 in [`PLAN.md`](PLAN.md)**: der
+menschliche Check (App öffnen, Karte laden, Projekteinstellungen mit ein
+paar der neuen Flags ausprobieren), dann `gh release edit v0.4.0
+--draft=false`. Das ist absichtlich kein Automatismus — siehe `RELEASING.md`.
+
+**`v0.3.0` geschnitten am 2026-08-21, veröffentlicht.** Der Release-Workflow
+baut die Installer aus dem Tag und legt sie als **Entwurf** an — der letzte
+Schritt ist ein Mensch, der die App öffnet, und das automatisiert nichts.
 
 **`v0.2.0` wurde nie veröffentlicht.** Der Entwurf stand vollständig, und
 dann landeten 22 Desktop- und 17 Engine-Commits darauf — die
