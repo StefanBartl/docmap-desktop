@@ -1009,3 +1009,67 @@ weil genau dort ein Feld sich speichern, neu laden und nichts tun kann.
 (Fenstergröße merken) — eine neue Dependency, deren Bundling hier nicht
 verifizierbar war. Und ein Freitextfeld für zusätzliche Engine-Argumente:
 mit `.docmap.json` ist der bessere Ort dafür das Repository selbst.
+
+---
+
+## Nach dem zusammengeführten Plan, 2026-08-24
+
+### ~~A1 · `v0.3.0` veröffentlichen~~ — **veröffentlicht 2026-08-21**
+
+Die vier Standardpunkte plus Projekteinstellungen durchgegangen, alle
+bestanden. Der Eintrag stand in `PLAN.md` weiter als offen, obwohl
+`gh release list` seit dem 21. `v0.3.0` als `Latest` zeigt — beim
+nächsten Release-Durchgang aufgefallen und nachgetragen statt einfach
+überschrieben.
+
+### ~~documentation.nvim: drei Defekte im `tests`-Gate~~ — **behoben 2026-08-24**, [`6594a30`](https://github.com/StefanBartl/documentation.nvim/commit/6594a30) · [`21d0a51`](https://github.com/StefanBartl/documentation.nvim/commit/21d0a51)
+
+`tests` war seit dem async-History-Umbau (`def849c`) rot, verdeckt durch
+zwei weitere rote Gates. Eine Ursache mit zwei Symptomen, dahinter ein
+dritter, unabhängiger Defekt:
+
+**`opts.menu` war dokumentiert und wirkte nicht.** `browse/init.lua` liest
+`st.opts.menu`, aber `menu` fehlte in `KNOWN_OPTS_KEYS` und
+`usrcmds/browse.lua` reichte es nicht durch — wer die von `BINDINGS.md`
+selbst empfohlene Zeile `opts.menu = false` schrieb, bekam
+„unrecognized key(s)" und das Kontextmenü trotzdem. Aus dem Menu-Commit
+(`5953521`), einen Commit nach der Klasse von Bugs, die dieselbe Session
+vorher ausgeräumt hatte.
+
+**`docs/BINDINGS.md` trug einen von Hand eingefügten Abschnitt** in einer
+Datei, die `bindings/docs.lua` bei jedem `:DocMap` vollständig neu
+schreibt — hätte das nächste Regenerieren kommentarlos gelöscht. Text in
+den Renderer geholt, verifiziert per Byte-Vergleich zwischen erzeugter und
+committeter Datei.
+
+**Der Browse-History-Spec wartete nicht auf das asynchron geladene
+`git log`.** Lokal (volle Historie) schlug die Zeilenzahl fehl; auf CI
+(`actions/checkout` klont flach, ein Commit) erfüllte der Platzhalter
+„(loading commits…)" die Assertion selbst, `<CR>` landete auf einer
+Message-Zeile, und der Fehler erschien sieben Zeilen weiter als ein
+anderer Test. Eine Ursache, zwei Fundorte — verifiziert über
+`actions/checkout`s fehlendes `fetch-depth`, nicht vermutet.
+
+**Dahinter, erst nach dem Fix sichtbar:** `<RightMouse>` aus dem
+Menu-Feature fehlte im `?`-Cheatsheet — eine gebundene Taste, die die
+Übersicht nicht nennt, die sie beschreiben soll. Steht jetzt bewusst
+außerhalb der `KEYS`-Tabelle, weil sie kein Kommando ist, sondern ein
+Menü aus den Zeilen öffnet, die dort ohnehin schon stehen.
+
+### `v0.1.0` für documentation.nvim, `v0.4.0` für docmap-desktop — **getaggt 2026-08-24**
+
+documentation.nvim hatte kein Versionsschema — nur `standalone-latest`,
+den rollenden Pre-Release. `v0.1.0` markiert nur einen Stand (alle fünf
+CI-Gates grün), ist kein neuer Release-Workflow.
+
+Entscheidung dabei: nicht auf L3/L2/L1 aus `PLAN.md` warten — die haben
+keinen Termin, nur „mehrere Sitzungen". Das fertige, getestete Stück
+(Projekteinstellungen + die drei Fixes oben) wird jetzt veröffentlicht,
+das nächste Stück wird die nächste Version.
+
+`v0.4.0` gebaut, sobald `standalone-latest` mit dem frischen Engine-Stand
+(`publishedAt` 2026-08-24T18:52:45Z) fertig war, damit der gebündelte
+Sidecar nicht hinter den eigenen Fixes zurückbleibt — genau das Muster,
+das `RELEASING.md` aus `v0.2.0` gelernt hat. `v0.4.0` selbst: Draft,
+Veröffentlichung nach dem menschlichen Check ausständig (A1 in
+`PLAN.md`).
