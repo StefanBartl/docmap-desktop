@@ -1,248 +1,233 @@
-# Erledigt — das Protokoll zum Plan
+# Done — the record behind the plan
 
-Was aus [`PLAN.md`](PLAN.md) gebaut wurde, mit der Begründung, die beim
-Bauen entstanden ist. **Der Plan enthält nur noch Offenes**; hier liegt der
-Rest, damit keine Entscheidung zweimal getroffen wird und keine
-Erkenntnis mit dem Häkchen verschwindet.
+What has been built out of [`PLAN.md`](PLAN.md), with the reasoning that came
+out of building it. **The plan holds only open work**; the rest is here, so
+that no decision gets made twice and no finding disappears with a tick mark.
 
-Alles unten ist auf `main` in dem Repo, das der Eintrag nennt. Wo ein
-Commit steht, ist er die Quelle; wo keiner steht, nennt der Eintrag das
-Repo und das Datum.
+Everything below is on `main` in the repository the entry names. Where a
+commit is given, it is the source; where none is, the entry names the repo
+and the date.
 
-**Was hier auffällt und nicht in einer Häkchenliste stünde:** in fast jedem
-Eintrag steht ein Satz, der mit ‚und dabei kam heraus‘ anfängt. Das ist
-kein Zufall der Formulierung — es ist das Ergebnis davon, jede Sache gegen
-echte Daten zu messen statt gegen die eigene Erwartung.
+**What stands out here and would not stand in a checklist:** almost every
+entry contains a sentence beginning with "and what came out of it was". That
+is not an accident of phrasing — it is the result of measuring every matter
+against real data instead of against one's own expectation.
 
 ---
 
-## Die vier Entscheidungen, beantwortet 2026-08-20
+## The four decisions, answered 2026-08-20
 
-### D1 · Discussions — es gibt einen Grund, er greift nur noch nicht
+### D1 · Discussions — there is a reason, it just does not apply yet
 
-Die Frage war „gibt es einen Grund". Es gibt genau einen, und er ist
-schmaler als die fünf Kategorien vermuten lassen. Von `feature`, `bug`,
-`question`, `docs` und `other` gehören vier eindeutig in Issues: ein Bug,
-ein Doku-Fehler und „sonstiges" sind Arbeitsposten, die geschlossen werden.
+The question was "is there a reason". There is exactly one, and it is
+narrower than the five categories suggest. Of `feature`, `bug`, `question`,
+`docs` and `other`, four clearly belong in issues: a bug, a docs error and
+"other" are work items that get closed.
 
-**Nur `question` passt wirklich zu Discussions**, und dort passt es gut: eine
-Frage ist kein Defekt, sie wird nie „geschlossen", sie verstopft als Issue
-die Arbeitsliste, und ihre Antwort ist später nicht auffindbar wie ein
-Q&A-Thread mit akzeptierter Antwort. `feature` wäre als *Ideas* vertretbar,
-aber für ein Ein-Personen-Projekt ist eine Issue-Liste genau die Arbeitsliste,
-die man will.
+**Only `question` genuinely fits Discussions**, and there it fits well: a
+question is not a defect, it is never "closed", as an issue it clogs the work
+list, and its answer is not findable later the way a Q&A thread with an
+accepted answer is. `feature` would be defensible as *Ideas*, but for a
+one-person project an issue list is exactly the work list you want.
 
-**Dagegen steht ein zweiter Posteingang.** Der Nutzen — Auffindbarkeit von
-Antworten, Tracker bleibt Arbeitsliste — entsteht erst, wenn jemand
-tatsächlich fragt. Heute würde das Einschalten einen leeren Posteingang in
-zwei leere teilen.
+**Against it stands a second inbox.** The benefit — findable answers, tracker
+stays a work list — only arises once somebody actually asks. Today, turning it
+on would split one empty inbox into two.
 
-**Empfehlung: aus lassen. Auslöser für „an":** die erste echte Frage von
-jemandem, der nicht du ist. Dann `question` auf `discussions/new?category=q-a`
-umstellen — eine Zeile in `TOPICS`, genau wie `feedback.rs`' eigener Header
-es vorsieht. Damit ist das keine offene Frage mehr, sondern eine Entscheidung
-mit Stolperdraht.
+**Recommendation: leave it off. The trigger for "on":** the first real
+question from somebody who is not you. Then point `question` at
+`discussions/new?category=q-a` — one line in `TOPICS`, exactly as
+`feedback.rs`' own header anticipates. That makes this no longer an open
+question but a decision with a tripwire.
 
-### D4 · Es sind fünfzehn, und hier sind sie
+### D4 · There are fifteen, and here they are
 
-Die Zahl „sechzehn" stimmte, bis Entscheidung 1 **Scratch** ausschloss —
-keine Textsprache, für diesen Contract nichts zu lesen. Danach wurde sie nie
-nachgezogen. Genau die Drift, für die es dieses Werkzeug gibt, im eigenen
-Backlog.
+The number "sixteen" was right until decision 1 excluded **Scratch** — not a
+text language, nothing to read for this contract. It was never corrected
+afterwards. Exactly the drift this tool exists for, in its own backlog.
 
-Die vollständige Liste mit Doku-Konvention, Sichtbarkeitsregel, dem
-bestehenden Backend, dessen Entscheidung sie wiederverwendet, und einer
-Kostenschätzung steht in
+The full list with documentation convention, visibility rule, the existing
+backend whose decision it reuses, and a cost estimate is in
 [`MULTILANG.md` § *The fifteen that are available*](../../documentation.nvim/docs/ROADMAP/IDEAS/MULTILANG.md).
 
-Kurzfassung, nach Kosten:
+Short form, by cost:
 
-- **Billig (S), weil ein bestehendes Backend die harte Entscheidung schon
-  getroffen hat:** **VB.NET** (fast C#), **Groovy** (fast Java/Kotlin),
-  **R** (Roxygen2 — das LuaCATS-ähnlichste außerhalb von Lua), **Bash**
-  (Pfad-Identität wie Zig, `source` ist die Require-Kante).
-- **S–M:** **PowerShell** (Export-Liste wie Erlang), **F#** (`.fsi` — die
-  `.mli`-Form, einmal gelöst), **Julia**, **Solidity** (NatSpec ist
-  tag-förmig).
-- **M, eigene Form:** **Perl** (POD ist *kein* Kommentar — bisher nur Python
-  als Präzedenzfall), **SQL** (Entscheidung 3), **Delphi**
-  (`interface`/`implementation` in *einer* Datei — die hat weder C noch
-  OCaml), **Ada** (Spec und Body in zwei Dateien — die dritte Sprache, die
-  das erzwingt, und damit ein Muster, das die IR vielleicht tragen sollte).
-- **M und eine andere Art Backend:** **Fortran**, **COBOL**, **MATLAB** —
-  kein gepflegter Grammar, also Zeilen-Scanner. Das ist eine *zweite* Sorte
-  Backend; wer hier anfängt, bezahlt das Muster.
+- **Cheap (S), because an existing backend has already made the hard
+  decision:** **VB.NET** (nearly C#), **Groovy** (nearly Java/Kotlin),
+  **R** (Roxygen2 — the closest thing to LuaCATS outside Lua), **Bash**
+  (path identity like Zig, `source` is the require edge).
+- **S–M:** **PowerShell** (export list like Erlang), **F#** (`.fsi` — the
+  `.mli` shape, solved once), **Julia**, **Solidity** (NatSpec is tag-shaped).
+- **M, its own shape:** **Perl** (POD is *not* a comment — so far only Python
+  as a precedent), **SQL** (decision 3), **Delphi**
+  (`interface`/`implementation` in *one* file — neither C nor OCaml has
+  that), **Ada** (spec and body in two files — the third language forcing
+  that, and therefore a pattern the IR should perhaps carry).
+- **M and a different kind of backend:** **Fortran**, **COBOL**, **MATLAB** —
+  no maintained grammar, so a line scanner. That is a *second* kind of
+  backend; whoever starts here pays for the pattern.
 
-**Empfehlung, falls doch eine kommt:** aus den oberen zehn wählen, nicht weil
-die unteren fünf schwer wären, sondern weil der erste Zeilen-Scanner ein
-neues Muster etabliert und das teurer ist als die Sprache selbst.
-
----
+**Recommendation, should one come after all:** pick from the top ten, not
+because the bottom five are hard, but because the first line scanner
+establishes a new pattern and that costs more than the language itself.
 
 ---
 
-## Gebaut
+---
 
-### ~~Q1 · Grammatik-Diagnose: welche Datei fehlt wo~~ — gebaut 2026-08-20
+## Built
 
-Die App sagte, *welche Backends* keine Grammatik haben, aber nicht, **welche
-Datei in welchem Verzeichnis** fehlt — die Hälfte, die vom verworfenen
-Grammatik-Manager übrig blieb: kein Netz, keine neue Abhängigkeit, nur die
-Auskunft.
+### ~~Q1 · Grammar diagnosis: which file is missing where~~ — built 2026-08-20
 
-Gebaut als `grammar_dir` (Rust) plus `grammarDiagnosis` (rein, testbar),
-vier Sätze im Katalog statt einem mit Löchern. **Es listet den
-Verzeichnisinhalt, statt die Suchregel nachzubauen** — die Regel gehört der
-Engine (`standalone/treesitter.lua`), und eine zweite Fassung hier könnte
-ihr widersprechen und dabei maßgeblich aussehen.
+The app said *which backends* have no grammar, but not **which file in which
+directory** is missing — the half left over from the discarded grammar
+manager: no network, no new dependency, just the information.
 
-Zwei Befunde kamen erst vom Ansehen im Browser: der Satz wiederholte die
-neunzehn Namen aus der Zeile darüber (141px in einer 259px-Spalte, dazu in
-zwei Vokabularen — Backend-Namen oben, Grammatiknamen unten), und das
-Beispiel war eine Datei, die zwei Sätze vorher als *vorhanden* aufgezählt
-wurde. Beides behoben, beides jetzt durch Tests festgehalten.
+Built as `grammar_dir` (Rust) plus `grammarDiagnosis` (pure, testable), four
+sentences in the catalogue instead of one with holes. **It lists the directory
+contents instead of rebuilding the search rule** — the rule belongs to the
+engine (`standalone/treesitter.lua`), and a second version here could
+contradict it while looking authoritative.
 
-### ~~Q2 · Letzte Auswahl pro Workspace~~ — gebaut 2026-08-20
+Two findings came only from looking at it in the browser: the sentence
+repeated the nineteen names from the line above it (141px in a 259px column,
+and in two vocabularies — backend names above, grammar names below), and the
+example was a file listed two sentences earlier as *present*. Both fixed, both
+now pinned by tests.
 
-Ein Schlüssel pro Workspace, migriert in dem Moment, in dem der aktive
-Workspace bekannt wird — nicht beim ersten Wechsel, der würde die Auswahl des
-alten Workspace unter dem neuen ablegen.
+### ~~Q2 · Last selection per workspace~~ — built 2026-08-20
 
-**Und „nirgendwo" war ein Zustand, den die Seitenleiste nicht ausdrücken
-konnte:** ein `<select>` hat immer eine gewählte Option, also nannte der
-Picker das erstsortierte Projekt, während die Fläche daneben „Nichts
-ausgewählt" sagte. Der erste Fix sah richtig aus und war es nicht — die
-Option wurde gesetzt und eine Zeile später überschrieben. **Beides fand der
-Blick auf die laufende Seite; der Strukturtest lief durch beide Fassungen
-grün.**
+One key per workspace, migrated at the moment the active workspace becomes
+known — not on the first switch, which would file the old workspace's
+selection under the new one.
 
-### ~~Q3 · Doku-Hygiene in der Engine~~ — gebaut 2026-08-20, `8b98f86`
+**And "nowhere" was a state the sidebar could not express:** a `<select>`
+always has a chosen option, so the picker named the first project in sort
+order while the pane beside it said "Nothing selected". The first fix looked
+right and was not — the option was set and overwritten one line later. **Both
+were found by looking at the running page; the structural test passed on both
+versions.**
 
-Vier Stellen waren benannt, **zehn Abschnitte waren betroffen** — vier davon
-ohne jede Markierung, also als offene Arbeit lesbar. Dazu eine Behauptung,
-die der Bau widerlegt hatte: der Owning-Scope-Eintrag sagte, er müsse vor
-jeder Sprache landen, die ihn braucht — Python, Rust, Go, Java, C++, Kotlin,
-Swift und Scala sind ohne ihn gebaut worden, über qualifizierte flache
-Namen. Ursprünglich benannt: `ROADMAP/WORKPLAN.md:111` führt
-„Doc-Coverage pro Sprache" offen, gebaut am 2026-08-20 · `IDEAS/IDEAS.md`
-markiert §3.4/§4.1/§8.2 inline als erledigt, statt sie zu entfernen ·
-`IDEAS_IMPLEMENTATION_PLAN.md` braucht eine Neubewertung, seit §9s Kosten
-viermal bezahlt und §1.7s Vorbedingung erfüllt sind · `MULTILANG.md`s
-Phase-0-Liste zeigt Punkte, die geschlossen sind.
+### ~~Q3 · Documentation hygiene in the engine~~ — built 2026-08-20, `8b98f86`
 
-**Billig und selbstverstärkend:** die letzten beiden Doku-Durchgänge haben je
-einen echten Defekt gefunden, weil jemand die Doku gegen den Code gelesen hat
-statt gegen die Erinnerung.
+Four places were named, **ten sections were affected** — four of them without
+any marking at all, so readable as open work. Plus a claim the build had
+refuted: the owning-scope entry said it had to land before every language that
+needs it — Python, Rust, Go, Java, C++, Kotlin, Swift and Scala were built
+without it, via qualified flat names. Originally named:
+`ROADMAP/WORKPLAN.md:111` lists "doc coverage per language" as open, built on
+2026-08-20 · `IDEAS/IDEAS.md` marks §3.4/§4.1/§8.2 inline as done instead of
+removing them · `IDEAS_IMPLEMENTATION_PLAN.md` needs a reassessment now that
+§9's cost has been paid four times and §1.7's precondition is met ·
+`MULTILANG.md`'s phase-0 list shows items that are closed.
 
-### ~~Q4 · `orphaned-class-alias`~~ — gebaut 2026-08-20
+**Cheap and self-reinforcing:** the last two documentation passes each found a
+real defect, because somebody read the documentation against the code instead
+of against their memory.
 
-Ein `@class`/`@alias`, auf den nichts mehr zeigt — `unreferenced-module` eine
-Ebene tiefer. `info`, wie sein Geschwister-Check: ein veröffentlichter Typ
-kann legitim nur von einem *Konsumenten* außerhalb dieses Baums referenziert
-werden.
+### ~~Q4 · `orphaned-class-alias`~~ — built 2026-08-20
 
-**Gemessen: 28 in `lib.nvim`, 1 in `runtime-analysis.nvim`, 1 im eigenen
-Repo** — `Documentation.Browse`, eine Aggregat-Klasse für die Modul-
-Oberfläche, auf die nichts zeigt; exakt dieselbe Form wie `lib.nvim`s
-`Lib.Fs.ALL` und `Lib.Modules`. Stichprobenartig von Hand geprüft, kein
-Fehlalarm darunter.
+An `@class`/`@alias` nothing points at any more — `unreferenced-module` one
+level down. `info`, like its sibling check: a published type can legitimately
+be referenced only by a *consumer* outside this tree.
 
-**Der Fund steckte in der Messmethode.** Die erste Fassung fragte
-`line:find(name)` — ein Teilstring-Vergleich, mit dem `Lib.Fs.Read` von jeder
-Erwähnung von `Lib.Fs.ReadAsync` als „referenziert" galt. Das verdeckte vier
-der achtundzwanzig echten Funde. Jetzt ein Token-Vergleich; die eigene
-Deklarationszeile zählt nicht als Verwendung, **der Rest der Zeile schon** —
-`---@class Child : Parent` ist oft die einzige Stelle, an der `Parent`
-überhaupt genannt wird.
+**Measured: 28 in `lib.nvim`, 1 in `runtime-analysis.nvim`, 1 in its own
+repo** — `Documentation.Browse`, an aggregate class for the module surface
+that nothing points at; exactly the same shape as `lib.nvim`'s `Lib.Fs.ALL`
+and `Lib.Modules`. Spot-checked by hand, no false positive among them.
 
-### ~~Q5 · Tests, die eine verschwundene Funktion nennen~~ — gebaut 2026-08-20
+**The finding was in the measuring method.** The first version asked
+`line:find(name)` — a substring comparison, under which `Lib.Fs.Read` counted
+as "referenced" by any mention of `Lib.Fs.ReadAsync`. That hid four of the
+twenty-eight real findings. Now a token comparison; the declaration line
+itself does not count as a use, **the rest of that line does** —
+`---@class Child : Parent` is often the only place `Parent` is named at all.
 
-`test-references-missing`, `warn`: ein Spec nennt `mod.member` über eine
-`local mod = require(…)`-Bindung, und das Modul hat das nicht mehr. Dieselbe
-Klasse wie `doc-references-missing`, andere Richtung — und die Richtung, die
-`coverage.lua`s `fn.tested` nicht abdeckt.
+### ~~Q5 · Tests naming a function that has gone~~ — built 2026-08-20
 
-**Drei Fehlalarm-Klassen, jede an echtem Code gemessen statt ausgedacht.** Die
-erste Fassung lieferte neun Treffer an drei Repositories, und alle neun waren
-falsch: ein **Re-Export** (`M.x = require(…).x`, für `symbols.lua`
-absichtlich unsichtbar, weil `deps` ihn besitzt), eine **zur Laufzeit
-zusammengesetzte Oberfläche** (`lib/init.lua` ist wörtlich
-`return require(require("lib.config").strategy_module())`; `Path` bekommt sein
-`new` aus einer Klassenfabrik) und ein **überdeckendes Local**
-(`local config = { host = … }` in einem Testkörper). Alle drei sind jetzt
-Negativ-Fixtures im Spec.
+`test-references-missing`, `warn`: a spec names `mod.member` through a
+`local mod = require(…)` binding, and the module no longer has it. The same
+class as `doc-references-missing`, the other direction — and the direction
+`coverage.lua`'s `fn.tested` does not cover.
 
-**Und der eigentliche Fund kam vom Profiler, nicht vom Lesen.** Die erste
-Fassung verankerte die require-Query auf `(chunk …)` — die traf **einmal** in
-75 Spec-Dateien, weil ein Spec hier `return function(H) … end` ist und jedes
-`require` darin steht. Der Check meldete nichts, weil er nichts ansah. Null
-Treffer sind kein Beweis: was ihn belegt, sind die 713 / 760 / 547
-aufgelösten Zugriffe pro Baum und die Positivkontrolle im Spec.
+**Three classes of false positive, each measured against real code rather than
+imagined.** The first version produced nine hits across three repositories,
+and all nine were wrong: a **re-export** (`M.x = require(…).x`, deliberately
+invisible to `symbols.lua` because `deps` owns it), a **surface assembled at
+runtime** (`lib/init.lua` is literally
+`return require(require("lib.config").strategy_module())`; `Path` gets its
+`new` from a class factory) and a **shadowing local**
+(`local config = { host = … }` in a test body). All three are negative
+fixtures in the spec now.
 
-Kosten: ~150 ms, 5,9 % von Scan+Check — bleibt daher an statt opt-in.
+**And the actual finding came from the profiler, not from reading.** The first
+version anchored the require query on `(chunk …)` — which matched **once** in
+75 spec files, because a spec here is `return function(H) … end` and every
+`require` sits inside it. The check reported nothing because it looked at
+nothing. Zero hits are not proof: what proves it are the 713 / 760 / 547
+resolved accesses per tree and the positive control in the spec.
 
-### ~~Q6 · Per-entry reference anchors~~ — gebaut 2026-08-20
+Cost: ~150 ms, 5.9 % of scan+check — so it stays on rather than opt-in.
 
-Leer waren sie aus einem genannten Grund: die Anker des Lua-5.1-Manuals waren
-nie **geprüft**, und ein Referenz-Panel voller Links, die falsch landen, ist
-genau der Fehler, für den es in diesem Repo schon einen `dead-readme-link`-
-Check gibt. Füllen hieß also prüfen, nicht schreiben.
+### ~~Q6 · Per-entry reference anchors~~ — built 2026-08-20
 
-Das veröffentlichte Manual wurde geholt, seine 397 `<a name>`-Anker
-extrahiert, jeder Eintrag dagegen abgeglichen:
+They were empty for a stated reason: the Lua 5.1 manual's anchors had never
+been **verified**, and a reference panel full of links that land wrong is
+exactly the failure this repo already has a `dead-readme-link` check for.
+Filling them therefore meant verifying, not writing.
 
-- **35 Bibliotheksfunktionen** → `#pdf-<name>`, die Konvention des Manuals
-  selbst, für jede einzeln bestätigt.
-- **22 Schlüsselwörter** → Abschnittsanker, gefunden durch Suche im
-  *Fließtext* nach dem Satz, der das Wort dokumentiert — nicht durch
-  Inhaltsverzeichnis-Raten. Deshalb landen `do` und `end` bei **2.4.2**
-  (Blocks) statt neben `if` bei 2.4.4, und `self` bei **2.5.9**.
-- **`goto` bekommt keinen**, und das ist der Punkt: es existiert in 5.1 gar
-  nicht — was seine eigene `note` sagt — ein Link hätte dem Satz daneben
-  widersprochen.
-- **Die 18 `vim.*`-Einträge bekommen keinen**, wie es der Renderer ohnehin
-  schon kodiert.
+The published manual was fetched, its 397 `<a name>` anchors extracted, every
+entry checked against them:
 
-`glossary_spec.lua` prüft die *Form*, nicht die Ziele — ein Spec, der ins Netz
-greift, fällt im Zug um. Mutationsgeprüft.
+- **35 library functions** → `#pdf-<name>`, the manual's own convention,
+  confirmed individually for each.
+- **22 keywords** → section anchors, found by searching the *prose* for the
+  sentence documenting the word — not by guessing from the table of contents.
+  Which is why `do` and `end` land at **2.4.2** (blocks) rather than beside
+  `if` at 2.4.4, and `self` at **2.5.9**.
+- **`goto` gets none**, and that is the point: it does not exist in 5.1 at all
+  — which its own `note` says — so a link would have contradicted the sentence
+  beside it.
+- **The 18 `vim.*` entries get none**, as the renderer already encodes anyway.
 
-**ECMA bleibt leer**, und der Grund ist die Form, nicht der Aufwand: Lua ist
-eine Seite mit Fragmenten (ein Fetch prüft alles), MDN ist *eine Seite pro
-Schlüsselwort* — ein Eintrag müsste einen Pfad anhängen, und das zu prüfen
-sind Dutzende Requests gegen eine Site, die umbaut.
+`glossary_spec.lua` checks the *shape*, not the targets — a spec that reaches
+into the network falls over on a train. Mutation-checked.
 
-### ~~Q7 · Print-/PDF-Stylesheet~~ — gebaut 2026-08-20
+**ECMA stays empty**, and the reason is the shape rather than the effort: Lua
+is one page with fragments (a single fetch verifies everything), MDN is *one
+page per keyword* — an entry would have to append a path, and verifying that
+is dozens of requests against a site that is being rebuilt.
 
-Ein `@media print`-Block in `render/html.lua`. Vier Dinge, die sonst
-*schlecht* statt nur schlicht gedruckt hätten:
+### ~~Q7 · Print/PDF stylesheet~~ — built 2026-08-20
 
-1. **Die Panes sind beschnitten, nicht lang.** `#tree`, `#detail` und die
-   beiden History-Panes tragen `max-height:calc(100vh - Npx)` mit
-   `overflow:auto` — auf Papier heißt das: der erste Bildschirm wird
-   gedruckt, der Rest existiert stillschweigend nicht. Das Aufheben ist die
-   eine Änderung, ohne die es gar nicht funktioniert.
-2. **Dark Mode geht mit zum Drucker.** `prefers-color-scheme` gehört dem
-   Leser, nicht dem Blatt, und Browser überschreiben das nicht.
-3. **Bedienelemente, die auf Papier keine sind** — Tabs, Suchfeld,
-   Graph-Steuerzeile, alle Buttons. Die Tab-*Leiste* geht, die aktuelle
-   Ansicht bleibt: `.view` blendet die anderen ohnehin aus, ein Ausdruck ist
-   also der Tab, auf dem man stand.
-4. **Zeilen, die am Falz zerreißen** — `break-inside:avoid`.
+An `@media print` block in `render/html.lua`. Four things that would otherwise
+have printed *badly* rather than merely plainly:
 
-**Bewusst nicht:** eingeklappte Tree-Äste aufklappen. Gedruckt wird, was auf
-dem Schirm steht.
+1. **The panes are clipped, not long.** `#tree`, `#detail` and the two history
+   panes carry `max-height:calc(100vh - Npx)` with `overflow:auto` — on paper
+   that means the first screen prints and the rest silently does not exist.
+   Lifting that is the one change without which none of it works.
+2. **Dark mode goes to the printer too.** `prefers-color-scheme` belongs to
+   the reader, not to the sheet, and browsers do not override it.
+3. **Controls that are not controls on paper** — tabs, the search box, the
+   graph control row, every button. The tab *bar* goes, the current view
+   stays: `.view` hides the others anyway, so a printout is the tab you were
+   on.
+4. **Rows that tear at the fold** — `break-inside:avoid`.
 
-**Verifiziert statt angenommen:** die Seite wurde mit `@media print` auf
-`@media screen` umgeschrieben, im Browser geladen und die berechneten Stile
-abgefragt — `#tree` bei `max-height:none`/`overflow:visible`, Tabs, Toolbar,
-Steuerzeile und Buttons auf `display:none`, Body weiß auf schwarz,
-`.row` auf `break-inside:avoid`, und `main` einspaltig, wenn der Tree-Tab
-aktiv ist.
+**Deliberately not:** expanding collapsed tree branches. What prints is what
+is on the screen.
 
-### ~~Q9 · Eine GitHub Action~~ — gebaut 2026-08-20, `3ae9c83`
+**Verified rather than assumed:** the page was rewritten with `@media print`
+as `@media screen`, loaded in the browser and its computed styles queried —
+`#tree` at `max-height:none`/`overflow:visible`, tabs, toolbar, control row
+and buttons at `display:none`, body white on black, `.row` at
+`break-inside:avoid`, and `main` single-column when the tree tab is active.
 
-`action.yml` an der Wurzel plus `scripts/action_run.lua`. Anschließen kostet
-jetzt drei Zeilen statt zweier kopierter Dateien:
+### ~~Q9 · A GitHub Action~~ — built 2026-08-20, `3ae9c83`
+
+`action.yml` at the root plus `scripts/action_run.lua`. Wiring it up now costs
+three lines instead of two copied files:
 
 ```yaml
 - uses: StefanBartl/documentation.nvim@main
@@ -250,826 +235,783 @@ jetzt drei Zeilen statt zweier kopierter Dateien:
     source: lua/myplugin
 ```
 
-`REUSE.md`s „zwei Dateien kopieren und fünf Zeilen ändern" bleibt daneben
-richtig — für ein Repository mit eigenen Layer-Regeln.
+`REUSE.md`'s "copy two files and change five lines" stays right beside it —
+for a repository with its own layer rules.
 
-### ~~Q10 · Live-Call-Count-Badge im Annotation-Popup~~ — gebaut 2026-08-20, `9a1cd10`
+### ~~Q10 · Live call-count badge in the annotation popup~~ — built 2026-08-20, `9a1cd10`
 
-Gelandet in `documentation.nvim`s LSP-Hover statt in einem eigenen Popup:
-`K` auf einer Funktion liest jetzt
+Landed in `documentation.nvim`'s LSP hover rather than in a popup of its own:
+`K` on a function now reads
 `**3** incoming calls · **1** outgoing call · called **412**× in the last 7 days`.
 
-**Drei Zustände, und der mittlere ist der Grund für das Zeitfenster.** Echte
-jüngste Aufrufe heißen lebendig; aufgezeichnete ohne jüngste sind ein *kalter
-Pfad* — was die Gesamtzahl allein nicht sagen kann; gar keine dritte Klausel
-heißt „keine Telemetrie", nie „nicht aufgerufen".
+**Three states, and the middle one is the reason for the time window.** Real
+recent calls mean alive; recorded ones without recent ones are a *cold path* —
+which the total alone cannot say; no third clause at all means "no telemetry",
+never "not called".
 
-**Der Fall, für den es gebaut wurde, ist der, in dem beide statischen Zahlen
-null sind.** Eine Funktion, die statisch niemand aufruft — als Callback-Wert
-gebunden, oder über dynamischen Dispatch erreicht — lieferte vorher *gar
-keinen* Hover. Genau das ist der blinde Fleck der statischen Analyse.
+**The case it was built for is the one where both static numbers are zero.** A
+function nobody calls statically — bound as a callback value, or reached
+through dynamic dispatch — previously produced *no* hover at all. That is
+precisely static analysis' blind spot.
 
-**Eine Korrektur am Eintrag:** `(7d)` steht nicht in `Data.functions`, das
-zählt seit jeher. Ableitbar ist es aus `Data.days`' Kalenderkübeln, und daher
-kommt `Row.calls_recent`.
+**One correction to the entry:** `(7d)` is not in `Data.functions`, which has
+always been a total. It is derivable from `Data.days`' calendar buckets, and
+that is where `Row.calls_recent` comes from.
 
-**Zwei echte Defekte auf dem Weg**, beide mehr wert als das Feature selbst:
-der Join traf fast nichts (`scan_full` gegen `M.scan_full` — dieselbe
-Schlüsselraum-Verwechslung, die auf der *Modul*-Seite schon einmal gefunden
-und behoben wurde, auf der *Funktions*-Seite überlebt), und ein zweites
-Repository in einer Sitzung bekam überhaupt keine Call-Hierarchie
-(`reuse_client` verglich nur den Namen).
+**Two real defects on the way**, both worth more than the feature itself: the
+join matched almost nothing (`scan_full` against `M.scan_full` — the same
+key-space confusion already found and fixed on the *module* side, surviving on
+the *function* side), and a second repository in one session got no call
+hierarchy at all (`reuse_client` compared only the name).
 
-### ~~Q11 · `:MDView preview-tab` als Report-Stil~~ — gebaut 2026-08-20, `0d5ec4d`
+### ~~Q11 · `:MDView preview-tab` as a report style~~ — built 2026-08-20, `0d5ec4d`
 
-`report_style = "preview-tab"`: ein echter Puffer im eigenen Tab, kein Relay,
-kein Browser, nichts heruntergeladen.
+`report_style = "preview-tab"`: a real buffer in its own tab, no relay, no
+browser, nothing downloaded.
 
-**Der Gewinn ist `conceallevel`, nicht der Puffer** — gemessen an
-`mdview.adapter.preview_tab`, nicht angenommen. Ein read-only Scratch-Puffer
-in einem Tab wäre zwanzig Zeilen hier gewesen; das Verbergen der `**` und
-Backticks ist der Teil, für den es sich lohnt, von einem anderen Plugin
-abzuhängen.
+**The gain is `conceallevel`, not the buffer** — measured against
+`mdview.adapter.preview_tab`, not assumed. A read-only scratch buffer in a tab
+would have been twenty lines here; concealing the `**` and the backticks is
+the part that makes depending on another plugin worth it.
 
-**`"auto"` blieb unangetastet.** Den billigeren Tier zum Standard zu machen
-ist ein echtes Argument — und verliert gegen ein besseres: `"auto"` ist das,
-worauf jede bestehende Konfiguration schon auflöst.
+**`"auto"` was left untouched.** Making the cheaper tier the default is a real
+argument — and loses to a better one: `"auto"` is what every existing
+configuration already resolves to.
 
-### ~~Q12 · Ein gemeinsamer Projektschlüssel~~ — entschieden 2026-08-20, `5f4083f`
+### ~~Q12 · One shared project key~~ — decided 2026-08-20, `5f4083f`
 
-**Die Entscheidung ist `lib.nvim.fs.project_key`**, und es gab nie einen
-echten Wettbewerb: §3.4 nannte es selbst, es liegt in der Abhängigkeit, die
-alle drei teilen, und die Request-History schlüsselt heute darauf.
+**The decision is `lib.nvim.fs.project_key`**, and there was never a real
+contest: §3.4 named it itself, it lives in the dependency all three share, and
+the request history keys on it today.
 
-`documentation.nvim` normalisiert `opts.root` jetzt durch dasselbe
-`lib.nvim.fs.normkey`, und die Registry schlüsselt Handles über dieselbe
-Funktion statt über eine zweite Kopie, die zufällig übereinstimmte.
+`documentation.nvim` now normalises `opts.root` through the same
+`lib.nvim.fs.normkey`, and the registry keys handles through the same function
+rather than through a second copy that happened to agree.
 
-**Die Abweichung war gemessen, nicht vermutet:** bei explizit übergebenem
-Root — jeder Headless-Lauf, jeder CI-Job, jedes Projekt aus diesem Programm —
-waren `e:/repo` und `E:/repo` zwei Repositories.
+**The divergence was measured, not suspected:** with an explicitly passed root
+— every headless run, every CI job, every project from this program —
+`e:/repo` and `E:/repo` were two repositories.
 
-**Zwei Dinge vorher geprüft**, weil eine Schlüsseländerung die teure Sorte
-ist: kein absoluter Pfad steht im `module_map.json` (keine committete Karte
-wird stale), und `normkey` degradiert korrekt unter `standalone/vim_shim.lua`
-— gegen dessen echte `uv`-Oberfläche ausprobiert, was die eine reale Lücke
-zutage brachte (`normkey` schneidet keinen Schrägstrich am Ende ab; unter
-Neovim hatte `fs_realpath` das verdeckt).
+**Two things checked beforehand**, because a key change is the expensive kind:
+no absolute path appears in `module_map.json` (no committed map goes stale),
+and `normkey` degrades correctly under `standalone/vim_shim.lua` — tried
+against its real `uv` surface, which surfaced the one real gap (`normkey` does
+not trim a trailing slash; under Neovim `fs_realpath` had hidden that).
 
-**Offen und jetzt billig:** Telemetrie-Namespaces sind Plugin-Namen, mdview
-schlüsselt auf `cwd`. Beides absichtlich, beides blockiert nichts.
+**Open and cheap now:** telemetry namespaces are plugin names, mdview keys on
+`cwd`. Both deliberate, neither blocks anything.
 
-### ~~Q13 · Extension-API, Stufe 1~~ — gebaut 2026-08-20
+### ~~Q13 · Extension API, stage 1~~ — built 2026-08-20
 
-Geschrieben, wo das Artefakt herkommt statt wo darüber geredet wurde:
+Written where the artifact comes from rather than where it was discussed:
 [`documentation.nvim/docs/HOSTING.md` § *The artifact is the extension
-point*](../../documentation.nvim/docs/HOSTING.md). Die Engine besitzt das
-Schema; eine Zusage darüber gehört neben den Schreiber, nicht neben einen
-Leser.
+point*](../../documentation.nvim/docs/HOSTING.md). The engine owns the schema;
+a promise about it belongs beside the writer, not beside a reader.
 
-Der Satz („es gibt keine Plugin-API, und das *ist* die Antwort") plus vier
-Dinge, auf die man sich verlassen kann, drei, die ein Bump tun darf, drei,
-die er nicht darf.
+The sentence ("there is no plugin API, and that *is* the answer") plus four
+things you can rely on, three a bump may do, three it may not.
 
-**Beim Schreiben fand sich sofort eine falsche Zusage**, die dort schon
-stand: „bumped when the artifact **gains** a field". Schema 5 hat drei
-*entfernt*. Korrigiert — und die Regel dahinter festgehalten: eine Entfernung
-darf die *Tatsache* nicht verlieren, nur ihre Formulierung. Derselbe Bump hat
-`n`/`total` neben `value` ergänzt, damit „45 of 72" ohne das Englisch
-überlebt.
+**Writing it immediately turned up a false promise** already standing there:
+"bumped when the artifact **gains** a field". Schema 5 *removed* three.
+Corrected — and the rule behind it recorded: a removal must not lose the
+*fact*, only its wording. That same bump added `n`/`total` beside `value`, so
+that "45 of 72" survives without the English.
 
-Die Leseregel ist die, der dieses Projekt selbst folgt: **vorwärts
-tolerieren, rückwärts ablehnen.** `core/diff.lua` vergleicht `schema >= 2`,
-nie `== 2`, und degradiert, indem es *benennt, was es nicht sagen kann*.
+The reading rule is the one this project follows itself: **tolerate forwards,
+reject backwards.** `core/diff.lua` compares `schema >= 2`, never `== 2`, and
+degrades by *naming what it cannot say*.
 
-### ~~Q14 · Den fehlenden Werkzeugnamen nennen~~ — gebaut 2026-08-20
+### ~~Q14 · Name the missing tool~~ — built 2026-08-20
 
-`:checkhealth documentation` hat einen neuen Abschnitt **language support**.
+`:checkhealth documentation` has a new **language support** section.
 
-**Und dabei kam eine größere Lücke heraus, als der Eintrag vermutete.** Der
-Health-Check prüfte den **Lua**-Parser — die ganze Geschichte, solange es ein
-Backend gab. Es sind dreiundzwanzig, und ein Go- oder Python-Baum ohne
-Grammatik liefert einen vollständigen Modulbaum *ohne Funktionen darin*, was
-sich wie ein Scanner-Fehler liest und nicht wie eine fehlende Grammatik. Das
-ist der wahrscheinlichste Grund für ein leeres Panel außerhalb von Lua, und
-darüber sagte der Check bisher nichts.
+**And what came out of it was a bigger gap than the entry suspected.** The
+health check checked the **Lua** parser — the whole story for as long as there
+was one backend. There are twenty-three, and a Go or Python tree without a
+grammar yields a complete module tree *with no functions in it*, which reads
+like a scanner bug rather than a missing grammar. That is the most likely
+reason for an empty panel outside Lua, and the check said nothing about it.
 
-Jetzt: pro Sprache, die in den Quellwurzeln **tatsächlich vorkommt**,
-Grammatik vorhanden oder nicht — mit `:TSInstall <grammar>`. Nie alle
-dreiundzwanzig; zweiundzwanzig abwesende Grammatiken für ein Lua-Repository
-sind eine Wand, die niemand liest.
+Now: per language that **actually occurs** in the source roots, grammar
+present or not — with `:TSInstall <grammar>`. Never all twenty-three;
+twenty-two absent grammars for a Lua repository are a wall nobody reads.
 
-**Die Korrektur steht daneben**, weil der Reflex „dann brauche ich pro
-Sprache einen Linter" genau hier entsteht: nein. Jeder Check liest die IR,
-die dieses Plugin gebaut hat, und meldet in jeder Sprache ohne installiertes
-Werkzeug. Eine Grammatik kauft *Funktionsebene*, `lua-language-server` kauft
-`@class`/`@alias`-Detail. Mehr externe Abhängigkeiten gibt es nicht, und
-keine davon ist ein Linter.
+**The correction stands beside it**, because the reflex "then I need a linter
+per language" arises exactly here: no. Every check reads the IR this plugin
+built, and reports in every language without an installed tool. A grammar buys
+*function level*, `lua-language-server` buys `@class`/`@alias` detail. There
+are no further external dependencies, and none of them is a linter.
 
-**Der mason.nvim-Hinweis** steht ausschließlich an der
-`lua-language-server`-Zeile und nirgends sonst — und ausdrücklich *nicht* an
-den Grammatik-Zeilen: `:Mason` installiert Language Server, Grammatiken
-kommen von `:TSInstall`. Ein Satz, der auf mason zeigt, ist hilfreich;
-ein Programm, das eine Toolchain im Hintergrund installiert, ist etwas
-anderes.
+**The mason.nvim note** stands only on the `lua-language-server` line and
+nowhere else — and explicitly *not* on the grammar lines: `:Mason` installs
+language servers, grammars come from `:TSInstall`. A sentence pointing at
+mason is helpful; a program installing a toolchain in the background is
+something else.
 
-**Beide Pfade verifiziert**, nicht nur der grüne: derselbe Go-Fixture-Baum
-einmal ohne und einmal mit geladener Grammatik durch `health.check()`.
+**Both paths verified**, not only the green one: the same Go fixture tree
+through `health.check()` once without and once with the grammar loaded.
 
 ---
 
-### ~~M1 · Call-Kanten: **eine** Sprache vollständig, als Muster~~ — gebaut 2026-08-20, Go
+### ~~M1 · Call edges: **one** language completely, as the pattern~~ — built 2026-08-20, Go
 
-**Das größte Einzelloch im Werkzeug**, und für eine Sprache ist es zu.
-Vorher lieferten vier Backends von dreiundzwanzig Call-Kanten (`lua`, `js`,
-`ts`, `tsx`); jetzt fünf, und achtzehn liefern weiter `{}`.
+**The largest single hole in the tool**, and for one language it is closed.
+Before, four backends of twenty-three produced call edges (`lua`, `js`, `ts`,
+`tsx`); now five, and eighteen still produce `{}`.
 
-**Die Messung hat wieder etwas geändert — wie bei jedem der vierzehn
-Backends davor, ohne Ausnahme.** Und diesmal war es nicht der Extraktor,
-sondern der *Resolver*, was der eigentliche Fund für die übrigen achtzehn
-ist:
+**Measuring changed something again — as with every one of the fourteen
+backends before it, without exception.** And this time it was not the
+extractor but the *resolver*, which is the real finding for the remaining
+eighteen:
 
-- **Ein Go-Paket ist ein Verzeichnis.** Ein unqualifiziertes `double(n)` in
-  `widget.go` kann eine Funktion in `helper.go` daneben meinen, und nichts an
-  der Aufrufstelle sagt das. Go hat kein `module_file`, also sind das zwei
-  IR-Knoten — ein dateiweiser Resolver verliert damit *fast die Hälfte* eines
-  echten Go-Call-Graphen, nicht dessen Rand. Gemessen an `aws/smithy-go`:
-  883 Call-Kanten, **397 davon dateiübergreifend innerhalb eines Pakets**.
-- **Getragen von einem Feld, nicht von einem Sonderfall:**
-  `LangBackend.call_scope = "package"`. Die nächste Sprache, die das braucht,
-  ist ein Feld an ihrem Backend und keine Zeile in `core/calls.lua`.
-- **Ein Name, den zwei Dateien eines Verzeichnisses deklarieren, wird
-  verworfen statt geraten.** Echtes Go kompiliert das nur, wenn das
-  Verzeichnis *nicht* ein Paket ist (`widgets` neben `widgets_test`) — es gibt
-  keine ehrliche Wahl, und eine selbstsichere falsche Kante ist genau das,
-  wogegen `calls_heuristic` opt-in bleibt.
-- **Erste Messung ergab null Funktionen** — weil die Go-Grammatik gar nicht
-  geladen war. Auch das ein Fund: die Zahl sah aus wie ein Ergebnis.
+- **A Go package is a directory.** An unqualified `double(n)` in `widget.go`
+  can mean a function in `helper.go` beside it, and nothing at the call site
+  says so. Go has no `module_file`, so those are two IR nodes — a per-file
+  resolver thereby loses *nearly half* of a real Go call graph, not its edge.
+  Measured against `aws/smithy-go`: 883 call edges, **397 of them across files
+  within one package**.
+- **Carried by a field, not by a special case:**
+  `LangBackend.call_scope = "package"`. The next language that needs it is a
+  field on its backend and not a line in `core/calls.lua`.
+- **A name two files of a directory declare is discarded rather than
+  guessed.** Real Go only compiles that when the directory is *not* one
+  package (`widgets` beside `widgets_test`) — there is no honest choice, and a
+  confidently wrong edge is exactly what keeps `calls_heuristic` opt-in.
+- **The first measurement produced zero functions** — because the Go grammar
+  was not loaded at all. That too is a finding: the number looked like a
+  result.
 
-**Die Lehre für L1:** *zuerst fragen, was in dieser Sprache ein Scope ist,
-dann die Query schreiben.* Lua und die ECMA-Familie haben darüber nichts
-beigebracht, weil bei ihnen Datei und Scope zufällig dasselbe sind.
+**The lesson for L1:** *first ask what a scope is in this language, then write
+the query.* Lua and the ECMA family taught nothing about it, because for them
+file and scope happen to be the same thing.
 
-**Offen und bewusst so:** `other.Bump` löst nicht auf. Ein Go-Import-Pfad ist
-absolut gegen den Modulgraphen, das bräuchte die `module`-Zeile aus `go.mod`
-— eine Build-Datei, keine Quelldatei — oder einen Suffix-Vergleich, also
-Raten. Der Callee-Text wird trotzdem ausgegeben.
+**Open and deliberately so:** `other.Bump` does not resolve. A Go import path
+is absolute against the module graph, which would need the `module` line from
+`go.mod` — a build file, not a source file — or a suffix comparison, i.e.
+guessing. The callee text is emitted regardless.
 
-### ~~M2 · Cross-Repo-Checks über `tag_files`~~ — gebaut 2026-08-20
+### ~~M2 · Cross-repo checks via `tag_files`~~ — built 2026-08-20
 
-`tag-require-missing` (warn) und `tag-file-unavailable` (info). Keine neue
-Extraktion, genau wie veranschlagt — beide Artefakte gibt es schon.
+`tag-require-missing` (warn) and `tag-file-unavailable` (info). No new
+extraction, exactly as estimated — both artifacts already exist.
 
-**Aber nicht der Check, den §1.7 vorschlug, und der Grund ist eine
-Messung.** Der Entwurf war `@see otherplugin.module.fn`. Vorher gezählt:
-**`documentation.nvim` hat 0 `@see`-Ziele, `runtime-analysis.nvim` 0,
-`lib.nvim` 4** — und alle vier lösen intern auf. Ein Cross-Repo-`@see`-Check
-hätte an keinem Repository hier etwas zu prüfen gehabt, und keine Möglichkeit
-festzustellen, ob er funktioniert.
+**But not the check §1.7 proposed, and the reason is a measurement.** The
+draft was `@see otherplugin.module.fn`. Counted beforehand:
+**`documentation.nvim` has 0 `@see` targets, `runtime-analysis.nvim` 0,
+`lib.nvim` 4** — and all four resolve internally. A cross-repo `@see` check
+would have had nothing to check in any repository here, and no way of telling
+whether it worked.
 
-Die **Requires** sind die Stelle, an der die Cross-Repo-Kanten tatsächlich
-liegen: 18 unter `lib` aus `documentation.nvim`, 23 aus
-`runtime-analysis.nvim`, 41 zusammen — heute alle intakt gegen `lib.nvim`s
-Karte.
+The **requires** are where the cross-repo edges actually are: 18 under `lib`
+from `documentation.nvim`, 23 from `runtime-analysis.nvim`, 41 together — all
+intact against `lib.nvim`'s map today.
 
-**Zwei Dinge, die erst beim Bauen sichtbar wurden:**
+**Two things that only became visible while building:**
 
-- **Die Vorbedingung war *nicht* erfüllt, wie sie hier stand.** Die Notiz
-  sagte „~30 mit committeter Karte". Tatsächlich ignoriert jedes Plugin
-  dieses Ökosystems außer `documentation.nvim` selbst `docs/map/` per
-  `.gitignore` — aus gutem eigenen Grund: eine committete Karte ist mit der
-  ersten Änderung veraltet, nur dieses Repo prüft das in CI, und über die
-  Plugins hinweg waren es ~40 MB Artefakte, die niemand wollte. Damit ist
-  das ein **Arbeitskopie-Check** mit Geschwister-Checkouts, kein CI-Check.
-- **Deshalb gibt es `tag-file-unavailable`.** Ohne ihn wäre eine nicht
-  lesbare Karte von einer sauberen nicht zu unterscheiden — das ist das eine
-  Ergebnis, das ein Drift-Check nie liefern darf.
+- **The precondition was *not* met as stated here.** The note said "~30 with a
+  committed map". In fact every plugin in this ecosystem except
+  `documentation.nvim` itself ignores `docs/map/` via `.gitignore` — for a
+  good reason of its own: a committed map is stale with the first change, only
+  this repo checks that in CI, and across the plugins it came to ~40 MB of
+  artifacts nobody wanted. That makes this a **working-copy check** with
+  sibling checkouts, not a CI check.
+- **That is why `tag-file-unavailable` exists.** Without it an unreadable map
+  would be indistinguishable from a clean one — the one result a drift check
+  must never produce.
 
-Nur `tag_files` ist maßgeblich, nie `external_repos`: der zweite Resolver
-füllt dieselbe `ir.tag_links`-Tabelle aus einer *geratenen* GitHub-URL, und
-darauf hin eine Abhängigkeit für kaputt zu erklären wäre eine andere
-Behauptung. Der Check liest `ir.tag_audit`, das nur `tagfiles.lua` schreibt.
+Only `tag_files` is authoritative, never `external_repos`: the second resolver
+fills the same `ir.tag_links` table from a *guessed* GitHub URL, and declaring
+a dependency broken on that basis would be a different claim. The check reads
+`ir.tag_audit`, which only `tagfiles.lua` writes.
 
-**Dieses Repo konfiguriert `tag_files` bewusst nicht selbst:** `tag_links`
-steht im committeten Artefakt und trüge dann absolute lokale Pfade — die
-Karte wäre maschinenabhängig und `--check` in CI dauerhaft rot.
+**This repo deliberately does not configure `tag_files` for itself:**
+`tag_links` sits in the committed artifact and would then carry absolute local
+paths — the map would be machine-dependent and `--check` permanently red in
+CI.
 
-### ~~M4 · Public-API-Surface-Panel~~ — gebaut 2026-08-20, `f9e2832`
+### ~~M4 · Public API surface panel~~ — built 2026-08-20, `f9e2832`
 
-Zehntes Analysis-Panel. Kein neues IR-Feld, kein Schema-Bump: die Seite
-rechnet es aus `fn.internal`, `fn.documented` und den Call-Kanten, die die
-Payload schon trägt. Am wenigsten erreichte Zeilen zuerst — das sind die,
-wegen denen man das Panel öffnet.
+The tenth analysis panel. No new IR field, no schema bump: the page computes
+it from `fn.internal`, `fn.documented` and the call edges the payload already
+carries. Least-reached rows first — those are the ones you open the panel for.
 
-**Der zweite ehrliche Vorbehalt kam von der laufenden Seite, nicht vom
-Entwurf:** in einer Sprache, deren Sichtbarkeit ein *Tag* ist, sieht ein
-ungetaggter dateilokaler Helfer genauso aus wie ein Einstiegspunkt — `norm(p)`
-stand neben `M.render()`. Zwei von 776 Funktionen tragen hier `@internal`,
-also nennt das Panel diese Zahl und sagt, dass die Liste nur so sehr eine
-Oberfläche ist, wie der Baum es hingeschrieben hat.
+**The second honest caveat came from the running page rather than the draft:**
+in a language whose visibility is a *tag*, an untagged file-local helper looks
+exactly like an entry point — `norm(p)` stood beside `M.render()`. Two of 776
+functions here carry `@internal`, so the panel names that number and says the
+list is only as much of a surface as the tree wrote down.
 
-**Schaltet §1.3 frei** (API-Bruch-Erkennung), abgelehnt als „„public' ist
-undefiniert" — ist es nicht mehr.
+**Unblocks §1.3** (API break detection), rejected as "'public' is undefined" —
+it is not any more.
 
-### ~~M8 · I18N-0 — Findings tragen Parameter statt Prosa~~ — gebaut 2026-08-20
+### ~~M8 · I18N-0 — findings carry parameters instead of prose~~ — built 2026-08-20
 
-`add()` nimmt jetzt `(severity, check, node_id, params)` — alle **24**
-Aufrufstellen, nicht 16 wie notiert. `core/findings.lua` hält den englischen
-Katalog und macht daraus einen Satz an jeder der **zehn** Kanten. Schema 5.
+`add()` now takes `(severity, check, node_id, params)` — all **24** call
+sites, not 16 as noted. `core/findings.lua` holds the English catalogue and
+turns it into a sentence at each of the **ten** edges. Schema 5.
 
-**Benannte Platzhalter statt positioneller**, und das ist der eigentliche
-Punkt: `%s requires %s, but %s must not reach into %s` gibt einer Übersetzerin
-vier anonyme Slots, die sie nicht umstellen kann — Deutsch, Japanisch und
-Arabisch brauchen je eine andere Reihenfolge.
+**Named placeholders instead of positional ones**, and that is the actual
+point: `%s requires %s, but %s must not reach into %s` gives a translator four
+anonymous slots she cannot reorder — German, Japanese and Arabic each need a
+different order.
 
-**Zwei Korrekturen, beide aus dem Messen:**
+**Two corrections, both from measuring:**
 
-1. **Findings standen nie in `module_map.json`.** Die Aufgabenliste nahm es
-   an; `init.lua` serialisiert eine explizite Whitelist und hat sie nie
-   enthalten. Diese Hälfte der Abnahme war also längst erfüllt, und der
-   Schema-Bump war etwas ganz anderem geschuldet.
-2. **Das Englisch im Artefakt ist fast vollständig *Subjekt*.** Über die
-   eigene Karte gezählt: **820** Sätze sind Modul-Zusammenfassungen, **118**
-   weitere die eigenen Docs und Features — alles Dinge, die Regel 2.4
-   ausdrücklich **nie** übersetzt. Genau **10** waren Interface-Text, und alle
-   zehn lagen in `quicks`. Die reiten jetzt auf der Seite (die ihre eigene
-   Nutzlast baut), das Artefakt bekommt `n`/`total` neben `value` — „45 of
-   72" bleibt als *Tatsache* erhalten, nur nicht als *Satz*.
+1. **Findings were never in `module_map.json`.** The task list assumed so;
+   `init.lua` serialises an explicit whitelist and never contained them. So
+   that half of the acceptance was met long ago, and the schema bump was owed
+   to something else entirely.
+2. **The English in the artifact is almost entirely *subject matter*.**
+   Counted over its own map: **820** sentences are module summaries, **118**
+   more the docs and features themselves — all things rule 2.4 explicitly
+   **never** translates. Exactly **10** were interface text, and all ten were
+   in `quicks`. Those now ride on the page (which builds its own payload), the
+   artifact gets `n`/`total` beside `value` — "45 of 72" survives as a *fact*,
+   just not as a *sentence*.
 
-„Kein englischer Satz in `module_map.json`" ist damit **kein richtiges Ziel**
-und ist so festgehalten: wörtlich erreicht hieße es, Modul-Zusammenfassungen
-zu übersetzen, was Regel 2.4 verbietet.
+"No English sentence in `module_map.json`" is therefore **not a correct goal**
+and is recorded as such: reached literally, it would mean translating module
+summaries, which rule 2.4 forbids.
 
-`MULTILANG.md` C.1 gibt es übrigens nicht — die Schema-Versionierung dort ist
-seit `language` (3) und `markers` (4) abgehakt; Bumps passieren pro Feld, und
-`diff.lua` toleriert sie ungeändert (`>= 2`).
+Incidentally, `MULTILANG.md` C.1 does not exist — the schema versioning there
+has been settled since `language` (3) and `markers` (4); bumps happen per
+field, and `diff.lua` tolerates them unchanged (`>= 2`).
 
-**Abnahme dreifach erfüllt:** 140 gerenderte Findings aus drei echten
-Repositories byte-verglichen; die 21 Specs, die exakten Wortlaut festnageln,
-unverändert in dem, was sie behaupten; und `findings_spec.lua` für die zwei
-Checks, die keiner von beiden erreicht.
+**Acceptance met three times over:** 140 rendered findings from three real
+repositories compared byte for byte; the 21 specs pinning exact wording,
+unchanged in what they assert; and `findings_spec.lua` for the two checks
+neither of those reaches.
 
-**Der dritte Wächter hat sich sofort bezahlt gemacht:** der erste Formatter
-escapte `%` in eingesetzten Werten — nötig für eine `gsub`-Ersetzung als
-*String*, nie für den Rückgabewert einer Ersetzungs*funktion* —, also wurde
-aus einem `%s` in einem @example-Fehler ein `%%s`. Kein Finding in drei echten
-Repositories enthielt ein Prozentzeichen. **Ein Korpus, der einen Fall zufällig
-nicht enthält, ist kein Beleg, dass der Fall funktioniert.**
+**The third guard paid for itself immediately:** the first formatter escaped
+`%` in substituted values — necessary for a `gsub` replacement as a *string*,
+never for the return value of a replacement *function* — so a `%s` in an
+@example error became `%%s`. No finding in three real repositories contained a
+percent sign. **A corpus that happens not to contain a case is no evidence
+that the case works.**
 
-### ~~M10 · Die beiden Joins aus `runtime-analysis`~~ — gebaut 2026-08-20, `103ceb7`
+### ~~M10 · The two joins from `runtime-analysis`~~ — built 2026-08-20, `103ceb7`
 
-§1.1 als **Spalte auf `:DocMap churn`**, §1.2 als **`:DocMap untested`**. Die
-Vorhersage stimmte: keine neue Erhebung auf beiden Seiten — die Join-Schicht
-war schon von §1.5 und dem Telemetry-Browse-Modus bezahlt.
+§1.1 as a **column on `:DocMap churn`**, §1.2 as **`:DocMap untested`**. The
+prediction held: no new collection on either side — the join layer was already
+paid for by §1.5 and the telemetry browse mode.
 
-**Die Entscheidung, die keiner der beiden Einträge gestellt hatte:** die
-Laufzeitachse darf die Reihenfolge **nicht** ändern. Telemetrie ist die
-Nutzung *einer* Maschine; sie in den Score zu falten macht aus einer
-Rangfolge, die sich wie eine Eigenschaft des Codes liest, eine, die zur
-Hälfte davon abhängt, wer zuletzt gelaufen ist — zwei Entwickler, zwei
-Reihenfolgen, keine falsch. Die Spalte trennt die Zeilen, die Sortierung
-bleibt.
+**The decision neither entry had posed:** the runtime axis must **not** change
+the ordering. Telemetry is *one* machine's usage; folding it into the score
+turns a ranking that reads like a property of the code into one that depends
+half on who ran last — two developers, two orderings, neither wrong. The
+column separates the rows, the sort stays.
 
-Gemessen an den echten 41 Sessions dieses Ökosystems: `editor.browse.view`,
-Komplexität 383, oberste Zeile, *47 Aufrufe, keiner in der letzten Woche* —
-und `core.check` eine Zeile darunter, *37 722 Aufrufe, 4 839 diese Woche*.
-Zwei Zeilen, die am Tag davor identisch aussahen.
+Measured against this ecosystem's real 41 sessions: `editor.browse.view`,
+complexity 383, top row, *47 calls, none in the last week* — and `core.check`
+one row below, *37,722 calls, 4,839 this week*. Two rows that looked identical
+the day before.
 
-Beide Zusicherungen sind **absichtlich gebrochen worden**, um zu sehen, ob
-der Spec rot wird: Aufrufe in den Score falten dreht die Reihenfolge (Zeile
-108), „unused" statt „not called in your sessions" fällt bei Zeile 138.
+Both assurances were **deliberately broken** to see whether the spec goes red:
+folding calls into the score flips the ordering (line 108), "unused" instead of
+"not called in your sessions" fails at line 138.
 
 
 ---
 
-### ~~QW1 · Der `standalone`-Gate soll laut sein~~ — gebaut 2026-08-20, `49246b2`
+### ~~QW1 · The `standalone` gate should be loud~~ — built 2026-08-20, `49246b2`
 
-Die Schlusszeile sagte **„All 5 gates passed"**, während einer vierzig Zeilen
-vorher *skipped* gedruckt hatte. Genau hinter diesem Satz sind drei echte
-Defekte bis in ein Release gekommen — „vier Gates und ein Achselzucken" las
-sich exakt wie fünf von fünf.
+The closing line said **"All 5 gates passed"** while one of them had printed
+*skipped* forty lines earlier. Three real defects reached a release from
+behind exactly that sentence — "four gates and a shrug" read precisely like
+five out of five.
 
-Jetzt: **`4 gates passed, 1 skipped: standalone`**, plus der Satz, auf den es
-ankommt — *ein übersprungener Gate hat nichts geprüft.* Die Skips werden
-gesammelt, wenn sie passieren, nicht am Ende gezählt: ein sechster Gate, der
-irgendwann überspringen lernt, ist automatisch dabei.
+Now: **`4 gates passed, 1 skipped: standalone`**, plus the sentence that
+matters — *a skipped gate checked nothing.* The skips are collected as they
+happen rather than counted at the end: a sixth gate that learns to skip some
+day is included automatically.
 
-**Der Skip bleibt ein Skip.** Ein Rechner mit Neovim und sonst nichts ist der
-häufige lokale Fall; ihn rot zu machen macht `scripts/ci.sh` für genau die
-Leute unbrauchbar, für die es da ist — und so wird ein Gate dauerhaft
-abgeschaltet. Geändert hat sich die Genauigkeit, nicht die Schwere.
+**A skip stays a skip.** A machine with Neovim and nothing else is the common
+local case; turning it red makes `scripts/ci.sh` unusable for exactly the
+people it is there for — and that is how a gate gets switched off permanently.
+What changed is the accuracy, not the severity.
 
-**Und die alte Meldung war auf diesem Rechner schlicht falsch.** „No PUC Lua
-on PATH with lfs + dkjson" war ein Satz für zwei Probleme: hier liegt
-`lua5.4` sehr wohl auf dem PATH, es kann nur die Rocks nicht laden. Nimmt man
-`C:\tools` aus dem PATH, taucht ein zweites `lua` auf, dem allein `dkjson`
-fehlt. Wer der alten Meldung folgte, suchte einen Interpreter, den er längst
-hatte. Jetzt nennt sie den Interpreter, den fehlenden Rock und die
-Installationszeile.
+**And the old message was simply wrong on this machine.** "No PUC Lua on PATH
+with lfs + dkjson" was one sentence for two problems: `lua5.4` is very much on
+the PATH here, it just cannot load the rocks. Take `C:\tools` off the PATH and
+a second `lua` appears that is missing only `dkjson`. Anyone following the old
+message went looking for an interpreter they already had. Now it names the
+interpreter, the missing rock and the install line.
 
-Alle drei Zweige durch Ausführen belegt, nicht durch Lesen: beide Rocks
-fehlen, ein Rock fehlt (PATH ohne `C:\tools`), kein Interpreter vorhanden
-(PATH nur mit Neovims eigenem Verzeichnis).
+All three branches evidenced by running them, not by reading: both rocks
+missing, one rock missing (PATH without `C:\tools`), no interpreter at all
+(PATH with only Neovim's own directory).
 
-
----
-
-### ~~QW7 · Erst einrasten, dann springen~~ — gebaut 2026-08-20, `c478aa1`
-
-Der Hover hebt einen Kasten und seine direkten Nachbarn hervor und blendet
-alles andere ab — und das verschwand, sobald der Zeiger sich bewegte. Die
-hervorgehobene Teilmenge war also nicht lesbar, nicht verfolgbar und nicht
-zu einem Nachbarn hin weiterzugehen: genau das, wofür die Ansicht da ist.
-
-Jetzt hält der **erste Klick** den Fokus, der **zweite** tut, was der Klick
-vorher tat. Hovern ist unverändert, solange nichts eingerastet ist.
-
-**Der `dblclick`-Handler ist weg**, und das ist der Kern der Bauart: ein
-Doppelklick sendet zwei `click`-Ereignisse, die bereits einrasten und dann
-handeln. Wer weiß, wo er hinwill, zahlt für das Einrasten nichts und merkt
-es nie. Wäre der alte Handler geblieben, hätte er *zusätzlich* gefeuert und
-zweimal gehandelt — das ist die erste Zusicherung im Spec.
-
-Drei Wege hinaus, alle drei gewünscht: **Escape** (die Bedeutung, die die
-Seite für ihre Popups ohnehin kennt), **Klick ins Leere** (was jeder
-reflexhaft versucht) und **Klick auf einen anderen Kasten**, der dort neu
-einrastet statt zu lösen — ohne das wäre das Verfolgen einer Kette die
-mühsamste Art, ausgerechnet die Funktion fürs Verfolgen zu benutzen.
-
-Die *Classic-clicks*-Pille behält ihre Bedeutung exakt: sie entscheidet, was
-der **zweite** Klick tut, nicht ob der erste einrastet. Der Spec hält beides
-auseinander, weil das Zusammenziehen ein naheliegender und stiller Fehler
-wäre.
-
-Am echten Baum durchgespielt statt gelesen — acht Schritte von „frisch
-geladen" bis Escape, plus: zweiter Klick landet `center=` in der URL, und
-ein Doppelklick handelt genau einmal.
 
 ---
 
-## Aus dem zusammengeführten Plan, 2026-08-20 bis 2026-08-21
+### ~~QW7 · Pin first, then jump~~ — built 2026-08-20, `c478aa1`
 
-**Die Nummerierung ist ab hier eine andere.** Am 2026-08-20 wurden fünf
-Warteschlangen aus drei Repositories zu einer zusammengelegt und neu
-durchnummeriert; die Einträge oben tragen noch die alten Nummern. Wo ein
-Eintrag seine frühere Nummer kennt, steht sie als *Vorher:* darin. `M1` weiter
-oben ist deshalb nicht `M1` hier unten — beide Nummern sind korrekt, für
-verschiedene Fassungen des Plans.
+Hovering highlights a box and its direct neighbours and dims everything else —
+and that vanished the moment the pointer moved. So the highlighted subset was
+not readable, not traceable, and could not be walked on to a neighbour:
+precisely what the view exists for.
 
-**Was in diesem Block auffällt:** in sechs der elf Einträge hat das Messen
-*vor* dem Bauen den naheliegenden Entwurf verworfen. Nicht verfeinert —
-verworfen. Die Rangfolge des Workspace-Dashboards, die Reichweite von `K`, der
-Präfix-Rückfall der Abhängigkeitsauflösung, der Reference-Tab, Paare statt
-ganzer Duplikatgruppen, und zwei Schätzungen in der Config-Analyse, die beide
-in dieselbe Richtung danebenlagen. Das ist die Ausbeute des Verfahrens, nicht
-der Beweis, dass die Entwürfe schlecht waren.
+Now the **first click** pins the focus, the **second** does what the click did
+before. Hovering is unchanged as long as nothing is pinned.
 
-### ~~QW2 · Datei-Pane: die übrigen Unter-Einträge~~ — **gebaut 2026-08-20**, `292f925`
+**The `dblclick` handler is gone**, and that is the heart of the design: a
+double click sends two `click` events, which already pin and then act. Anyone
+who knows where they are going pays nothing for the pinning and never notices
+it. Had the old handler stayed, it would have fired *additionally* and acted
+twice — that is the first assurance in the spec.
 
-Das Pane sagt jetzt auch, was git von einem Eintrag hält: **nicht in git**
-und **von git ignoriert — trotzdem in der Karte**.
+Three ways out, all three wanted: **Escape** (the meaning the page already
+knows for its popups), **clicking empty space** (what everybody tries
+reflexively) and **clicking another box**, which pins there anew rather than
+releasing — without that, following a chain would be the most laborious way to
+use the very function meant for following.
 
-**Die beiden Hälften beantworten entgegengesetzte Überraschungen.**
-`nicht gescannt` und `eigenes Repository` erklären einen Ordner, der da ist
-und *nicht* in der Karte. Die zwei neuen erklären das Umgekehrte — und
-*ignoriert* ist das, was sonst nichts in diesem Fenster sagen könnte: der
-Scan liest `.gitignore` nicht, also wird ein in git ignorierter Ordner
-trotzdem kartiert.
+The *classic clicks* pill keeps its meaning exactly: it decides what the
+**second** click does, not whether the first pins. The spec keeps the two
+apart, because conflating them would be an obvious and silent mistake.
 
-`ignored` ist bewusst ein eigenes Feld statt Teil von `skipped`: `skipped`
-ist die Regel *dieses Werkzeugs* und überall gleich, `ignored` die des
-*Repositories*. Ein Verzeichnis kann beides, eines oder keines sein.
-
-**Ein Test hat einen echten Konstruktionsfehler gefunden**, keine
-Bestätigung: `-unormal` fasst ein untracked Verzeichnis zu einer Zeile
-zusammen und erwähnt seinen Inhalt nie — an der Wurzel richtig, eine Ebene
-tiefer stillschweigend falsch. Der Bericht über das Verzeichnis selbst wird
-jetzt an die Einträge weitergereicht.
-
-Höchstens eine Notiz pro Zeile, äußerste Tatsache zuerst.
-
-### ~~QW3 · Erklär-Attribute auch *innerhalb* der Views~~ — **gebaut 2026-08-20**, `f705e09`
-
-**Und es war die Engine, nicht der Desktop** — die Views sind die der
-erzeugten Seite. Zweiundzwanzig Controls haben eine Erklärkarte bekommen:
-die sechs Hierarchy-Graphen und alle sechzehn Analysis-Werkzeuge.
-
-**Sechs davon benutzten ein rohes `title`**, wogegen der Mechanismus im
-eigenen Code argumentiert: *„a `title` attribute would have been free and
-never appears on focus."* Umgestellt statt verdoppelt.
-
-Weil ein `title` von Screenreadern vorgelesen wird, ist die Karte jetzt per
-`aria-describedby` verknüpft — und die Verknüpfung wird beim Schließen
-entfernt, sonst beschreibt sie ein verstecktes Element.
-
-`explain_spec.lua` hält die Verbindung in beide Richtungen; in beide
-Richtungen mutationsgeprüft.
-
-### ~~QW4 · Den Fokus-Pfad des Erklär-Popups verifizieren~~ — **gemessen 2026-08-20: nichts zu tun**
-
-Im echten Browser durchgespielt statt begründet: **mit Fensterfokus feuert
-`focusin` korrekt** und trifft den richtigen `[data-help]`-Vorfahren — auch
-auf einem `<summary>`. Ohne Fensterfokus feuert nichts, und das ist eine
-Eigenschaft eines unfokussierten Fensters, nicht des Elements oder des
-Panes. Alle elf Controls im Desktop sind per Tastatur erreichbar.
-
-**Zwei Korrekturen an mir selbst**, beide aus dem Messen statt dem Lesen:
-`<summary>` *ist* fokussierbar (`tabIndex` 0), und die vier `sub.*`-Texte,
-die verwaist aussahen, sind per JavaScript verdrahtet. Ich hätte beinahe
-einen Defekt gemeldet, den es nicht gibt.
-
-### ~~QW5 · `proc_trace` und `:RAInspect` sind zweimal dieselbe Technik~~ — **entschieden 2026-08-20**, `c07fec7`
-
-**Ergebnis: keine gemeinsame Wrapper-Registry** — und trotzdem ist die
-Lücke zu.
-
-Dagegen sprach: es gibt **einen** Konsumenten, und §4.2 daneben sagt
-ausdrücklich, dass Herunterschieben auf einen *zweiten* wartet.
-`proc_trace` fragt nie, wer etwas umhüllt hat — es wäre Produzent, nicht
-Leser. Und der Fall, der eine Konvention rechtfertigen würde — ein fremdes
-Plugin, das `vim.notify` patcht — ist genau der, den eine Konvention **in
-`lib.nvim`** nicht erreicht.
-
-**Die zwei Wrapper, die dieses Ökosystem kontrolliert, brauchten sie nicht.**
-`proc_trace` veröffentlicht bereits `is_active()` und umhüllt vier
-*bekannte* Pfade, also nennt `:RA provenance vim.fn.system` es jetzt exakt —
-ohne neue Konvention, ohne Änderung in `lib.nvim`, dreißig Zeilen auf der
-Konsumentenseite.
-
-Dabei korrigiert: der Schlusssatz des Berichts behauptete, nichts hier kenne
-fremde Wraps — was ab dem zweiten exakten Fall dem Satz darüber widersprach.
-
-### ~~QW8 · Code auch im Editor hervorheben~~ — **gebaut 2026-08-20**, `4aab630`
-
-`:DocBrowse`s Detailpane zeigt Inline-Code jetzt als Code statt als
-Backticks — die Fläche, die QW6 offengelassen hatte.
-
-**Die Messung hat die Gewichtung dieses Eintrags umgedreht.** Vor dem Bauen
-gezählt statt angenommen: **2 132** Inline-Spans sind in diesem Pane
-erreichbar, dagegen **vier** Node-Bodies von hundertdreiundzwanzig mit einem
-```` ``` ````-Zaun und **null** `@example`-Blöcke. Inline-Code ist also *das
-Feature* und braucht gar keine Abhängigkeit — ein Pattern-Match und ein
-Extmark. Der Eintrag hier las sich, als sei das der Fallback.
-
-**`color_my_ascii.nvim` ist damit die Ergänzung, nicht der Mechanismus** —
-weiche Abhängigkeit über `soft_require.probe`, und nur aufgerufen, wenn
-`list_blocks` wirklich einen Block meldet. Die Begründung des Eintrags
-stimmt unverändert: die Fence-API ist puffer-basiert, und dieses Pane *ist*
-ein Neovim-Puffer.
-
-**Drei Marken pro Span statt einer:** die Ticks als
-`@punctuation.special`, der Text dazwischen als `@markup.raw` — sonst läse
-sich die Interpunktion wie Inhalt. Die Backticks bleiben sichtbar; `conceal`
-würde jede Spalte danach verschieben, und dieses Pane richtet mehrere von
-Hand aus.
-
-`show_detail` ist entstanden, weil es **zwei** Render-Pfade auf dasselbe
-Pane gab. Genau die Form, die auseinanderläuft: eine Hervorhebung in nur
-einem hätte den anderen mit Backticks stehen lassen, je nachdem wie der
-Leser dorthin kam.
-
-Mutationsgeprüft: nimmt man den Aufruf aus `show_detail`, fällt der Spec
-namentlich (`expected 30, got 0`).
-
-**Stufe 2 von QW6 bleibt offen** — Zaunblöcke *auf der Seite*. Das ist eine
-andere Fläche als diese hier und nach wie vor **M**.
+Walked through on the real tree rather than read — eight steps from "freshly
+loaded" to Escape, plus: the second click puts `center=` in the URL, and a
+double click acts exactly once.
 
 ---
 
-### ~~M1 · Config-Analyse: die drei übrigen Punkte~~ — **erledigt 2026-08-21**, Engine
+## From the merged plan, 2026-08-20 to 2026-08-21
 
-Drei getrennte Stücke, keines vom anderen abhängig. **Zwei sind erledigt,
-eines davon anders als geplant.**
+**The numbering is a different one from here on.** On 2026-08-20 five queues
+from three repositories were merged into one and renumbered; the entries above
+still carry the old numbers. Where an entry knows its earlier number, it is
+given inside as *Previously:*. `M1` further up is therefore not `M1` down
+here — both numbers are correct, for different versions of the plan.
 
-- ~~**Lazy-Load-Inventar**~~ — **gebaut 2026-08-21.** Eigener Analyse-Tab:
-  welches Plugin lädt auf welches Event/ft/cmd/keys, und was beim Start
-  liegt. Die Messung an einer echten Config hat den Entwurf korrigiert:
-  7 von 52 Specs standen unter dem falschen Ladezustand, weil `lazy = true`
-  ohne jeden Trigger gelesen wurde, als lüde es später — es lädt nie.
-  Daher drei Zustände statt zwei.
-- ~~**Verwaiste Spec-Dateien**~~ — **entschieden 2026-08-21: wird nicht
-  gebaut.** Gemessen, statt geschätzt: der einzige echte Fund in der einen
-  verfügbaren Config war ein **Falsch-Positiv** (die Datei registriert über
-  einen eigenen Helper, siehe unten), und die übrigen Kandidaten deklarieren
-  nichts, weil ihr Inhalt bewusst auskommentiert ist. „Nennt kein Plugin"
-  trennt also nicht Leiche von Parkplatz — das Kriterium trägt nicht, und
-  ein Panel, das geparkte Dateien als tot meldet, ist schlechter als keins.
-- **Statt dessen gebaut: `opts.plugins.wrappers`** — genau dieses
-  Falsch-Positiv war der weit größere Fund. `core/plugins.lua` las nur das
-  `return { … }` einer Datei; eine Config, die über `plugins.add({ … })`
-  registriert, trug **nichts** bei — schweigend, ohne Fehler. Gemessen:
-  **52 Specs gefunden, 85 nach Deklaration des einen Wrappers**, die
-  fehlenden 33 in einer einzigen 906-Zeilen-Datei. 63 % dieser Config waren
-  unsichtbar, und jedes Panel über `n.plugins` — inklusive des neuen
-  Lazy-Tabs — beantwortete Fragen über die Hälfte, die zufällig ein
-  Tabellen-Literal benutzt. Deklariert, nicht erraten, wie bei
+**What stands out in this block:** in six of the eleven entries, measuring
+*before* building discarded the obvious draft. Not refined — discarded. The
+workspace dashboard's ranking, the reach of `K`, the prefix fallback of
+dependency resolution, the reference tab, pairs instead of whole duplicate
+groups, and two estimates in the config analysis, both wrong in the same
+direction. That is the yield of the method, not proof that the drafts were
+bad.
+
+### ~~QW2 · File pane: the remaining sub-entries~~ — **built 2026-08-20**, `292f925`
+
+The pane now also says what git thinks of an entry: **not in git** and
+**ignored by git — but still mapped**.
+
+**The two halves answer opposite surprises.** `not scanned` and `its own
+repository` explain a folder that is there and *not* in the map. The two new
+ones explain the reverse — and *ignored* is what nothing else in this window
+could tell you: the scan does not read `.gitignore`, so a folder ignored by
+git gets mapped anyway.
+
+`ignored` is deliberately its own field rather than part of `skipped`:
+`skipped` is *this tool's* rule and the same everywhere, `ignored` is the
+*repository's*. A directory can be both, one or neither.
+
+**A test found a real design fault**, not a confirmation: `-unormal` collapses
+an untracked directory into one line and never mentions its contents —
+correct at the root, silently wrong one level down. The report about the
+directory itself is now passed on to its entries.
+
+At most one note per row, outermost fact first.
+
+### ~~QW3 · Explain attributes *inside* the views too~~ — **built 2026-08-20**, `f705e09`
+
+**And it was the engine, not the desktop** — the views are the generated
+page's. Twenty-two controls got an explain card: the six hierarchy graphs and
+all sixteen analysis tools.
+
+**Six of them used a raw `title`**, which the mechanism argues against in its
+own code: *"a `title` attribute would have been free and never appears on
+focus."* Converted rather than duplicated.
+
+Because a `title` is read out by screen readers, the card is now linked via
+`aria-describedby` — and the link is removed on close, otherwise it describes
+a hidden element.
+
+`explain_spec.lua` holds the connection in both directions; mutation-checked
+in both directions.
+
+### ~~QW4 · Verify the explain popup's focus path~~ — **measured 2026-08-20: nothing to do**
+
+Walked through in a real browser rather than argued: **with window focus,
+`focusin` fires correctly** and finds the right `[data-help]` ancestor — on a
+`<summary>` too. Without window focus nothing fires, and that is a property of
+an unfocused window, not of the element or the pane. All eleven controls in
+the desktop app are reachable by keyboard.
+
+**Two corrections to myself**, both from measuring rather than reading:
+`<summary>` *is* focusable (`tabIndex` 0), and the four `sub.*` texts that
+looked orphaned are wired up in JavaScript. I nearly reported a defect that
+does not exist.
+
+### ~~QW5 · `proc_trace` and `:RAInspect` are the same technique twice~~ — **decided 2026-08-20**, `c07fec7`
+
+**Result: no shared wrapper registry** — and the gap is closed anyway.
+
+Against it: there is **one** consumer, and §4.2 beside it says explicitly that
+pushing down waits for a *second*. `proc_trace` never asks who wrapped
+something — it would be a producer, not a reader. And the case that would
+justify a convention — a foreign plugin patching `vim.notify` — is exactly the
+one a convention **in `lib.nvim`** does not reach.
+
+**The two wrappers this ecosystem controls did not need it.** `proc_trace`
+already publishes `is_active()` and wraps four *known* paths, so
+`:RA provenance vim.fn.system` now names it exactly — no new convention, no
+change in `lib.nvim`, thirty lines on the consumer side.
+
+Corrected along the way: the report's closing sentence claimed nothing here
+knows about foreign wraps — which, from the second exact case onward,
+contradicted the sentence above it.
+
+### ~~QW8 · Highlight code in the editor too~~ — **built 2026-08-20**, `4aab630`
+
+`:DocBrowse`'s detail pane now shows inline code as code rather than as
+backticks — the surface QW6 had left open.
+
+**Measuring inverted this entry's weighting.** Counted rather than assumed
+before building: **2,132** inline spans are reachable in this pane, against
+**four** node bodies out of a hundred and twenty-three with a ```` ``` ````
+fence and **zero** `@example` blocks. Inline code is therefore *the feature*
+and needs no dependency at all — a pattern match and an extmark. The entry
+here read as though that were the fallback.
+
+**`color_my_ascii.nvim` is thereby the addition, not the mechanism** — a soft
+dependency via `soft_require.probe`, and only called when `list_blocks`
+actually reports a block. The entry's reasoning holds unchanged: the fence API
+is buffer-based, and this pane *is* a Neovim buffer.
+
+**Three marks per span instead of one:** the ticks as
+`@punctuation.special`, the text between them as `@markup.raw` — otherwise the
+punctuation would read as content. The backticks stay visible; `conceal` would
+shift every column after it, and this pane aligns several by hand.
+
+`show_detail` came about because there were **two** render paths onto the same
+pane. Exactly the shape that drifts apart: highlighting in only one would have
+left the other standing with backticks, depending on how the reader got there.
+
+Mutation-checked: take the call out of `show_detail` and the spec fails by
+name (`expected 30, got 0`).
+
+**Stage 2 of QW6 stays open** — fenced blocks *on the page*. That is a
+different surface from this one and still an **M**.
+
+---
+
+### ~~M1 · Config analysis: the three remaining items~~ — **done 2026-08-21**, engine
+
+Three separate pieces, none depending on another. **Two are done, one of them
+differently than planned.**
+
+- ~~**Lazy-load inventory**~~ — **built 2026-08-21.** Its own analysis tab:
+  which plugin loads on which event/ft/cmd/keys, and what sits there at
+  startup. Measuring against a real config corrected the draft: 7 of 52 specs
+  were filed under the wrong load state, because `lazy = true` without any
+  trigger read as though it loaded later — it never loads. Hence three states
+  instead of two.
+- ~~**Orphaned spec files**~~ — **decided 2026-08-21: not being built.**
+  Measured instead of estimated: the only real finding in the one available
+  config was a **false positive** (the file registers through a helper of its
+  own, see below), and the remaining candidates declare nothing because their
+  contents are deliberately commented out. "Names no plugin" therefore does
+  not separate a corpse from a parking space — the criterion does not hold,
+  and a panel reporting parked files as dead is worse than none.
+- **Built instead: `opts.plugins.wrappers`** — that very false positive was
+  the far larger finding. `core/plugins.lua` read only a file's
+  `return { … }`; a config registering through `plugins.add({ … })`
+  contributed **nothing** — silently, with no error. Measured: **52 specs
+  found, 85 after declaring the one wrapper**, the missing 33 in a single
+  906-line file. 63 % of that config was invisible, and every panel over
+  `n.plugins` — including the new lazy tab — answered questions about the half
+  that happens to use a table literal. Declared, not guessed, as with
   `bindings.wrappers`.
-- ~~**Andere Plugin-Manager als lazy.nvim**~~ — **gebaut 2026-08-21, und es
-  war kein M.** Die Schätzung sagte drei eigene Extraktoren; gemessen an je
-  einer Datei in der Form jedes Managers sind es keine. packers `use`,
-  vim-plugs `Plug` und mini.deps' `add` registrieren alle über einen Aufruf
-  mit Tabelle oder String — genau das, was der Wrapper-Lauf schon liest.
-  Wirklich gefehlt haben zwei Kleinigkeiten: ein **String**-Argument
-  (`use "a/b"` — so listet jede packer-Config packer selbst, und so sieht
-  bei vim-plug *jedes* Plugin aus) und drei Schreibweisen: `requires` und
-  `depends` sind dieselbe Kante wie `dependencies`, `source` derselbe Repo
-  wie der positionale String. Die Trigger-Keys heißen überall gleich.
-  vim-plug nur in der Lua-Aufrufform — `Plug 'a/b'` in einer `.vim`-Datei
-  ist VimScript, und das steht so da, statt halb gelesen zu werden.
+- ~~**Plugin managers other than lazy.nvim**~~ — **built 2026-08-21, and it
+  was not an M.** The estimate said three extractors of their own; measured
+  against one file in each manager's shape, it is none. packer's `use`,
+  vim-plug's `Plug` and mini.deps' `add` all register through a call with a
+  table or a string — exactly what the wrapper pass already reads. What was
+  genuinely missing were two small things: a **string** argument
+  (`use "a/b"` — how every packer config lists packer itself, and how *every*
+  plugin looks under vim-plug) and three spellings: `requires` and `depends`
+  are the same edge as `dependencies`, `source` the same repo as the
+  positional string. The trigger keys are named the same everywhere.
+  vim-plug only in its Lua call form — `Plug 'a/b'` in a `.vim` file is
+  VimScript, and it says so rather than being read half-way.
 
-Keymap-Konflikte sind gebaut. **M1 ist damit abgeschlossen.** Beide
-Schätzungen dieses Blocks lagen in dieselbe Richtung daneben — sie
-beschrieben das Feature statt der Lücke, und die Lücke sieht man erst, wenn
-man das Ding gegen echten Code laufen lässt. *Vorher: M6.*
+Keymap conflicts are built. **M1 is thereby closed.** Both estimates in this
+block were wrong in the same direction — they described the feature instead of
+the gap, and the gap only becomes visible once the thing runs against real
+code. *Previously: M6.*
 
-### ~~M2 · Reference-Tab, Schritt 6~~ — **entschieden 2026-08-21: kein Tab**, Engine
+### ~~M2 · Reference tab, step 6~~ — **decided 2026-08-21: no tab**, engine
 
-Die Antwort lautet *nein*, und sie wurde gezählt statt diskutiert. Über die
-791 gerenderten Snippets dieses Repos: **64 von 76 Lua-Glossareinträgen sind
-per Hover erreichbar**, 18.807 Dekorationen. Die zwölf übrigen fehlen *hier*
-und wären im nächsten Repo da. Ein Tab wäre also ein Index über Antworten,
-die der Leser ohnehin an der Frage trifft — genau der „Tab, zu dem niemand
-navigiert", vor dem `ReferenceTab.md` selbst gewarnt hat.
+The answer is *no*, and it was counted rather than debated. Across this repo's
+791 rendered snippets: **64 of 76 Lua glossary entries are reachable by
+hover**, 18,807 decorations. The twelve remaining are missing *here* and would
+be present in the next repo. A tab would therefore be an index over answers
+the reader meets at the question anyway — exactly the "tab nobody navigates
+to" that `ReferenceTab.md` itself warned about.
 
-**Das Zählen hat trotzdem etwas gefunden, nur nicht den Tab.** Das
-Stdlib-Glossar war nach Punktnamen verschlüsselt, Lua wird aber mit
-Doppelpunkt geschrieben: **1004 Doppelpunkt-Aufrufe gegen 6 mit Punkt** für
-dieselben elf Funktionen. Die häufigste Aufrufform der Sprache war für ein
-Feature unsichtbar, dessen ganzer Zweck das Erklären von Stdlib-Aufrufen ist.
-`syntax.method_namespace` behebt das, **+934 Dekorationen**, verifiziert
-durch Ausführen des Tokenizers aus der *erzeugten Seite*.
+**The counting found something anyway, just not the tab.** The stdlib glossary
+was keyed by dot names, but Lua is written with a colon: **1,004 colon calls
+against 6 with a dot** for the same eleven functions. The language's most
+common call form was invisible to a feature whose entire purpose is explaining
+stdlib calls. `syntax.method_namespace` fixes that, **+934 decorations**,
+verified by running the tokenizer from the *generated page*.
 
-**M3 ist damit frei.** *Vorher: M7.*
+**M3 is thereby unblocked.** *Previously: M7.*
 
-### ~~M3 · `K` im Browser~~ — **erledigt 2026-08-21**
+### ~~M3 · `K` in the browser~~ — **done 2026-08-21**
 
-Die Glossar-Karte für das Wort unter dem Cursor, aus derselben Registry wie
-der Keyword-Hover der generierten Seite.
+The glossary card for the word under the cursor, from the same registry as the
+generated page's keyword hover.
 
-**Zwei Messungen haben die Form entschieden.** Ein Glossarbegriff steht im
-Browsertext dieses Repositorys **213-mal in einer Inline-`code`-Spanne und
-2 558-mal in normaler Prosa** — "and", "for", "in", "end", "type". Ein `K`,
-das überall antwortet, läge also etwa zwölfmal von dreizehn falsch, und zwar
-auf die unangenehmste verfügbare Art: eine korrekte Definition an einem Wort,
-das kein Code ist. Also ist die Spanne das Tor; außerhalb sagt die Taste,
-warum sie schweigt.
+**Two measurements decided the shape.** A glossary term appears in this
+repository's browse text **213 times inside an inline `code` span and 2,558
+times in ordinary prose** — "and", "for", "in", "end", "type". A `K` that
+answered everywhere would therefore be wrong about twelve times in thirteen,
+and in the most unpleasant way available: a correct definition on a word that
+is not code. So the span is the gate; outside it the key says why it stays
+silent.
 
-Und die Spannen leben im **Detailpane**, das vorher gar nicht erreichbar war:
-alle Browser-Tasten hängen am Listenpuffer, und bei vier Fenstern im Layout
-landet ein natives `wincmd w` nicht dort. Deshalb waren auch zwei von sechzehn
-Wurzeleinträgen unlesbar — 46 Zeilen Detail in einem 14-Zeilen-Pane ohne
-Scrollmöglichkeit. `w` geht hinein, `q`/`<Esc>` zurück.
+And the spans live in the **detail pane**, which was not reachable at all
+before: every browse key hangs off the list buffer, and with four windows in
+the layout a native `wincmd w` does not land there. That is also why two of
+sixteen root entries were unreadable — 46 lines of detail in a 14-line pane
+with no way to scroll. `w` goes in, `q`/`<Esc>` back.
 
-Die Taste ist `w` und nicht das zuerst gewählte `<Tab>`: ein Terminal sendet
-für `<Tab>` und `<C-i>` dasselbe Byte, die Bindung hat also still `<C-i>` aus
-der Besuchshistorie genommen. `docmap_browse_spec` hat es gefangen.
+The key is `w` and not the initially chosen `<Tab>`: a terminal sends the same
+byte for `<Tab>` and `<C-i>`, so the binding silently took `<C-i>` away from
+the visit history. `docmap_browse_spec` caught it.
 
-### ~~M4 · Cross-Repo-Dashboard~~ — **erledigt 2026-08-21**
+### ~~M4 · Cross-repo dashboard~~ — **done 2026-08-21**
 
-Die Workspace-Ebene, die kein einzelnes Repository haben kann — dort, wo
-vorher „Nichts ausgewählt" stand. Dieser Zustand ist kein fehlendes Thema, er
-*ist* der Workspace.
+The workspace level no single repository can have — where "Nothing selected"
+used to stand. That state is not a missing subject, it *is* the workspace.
 
-**Die Rangfolge ist gemessen, nicht gewählt.** Über den eigenen Baum — 54
-Repositories, 30 mit erzeugter Karte:
+**The ranking is measured, not chosen.** Across the tree itself — 54
+repositories, 30 with a generated map:
 
-* **27 von 30 Karten stammten von Schema 2, während die Engine 5 schreibt.**
-  Drei Artefaktversionen zurück, alle in einem Lauf fünf Tage zuvor erzeugt.
-* **28 von 30 waren „veraltet"** — Quellen neuer als die Karte. Die lautere
-  Zahl, und die schwächere: bei 17 davon war die neuste Datei ein
-  `.gitignore` aus einem einzigen Rutsch, bei 22 das von `:helptags`
-  geschriebene `doc/tags`. Generierte `tags` auszunehmen änderte die Zahl um
-  exakt null.
+* **27 of 30 maps came from schema 2 while the engine writes 5.** Three
+  artifact versions back, all produced in one run five days earlier.
+* **28 of 30 were "stale"** — sources newer than the map. The louder number,
+  and the weaker one: for 17 of them the newest file was a `.gitignore` from a
+  single sweep, for 22 the `doc/tags` written by `:helptags`. Excluding
+  generated `tags` changed the number by exactly zero.
 
-Beide Signale feuern also fast überall; unterschieden werden sie dadurch,
-*worauf* sie zeigen. Eine ältere Engine bedeutet konkret fehlende Inhalte,
-und Neuerzeugen holt sie zurück. Deshalb führt sie, und „veraltet" nicht —
-die naheliegende Ordnung war die, die die Zahlen verworfen haben.
+So both signals fire almost everywhere; what separates them is *what* they
+point at. An older engine means concrete missing content, and regenerating
+gets it back. That is why it leads and "stale" does not — the obvious ordering
+was the one the numbers discarded.
 
-Dazu die eine Sammelaktion, die das Menü noch nicht hatte: *Veraltete
-erzeugen* vergleicht Änderungszeiten, und eine von einer älteren Engine
-gebaute Karte ist danach gar nicht veraltet.
+Plus the one bulk action the menu did not yet have: *Generate stale* compares
+modification times, and a map built by an older engine is not stale by that
+measure at all.
 
-**Zwei Fehler hat erst der Blick in ein echtes Fenster gefunden**, beide
-dieselbe Falle: `#map` und `.placeholder` setzen eigene `display`-Regeln, die
-das `[hidden]`-Attribut überstimmen. Ein verstecktes `<iframe>` behielt damit
-volle Höhe und schob die Übersicht in einem 720-Pixel-Fenster auf y=702. Es
-fiel nie auf, solange der Platzhalter das Einzige dahinter war: er ist in
-einer Box gleicher Höhe zentriert, ein Bildschirm nach unten geschoben sieht
-aus wie ein Bildschirm nach unten zentriert. Genau der Fehlertyp, für den
-`tools/preview/preview.py` existiert.
+**Two bugs were only found by looking at a real window**, both the same trap:
+`#map` and `.placeholder` set `display` rules of their own that override the
+`[hidden]` attribute. A hidden `<iframe>` therefore kept its full height and
+pushed the overview to y=702 in a 720-pixel window. It never showed as long as
+the placeholder was the only thing behind it: it is centred in a box of equal
+height, and pushed one screen down looks like centred one screen down. Exactly
+the class of bug `tools/preview/preview.py` exists for.
 
-### ~~M5 · Extension-API, Stufe 2~~ — **erledigt 2026-08-21**
+### ~~M5 · Extension API, stage 2~~ — **done 2026-08-21**
 
-Gebaut als *ein* lesender Konsument, nicht als Plugin-Lader — und das ist die
-Entscheidung, nicht die Abkürzung. `WORKPLAN.md` hat es selbst begründet: eine
-Plugin-API ist ein Versprechen, das man nicht zurücknehmen kann, und
-`module_map.json` stand in zwei Wochen von Schema 2 auf 5, wobei der letzte
-Sprung drei Felder *entfernt* hat. Ein Lader auf ein Format, das sich noch
-dreimal bewegt, erzeugt genau die Enttäuschung, die ein Ökosystem beendet,
-bevor es anfängt. Stufe 2 zeigt stattdessen, dass die Zusage trägt, indem
-etwas darauf steht.
+Built as *one* reading consumer rather than as a plugin loader — and that is
+the decision, not the shortcut. `WORKPLAN.md` argued it itself: a plugin API
+is a promise you cannot take back, and `module_map.json` went from schema 2 to
+5 in two weeks, with the last jump *removing* three fields. A loader onto a
+format that will still move three more times produces exactly the
+disappointment that ends an ecosystem before it starts. Stage 2 instead shows
+the promise holds by putting something on top of it.
 
-**Was berechnet wird:** `requires_external` über alle Karten des Workspace
-aufgelöst. Das ist präzise die Stelle, an der eine einzelne Karte aufhört —
-sie hält fest, dass ein Modul außerhalb des Repositorys verlangt wurde, und
-kann nicht sagen, wo es lebt, weil sie es nie gesehen hat. Mehrere Karten
-können es, und dieses Fenster ist der einzige Ort, an dem mehrere liegen.
-Ohne Engine, ohne Registrierung — nur die Dateien auf der Platte.
+**What is computed:** `requires_external` resolved across every map in the
+workspace. That is precisely where a single map stops — it records that a
+module outside the repository was required, and cannot say where it lives,
+because it never saw it. Several maps can, and this window is the only place
+several of them are. No engine, no registration — just the files on disk.
 
-**Gemessen, bevor es geschrieben wurde**, über 30 erzeugte Karten: **1 820
-deklarierte Modulnamen, kein einziger von zwei Repositories beansprucht.** Ein
-Treffer ist damit eine Tatsache, kein Raten. Der naheliegende Rückfall — auf
-das längste deklarierte Präfix hinuntergehen — wurde für die Messung gebaut
-und löste **exakt null** zusätzliche Namen auf; er steht nicht im Code. Von
-1 175 externen Requires trafen 852, 323 nicht, und die 323 sind die Antwort
-bei der Arbeit: `telescope`, `fzf-lua`, `which-key` liegen nicht im
-Workspace. Der Rust-Code reproduziert beide Zahlen zeichengenau.
+**Measured before it was written**, across 30 generated maps: **1,820 declared
+module names, not a single one claimed by two repositories.** A hit is
+therefore a fact, not a guess. The obvious fallback — dropping down to the
+longest declared prefix — was built for the measurement and resolved **exactly
+zero** additional names; it is not in the code. Of 1,175 external requires,
+852 hit and 323 did not, and the 323 are the answer at work: `telescope`,
+`fzf-lua`, `which-key` are not in the workspace. The Rust code reproduces both
+numbers character for character.
 
-**Zwei Zahlen statt einer**, weil sie verschiedene Fragen beantworten: *von
-fünf Projekten benutzt* und *an 197 Stellen*. Einmal sechzigmal gegriffen ist
-eine Kopplung, zwanzigmal einmal ist eine Konvention.
+**Two numbers instead of one**, because they answer different questions: *used
+by five projects* and *at 197 places*. Reached for sixty times once is a
+coupling, once twenty times is a convention.
 
-Stufe 3 (schreibend) bleibt **L7** und ist unverändert offen.
+Stage 3 (writing) remains **L7** and is unchanged, open.
 
-### ~~M6 · Compiler Explorer, zwei Schritte weiter~~ — **erledigt 2026-08-21**
+### ~~M6 · Compiler Explorer, two steps further~~ — **done 2026-08-21**
 
-Beide Hälften gebaut. Zwei markierte Funktionen liegen jetzt in *einem*
-`clientstate`, je ein Editor — `sessions` ist ein Array, also das
-dokumentierte Format wie dokumentiert benutzt.
+Both halves built. Two marked functions now sit in *one* `clientstate`, one
+editor each — `sessions` is an array, so the documented format used as
+documented.
 
-**Marken statt eines Knopfes an der Duplikatgruppe, und das war gemessen.**
-Über 232 Gruppen in 27 Repositories haben **144 genau zwei Mitglieder** — ein
-Paar ist der Normalfall. Ein Paar dieses Repositories kommt auf höchstens
-**3 104 Zeichen**, bequem in godbolt.orgs 8-KB-Anfragezeile, während **zwei
-der 17 ganzen Gruppen sie reißen**. Ein „ganze Gruppe kompilieren" hätte also
-ausgerechnet dort versagt, wo man am ehesten hinsieht. Marken sind zudem nicht
-auf eine Gruppe beschränkt, und das wiegt schwerer: der lohnende Vergleich ist
-oft der zwischen einem Duplikat und dem, was es hätte sein sollen.
+**Marks instead of a button on the duplicate group, and that was measured.**
+Across 232 groups in 27 repositories, **144 have exactly two members** — a
+pair is the normal case. A pair from this repository comes to at most **3,104
+characters**, comfortably within godbolt.org's 8 KB request line, while **two
+of the 17 whole groups break it**. A "compile the whole group" would therefore
+have failed exactly where you are most likely to look. Marks are also not
+confined to one group, and that weighs more: the comparison worth making is
+often between a duplicate and what it should have been.
 
-**Die lokale Instanz steht im `localStorage`, nie im Artefakt.** Genau die
-Bedingung, die dieser Eintrag gestellt hat: eine committete Seite mit einem
-eingebackenen `localhost:10240` wäre ein Link, der für den Autor funktioniert
-und für alle anderen still ins Leere läuft. `compiler_explorer_spec.lua` hält
-fest, dass die einzige Adresse im Quelltext die öffentliche ist.
+**The local instance lives in `localStorage`, never in the artifact.** Exactly
+the condition this entry set: a committed page with a baked-in
+`localhost:10240` would be a link that works for the author and silently goes
+nowhere for everyone else. `compiler_explorer_spec.lua` records that the only
+address in the source is the public one.
 
-Zwei Stellen, an denen die naheliegende Umsetzung falsch liegt: die
-8-KB-Grenze gehört godbolt.orgs CloudFront und nicht Compiler Explorer, gilt
-für eine eigene Instanz also nicht — sonst erfände die Seite eine
-Beschränkung, die ihr Ziel nicht hat. Und die Warnung wird *umgeschrieben*,
-nicht umetikettiert: „verlässt deinen Rechner" ist bei einer Adresse auf
-diesem Rechner unwahr, und eine Warnung, die Wolf ruft, lernt man
-wegzuklicken.
+Two places where the obvious implementation is wrong: the 8 KB limit belongs
+to godbolt.org's CloudFront and not to Compiler Explorer, so it does not apply
+to a private instance — otherwise the page would invent a restriction its
+target does not have. And the warning is *rewritten*, not relabelled: "leaves
+your machine" is untrue for an address on this machine, and a warning that
+cries wolf is one you learn to click away.
 
 ---
 
-## Nach dem zusammengeführten Plan, 2026-08-23
+## After the merged plan, 2026-08-23
 
-### ~~Die Optionsfläche: was ein Nutzer einstellen können sollte und nicht konnte~~ — **gebaut 2026-08-23**
+### ~~The options surface: what a user should have been able to set and could not~~ — **built 2026-08-23**
 
-Kein Eintrag aus `PLAN.md` — die Frage kam von außen („welche Optionen
-gibt es sicher, die ein Nutzer konfigurieren könnte, aber noch nicht
-kann?"), und die Durchsicht beider Repositories fand genug, um sie hier
-festzuhalten.
+Not an entry from `PLAN.md` — the question came from outside ("which options
+are there for certain that a user could configure but cannot yet?"), and going
+through both repositories found enough to record it here.
 
 Engine: [`documentation.nvim@8e3f8c6`](https://github.com/StefanBartl/documentation.nvim/commit/8e3f8c6) ·
 App: [`docmap-desktop@df8e4a4`](https://github.com/StefanBartl/docmap-desktop/commit/df8e4a4)
 
-**Der größte Teil der Antwort war nicht „es fehlt eine Funktion".** Es war
-„der Weg von der Spec dorthin fehlt". `Documentation.Browse.Opts` trug
-`width`/`height`/`list_width`/`theme`/`depth` und `browse.open` las sie
-alle — `usrcmds/browse.lua` gab davon nichts weiter, also war eine
-konfigurierte Fenstergröße nur erreichbar, indem man die Lua-API von Hand
-aufrief. `render.dot` liest `rankdir`/`cluster_depth`/`hops`,
-`render.mermaid` liest `direction`/`max_depth`/`depth`, und beide Kommandos
-übergaben `{}`. Dasselbe Muster, zweimal, in Code der jahrelang so aussah,
-als sei er konfigurierbar.
+**Most of the answer was not "a function is missing".** It was "the path from
+the spec to it is missing". `Documentation.Browse.Opts` carried
+`width`/`height`/`list_width`/`theme`/`depth` and `browse.open` read all of
+them — `usrcmds/browse.lua` passed none of it on, so a configured window size
+was only reachable by calling the Lua API by hand. `render.dot` reads
+`rankdir`/`cluster_depth`/`hops`, `render.mermaid` reads
+`direction`/`max_depth`/`depth`, and both commands passed `{}`. The same
+pattern, twice, in code that had looked configurable for years.
 
-**`.docmap.json`, und warum das die Antwort auf drei Löcher gleichzeitig
-ist.** `IDEAS.md` §6.2 hält fest, warum die GitHub Action `layers` nicht
-anbietet: es passe in keinen Input, ohne eine Konfigurationssprache zu
-erfinden. Das stimmt — über *Inputs*. Die Antwort auf „das passt nicht auf
-eine Kommandozeile" ist eine Datei und nicht mehr Kommandozeile. Dieselbe
-Datei löst die anderen zwei: das Standalone-Binary nimmt sieben Flags,
-weshalb der Projekteinstellungen-Dialog dieser App genau zwei Regler
-anbieten konnte (sein eigener Kommentar sagte das auch: *„anything further
-belongs in the engine first"*), und `standalone/docmap.lua` hatte
-`documentation.nvim`s **eigene drei Layer-Regeln fest eingebaut**, in jedem
-Lauf über jeden fremden Baum — nicht weil das gewollt war, sondern weil
-eine generische CLI keinen anderen Weg hatte, welche zu bekommen.
+**`.docmap.json`, and why that answers three holes at once.** `IDEAS.md` §6.2
+records why the GitHub Action does not offer `layers`: it fits no input
+without inventing a configuration language. That is true — about *inputs*. The
+answer to "this does not fit on a command line" is a file and not more command
+line. The same file solves the other two: the standalone binary takes seven
+flags, which is why this app's project settings dialog could offer exactly two
+controls (its own comment said so too: *"anything further belongs in the
+engine first"*), and `standalone/docmap.lua` had `documentation.nvim`'s **own
+three layer rules hard-coded**, in every run over every foreign tree — not
+because that was intended, but because a generic CLI had no other way to get
+any.
 
-Allowlist statt Denylist, und das ist der Entwurf und keine
-Sicherheitsmaßnahme: ein Repository sagt Fakten über *sich selbst*, nicht
-über *deine Sitzung*. `command_name`, `keys`, `watch`, `diagnostics`,
-`telemetry` werden mit namentlicher Warnung abgelehnt — ein Checkout, den
-du geklont hast, darf weder deine Tasten neu belegen noch einen Watcher
-starten. Aus demselben Grund Daten und kein Code: die Datei wird aus einem
-Baum gelesen, den die CI gerade geklont hat, und sie auszuführen machte
-„schau dir die Karte an" zu einem Code-Execution-Primitiv. `extra_checks`
-bleibt deshalb host-seitig — es ist der einzige Verlust, und ein kleiner.
+Allowlist rather than denylist, and that is the design and not a security
+measure: a repository states facts about *itself*, not about *your session*.
+`command_name`, `keys`, `watch`, `diagnostics`, `telemetry` are rejected with
+a named warning — a checkout you cloned may neither rebind your keys nor start
+a watcher. For the same reason data and not code: the file is read from a tree
+CI has just cloned, and executing it would turn "have a look at the map" into
+a code execution primitive. `extra_checks` therefore stays host-side — it is
+the only loss, and a small one.
 
-**`opts.checks`, und die zwei gemessenen Gründe dafür.**
-`missing-module-tag` ist ein `error`, also hatte ein Repository, das seinen
-Baum Datei für Datei annotiert, ein rotes `--check` vom ersten bis zum
-letzten Commit — und ein Gate, das einen Monat rot ist, lernt man zu
-ignorieren. Und `dead_code` meldet die öffentliche API jeder Bibliothek,
-was sein eigener Doc-Kommentar ausspricht; der Rat war „lass es aus", weil
-es keinen Weg gab, den Check zu behalten und die sechs absichtlich
-veröffentlichten Funktionen still zu stellen. Ein *unbrauchbarer* Wert wird
-ignoriert und gerade nicht wie `false` behandelt: Findings wegen eines
-vertippten Severity-Namens stillschweigend zu löschen wäre das einzige
-Ergebnis, das schlimmer ist als die Zeile zu übergehen.
+**`opts.checks`, and the two measured reasons for it.**
+`missing-module-tag` is an `error`, so a repository annotating its tree file
+by file had a red `--check` from the first commit to the last — and a gate
+that is red for a month is one you learn to ignore. And `dead_code` reports
+every library's public API, which its own doc comment states; the advice was
+"turn it off", because there was no way to keep the check and silence the six
+deliberately published functions. An *unusable* value is ignored and expressly
+not treated like `false`: silently deleting findings because of a mistyped
+severity name would be the only outcome worse than skipping the line.
 
-**Die App hatte zwei sichtbare Folgen ihrer zwei Regler.** Ein Repository,
-dessen Karte nicht in `docs/map` liegt, war hier nicht benutzbar —
-`map_dir` wurde beim Hinzufügen einmal geschrieben und nie wieder, obwohl
-der Kommentar am Feld sagte, es sei gespeichert statt abgeleitet, *„so a
-project whose map lives somewhere other than `docs/map` is representable
-later without a migration"*. Und **jede in diesem Fenster erzeugte Karte
-hatte keinen einzigen Quelltext-Link**, weil `--repo-url` nie mitging;
-dieselbe Engine erzeugt in der CI welche. Das ist der Unterschied, den man
-zwischen beiden Karten tatsächlich sieht, und nichts hier erklärte ihn.
+**The app had two visible consequences of its two controls.** A repository
+whose map does not live in `docs/map` was unusable here — `map_dir` was
+written once when adding and never again, although the comment on the field
+said it was stored rather than derived, *"so a project whose map lives
+somewhere other than `docs/map` is representable later without a migration"*.
+And **every map generated in this window had not a single source link**,
+because `--repo-url` never went along; the same engine produces them in CI.
+That is the difference you actually see between the two maps, and nothing here
+explained it.
 
-**Und dabei kam heraus, dass die Warnungen der Engine in genau den zwei
-Hosts ins Leere gingen, in denen niemand hinschaut.** `config.build` warnt
-über eine unbekannte Option, ein kaputtes `.docmap.json` und einen
-vertippten `checks`-Key — über ein `notify`, das ihm übergeben wird.
-`standalone/docmap.lua` und `scripts/action_run.lua` übergaben keins. Ein
-CI-Log, das schweigt und grün wird, ist die schlechteste der drei Stellen,
-an denen das passieren kann. Beide haben jetzt einen stderr-Shim.
+**And what came out of it was that the engine's warnings went nowhere in
+exactly the two hosts where nobody looks.** `config.build` warns about an
+unknown option, a broken `.docmap.json` and a mistyped `checks` key — through
+a `notify` passed to it. `standalone/docmap.lua` and `scripts/action_run.lua`
+passed none. A CI log that stays silent and goes green is the worst of the
+three places this can happen. Both have a stderr shim now.
 
-**Gegengeprüft statt behauptet:** 5 Spec-Fehler vor und nach der Arbeit —
-dieselben fünf, alle umgebungsbedingt auf dem Rechner (8.3-Kurzpfade,
-Historientiefe, LSP-Attach). Zwei neue Specs in der Engine, drei neue
-Rust-Tests und vier neue Frontend-Tests in der App; die letzten vier prüfen
-jeden neuen Flag-Pfad von Markup über JS bis zum Kommandozeilenargument,
-weil genau dort ein Feld sich speichern, neu laden und nichts tun kann.
+**Cross-checked rather than claimed:** 5 spec failures before and after the
+work — the same five, all environmental on this machine (8.3 short paths,
+history depth, LSP attach). Two new specs in the engine, three new Rust tests
+and four new frontend tests in the app; the last four check every new flag
+path from markup through JS to the command-line argument, because that is
+exactly where a field can save itself, reload and do nothing.
 
-**Nicht gebaut, mit Absicht:** `tauri-plugin-window-state`
-(Fenstergröße merken) — eine neue Dependency, deren Bundling hier nicht
-verifizierbar war. Und ein Freitextfeld für zusätzliche Engine-Argumente:
-mit `.docmap.json` ist der bessere Ort dafür das Repository selbst.
+**Deliberately not built:** `tauri-plugin-window-state` (remembering the
+window size) — a new dependency whose bundling could not be verified here. And
+a free-text field for extra engine arguments: with `.docmap.json` the better
+place for that is the repository itself.
 
 ---
 
-## Nach dem zusammengeführten Plan, 2026-08-24
+## After the merged plan, 2026-08-24
+### ~~A1 · Publish `v0.3.0`~~ — **published 2026-08-21**
 
-### ~~A1 · `v0.3.0` veröffentlichen~~ — **veröffentlicht 2026-08-21**
+The four standard points plus project settings walked through, all passed. The
+entry still stood in `PLAN.md` as open although `gh release list` had shown
+`v0.3.0` as `Latest` since the 21st — noticed during the next release pass and
+recorded afterwards rather than simply overwritten.
 
-Die vier Standardpunkte plus Projekteinstellungen durchgegangen, alle
-bestanden. Der Eintrag stand in `PLAN.md` weiter als offen, obwohl
-`gh release list` seit dem 21. `v0.3.0` als `Latest` zeigt — beim
-nächsten Release-Durchgang aufgefallen und nachgetragen statt einfach
-überschrieben.
+### ~~documentation.nvim: three defects in the `tests` gate~~ — **fixed 2026-08-24**, [`6594a30`](https://github.com/StefanBartl/documentation.nvim/commit/6594a30) · [`21d0a51`](https://github.com/StefanBartl/documentation.nvim/commit/21d0a51)
 
-### ~~documentation.nvim: drei Defekte im `tests`-Gate~~ — **behoben 2026-08-24**, [`6594a30`](https://github.com/StefanBartl/documentation.nvim/commit/6594a30) · [`21d0a51`](https://github.com/StefanBartl/documentation.nvim/commit/21d0a51)
+`tests` had been red since the async history rework (`def849c`), hidden by two
+further red gates. One cause with two symptoms, and behind it a third,
+independent defect:
 
-`tests` war seit dem async-History-Umbau (`def849c`) rot, verdeckt durch
-zwei weitere rote Gates. Eine Ursache mit zwei Symptomen, dahinter ein
-dritter, unabhängiger Defekt:
+**`opts.menu` was documented and had no effect.** `browse/init.lua` reads
+`st.opts.menu`, but `menu` was missing from `KNOWN_OPTS_KEYS` and
+`usrcmds/browse.lua` did not pass it through — anyone writing the line
+`opts.menu = false` that `BINDINGS.md` itself recommends got "unrecognized
+key(s)" and the context menu anyway. From the menu commit (`5953521`), one
+commit after the class of bug the same session had cleared out earlier.
 
-**`opts.menu` war dokumentiert und wirkte nicht.** `browse/init.lua` liest
-`st.opts.menu`, aber `menu` fehlte in `KNOWN_OPTS_KEYS` und
-`usrcmds/browse.lua` reichte es nicht durch — wer die von `BINDINGS.md`
-selbst empfohlene Zeile `opts.menu = false` schrieb, bekam
-„unrecognized key(s)" und das Kontextmenü trotzdem. Aus dem Menu-Commit
-(`5953521`), einen Commit nach der Klasse von Bugs, die dieselbe Session
-vorher ausgeräumt hatte.
+**`docs/BINDINGS.md` carried a hand-inserted section** in a file that
+`bindings/docs.lua` rewrites completely on every `:DocMap` — the next
+regeneration would have deleted it without comment. The text was moved into
+the renderer, verified by comparing the generated and the committed file byte
+for byte.
 
-**`docs/BINDINGS.md` trug einen von Hand eingefügten Abschnitt** in einer
-Datei, die `bindings/docs.lua` bei jedem `:DocMap` vollständig neu
-schreibt — hätte das nächste Regenerieren kommentarlos gelöscht. Text in
-den Renderer geholt, verifiziert per Byte-Vergleich zwischen erzeugter und
-committeter Datei.
+**The browse history spec did not wait for the asynchronously loaded
+`git log`.** Locally (full history) the line count failed; on CI
+(`actions/checkout` clones shallow, one commit) the placeholder "(loading
+commits…)" satisfied the assertion itself, `<CR>` landed on a message line,
+and the error surfaced seven lines further on as a different test. One cause,
+two places it showed — verified through `actions/checkout`'s missing
+`fetch-depth`, not guessed.
 
-**Der Browse-History-Spec wartete nicht auf das asynchron geladene
-`git log`.** Lokal (volle Historie) schlug die Zeilenzahl fehl; auf CI
-(`actions/checkout` klont flach, ein Commit) erfüllte der Platzhalter
-„(loading commits…)" die Assertion selbst, `<CR>` landete auf einer
-Message-Zeile, und der Fehler erschien sieben Zeilen weiter als ein
-anderer Test. Eine Ursache, zwei Fundorte — verifiziert über
-`actions/checkout`s fehlendes `fetch-depth`, nicht vermutet.
+**Behind it, visible only after the fix:** `<RightMouse>` from the menu
+feature was missing from the `?` cheatsheet — a bound key the overview meant
+to describe does not name. It now stands deliberately outside the `KEYS`
+table, because it is not a command but opens a menu built from the rows
+already listed there.
 
-**Dahinter, erst nach dem Fix sichtbar:** `<RightMouse>` aus dem
-Menu-Feature fehlte im `?`-Cheatsheet — eine gebundene Taste, die die
-Übersicht nicht nennt, die sie beschreiben soll. Steht jetzt bewusst
-außerhalb der `KEYS`-Tabelle, weil sie kein Kommando ist, sondern ein
-Menü aus den Zeilen öffnet, die dort ohnehin schon stehen.
+### `v0.1.0` for documentation.nvim, `v0.4.0` for docmap-desktop — **tagged 2026-08-24**
 
-### `v0.1.0` für documentation.nvim, `v0.4.0` für docmap-desktop — **getaggt 2026-08-24**
+documentation.nvim had no version scheme — only `standalone-latest`, the
+rolling pre-release. `v0.1.0` marks a state (all five CI gates green) and is
+not a new release workflow.
 
-documentation.nvim hatte kein Versionsschema — nur `standalone-latest`,
-den rollenden Pre-Release. `v0.1.0` markiert nur einen Stand (alle fünf
-CI-Gates grün), ist kein neuer Release-Workflow.
+The decision made with it: do not wait for L3/L2/L1 from `PLAN.md` — those
+have no date, only "several sessions". The finished, tested piece (project
+settings plus the three fixes above) gets published now, the next piece will
+be the next version.
 
-Entscheidung dabei: nicht auf L3/L2/L1 aus `PLAN.md` warten — die haben
-keinen Termin, nur „mehrere Sitzungen". Das fertige, getestete Stück
-(Projekteinstellungen + die drei Fixes oben) wird jetzt veröffentlicht,
-das nächste Stück wird die nächste Version.
-
-`v0.4.0` gebaut, sobald `standalone-latest` mit dem frischen Engine-Stand
-(`publishedAt` 2026-08-24T18:52:45Z) fertig war, damit der gebündelte
-Sidecar nicht hinter den eigenen Fixes zurückbleibt — genau das Muster,
-das `RELEASING.md` aus `v0.2.0` gelernt hat. `v0.4.0` selbst: Draft,
-Veröffentlichung nach dem menschlichen Check ausständig (A1 in
+`v0.4.0` was built once `standalone-latest` had finished with the fresh engine
+state (`publishedAt` 2026-08-24T18:52:45Z), so that the bundled sidecar does
+not lag behind its own fixes — exactly the pattern `RELEASING.md` learned from
+`v0.2.0`. `v0.4.0` itself: a draft, publication pending the human check (A1 in
 `PLAN.md`).

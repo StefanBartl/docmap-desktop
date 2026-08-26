@@ -1,11 +1,10 @@
 # Work plan — the 2026-08-19 review, and what was already open
 
-> **Protokoll, keine Warteschlange.** Die offenen Punkte aller drei
-> Repositories stehen seit 2026-08-20 in **einem** Plan:
-> [`PLAN.md`](PLAN.md). Was hier noch als offener Punkt gelesen werden
-> könnte, ist ein *Vorbehalt* oder eine unbeantwortete Frage aus der
-> Herleitung — die Häkchen sind entfernt, damit dieses Dokument nicht wie
-> eine zweite Warteschlange aussieht.
+> **A record, not a queue.** The open items of all three repositories have
+> been in **one** plan since 2026-08-20: [`PLAN.md`](PLAN.md). Anything here
+> that could still read as an open item is a *reservation* or an unanswered
+> question from the derivation — the checkboxes are removed so this document
+> does not look like a second queue.
 
 **A record, not the queue.** Everything below is either measured against the
 code or marked as a question, and items are struck through as they ship —
@@ -1404,14 +1403,13 @@ the line scanner assembly proved.
 
 ---
 
-## Anhang — die alte `ROADMAP.md`, unverändert (verschoben 2026-08-20)
+## Appendix — the old `ROADMAP.md`, unchanged (moved here 2026-08-20)
 
-`ROADMAP.md` ist seit der Zusammenführung ein **kurzer öffentlicher
-Ausblick**; die Warteschlange steht in [`PLAN.md`](PLAN.md). Was sie vorher
-war — die Scheiben-für-Scheiben-Herleitung dieser App, samt der Fragen, die
-sich unterwegs als falsch gestellt herausstellten — steht hier weiter, weil
-genau das der Teil ist, den man in fünf Jahren sucht. Wortgleich übernommen,
-nichts gekürzt.
+Since the merge, `ROADMAP.md` is a **short public outlook**; the queue is in
+[`PLAN.md`](PLAN.md). What it used to be — this app's slice-by-slice
+derivation, including the questions that turned out to be the wrong ones to
+ask — stays here, because that is exactly the part you go looking for in five
+years. Carried over word for word, nothing cut.
 
 # Roadmap
 

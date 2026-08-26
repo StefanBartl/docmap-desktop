@@ -1,102 +1,98 @@
-# Übergabe — offene Arbeit am Desktop/Ökosystem
+# Handover — open work on the desktop app and the ecosystem
 
-Was eine neue Sitzung über **diesen Rechner und diese Arbeitsweise** wissen
-muss. Kein Aufgabenspeicher — dafür gibt es zwei andere Dateien, und das
-Aufteilen ist der Punkt:
+What a new session needs to know about **this machine and this way of
+working**. Not a task store — there are two other files for that, and the
+split is the point:
 
-| Datei | Antwortet auf |
+| File | Answers |
 |---|---|
-| [`PLAN.md`](PLAN.md) | **Was ist offen** — und zwar für **alle drei Repositories**, nach Aufwand geordnet. Seit 2026-08-20 die einzige Warteschlange |
-| [`PLAN-DONE.md`](PLAN-DONE.md) | **Was wurde gebaut und warum so** — inklusive der Entscheidungen, die nicht neu verhandelt werden |
-| [`ROADMAP.md`](ROADMAP.md) je Repo | **Wohin es geht**, in Prosa. Richtung, kein Fahrplan |
-| `WORKPLAN.md` · `FEATURES.md` · `FINISHED.md` | **Die Herleitung.** Protokolle, die wachsen und nie gekürzt werden |
-| dieses Dokument | **Wie man hier arbeitet**: Stand der Repos, installierte Werkzeuge, Gates, Fallstricke |
+| [`PLAN.md`](PLAN.md) | **What is open** — for **all three repositories**, ordered by effort. The only queue since 2026-08-20 |
+| [`PLAN-DONE.md`](PLAN-DONE.md) | **What was built and why that way** — including the decisions that are not renegotiated |
+| [`ROADMAP.md`](ROADMAP.md) per repo | **Where it is going**, in prose. Direction, not a schedule |
+| `WORKPLAN.md` · `FEATURE_LOG.md` · `FINISHED.md` | **The derivation.** Records that grow and are never trimmed |
+| this document | **How to work here**: state of the repos, installed tools, gates, pitfalls |
 
-**Die Warteschlange stand vorher an fünf Stellen** — zwei `WORKPLAN.md`,
-drei `ROADMAP.md`, eine `IDEAS.md` und dieser Plan — und dieselbe Aufgabe
-tauchte in mehreren davon in unterschiedlichem Zustand auf. Zusammengeführt
-2026-08-20: die Häkchen sind aus den Protokoll- und Begründungsdokumenten
-entfernt, ihr Text steht unverändert weiter da.
+**The queue used to live in five places** — two `WORKPLAN.md`, three
+`ROADMAP.md`, an `IDEAS.md` and this plan — and the same task showed up in
+several of them in different states. Merged on 2026-08-20: the checkboxes are
+gone from the record and reasoning documents, their text stands unchanged.
 
-Zusammengeführt 2026-08-20 aus diesem Dokument und `HANDOVER-2026-08-20.md`.
-Die Tageshandover ist entfallen, nicht verloren: was sie an Ergebnissen
-trug, steht in `PLAN-DONE.md` und in den `FEATURES.md` der Repos, und was
-sie an Bedienwissen trug, steht unten unter *Alles ausführen*.
+Merged on 2026-08-20 out of this document and `HANDOVER-2026-08-20.md`. The
+daily handover is gone, not lost: what it carried in results is in
+`PLAN-DONE.md` and in the repos' feature records, and what it carried in
+operating knowledge is below under *Running everything*.
 
-## Stand
+## State
 
 | Repo | Branch | HEAD | CI |
 |---|---|---|---|
-| `C:\repos\documentation.nvim` | main | `21d0a51`, getaggt **`v0.1.0`** | grün, 5/5 Gates |
-| `E:\repos\runtime-analysis.nvim` | main | `e10c374` | grün |
-| `C:\repos\docmap-desktop` | main | `faf39e9`, getaggt **`v0.4.0`** (Draft, s. u.) | grün; Release-Workflow ist Tag-getriggert (`v*`) und lädt die Engine von `standalone-latest`, bevor `cargo tauri build` startet. Ablauf in [`RELEASING.md`](RELEASING.md) |
-| `C:\Users\bartl\AppData\Local\nvim` (persönliche Config) | main | `597af5d5` | kein CI |
+| `C:\repos\documentation.nvim` | main | `21d0a51`, tagged **`v0.1.0`** | green, 5/5 gates |
+| `E:\repos\runtime-analysis.nvim` | main | `e10c374` | green |
+| `C:\repos\docmap-desktop` | main | `faf39e9`, tagged **`v0.4.0`** (draft, see below) | green; the release workflow is tag-triggered (`v*`) and downloads the engine from `standalone-latest` before `cargo tauri build` starts. The procedure is in [`RELEASING.md`](RELEASING.md) |
+| `C:\Users\bartl\AppData\Local\nvim` (personal config) | main | `597af5d5` | no CI |
 
-**2026-08-24: `v0.1.0` und `v0.4.0` getaggt, in dieser Reihenfolge.**
-`documentation.nvim` hatte bis dahin gar kein Versionsschema — nur
-`standalone-latest`, den rollenden Pre-Release. Anlass war die Frage, ob
-man auf weitere Roadmap-Punkte (Multilang L3 u. a., allesamt „mehrere
-Sitzungen" ohne Termin) warten oder mit dem fertigen, getesteten Stand
-(Projekteinstellungen-Dialog, `.docmap.json`, drei frisch behobene
-CI-Defekte — Details in [`PLAN-DONE.md`](PLAN-DONE.md)) releasen soll.
-Entscheidung: releasen, jetzt. Eine leere Roadmap gibt es nie, und
-`RELEASING.md`s eigene Lehre aus `v0.2.0` ist, dass ein Entwurf schnell
-altert — warten kostet mehr als es bringt.
+**2026-08-24: `v0.1.0` and `v0.4.0` tagged, in that order.**
+`documentation.nvim` had no version scheme at all until then — only
+`standalone-latest`, the rolling pre-release. The occasion was the question
+whether to wait for further roadmap items (multilang L3 among others, all of
+them "several sessions" with no date) or to release the finished, tested state
+(project settings dialog, `.docmap.json`, three freshly fixed CI defects —
+details in [`PLAN-DONE.md`](PLAN-DONE.md)). Decision: release, now. There is
+never an empty roadmap, and `RELEASING.md`'s own lesson from `v0.2.0` is that
+a draft ages fast — waiting costs more than it returns.
 
-Reihenfolge war wichtig: erst `standalone-latest` frisch bauen lassen
-(`publishedAt` 2026-08-24T18:52:45Z, ausgelöst automatisch durch den
-`lua/**`-Push auf `documentation.nvim`), **dann** `v0.4.0` taggen — sonst
-hätte der gebündelte Sidecar hinter den eigenen Fixes zurückgelegen,
-genau der Fehler, den `RELEASING.md` aus `v0.2.0` dokumentiert.
+The order mattered: first have `standalone-latest` rebuilt freshly
+(`publishedAt` 2026-08-24T18:52:45Z, triggered automatically by the `lua/**`
+push on `documentation.nvim`), **then** tag `v0.4.0` — otherwise the bundled
+sidecar would have lagged behind its own fixes, exactly the mistake
+`RELEASING.md` records from `v0.2.0`.
 
-**`v0.4.0` ist ein Draft, noch nicht veröffentlicht.** Der Build lief beim
-Schreiben dieser Zeile noch — Status mit `gh run list --workflow=release.yml
---limit 1` prüfen. Sobald grün, steht **A1 in [`PLAN.md`](PLAN.md)**: der
-menschliche Check (App öffnen, Karte laden, Projekteinstellungen mit ein
-paar der neuen Flags ausprobieren), dann `gh release edit v0.4.0
---draft=false`. Das ist absichtlich kein Automatismus — siehe `RELEASING.md`.
+**`v0.4.0` is a draft, not published yet.** The build was still running as
+this line was written — check the status with `gh run list
+--workflow=release.yml --limit 1`. Once green, **A1 in [`PLAN.md`](PLAN.md)**
+is next: the human check (open the app, load a map, try the project settings
+with a few of the new flags), then `gh release edit v0.4.0 --draft=false`.
+That is deliberately not automated — see `RELEASING.md`.
 
-**`v0.3.0` geschnitten am 2026-08-21, veröffentlicht.** Der Release-Workflow
-baut die Installer aus dem Tag und legt sie als **Entwurf** an — der letzte
-Schritt ist ein Mensch, der die App öffnet, und das automatisiert nichts.
+**`v0.3.0` cut on 2026-08-21, published.** The release workflow builds the
+installers from the tag and files them as a **draft** — the last step is a
+person opening the app, and nothing automates that.
 
-**`v0.2.0` wurde nie veröffentlicht.** Der Entwurf stand vollständig, und
-dann landeten 22 Desktop- und 17 Engine-Commits darauf — die
-Workspace-Übersicht, Extension-API Stufe 2, die zweisprachigen Dialoge, und
-in der Engine alles von `opts.plugins.wrappers` bis `K` im Browser. Eine
-öffentliche Version, die niemand je installiert hätte, ist keine Version.
-Der Entwurf ist gelöscht, der Tag bleibt als Punkt in der Historie stehen,
-und 0.2.0 wird nicht wiederverwendet: ein Tag, der auf einen anderen Baum
-zeigt als das, was über ihn geschrieben steht, ist teurer als eine
-übersprungene Nummer.
+**`v0.2.0` was never published.** The draft stood complete, and then 22
+desktop and 17 engine commits landed on top of it — the workspace overview,
+extension API stage 2, the bilingual dialogs, and in the engine everything
+from `opts.plugins.wrappers` to `K` in the browser. A public version nobody
+would ever have installed is not a version. The draft is deleted, the tag
+stays as a point in the history, and 0.2.0 is not reused: a tag pointing at a
+different tree than what is written about it is more expensive than a skipped
+number.
 
-**Was dieser Schnitt gelehrt hat und in `RELEASING.md` steht:** die Engine
-zuerst neu bauen. `standalone-latest` lag 58 Commits zurück, darunter die
-beiden Flags, die der Projekteinstellungs-Dialog schickt. Der Engine-Build ist
-außerdem die einzige Stelle, an der der `standalone`-Gate auf einer sauberen
-Maschine läuft — er fand drei echte Defekte in drei Anläufen (`node:start()`
-und `vim.pesc` fehlten im Shim, das Swift-Grammar baute ein Node-Binding, das
-niemand liest). Verifiziert vor dem Tag: die publizierte Engine meldet 23
-Sprachen, Schema 5, und akzeptiert `--exclude`/`--languages`.
+**What that cut taught, and what `RELEASING.md` now says:** rebuild the engine
+first. `standalone-latest` was 58 commits behind, among them the two flags the
+project settings dialog sends. The engine build is also the only place where
+the `standalone` gate runs on a clean machine — it found three real defects in
+three attempts (`node:start()` and `vim.pesc` missing from the shim, the Swift
+grammar building a Node binding nobody reads). Verified before the tag: the
+published engine reports 23 languages, schema 5, and accepts
+`--exclude`/`--languages`.
 
-Installiert, dauerhaft:
+Installed, permanently:
 
-| Pfad | Inhalt |
+| Path | Contents |
 |---|---|
-| `C:\tools\docmap.exe` | voll-fidele Engine, 1,98 MB, kann Lua + JS/TS/TSX, **liest jetzt echte Telemetriedaten** (`--api=telemetry`/`loaded`, verifiziert gegen echte 63 KB Daten) — vorherige Versionen als `C:\tools\docmap.exe.bak-20260812`/`.bak-20260812b` daneben |
+| `C:\tools\docmap.exe` | full-fidelity engine, 1.98 MB, reads Lua + JS/TS/TSX, **now reads real telemetry data** (`--api=telemetry`/`loaded`, verified against a real 63 KB dataset) — earlier versions kept beside it as `C:\tools\docmap.exe.bak-20260812`/`.bak-20260812b` |
 | `C:\tools\docmap-grammars\` | `lua.dll`, `javascript.dll`, `typescript.dll`, `tsx.dll` |
-| `C:\tools\docmap-libs\` | `lfs.a`, `lua_tree_sitter.a` — damit ein Engine-Rebuild nicht drei Repos neu klonen muss |
-| `C:\Program Files (x86)\Lua\5.4\src\lua.exe` | echtes PUC Lua 5.4.8 — **war die ganze Zeit schon da**, nur nicht auf PATH und luarocks nicht darauf konfiguriert |
-| `C:\tools\lua5.4.exe` | Kopie davon, PATH-erreichbar — `scripts/ci.lua`s `standalone`-Gate sucht `lua5.4`/`lua5.3`/`lua` per Name auf PATH |
-| `C:\Users\bartl\.luarocks\` | `luafilesystem`, `dkjson`, `luastatic`, `lua-tree-sitter` (alle für Lua 5.4) — installiert 2026-08-12 |
-| `C:\tools\lua-tree-sitter-src\` | `--recurse-submodules`-Klon von `xcb-xwii/lua-tree-sitter`, `incdirs`-Fix im Rockspec bereits angewendet — für einen künftigen Rebuild der Runtime-Rock aufgehoben, nicht nur der bereits vorhandenen statischen `lua_tree_sitter.a` |
+| `C:\tools\docmap-libs\` | `lfs.a`, `lua_tree_sitter.a` — so an engine rebuild does not have to clone three repos again |
+| `C:\Program Files (x86)\Lua\5.4\src\lua.exe` | real PUC Lua 5.4.8 — **was there the whole time**, only not on PATH and luarocks not configured against it |
+| `C:\tools\lua5.4.exe` | a copy of it, reachable on PATH — `scripts/ci.lua`'s `standalone` gate looks for `lua5.4`/`lua5.3`/`lua` by name on PATH |
+| `C:\Users\bartl\.luarocks\` | `luafilesystem`, `dkjson`, `luastatic`, `lua-tree-sitter` (all for Lua 5.4) — installed 2026-08-12 |
+| `C:\tools\lua-tree-sitter-src\` | a `--recurse-submodules` clone of `xcb-xwii/lua-tree-sitter`, with the `incdirs` fix already applied to the rockspec — kept for a future rebuild of the runtime rock, not merely of the static `lua_tree_sitter.a` that already exists |
 
-`DOCMAP_TS_DIR` ist als **Benutzervariable** gesetzt. Windows liest sie beim
-Prozessstart: ein laufendes Neovim oder eine laufende App sieht sie erst nach
-Neustart.
+`DOCMAP_TS_DIR` is set as a **user variable**. Windows reads it at process
+start: a running Neovim or a running app only sees it after a restart.
 
-Engine neu bauen (aus `documentation.nvim`, unter PUC Lua 5.4, **nicht**
-Neovim) — mit den jetzt bekannten echten Pfaden:
+Rebuilding the engine (from `documentation.nvim`, under PUC Lua 5.4, **not**
+Neovim) — with the real paths as they are now known:
 
 ```
 LUA_PATH="C:\Users\bartl\.luarocks\share\lua\5.4\?.lua;C:\Users\bartl\.luarocks\share\lua\5.4\?\init.lua;.\?.lua;.\?\init.lua"
@@ -109,57 +105,56 @@ DOCMAP_TS_DIR=C:\tools\docmap-grammars
 "C:\Program Files (x86)\Lua\5.4\src\lua.exe" scripts/package.lua --out=build --keep
 ```
 
-`DOCMAP_TS_DIR` beim Bauen ist **nicht** optional — siehe
-`documentation.nvim/docs/ROADMAP/V1_EXTENSION/PORTABILITY.md`, Abschnitt zur
-Manifest-Closure: das Manifest wird *gemessen*, und es misst nur, was der
-gemessene Lauf tatsächlich lud. Volle Herleitung, inklusive der beiden
-`lua-tree-sitter`-Packaging-Fixes (ICU-Header fehlen im veröffentlichten
-Rock, `incdirs` fehlt `tree-sitter/lib/src`) und was `--capabilities`/
-`checklist`/`commits`/`commit/<sha>` gegen echte Daten bestätigt haben:
-PORTABILITY.md, Step 5 (2026-08-12).
+`DOCMAP_TS_DIR` at build time is **not** optional — see
+`documentation.nvim/docs/ROADMAP/V1_EXTENSION/PORTABILITY.md`, the section on
+manifest closure: the manifest is *measured*, and it only measures what the
+measured run actually loaded. The full derivation, including the two
+`lua-tree-sitter` packaging fixes (ICU headers missing from the published
+rock, `incdirs` missing `tree-sitter/lib/src`) and what
+`--capabilities`/`checklist`/`commits`/`commit/<sha>` confirmed against real
+data: PORTABILITY.md, step 5 (2026-08-12).
 
 ---
 
-## Offene Arbeit — steht woanders
+## Open work — recorded elsewhere
 
-Dieser Abschnitt führte bis 2026-08-20 die Sprach- und i18n-Achsen samt
-Reihenfolge. Beide sind seither Einträge in [`PLAN.md`](PLAN.md) (L1, L2, L3),
-mit den Bewertungen und den Abhängigkeiten, die tatsächlich vorordnen. Hier
-stand die Liste ein zweites Mal, und zwei Listen für eine Frage sind die
-Drift, die dieses Ökosystem sonst überall bekämpft.
+Until 2026-08-20 this section carried the language and i18n axes together with
+their ordering. Both have been entries in [`PLAN.md`](PLAN.md) since (L1, L2,
+L3), with the assessments and the dependencies that actually preorder them.
+The list stood here a second time, and two lists for one question are the
+drift this ecosystem fights everywhere else.
 
-**Was aus diesem Abschnitt bleibt, weil es Bedienwissen ist und keine
-Aufgabe:** die Karte eines Repos wird stale, sobald sich seine Doku ändert —
-danach `nvim --headless -l scripts/gen_map.lua` und das Ergebnis
-mitcommitten. Und `DOCMAP_TS_DIR` ist eine **Benutzervariable**: ein
-laufendes Neovim oder eine laufende App sieht eine Änderung erst nach
-Neustart.
-
----
-
-## Blockiert / nicht vergessen
-
-**Phase 4 (UI-Politur) in `documentation.nvim`** — Typografie-Skala (16
-verschiedene `font-size`-Werte gemessen) und Zebra-Streifen. Beide brauchen
-visuelle Prüfung. Aus demselben Grund sind zwei bereits gebaute Dinge
-**nicht visuell geprüft**: das eingeklappte Engine-Panel und das
-Kanten-Popup im Calls-Graph. Beide sind syntaktisch und strukturell geprüft
-— jemand sollte sie an einem echten Fenster ansehen.
-
-**Teilweise überholt seit 2026-08-20:** `docmap-desktop/tools/preview/`
-serviert die echte Oberfläche dieser App mit gestubbter Tauri-Brücke, also
-lässt sich Layout dort **messen** statt behaupten — genau so wurde der
-Save-Knopf gefunden, der unter dem Falz lag (`54f4c41`). Was das **nicht**
-löst: die generierte Seite von `documentation.nvim` (Typografie-Skala,
-Zebra-Streifen, Kanten-Popup) rendert sich selbst und braucht ihren eigenen
-Weg, und ein Browser ist nicht WebView2.
-
-**Phase 6 (Hosted Web, echt)** — braucht ein Multi-Tenant-Trust-Modell, das
-nirgends existiert. Die statische Hälfte ist erledigt.
+**What stays from this section, because it is operating knowledge rather than
+a task:** a repo's map goes stale as soon as its documentation changes — run
+`nvim --headless -l scripts/gen_map.lua` afterwards and commit the result. And
+`DOCMAP_TS_DIR` is a **user variable**: a running Neovim or a running app only
+sees a change after a restart.
 
 ---
 
-## Alles ausführen
+## Blocked / do not forget
+
+**Phase 4 (UI polish) in `documentation.nvim`** — the typography scale (16
+different `font-size` values measured) and zebra striping. Both need a visual
+check. For the same reason two already-built things are **not visually
+checked**: the collapsed engine panel and the edge popup in the calls graph.
+Both are checked syntactically and structurally — somebody should look at them
+in a real window.
+
+**Partly superseded since 2026-08-20:** `docmap-desktop/tools/preview/` serves
+this app's real interface with a stubbed Tauri bridge, so layout can be
+**measured** there instead of asserted — that is exactly how the save button
+below the fold was found (`54f4c41`). What that does **not** solve: the
+generated page from `documentation.nvim` (typography scale, zebra striping,
+edge popup) renders itself and needs its own route, and a browser is not
+WebView2.
+
+**Phase 6 (hosted web, for real)** — needs a multi-tenant trust model that
+exists nowhere. The static half is done.
+
+---
+
+## Running everything
 
 ```bash
 nvim --headless -l scripts/ci.lua
@@ -209,87 +204,82 @@ Layout only — the commands do nothing, and a browser is not WebView2.
 
 ---
 
-## Arbeitsweise, die fortgesetzt werden sollte
+## The working method to carry on with
 
-**Messen statt vermuten.** Praktisch jeder wertvolle Befund kam daher, nicht
-aus Code-Lesen: der Absturz bei `.tsx` (gefunden durch Ausführen gegen echten
-Code, nachdem das Binary schon als fertig galt), die 43-vs-45-vs-46-Closure,
-der `:DocMap serve`-Bug, die Telemetry-Fehldiagnose oben.
+**Measure, do not guess.** Practically every valuable finding came from that
+rather than from reading code: the crash on `.tsx` (found by running against
+real code, after the binary was already considered finished), the
+43-vs-45-vs-46 closure, the `:DocMap serve` bug, the telemetry misdiagnosis
+above.
 
-**Gates vor jedem Commit** (`nvim --headless -l scripts/ci.lua`): stylua,
-luacheck, Tests, `gen_map --check`, `standalone`. Danach pushen und CI
-abwarten.
+**Gates before every commit** (`nvim --headless -l scripts/ci.lua`): stylua,
+luacheck, tests, `gen_map --check`, `standalone`. Then push and wait for CI.
 
-**Ein Grammatiktest beweist die Grammatik, nur ein echter Scan beweist die
-Pipeline.** Alle vier Grammatiken bestanden ihren Einzeltest, während die
-Pipeline für JS/TS noch kaputt war.
+**A grammar test proves the grammar, only a real scan proves the pipeline.**
+All four grammars passed their individual test while the pipeline for JS/TS
+was still broken.
 
-**Stilles Degradieren ist die teuerste Fehlerart.** `DOCMAP_TS_DEBUG`, die
-Fehleranzeige im App-Fenster, die „published copy"-Meldung und der
-`standalone`-Gate, der einen unbrauchbaren Interpreter jetzt ehrlich
-überspringt statt hart zu scheitern — alles dieselbe Korrektur.
+**Silent degradation is the most expensive class of failure.**
+`DOCMAP_TS_DEBUG`, the error display in the app window, the "published copy"
+message, and the `standalone` gate that now honestly skips an unusable
+interpreter instead of failing hard — all the same correction.
 
-**Backticks in Commit-Nachrichten**: nicht in doppelten Anführungszeichen an
-`git commit -m` geben, bash führt sie als Befehl aus. Eine Nachrichtendatei
-und `-F` benutzen.
+**Backticks in commit messages**: do not pass them to `git commit -m` inside
+double quotes, bash executes them as a command. Use a message file and `-F`.
 
-**Ein Skript, das nur je unter einer Plattform lief, hat mit hoher
-Wahrscheinlichkeit eine plattformspezifische Blindstelle, egal wie lange
-es schon existiert.** `scripts/package.lua` lief seit seiner Entstehung
-nur unter Windows und enthielt drei latente Bugs, alle derselben Art (eine
-„ist-das-schon-absolut"-Prüfung, die nur die Windows-Schreibweise kannte).
-WSL (hier: eine bereits laufende Arch-Instanz) ist der pragmatische Weg,
-so etwas zu prüfen, ohne auf einen echten CI-Lauf zu warten — aber Vorsicht
-vor Cross-Contamination aus früheren Sessions in `/tmp` (ein gegen LuaJIT
-statt PUC Lua gebautes `.so` hat den Interpreter zum Absturz gebracht,
-nicht zu einem sauberen Fehler) und vor `find /` über gemountete
-Windows-Laufwerke (`/mnt/c`, `/mnt/e`) — läuft praktisch endlos.
+**A script that has only ever run on one platform very probably has a
+platform-specific blind spot, however long it has existed.**
+`scripts/package.lua` had run only on Windows since it was written and
+contained three latent bugs, all of the same kind (an "is this already
+absolute" check that knew only the Windows spelling). WSL (here: an
+already-running Arch instance) is the pragmatic way to check something like
+that without waiting for a real CI run — but beware of cross-contamination
+from earlier sessions in `/tmp` (a `.so` built against LuaJIT instead of PUC
+Lua crashed the interpreter rather than producing a clean error) and of
+`find /` across mounted Windows drives (`/mnt/c`, `/mnt/e`) — that runs
+practically forever.
 
-**Manche Fehler sind nur in echter CI zu finden, nicht lokal — und das ist
-in Ordnung, solange man das offen sagt statt falsche Sicherheit zu
-behaupten.** `documentation.nvim`s `release-engine.yml` brauchte sechs
-echte CI-Läufe, bis beide Plattformen grün waren, jeder mit einem eigenen,
-vorher nicht vorhergesagten Fehler: `ubuntu-22.04`s glibc zu alt für
-`tree-sitter-cli`s vorkompiliertes Binary (→ `ubuntu-latest`); ein unter
-Windows fehlendes `-llua`-Äquivalent beim dynamischen `.dll`-Link
-(`undefined reference to lua_pushstring` — Windows-DLLs lösen Importe beim
-Linken auf, nicht beim Laden, anders als Linux mit `-Wl,-E`); derselbe Fix
-brach Linux anders (`liblua.a` ohne `-fPIC` kann nicht in ein `-shared`-Ziel
-gelinkt werden); ein fehlender `lib.nvim`-Checkout (lief lokal nur, weil
-dieser Rechner zufällig `lib.nvim` als Nachbar-Repo hat); `npm install -g`s
-Ablagepfad war dreimal in Folge ein bewegliches Ziel (funktionierte auf
-`ubuntu-latest` per Zufall, brauchte `npm config get prefix` unter MSYS2,
-und selbst das war beim nächsten Lauf falsch — behoben durch einen
-selbstgewählten `--prefix`-Pfad statt npms Ablageort zu erraten); und am
-Ende der subtilste: `$work` aus `mktemp -d` ist unter MSYS2 ein
-**MSYS2-interner** Pfad (`/tmp/…`), den `bash` und mitgelieferte Tools
-transparent verstehen, ein echtes, mit mingw gebautes `lua.exe` aber nicht —
-es liest Umgebungsvariablen als reinen Text und interpretiert ein
-führendes `/` als „Wurzel des aktuellen Laufwerks", eine völlig andere
-Stelle. Gelöst mit `cygpath -m`, aber erst gefunden, weil eine
-fehlgeschlagene Fehlersuchliste (`require('lfs')`) genau zeigte, welche
-Pfad-Herkunft (Default vs. selbstgesetzt) sich unterschiedlich verhielt.
+**Some faults can only be found in real CI, not locally — and that is fine as
+long as you say so openly instead of claiming false confidence.**
+`documentation.nvim`'s `release-engine.yml` needed six real CI runs before
+both platforms were green, each with its own, previously unpredicted failure:
+`ubuntu-22.04`'s glibc too old for `tree-sitter-cli`'s prebuilt binary (→
+`ubuntu-latest`); a missing `-llua` equivalent when linking the dynamic `.dll`
+on Windows (`undefined reference to lua_pushstring` — Windows DLLs resolve
+imports at link time, not at load time, unlike Linux with `-Wl,-E`); the same
+fix broke Linux differently (`liblua.a` without `-fPIC` cannot be linked into
+a `-shared` target); a missing `lib.nvim` checkout (it only worked locally
+because this machine happens to have `lib.nvim` as a neighbouring repo);
+`npm install -g`'s install path was a moving target three times in a row
+(worked on `ubuntu-latest` by chance, needed `npm config get prefix` under
+MSYS2, and even that was wrong on the next run — solved by a self-chosen
+`--prefix` path rather than guessing npm's location); and finally the
+subtlest: `$work` from `mktemp -d` is an **MSYS2-internal** path (`/tmp/…`)
+under MSYS2, which `bash` and the bundled tools understand transparently, but
+a real `lua.exe` built with mingw does not — it reads environment variables as
+plain text and interprets a leading `/` as "the root of the current drive", an
+entirely different place. Solved with `cygpath -m`, but only found because a
+failing diagnostic list (`require('lfs')`) showed exactly which path origin
+(default vs. self-set) behaved differently.
 
-Die Lehre daraus für nächstes Mal: bei einem neuen CI-Workflow, der einen
-Toolchain-lastigen Build automatisiert, **lokale Verifikation (WSL, ein
-zweiter Rechner) findet die meisten, aber nicht alle Fehler** — manche
-brauchen die exakte, isolierte Umgebung einer echten Runner-Aktion
-(`msys2/setup-msys2` z. B.), die lokal nicht sauber nachstellbar ist. Push,
-CI beobachten, den *nächsten* echten Fehler beheben, wiederholen — nicht
-beim ersten lokalen Erfolg aufhören und CI-Grün nur behaupten.
+The lesson for next time: for a new CI workflow automating a
+toolchain-heavy build, **local verification (WSL, a second machine) finds most
+failures but not all** — some need the exact, isolated environment of a real
+runner action (`msys2/setup-msys2`, for instance), which cannot be reproduced
+cleanly locally. Push, watch CI, fix the *next* real failure, repeat — do not
+stop at the first local success and merely assert that CI is green.
 
-**„Erkannt, aber nicht platziert" ist ein eigener Fehlermodus, getrennt von
-„gar nicht erkannt" — und beide müssen einzeln geprüft werden.** Die
-Telemetry-Kleinigkeit brauchte am Ende drei getrennte Fixes, nicht einen:
-`bucket()` erkannte `lib.lua.*` nicht (Symptom: Modul wird gemessen, aber
-nie gestaged); `staged_name()` kannte den `lib/lua/`-Zweig nicht, selbst
-nachdem `bucket()` ihn erkannte (Symptom: „gemessen, aber nirgendwo zum
-Ablegen"); und `bucket()` kannte `runtime-analysis.*` **selbst** überhaupt
-nicht, unabhängig von seinen Abhängigkeiten (Symptom: das Hauptmodul fehlt
-komplett, still von `pcall` geschluckt). Jeder Fix allein reichte nicht —
-`--api=telemetry` blieb `"no data"`, bis alle drei behoben waren. Beweis
-kam erst durch `strings build/docmap.exe | grep <bekannter Bezeichner>`:
-ein „erfolgreicher" Build kann ein Modul dem Namen nach kennen (eigene
-Kommentare erwähnen es), ohne dessen echten Quellcode zu enthalten — nur
-das direkte Greppen der kompilierten Binary unterscheidet die beiden Fälle
-zuverlässig.
+**"Detected but not placed" is a failure mode of its own, separate from "not
+detected at all" — and both have to be checked individually.** The small
+telemetry matter ended up needing three separate fixes, not one: `bucket()`
+did not recognise `lib.lua.*` (symptom: the module is measured but never
+staged); `staged_name()` did not know the `lib/lua/` branch even after
+`bucket()` recognised it (symptom: "measured, but nowhere to put it"); and
+`bucket()` did not know `runtime-analysis.*` **itself** at all, independently
+of its dependencies (symptom: the main module missing entirely, swallowed
+silently by `pcall`). No single fix was enough — `--api=telemetry` stayed
+`"no data"` until all three were done. The proof only came from `strings
+build/docmap.exe | grep <known identifier>`: a "successful" build can know a
+module by name (its own comments mention it) without containing its real
+source, and only grepping the compiled binary directly tells the two cases
+apart reliably.

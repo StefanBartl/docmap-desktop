@@ -1,55 +1,54 @@
 # Roadmap — docmap-desktop
 
-**Was dieses Programm ist, in einem Satz:** eine Projektliste und ein Fenster
-vor Karten, die etwas anderes erzeugt hat.
+**What this program is, in one sentence:** a project list and a window in
+front of maps something else produced.
 
-Alles hier ist daran gemessen. Die Analyse und die Ansicht sind nicht die
-Aufgabe dieses Programms, und alles, was anfängt sie nachzubauen, ist eine
-falsche Abzweigung — bis hin zur ehrlichen Endstufe, die Analyse selbst in
-der App zu reimplementieren, die deshalb ausdrücklich nicht geplant ist.
+Everything here is measured against that. The analysis and the view are not
+this program's job, and anything that starts rebuilding them is a wrong turn
+— up to the honest end state, reimplementing the analysis inside the app,
+which is explicitly not planned for that reason.
 
-> **Die Warteschlange steht woanders.** Was als Nächstes gebaut wird — für
-> dieses Repo *und* für `documentation.nvim` und `runtime-analysis.nvim` —
-> steht seit 2026-08-20 in **einem** Plan: [`PLAN.md`](PLAN.md). Dieses
-> Dokument nennt nur die Richtung.
+> **The queue lives elsewhere.** What gets built next — for this repo *and*
+> for `documentation.nvim` and `runtime-analysis.nvim` — has been in **one**
+> plan since 2026-08-20: [`PLAN.md`](PLAN.md). This document only names the
+> direction.
 >
-> Was gebaut wurde und warum, steht in [`PLAN-DONE.md`](PLAN-DONE.md) und
-> [`WORKPLAN.md`](WORKPLAN.md) — Letzteres trägt im Anhang auch die
-> Scheiben-für-Scheiben-Herleitung, die vorher hier stand.
+> What was built and why is in [`PLAN-DONE.md`](PLAN-DONE.md) and
+> [`WORKPLAN.md`](WORKPLAN.md) — the latter also carries, as an appendix, the
+> slice-by-slice derivation that used to stand here.
 
-## Wo es hingeht
+## Where it is going
 
-**Die Workspace-Ebene, die kein einzelnes Repository haben kann.** Diese App
-ist die einzige Stelle im Ökosystem, die mehrere Projekte gleichzeitig hält.
-Alles, was daraus folgt, ist die eigentliche Richtung: mehrere Karten
-nebeneinander lesen, sehen welche veraltet sind, und Fragen beantworten, die
-über ein Repository hinausgehen. Der Cross-Repo-Überblick ist das Erste, was
-von den dreiunddreißig Repositories im Korpus wirklich profitiert.
+**The workspace level, which no single repository can have.** This app is the
+only place in the ecosystem that holds several projects at once. Everything
+that follows from that is the real direction: reading several maps side by
+side, seeing which are out of date, and answering questions that reach past
+one repository. The cross-repo overview is the first thing that genuinely
+benefits from having thirty-three repositories in the corpus.
 
-**Das Artefakt ist die API, und das ist die Antwort statt einer Lücke.**
-`module_map.json` ist byte-deterministisch, versioniert und dokumentiert —
-wer eine Karte liest, ist heute schon eine Erweiterung, ohne Code in diesem
-Programm. Die Kompatibilitätszusage dazu steht in `documentation.nvim`s
+**The artifact is the API, and that is the answer rather than a gap.**
+`module_map.json` is byte-deterministic, versioned and documented — anyone
+reading a map is already an extension today, with no code in this program.
+The compatibility promise behind that is in `documentation.nvim`'s
 [`HOSTING.md`](https://github.com/StefanBartl/documentation.nvim/blob/main/docs/HOSTING.md).
-Darauf bauen zwei weitere Stufen: lesende Erweiterungen, und — deutlich
-später und mit einer anderen Sicherheitsposition — schreibende.
+Two further stages build on it: reading extensions, and — considerably later
+and with a different security posture — writing ones.
 
-**Eine erzeugte Karte ist eine Momentaufnahme der Engine, die sie schrieb.**
-Das ist die eine Sache, die man vor allem anderen wissen muss: eine
-Seiten-Funktion, die nach deiner Karte erschienen ist, kommt durch
-*Neuerzeugen dieses Projekts* — nicht durch ein Update der App oder der
-Engine. Was ein App-Update ändert, ist dieses Fenster.
+**A generated map is a snapshot of the engine that wrote it.** That is the one
+thing to know before anything else: a page feature that appeared after your
+map arrives by *regenerating that project* — not by updating the app or the
+engine. What an app update changes is this window.
 
-## Wo es ausdrücklich nicht hingeht
+## Where it is explicitly not going
 
-Die vollständige Liste mit Begründungen steht in [`PLAN.md`](PLAN.md). Die
-zwei, die dieses Programm am direktesten betreffen:
+The full list with reasoning is in [`PLAN.md`](PLAN.md). The two that concern
+this program most directly:
 
-- **Kein Grammatik-Manager mit Download.** Native Shared Libraries von einem
-  rollenden Tag ohne veröffentlichte Prüfsumme nachzuladen ist im CI in
-  Ordnung und als Knopf in einer installierten App ein stiller Update-Kanal
-  für ungeprüften ausführbaren Code. Die Diagnose-Hälfte — *welche Datei
-  fehlt in welchem Verzeichnis* — ist gebaut.
-- **Keine zweite Implementierung der Analyse.** Zwei unabhängige Nachbauten,
-  die zu ihren Neovim-Originalen verhaltensgleich bleiben müssten, sind
-  keine kleine Strecke von hier.
+- **No grammar manager with a download button.** Fetching native shared
+  libraries from a rolling tag with no published checksum is fine in CI and,
+  as a button in an installed app, a silent update channel for unverified
+  executable code. The diagnostic half — *which file is missing from which
+  directory* — is built.
+- **No second implementation of the analysis.** Two independent rebuilds that
+  would have to stay behaviourally identical to their Neovim originals are
+  not a short distance from here.
