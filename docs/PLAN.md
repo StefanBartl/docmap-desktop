@@ -1,237 +1,233 @@
-# Implementierungsplan — `documentation.nvim` · `docmap-desktop` · `runtime-analysis.nvim`
+# Implementation plan — `documentation.nvim` · `docmap-desktop` · `runtime-analysis.nvim`
 
-**Ein Plan für alle drei Repositories.** Stand 2026-08-21. Vorher stand die
-Warteschlange an fünf Stellen — zwei `WORKPLAN.md`, drei `ROADMAP.md`, eine
-`IDEAS.md` und dieser Plan —, und dieselbe Aufgabe tauchte in mehreren davon
-in unterschiedlichem Zustand auf. Jetzt steht sie hier und sonst nirgends.
+**One plan for all three repositories.** As of 2026-08-21. The queue used to
+live in five places — two `WORKPLAN.md`, three `ROADMAP.md`, an `IDEAS.md`
+and this plan — and the same task showed up in several of them in different
+states. Now it is here and nowhere else.
 
-## Was hier steht und was nicht
+## What is here and what is not
 
-| | Wo | Was |
+| | Where | What |
 |---|---|---|
-| **Offene Arbeit** | **dieses Dokument** | Alles, was noch aussteht, in drei Aufwandsstufen |
-| **Begründungen** | `IDEAS.md`, `MULTILANG.md`, `I18N.md`, `PORTABILITY.md`, `ReferenceTab.md`, `DESKTOP_WEBAPP.md` | *Warum* ein Punkt so zugeschnitten ist, was er kostet, was dagegen spricht. Keine Häkchen, keine Reihenfolge — die stehen hier |
-| **Protokoll** | `PLAN-DONE.md`, beide `WORKPLAN.md`, `FEATURES.md`, `FINISHED.md` | Was gebaut wurde und warum. Wächst, wird nie gekürzt |
-| **Öffentlicher Ausblick** | je `ROADMAP.md` | Wohin das Projekt geht, in Prosa, für Fremde |
+| **Open work** | **this document** | Everything still outstanding, in three effort classes |
+| **Reasoning** | `IDEAS.md`, `MULTILANG.md`, `I18N.md`, `PORTABILITY.md`, `ReferenceTab.md`, `DESKTOP_WEBAPP.md` | *Why* an item is cut the way it is, what it costs, what speaks against it. No checkboxes, no ordering — those are here |
+| **Record** | `PLAN-DONE.md`, both `WORKPLAN.md`, `FEATURE_LOG.md`, `FINISHED.md` | What was built and why. Grows, is never trimmed |
+| **Public outlook** | each `ROADMAP.md` | Where the project is going, in prose, for outsiders |
 
-**Erledigtes wird hier gestrichen, nicht abgehakt stehengelassen** — sonst
-wächst das Dokument, statt den Rest zu zeigen. Die Begründung wandert beim
-Streichen nach `PLAN-DONE.md`.
+**Finished items are struck from here, not left ticked** — otherwise the
+document grows instead of showing what is left. The reasoning moves to
+`PLAN-DONE.md` as it goes.
 
-**Aufwandsklassen**, ehrlich und grob: **XS** unter einer Stunde ·
-**S** ein paar Stunden · **M** ein Arbeitstag oder mehr · **L** mehrere
-Sitzungen.
+**Effort classes**, honest and rough: **XS** under an hour · **S** a few
+hours · **M** a working day or more · **L** several sessions.
 
-**Die IDs sind neu.** Wo ein Punkt vorher eine andere Nummer hatte, steht sie
-dabei — Commit-Nachrichten und Protokolle verweisen darauf.
+**The IDs are new.** Where an item had a different number before, it is given
+alongside — commit messages and records point at it.
 
-## Inhalt
+## Contents
 
-- [Wartet auf dich](#wartet-auf-dich)
-- [Quick Wins](#quick-wins)
-- [Mittel](#mittel)
-- [Groß](#groß)
-- [Angrenzend — mdview.nvim](#angrenzend--mdviewnvim)
-- [Ausdrücklich nicht geplant](#ausdrücklich-nicht-geplant)
-- [Abhängigkeiten](#abhängigkeiten)
-- [Wo ich weitermachen würde](#wo-ich-weitermachen-würde)
+- [Waiting on you](#waiting-on-you)
+- [Quick wins](#quick-wins)
+- [Medium](#medium)
+- [Large](#large)
+- [Adjacent — mdview.nvim](#adjacent--mdviewnvim)
+- [Explicitly not planned](#explicitly-not-planned)
+- [Dependencies](#dependencies)
+- [Where I would pick up](#where-i-would-pick-up)
 
 ---
 
-## Wartet auf dich
+## Waiting on you
 
-Nichts davon kostet mich Zeit; jedes kostet dich einen Satz oder einen
-Handgriff.
+None of this costs me time; each costs you a sentence or one action.
 
-| # | Was | Warum du |
+| # | What | Why you |
 |---|---|---|
-| **A1** | **`v0.4.0` veröffentlichen.** Getaggt und gebaut am 2026-08-24 — Projekteinstellungen kennt jetzt alle Flags der Engine (`df8e4a4`), plus `.docmap.json` auf der Engine-Seite. `RELEASING.md`s letzter Schritt bleibt ein Mensch: die vier Standardpunkte durchgehen, plus **Projekt → Projekteinstellungen…** selbst öffnen und ein paar der neuen Flags setzen | Nichts automatisiert das, und nichts sollte |
-| **A2** | **Discussions einschalten** — sobald **jemand anderes** eine echte Frage stellt. Dann wandert `question` auf `discussions/new?category=q-a`, eine Zeile in `TOPICS` | Entschieden (aus, mit Stolperdraht). Der Auslöser ist ein Ereignis, keine Aufgabe |
+| **A1** | **Publish `v0.4.0`.** Tagged and built on 2026-08-24 — project settings now know every flag the engine has (`df8e4a4`), plus `.docmap.json` on the engine side. The last step of `RELEASING.md` stays a person: walk the four standard points, and open **Project → Project settings…** yourself and set a few of the new flags | Nothing automates this, and nothing should |
+| **A2** | **Turn Discussions on** — as soon as **somebody else** asks a real question. Then `question` moves to `discussions/new?category=q-a`, one line in `TOPICS` | Decided (off, with a tripwire). The trigger is an event, not a task |
 
 ---
 
-## Quick Wins
+## Quick wins
 
-Stunden. **Nichts mehr, und das ist wörtlich gemeint:** alle acht sind
-erledigt und stehen in [`PLAN-DONE.md`](PLAN-DONE.md). Was hier unter der
-alten Nummer QW6 übrig blieb, ist keine Stunde mehr, sondern **M** — es steht
-nur deshalb noch in diesem Abschnitt, weil die Nummer sonst ins Leere zeigte.
+Hours. **Nothing left, and that is meant literally:** all eight are done and
+recorded in [`PLAN-DONE.md`](PLAN-DONE.md). What remained under the old
+number QW6 is no longer an hour but an **M** — it is still in this section
+only because the number would otherwise point nowhere.
 
-### QW6 · Zaunblöcke auf der Seite — **M**, Engine
+### QW6 · Fenced blocks on the page — **M**, engine
 
-Mehrzeilige ```` ``` ````-Blöcke mit Syntax-Hervorhebung im erzeugten HTML.
+Multi-line ```` ``` ```` blocks with syntax highlighting in the generated
+HTML.
 
-Stufe 1 — Inline-Code über eine einzige `prose()`-Funktion in dreizehn
-Flächen — ist gebaut und steht in
-[`PLAN-DONE.md`](PLAN-DONE.md). Stufe 2 wurde damals bewusst nicht
-mitgemacht: eine Zusammenfassung ist einzeilig, der mehrzeilige Fall ist
-`@example`, und das ist eine andere Fläche mit anderer Form. Beides in einem
-Regex ist der Weg zu einem Renderer, über den niemand mehr nachdenken kann.
+Stage 1 — inline code through a single `prose()` function across thirteen
+surfaces — is built and recorded in [`PLAN-DONE.md`](PLAN-DONE.md). Stage 2
+was deliberately left out at the time: a summary is single-line, the
+multi-line case is `@example`, and that is a different surface with a
+different shape. Both in one regex is the road to a renderer nobody can
+reason about any more.
 
-**`color_my_ascii.nvim` hilft hier nicht**, und das ist eine Eigenschaft der
-Flächen, keine Wertung: seine Fence-API ist puffer-basiert und braucht einen
-Neovim-Puffer. Die erzeugte Seite ist ein eigenständiges Artefakt im Browser,
-und die Standalone-Engine läuft ganz ohne Neovim. Für `:DocBrowse` half es
-sehr wohl — das war QW8.
+**`color_my_ascii.nvim` does not help here**, and that is a property of the
+surfaces rather than a judgement: its fence API is buffer-based and needs a
+Neovim buffer. The generated page is a standalone artifact in a browser, and
+the standalone engine runs without Neovim at all. For `:DocBrowse` it very
+much did help — that was QW8.
 
-## Mittel
+## Medium
 
-Ein Arbeitstag oder mehr.
+A working day or more.
 
-### M7 · Phase-0-IR: Owning Scope, ein File / viele Module — **M**, Engine
+### M7 · Phase-0 IR: owning scope, one file / many modules — **M**, engine
 
-Vorbedingung für tieferes Python (Klassen) und Rust (`mod x {}`, `impl`).
-Berührt jeden Konsumenten von `Documentation.FunctionInfo`. **Nicht** nötig
-für die bereits gebauten Backends — deshalb hier und nicht in den Quick Wins.
-*Vorher: M11.*
+A precondition for deeper Python (classes) and Rust (`mod x {}`, `impl`).
+Touches every consumer of `Documentation.FunctionInfo`. **Not** needed for
+the backends already built — hence here and not in the quick wins.
+*Previously: M11.*
 
-### M8 · `:DocMap impact`, gewichtet nach Laufzeit-Reichweite — **M**, runtime-analysis (§1.3)
+### M8 · `:DocMap impact`, weighted by runtime reach — **M**, runtime-analysis (§1.3)
 
-`impact` beantwortet „welche Funktionen berühren meine geänderten Zeilen und
-wer ruft die auf". Mit Telemetrie daneben wird daraus „…und wie oft ist das
-tatsächlich passiert" — eine Rangfolge statt einer Liste.
+`impact` answers "which functions touch my changed lines, and who calls
+them". With telemetry beside it that becomes "…and how often did that
+actually happen" — a ranking instead of a list.
 
-### M9 · `:DocMap why` × Call-Trees — **M**, runtime-analysis (§1.4)
+### M9 · `:DocMap why` × call trees — **M**, runtime-analysis (§1.4)
 
-`why <a> <b>` läuft heute den **statischen Require-Graphen**. Der Call-Tree
-ist die andere Kette: nicht „was lädt was", sondern „was ruft was". Zwei
-Antworten auf zwei verschiedene Fragen, die gerne verwechselt werden.
+`why <a> <b>` today walks the **static require graph**. The call tree is the
+other chain: not "what loads what" but "what calls what". Two answers to two
+different questions that are readily confused.
 
-### M10 · Laufzeit-Evidenz als *Check-Eingabe* — **M**, runtime-analysis (§1.5)
+### M10 · Runtime evidence as a *check input* — **M**, runtime-analysis (§1.5)
 
-Jede andere Kreuzung ist eine Ansicht. Die stärkere Form füttert
-Laufzeit-Evidenz in die Checks — **als Unterdrückung, nie als Verschärfung**.
-Die Grenze ist in §7 gezogen und bleibt: eine Warnung, die auf einer Maschine
-erscheint und auf einer anderen nicht, ist schlechter als keine Warnung.
+Every other crossing is a view. The stronger form feeds runtime evidence into
+the checks — **as suppression, never as escalation**. The line is drawn in §7
+and it holds: a warning that appears on one machine and not another is worse
+than no warning.
 
-### M11 · Endpoint-Inventar × Request-Historie × Response-Form — **M**, runtime-analysis (§1.7)
+### M11 · Endpoint inventory × request history × response shape — **M**, runtime-analysis (§1.7)
 
-Welche deklarierte Route wurde je aufgerufen, mit welcher Antwortform. Die
-Hälfte „welche Route ist deklariert" existiert; die andere liegt in der
-Historie des Request-Runners.
+Which declared route was ever called, with which response shape. The "which
+route is declared" half exists; the other lies in the request runner's
+history.
 
-### M12 · Runtime-Tab im ausgelieferten Artefakt — **M**, drei Repos (§3.2)
+### M12 · Runtime tab in the shipped artifact — **M**, three repos (§3.2)
 
-`ECOSYSTEM.md` §7 Fläche 2, unverändert richtig: ein Runtime-Tab **immer**
-zur Laufzeit gefüllt, nie eingebettet. Laufzeitdaten im committeten Artefakt
-sind eine der vier „Never"-Zeilen.
+`ECOSYSTEM.md` §7 surface 2, unchanged and right: a runtime tab **always**
+filled at runtime, never embedded. Runtime data in the committed artifact is
+one of the four "Never" lines.
 
-### M13 · Ein `ECOSYSTEM.md`, vier Repositories lesen es — **S–M**, drei Repos (§3.3)
+### M13 · One `ECOSYSTEM.md`, four repositories read it — **S–M**, three repos (§3.3)
 
-Ein weiches, echtes Problem: das Architekturdokument liegt in einem Repo und
-beschreibt vier. Wer es in den anderen dreien sucht, findet nichts. **Dasselbe
-Muster wie dieser Plan** — eine Quelle, drei Zeiger.
+A soft but real problem: the architecture document lives in one repo and
+describes four. Anyone looking for it in the other three finds nothing. **The
+same pattern as this plan** — one source, three pointers.
 
 ---
 
-## Groß
+## Large
 
-Mehrere Sitzungen. Jede ist zuerst eine **Umfangsentscheidung**, keine
-technische.
+Several sessions. Each is a **scope decision** first, not a technical one.
 
-| # | Was | Der Kern |
+| # | What | The core of it |
 |---|---|---|
-| **L1** | **Call-Kanten für die übrigen achtzehn Sprachen** | Das Muster steht (Go, gegen `aws/smithy-go` gemessen). Die Lehre daraus ist die Anweisung: *erst fragen, was in dieser Sprache ein Scope ist, dann die Query schreiben.* Lua und die ECMA-Familie haben darüber nichts beigebracht |
-| **L2** | **i18n vollständig** (I18N-1 bis I18N-9) | I18N-0 ist gebaut. `render/html.lua` ist ~85 % der restlichen Arbeit. Die englische Extraktion ist **manuell und geprüft**, kein Regex-Durchlauf — ein Sweep zerschnitte die per Konkatenation gebauten Sätze an Interpolationsgrenzen, und das ist später nicht reparierbar |
-| **L3** | **Die fünfzehn übrigen Sprachen** | Verfügbar, nicht geplant (D4: „erstmal genug"). Vollständige Tabelle mit Kosten und dem bestehenden Backend, dessen Entscheidung jede wiederverwendet, in `MULTILANG.md`. Aus den oberen zehn wählen — die unteren fünf brauchen einen Zeilen-Scanner, also eine *zweite Sorte* Backend |
-| **L4** | **API-Traffic als Messung** (§1.7b) | Der Schritt vom Zählen zum Messen, und der Weg zu einem Profiler. Metadaten und Formen, **niemals Payloads** — vorab entschieden, weil die Aufzeichnungen committet werden |
-| **L5** | **Multi-Language-Telemetrie** (§1.9) | Profile *importieren*, nicht instrumentieren. Die einzige Form, in der Telemetrie über Lua hinausgeht, ohne in jeder Sprache einen Wrapper zu bauen |
-| **L6** | **Checklisten von einem Agenten ausführen lassen** | Zwei Dinge vorher entscheiden, beide über Vertrauen: eine handgeschriebene Behauptung und eine gemessene Beobachtung dürfen nicht gleich aussehen, und die Bearbeitung eines Agenten ist ein *Vorschlag*, kein Ergebnis |
-| **L7** | **Extension-API, Stufe 3 (schreibend)** | Der Seitenkanal ist heute einseitig. Eine Seite, die beliebige Nachrichten ihres Hosts ausführt, ist eine andere Sicherheitsposition als eine, die nur spricht |
-| **L8** | **Zwei Artefakte in der Seite vergleichen** | Der textuelle Diff existiert; die *Form*-Änderung ist das, was er nicht zeigen kann |
-| **L9** | **Ganz ohne Neovim** (`PORTABILITY.md`) | „Karte aus dem Terminal" geht längst; die Neovim-Abhängigkeit ganz fallen zu lassen ist separat kalkuliert |
+| **L1** | **Call edges for the remaining eighteen languages** | The pattern is set (Go, measured against `aws/smithy-go`). The lesson from it is the instruction: *first ask what a scope is in this language, then write the query.* Lua and the ECMA family taught nothing about that |
+| **L2** | **i18n in full** (I18N-1 through I18N-9) | I18N-0 is built. `render/html.lua` is ~85 % of the remaining work. The English extraction is **manual and reviewed**, not a regex sweep — a sweep would cut the concatenation-built sentences at their interpolation boundaries, and that is not repairable later |
+| **L3** | **The fifteen remaining languages** | Available, not planned (D4: "enough for now"). Full table with costs and the existing backend whose decision each one reuses, in `MULTILANG.md`. Pick from the top ten — the bottom five need a line scanner, i.e. a *second kind* of backend |
+| **L4** | **API traffic as measurement** (§1.7b) | The step from counting to measuring, and the road to a profiler. Metadata and shapes, **never payloads** — decided up front, because the recordings get committed |
+| **L5** | **Multi-language telemetry** (§1.9) | *Import* profiles, do not instrument. The only form in which telemetry reaches past Lua without building a wrapper in every language |
+| **L6** | **Have an agent run the checklists** | Two things to decide first, both about trust: a hand-written claim and a measured observation must not look alike, and an agent's edit is a *proposal*, not a result |
+| **L7** | **Extension API, stage 3 (writing)** | The side channel is one-way today. A page that executes arbitrary messages from its host is a different security posture than one that only speaks |
+| **L8** | **Compare two artifacts inside the page** | The textual diff exists; the *shape* change is what it cannot show |
+| **L9** | **Without Neovim entirely** (`PORTABILITY.md`) | "A map from the terminal" has worked for a while; dropping the Neovim dependency altogether is costed separately |
 
 ---
 
-## Angrenzend — mdview.nvim
+## Adjacent — mdview.nvim
 
-`runtime-analysis.nvim`s `IDEAS.md` §2 beschreibt Kreuzungen mit
-**mdview.nvim** — einem vierten Repo, das nicht Teil dieser drei ist.
-Deshalb hier ohne Aufwandsklasse und ohne Platz in der Reihenfolge: es sind
-keine Aufgaben, die man einfach einplant, sondern Absprachen mit einem
-Nachbarn.
+`runtime-analysis.nvim`'s `IDEAS.md` §2 describes crossings with
+**mdview.nvim** — a fourth repo that is not one of these three. Hence listed
+here without an effort class and without a place in the ordering: these are
+not tasks you simply schedule, they are agreements with a neighbour.
 
-**Die Richtung ist festgelegt und gilt für alle:** jede Kreuzung läuft
-*hierher*, nie umgekehrt. mdview ist Darstellung und weiß nichts über
-Lua-Semantik — genau diese Asymmetrie hält mdview für Leute benutzbar, die
-keins der Analyse-Plugins haben.
+**The direction is settled and holds for all of them:** every crossing runs
+*this* way, never the other. mdview is presentation and knows nothing about
+Lua semantics — and that asymmetry is exactly what keeps mdview usable for
+people who have none of the analysis plugins.
 
-- **§2.1 Theme-Parität** — wem gehört das Aussehen des Reports.
-- **§2.3 Die Response-Fläche des Request-Runners, gerendert** — ein JSON- oder
-  HTML-Body in einem nackten Split ist die schwächste Fläche des Runners.
-- **§2.4 mdviews Relay als token-gesicherter Server** — falls je eine
-  Browser-Stufe entsteht.
-- **§2.5 mdview mit mdviews eigener Bridge instrumentieren** — leicht
-  zirkulär und vollkommen praktisch.
-- **§2.6 `:MDView diagnose` ausleihen, keinen zweiten bauen.**
-
----
-
-## Ausdrücklich nicht geplant
-
-Damit niemand sie erneut verhandelt. Jede hat ihre Begründung an ihrer
-eigenen Stelle; hier steht nur, dass sie entschieden ist.
-
-- **Grammatik-Manager mit Download** — lädt native Shared Libraries von einem
-  rollenden Tag ohne veröffentlichte Prüfsumme nach. Im CI in Ordnung, als
-  Knopf in einer installierten App ein stiller Update-Kanal für ungeprüften
-  ausführbaren Code. Die Diagnose-Hälfte ist gebaut.
-- **Wave 4 der Sprachen** (Fortran, Ada, COBOL, Delphi, MATLAB, VB.NET) —
-  Umfang, nicht Schwierigkeit. Wieder baubar, sobald jemand eine anfragt.
-- **`@since`-Drift, Bus-Faktor, Kopplung/Kohäsion, OpenAPI, SFCs, ORM,
-  Workspace-Symbole, REUSE-Rezept, Skalierung** — je eigene Ablehnung in
-  `documentation.nvim/docs/ROADMAP/IDEAS/IDEAS.md`.
-- **Eine Dateigrößen-Treemap** — das fotogenste Ding auf der Ideenliste, und
-  es beantwortet nichts, was jemand gefragt hat.
-- **Churn- und Ownership-Ansichten in der erzeugten Seite** — beide brauchen
-  `git`, und ein committetes Artefakt mit Historie entwertet sich selbst.
-  Sie bleiben Live-Ansichten der App oder des Editors.
-- **Die vier „Never"-Zeilen** in `runtime-analysis.nvim/docs/IDEAS.md` §7,
-  darunter: documentation.nvim darf niemals hart auf das Runtime-Plugin
-  angewiesen sein (ein statischer Analysator, der ohne Runtime-Plugin nicht
-  läuft, hat genau die Eigenschaft verloren, die ihn im CI nützlich macht),
-  und Laufzeitdaten gehören nie ins committete Artefakt.
-- **Die Analyse selbst in der App reimplementieren** — die ehrliche Endstufe
-  von „braucht kein Neovim", und keine kleine Strecke von hier: die App
-  besäße dann zwei unabhängige Reimplementierungen, die zu ihren
-  Neovim-Originalen verhaltensgleich bleiben müssten.
-- **Ein Font-Picker** — eine Schriftwahl trifft man einmal; was Leute
-  wirklich suchen, ist Größe, und das ist `View → Zoom in`.
+- **§2.1 Theme parity** — who owns what the report looks like.
+- **§2.3 The request runner's response surface, rendered** — a JSON or HTML
+  body in a bare split is the runner's weakest surface.
+- **§2.4 mdview's relay as a token-guarded server** — should a browser stage
+  ever appear.
+- **§2.5 Instrument mdview with mdview's own bridge** — mildly circular and
+  entirely practical.
+- **§2.6 Borrow `:MDView diagnose`, do not build a second one.**
 
 ---
 
-## Abhängigkeiten
+## Explicitly not planned
 
-Nur die, die die Reihenfolge tatsächlich erzwingen:
+So nobody renegotiates them. Each has its reasoning in its own place; all
+that stands here is that it is decided.
 
-| Erst | Dann | Warum |
+- **A grammar manager with a download button** — it fetches native shared
+  libraries from a rolling tag with no published checksum. Fine in CI; as a
+  button in an installed app, a silent update channel for unverified
+  executable code. The diagnostic half is built.
+- **Wave 4 of the languages** (Fortran, Ada, COBOL, Delphi, MATLAB, VB.NET) —
+  scope, not difficulty. Buildable again the moment somebody asks for one.
+- **`@since` drift, bus factor, coupling/cohesion, OpenAPI, SFCs, ORM,
+  workspace symbols, a REUSE recipe, scaling** — each with its own rejection
+  in `documentation.nvim/docs/ROADMAP/IDEAS/IDEAS.md`.
+- **A file-size treemap** — the most photogenic thing on the idea list, and it
+  answers nothing anybody asked.
+- **Churn and ownership views in the generated page** — both need `git`, and a
+  committed artifact carrying history devalues itself. They stay live views of
+  the app or the editor.
+- **The four "Never" lines** in `runtime-analysis.nvim/docs/IDEAS.md` §7,
+  among them: documentation.nvim must never depend hard on the runtime plugin
+  (a static analyser that will not run without a runtime plugin has lost
+  exactly the property that makes it useful in CI), and runtime data never
+  belongs in the committed artifact.
+- **Reimplementing the analysis inside the app** — the honest end state of
+  "needs no Neovim", and not a short distance from here: the app would then
+  own two independent reimplementations that must stay behaviourally
+  identical to their Neovim originals.
+- **A font picker** — a typeface is chosen once; what people are actually
+  after is size, and that is `View → Zoom in`.
+
+---
+
+## Dependencies
+
+Only the ones that genuinely force an order:
+
+| First | Then | Why |
 |---|---|---|
-| **M7** (Phase-0-IR) | tieferes Python/Rust | Klassen und `impl`-Blöcke haben ohne Owning Scope keinen Ort |
-| **M12** (Runtime-Tab) | **L4** (API-Traffic) | Erst die Fläche, dann die reichere Messung darauf |
-| **A2** | die Discussions-Zeile | Eine Einstellung in deinen Repos |
+| **M7** (Phase-0 IR) | deeper Python/Rust | Classes and `impl` blocks have nowhere to live without an owning scope |
+| **M12** (runtime tab) | **L4** (API traffic) | The surface first, then the richer measurement on it |
+| **A2** | the Discussions line | A setting in your repos |
 
-**Nicht mehr blockierend, weil die erste Hälfte gebaut ist:** Go hat das
-Muster für **L1** geliefert, I18N-0 die Parameter für **L2**, der
-Projektschlüssel jeden weiteren Join — und die Extension-API Stufe 2 die
-Grundlage für **L7**, das damit als Einziges aus dieser Liste frei geworden
-und trotzdem nicht als Nächstes dran ist.
+**No longer blocking, because the first half is built:** Go supplied the
+pattern for **L1**, I18N-0 the parameters for **L2**, the project key every
+further join — and extension API stage 2 the foundation for **L7**, which is
+therefore the only item on this list that came free and is still not next.
 
 ---
 
-## Wo ich weitermachen würde
+## Where I would pick up
 
-Vierzehn Punkte sind seit dem 2026-08-20 abgearbeitet; sie stehen mit ihrer
-Begründung in [`PLAN-DONE.md`](PLAN-DONE.md), nicht mehr hier.
+Fourteen items have been worked off since 2026-08-20; they are in
+[`PLAN-DONE.md`](PLAN-DONE.md) with their reasoning, not here.
 
-**Als Nächstes M7** (Phase-0-IR: Owning Scope). Es ist der einzige offene
-Punkt, der etwas *anderes* aufhält — tieferes Python und Rust haben ohne ihn
-keinen Ort für Klassen und `impl`-Blöcke —, und es berührt jeden Konsumenten
-von `Documentation.FunctionInfo`, weshalb es besser vor als nach den fünf
-runtime-analysis-Punkten kommt.
+**M7 next** (Phase-0 IR: owning scope). It is the only open item holding
+something *else* up — deeper Python and Rust have nowhere to put classes and
+`impl` blocks without it — and it touches every consumer of
+`Documentation.FunctionInfo`, which is why it belongs before rather than
+after the five runtime-analysis items.
 
-Danach **M12** (Runtime-Tab), aus demselben Grund: es ist die Fläche, auf der
-M8 bis M11 überhaupt erst etwas zeigen können.
+Then **M12** (runtime tab), for the same reason: it is the surface M8 through
+M11 need before they can show anything at all.
 
-**Nicht als Nächstes**, obwohl sie groß und sichtbar sind: **L1** und **L2**.
-Beide sind mehrere Sitzungen und beide eine Umfangsentscheidung, keine
-technische — die trifft man ausgeruht und nicht nebenbei.
+**Not next**, big and visible though they are: **L1** and **L2**. Both are
+several sessions and both a scope decision rather than a technical one — the
+kind you make rested, not in passing.
