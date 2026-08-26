@@ -129,6 +129,7 @@ this app, `documentation.nvim` and `runtime-analysis.nvim` together** — and
 
 | Document | Covers |
 |---|---|
+| [docs/FEATURES/](docs/FEATURES/README.md) | The catalogue, by theme: the workspace model, running the engine, the window, settings, and the desktop parts. What it does, with the module behind each — the same shape the Neovim siblings use, so one reader can move between all three repositories. |
 | [docs/USAGE.md](docs/USAGE.md) | Using it, button by button: adding projects, workspaces, the project picker and its four sort orders, the files pane, opening a file in your editor, the four Generate commands, settings and per-project settings, the notes that appear over some panels, the menu bar, and where everything is stored. |
 | [docs/PLAN.md](docs/PLAN.md) | **The one queue for all three repositories** — `documentation.nvim`, this app, `runtime-analysis.nvim` — by effort: quick wins, medium, large. Plus what waits on a person and what is deliberately not planned. Since 2026-08-20 the only place open work is tracked. |
 | [docs/PLAN-DONE.md](docs/PLAN-DONE.md) | What was built and *why that way*, including the decisions that should not be re-opened. A plan that keeps its finished entries stops being a plan. |
