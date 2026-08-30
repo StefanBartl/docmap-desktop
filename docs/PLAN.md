@@ -77,12 +77,29 @@ much did help — that was QW8.
 
 A working day or more.
 
-### M7 · Phase-0 IR: owning scope, one file / many modules — **M**, engine
+### ~~M7 · Phase-0 IR: owning scope~~ — **built 2026-08-30**, engine
 
-A precondition for deeper Python (classes) and Rust (`mod x {}`, `impl`).
-Touches every consumer of `Documentation.FunctionInfo`. **Not** needed for
-the backends already built — hence here and not in the quick wins.
-*Previously: M11.*
+`Documentation.FunctionInfo` carries `owner` and `owner_kind`; the page groups
+a class with its methods under it. Reasoning in
+[`PLAN-DONE.md`](PLAN-DONE.md). *Previously: M11.*
+
+### M7b · One file, many modules — **M**, engine
+
+**The other half of the same Phase-0 entry, and what is left of it.** A scope
+is not a node: a Rust `mod x { … }` is grouped with its members and still read
+as part of its file, so it has no summary, no coverage and no edges of its
+own. Elixir has the same shape from the other direction — a `.ex` file
+routinely holds several `defmodule`s, each of them a real module.
+
+That is a wrong *identity*, not missing data, which is why it has never hurt.
+It will the day a question is keyed on module identity in a Rust or Elixir
+tree — "what does this module require", "how documented is it" — because the
+answer would be the file's, silently.
+
+**Not scheduled by that argument alone.** Nothing here asks that question
+today, and `Documentation.Node` is keyed on a path in the walk, in `stats`, in
+every `id`, and in the artifact. The entry stays so that the day it is asked,
+the shape of the answer is already written down.
 
 ### M8 · `:DocMap impact`, weighted by runtime reach — **M**, runtime-analysis (§1.3)
 
@@ -203,7 +220,6 @@ Only the ones that genuinely force an order:
 
 | First | Then | Why |
 |---|---|---|
-| **M7** (Phase-0 IR) | deeper Python/Rust | Classes and `impl` blocks have nowhere to live without an owning scope |
 | **M12** (runtime tab) | **L4** (API traffic) | The surface first, then the richer measurement on it |
 | **A2** | the Discussions line | A setting in your repos |
 
@@ -211,22 +227,35 @@ Only the ones that genuinely force an order:
 pattern for **L1**, I18N-0 the parameters for **L2**, the project key every
 further join — and extension API stage 2 the foundation for **L7**, which is
 therefore the only item on this list that came free and is still not next.
+**M7 left this table on 2026-08-30**: classes and `impl` blocks now have an
+owning scope to live in, so deeper Python and Rust are behind nothing.
 
 ---
 
 ## Where I would pick up
 
-Fourteen items have been worked off since 2026-08-20; they are in
-[`PLAN-DONE.md`](PLAN-DONE.md) with their reasoning, not here.
+Fifteen items have been worked off since 2026-08-20; they are in
+[`PLAN-DONE.md`](PLAN-DONE.md) with their reasoning, not here. The last of
+them was **M7**, on 2026-08-30.
 
-**M7 next** (Phase-0 IR: owning scope). It is the only open item holding
-something *else* up — deeper Python and Rust have nowhere to put classes and
-`impl` blocks without it — and it touches every consumer of
-`Documentation.FunctionInfo`, which is why it belongs before rather than
-after the five runtime-analysis items.
+**M12 next** (runtime tab in the shipped artifact). With M7 done, **nothing
+open holds anything else up** — so the argument is no longer sequencing, it is
+that M12 is the one item four others are waiting on for a *place to appear*.
+M8 through M11 each compute a runtime-flavoured answer and each would today
+have nowhere to show it: `impact` weighted by runtime reach, `why` crossed
+with call trees, runtime evidence as suppression, the endpoint × history join.
+Building any of them first means building a surface for it first, in the
+wrong place, four times over.
 
-Then **M12** (runtime tab), for the same reason: it is the surface M8 through
-M11 need before they can show anything at all.
+*Concrete effect*: a Runtime tab appears in the generated page, empty and
+saying so when nothing is serving it, filled at runtime when something is —
+never embedded, which is one of `ECOSYSTEM.md` §7's four "Never" lines and
+the reason the tab is worth its own item rather than a field.
+
+**The cheap alternative, if a session is short: M13** (one `ECOSYSTEM.md`,
+four repositories read it) — S–M, and the only item here that is pure
+housekeeping. *Concrete effect*: the architecture document stops being
+findable from one repository out of the four it describes.
 
 **Not next**, big and visible though they are: **L1** and **L2**. Both are
 several sessions and both a scope decision rather than a technical one — the

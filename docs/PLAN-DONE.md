@@ -1015,3 +1015,70 @@ state (`publishedAt` 2026-08-24T18:52:45Z), so that the bundled sidecar does
 not lag behind its own fixes — exactly the pattern `RELEASING.md` learned from
 `v0.2.0`. `v0.4.0` itself: a draft, publication pending the human check (A1 in
 `PLAN.md`).
+
+---
+
+## After the merged plan, 2026-08-30
+
+### ~~M7 · Phase-0 IR: owning scope~~ — **built 2026-08-30**, engine, [`ffc24a5`](https://github.com/StefanBartl/documentation.nvim/commit/ffc24a5)
+
+`Documentation.FunctionInfo` now carries `owner` — the class, `impl` block,
+trait, receiver type or inline module a function is declared in — and
+`owner_kind` beside it. Schema 6. Fourteen of the twenty backend files set
+them, at the record site where the parse tree still exists.
+
+**The half of this item that was already answered, and the half that was
+not.** `MULTILANG.md` had audited this on 2026-08-20 and concluded it was
+"not a prerequisite, it is a fidelity ceiling" — Python, Rust, Go, Java and
+the rest all shipped without it, by qualifying the name. That audit was
+right, and it also named the exact question that would reopen it: *which
+methods does this class have*, which flat naming answers by string-prefix
+match. That is a guess, and it is wrong in three shapes that occur in real
+trees:
+
+- `Class.helper` at module scope and `helper` inside `class Class` produce
+  the identical `name`.
+- Lua's own `function M.foo()` is dotted because `M` is the module table —
+  a prefix match would invent a scope called `M` in every Lua file scanned.
+- Ruby writes `Class#method` and `Class.method`, PHP and Rust `::`. One
+  question, four separators to know.
+
+`TESTS/scopes_spec.lua` asserts exactly those three, because they are the
+whole reason the IR grew a field rather than a better string.
+
+**And what came out of building it was that the kind matters more than the
+owner.** Rust forced it: `Widget::new`, `Doer::go` and `inner::helper` are
+written identically and are an inherent method, a trait method and an inline
+module's function. A normalised "type" would have flattened all three to
+"class" and thrown away the one thing a reader of that file is looking for.
+So `Documentation.ScopeKind` keeps the construct as the language names it —
+`impl`, `trait`, `module`, plus `receiver` for Go, which has no enclosing
+block at all because the owner is written on each method.
+
+**Derived, never serialised.** `Documentation.ScopeInfo` is grouping, not
+data: `core/scopes.lua` for Lua-side consumers, the same grouping in
+JavaScript on the page. This is the opposite call from `ir.duplicates`, and
+deliberately so — that entry's own reason is that a page has no parse tree to
+recompute `fn.shape` with, and it does not apply here: the page has
+`fn.owner` right there.
+
+**Visible effect**, which is what the item was for. A Python file with three
+classes of four methods was twelve sibling rows beside a class name that
+owned nothing. It now reads `Functions (12, 3 scopes)`, each class heading
+its own four. A Rust file separates `impl Widget`, `trait Doer` and
+`mod inner { … }`. Verified by generating a scratch polyglot repository and
+reading it back through the actual page, not from the unit assertions alone —
+the two grammars this item is about, Python and Rust, were both on hand.
+
+**What stays open, on unchanged terms:** the *other* half of the Phase-0
+entry, "one file, many modules". A scope is not a node — no summary, no
+coverage, no edges, no id — so a Rust `mod x { … }` grouped this way is still
+read as part of its file. That is a wrong identity rather than missing data,
+which is why it has not hurt yet.
+
+**Three backends could have set an owner and do not**, and they are recorded
+as gaps rather than left looking like language facts: Haskell's
+`class`/`instance`, OCaml's `module X = struct … end`, Zig's
+`const S = struct { … }`. Each needs walk plumbing that does not exist, and
+none could be verified against a real parse on the machine this was built on
+— which is this project's own rule for extractors, not a preference.
