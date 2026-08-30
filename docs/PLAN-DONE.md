@@ -1082,3 +1082,49 @@ as gaps rather than left looking like language facts: Haskell's
 `const S = struct { … }`. Each needs walk plumbing that does not exist, and
 none could be verified against a real parse on the machine this was built on
 — which is this project's own rule for extractors, not a preference.
+
+
+---
+
+## M13 · One `ECOSYSTEM.md`, five repositories reach it — 2026-08-30
+
+Five repos, one commit each: `documentation.nvim` `0d09b50`,
+`runtime-analysis.nvim` `0d92977`, `lib.nvim` `9240596`, `mdview.nvim`
+`1803e67`, this app `309c7d0`.
+
+**The problem was worse than the entry said**, and that is the finding.
+`PLAN.md` framed it as findability: one document describes four repositories
+and lives in one of them, so a reader in the other three finds nothing. True —
+but `runtime-analysis.nvim` did not merely lack a pointer. It cited
+`docs/ECOSYSTEM.md` as a **repo-relative path in nine places** — twice in
+`README.md`, six times in `lua/**` module headers, once in `FEATURE_LOG.md` —
+and no such path exists in that repository. Every one was dead from the moment
+it was written. `lib.nvim` had a tenth, correctly qualified in prose but not a
+link, so still only findable by someone who already knew where to look.
+
+**And what came out of it was the reason nothing caught them.** Both existing
+checks decline this case, each for a stated and correct reason:
+`doc-references-missing` resolves *code identifiers* against the scanned
+repository's own module map; `dead-readme-link` resolves *markdown links*
+within one repository and calls `strip_code` first, so a bare
+`` `docs/ECOSYSTEM.md` `` is deliberately invisible to it. Neither is a defect.
+The gap is a third shape — `<repo>/<path>` resolved against declared siblings —
+and it is now **M14**, not a footnote here.
+
+*What shipped*: two headers on `ECOSYSTEM.md` itself — one saying it is the
+one architecture document and naming the citation form, one recording that
+`docmap-desktop` arrived after its last revision (2026-08-11) and is a second
+*host* for the artifact-and-serve tier Seam B already describes, which is why
+it warranted a note and not a rewrite. Then one real link in each sibling's
+documentation index, and all nine dead paths qualified with the owning
+repository.
+
+*A detail worth keeping*: editing markdown in `documentation.nvim` and
+`runtime-analysis.nvim` makes their committed maps stale — the markdown corpus
+is part of the IR, so `docs/map/` had to be regenerated in both before the map
+gate would pass. `lib.nvim` and `mdview.nvim` gate nothing on a map and needed
+none.
+
+*Not done, deliberately*: `mdview.nvim` got the pointer but no content pass.
+`ECOSYSTEM.md` mentions it in one line ("presentation: Markdown to a browser")
+and that line is still accurate.

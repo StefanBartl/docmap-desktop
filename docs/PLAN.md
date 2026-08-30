@@ -126,17 +126,59 @@ Which declared route was ever called, with which response shape. The "which
 route is declared" half exists; the other lies in the request runner's
 history.
 
-### M12 · Runtime tab in the shipped artifact — **M**, three repos (§3.2)
+### M12 · ~~Runtime tab in the shipped artifact~~ — **deferred 2026-08-30**, three repos (§3.2)
 
-`ECOSYSTEM.md` §7 surface 2, unchanged and right: a runtime tab **always**
-filled at runtime, never embedded. Runtime data in the committed artifact is
-one of the four "Never" lines.
+**Read against the source, and the substance is already built.** The page ships
+`Telemetry` and `Loaded` as `plugin-gated` Analysis tools
+(`core/render/html.lua`), each fetching `/api/telemetry`, `/api/loaded` and
+their `…/snapshots` siblings **at view time** — nothing embedded, so the
+byte-comparison gate is untouched. `core/api.lua` states the honest empty
+state as a rule of its own (`{ available = false, reason = … }`), and both
+hosts answer those routes: `editor/serve.lua` in Neovim, `server.rs` in this
+app. §7's surface 1 is done too — `:DocBrowse` has `telemetry` (8) and
+`loaded` (9).
 
-### M13 · One `ECOSYSTEM.md`, four repositories read it — **S–M**, three repos (§3.3)
+What is actually left is not a surface but a **grouping**: those two panels sit
+among seventeen Analysis tools instead of under a top-level Runtime tab. That
+is XS–S, not M — and it pays only once M8 through M11 give the tab a third
+occupant. Building it now is a labelled frame around two panels.
 
-A soft but real problem: the architecture document lives in one repo and
-describes four. Anyone looking for it in the other three finds nothing. **The
-same pattern as this plan** — one source, three pointers.
+**Deferred, not dropped**, on those terms: pick it up with the first of M8–M11,
+which is when the grouping starts carrying its own weight.
+
+### M13 · ~~One `ECOSYSTEM.md`, four repositories read it~~ — **built 2026-08-30**, five repos
+
+Pointers shipped; see [`PLAN-DONE.md`](PLAN-DONE.md). The problem was worse
+than "not findable": `runtime-analysis.nvim` cited `docs/ECOSYSTEM.md` as a
+**repo-relative path in nine places**, and no such path exists there.
+
+**What stays open is the other half of §3.3's original ask** — cross-repository
+doc references *checked by CI*. `dead-readme-link` strips code spans by design
+and resolves links within one repository only, so nothing today would have
+reported those nine. That is a new check class over a sibling corpus, not
+housekeeping, and it is tracked as **M14** below.
+
+---
+
+### M14 · Cross-repository doc references, checked — **M**, engine + CI
+
+The half of M13 that is not a pointer. `runtime-analysis.nvim` carried nine
+dead `docs/ECOSYSTEM.md` citations, every one of them dead from the moment it
+was written, and nothing reported any of them — the two existing checks each
+decline this case for a stated reason: `doc-references-missing` resolves *code
+identifiers* against this repo's own module map, and `dead-readme-link`
+resolves *markdown links* within one repository after stripping code spans.
+
+Neither is a defect. What is missing is a third thing: a reference of the shape
+`<repo>/<path>` resolved against a declared set of sibling checkouts —
+`external_repos` already carries exactly that mapping (`repo` plus an optional
+`local_path`, verified with `uv.fs_stat`, no network), which is why this is an
+extension rather than a new subsystem.
+
+*Concrete effect*: `scripts/ci.sh map` fails on a sibling path that no longer
+exists, instead of a reader finding it years later. On-thesis, too — the
+ecosystem ships a plugin whose whole purpose is finding where documentation
+and code stop agreeing, and it does not yet point it at its own siblings.
 
 ---
 
@@ -220,7 +262,7 @@ Only the ones that genuinely force an order:
 
 | First | Then | Why |
 |---|---|---|
-| **M12** (runtime tab) | **L4** (API traffic) | The surface first, then the richer measurement on it |
+| **M12** (runtime tab, deferred) | **L4** (API traffic) | The surface first, then the richer measurement on it — and the surface exists today as two Analysis tools, so what M12 still owes L4 is a name, not a place |
 | **A2** | the Discussions line | A setting in your repos |
 
 **No longer blocking, because the first half is built:** Go supplied the
@@ -234,28 +276,28 @@ owning scope to live in, so deeper Python and Rust are behind nothing.
 
 ## Where I would pick up
 
-Fifteen items have been worked off since 2026-08-20; they are in
+Sixteen items have been worked off since 2026-08-20; they are in
 [`PLAN-DONE.md`](PLAN-DONE.md) with their reasoning, not here. The last of
-them was **M7**, on 2026-08-30.
+them was **M13**, on 2026-08-30 — the same day **M12** was deferred with its
+reasoning recorded above.
 
-**M12 next** (runtime tab in the shipped artifact). With M7 done, **nothing
-open holds anything else up** — so the argument is no longer sequencing, it is
-that M12 is the one item four others are waiting on for a *place to appear*.
-M8 through M11 each compute a runtime-flavoured answer and each would today
-have nowhere to show it: `impact` weighted by runtime reach, `why` crossed
-with call trees, runtime evidence as suppression, the endpoint × history join.
-Building any of them first means building a surface for it first, in the
-wrong place, four times over.
+**M8 next**, and the reason is that M12 stopped being a gate. Read against the
+source on 2026-08-30, its surface turned out to be built: `Telemetry` and
+`Loaded` already ship on the page as view-time-fetched Analysis tools, honest
+empty state and all. So M8 through M11 are not waiting for a place to appear —
+they have one, and what M12 still owes them is a top-level name once there are
+enough of them to group. Of the four, **M8** (`:DocMap impact` weighted by
+runtime reach) is the one whose answer is useful on its own: a changed-lines
+impact list ranked by what actually ran, rather than an unordered set.
 
-*Concrete effect*: a Runtime tab appears in the generated page, empty and
-saying so when nothing is serving it, filled at runtime when something is —
-never embedded, which is one of `ECOSYSTEM.md` §7's four "Never" lines and
-the reason the tab is worth its own item rather than a field.
+*Concrete effect*: `:DocMap impact` stops answering "these 30 functions touch
+your change" and starts answering "these 30, and these 6 of them ran this
+week" — a queue instead of a list.
 
-**The cheap alternative, if a session is short: M13** (one `ECOSYSTEM.md`,
-four repositories read it) — S–M, and the only item here that is pure
-housekeeping. *Concrete effect*: the architecture document stops being
-findable from one repository out of the four it describes.
+**The cheap alternative, if a session is short: M14** (cross-repository doc
+references, checked) — the half of M13 that was not a pointer. *Concrete
+effect*: `scripts/ci.sh map` fails on a dead sibling path, instead of nine of
+them sitting unreported for weeks as they just did.
 
 **Not next**, big and visible though they are: **L1** and **L2**. Both are
 several sessions and both a scope decision rather than a technical one — the
