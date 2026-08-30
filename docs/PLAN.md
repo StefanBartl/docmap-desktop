@@ -107,11 +107,11 @@ the shape of the answer is already written down.
 than an M in the end: both halves already keyed their answers `"<node>#<fn>"`,
 so it was a crossing rather than a build.
 
-### M9 · `:DocMap why` × call trees — **M**, runtime-analysis (§1.4)
+### M9 · ~~`:DocMap why` × call trees~~ — **built 2026-08-30**, runtime-analysis (§1.4)
 
-`why <a> <b>` today walks the **static require graph**. The call tree is the
-other chain: not "what loads what" but "what calls what". Two answers to two
-different questions that are readily confused.
+`documentation.nvim` `ff18561`; see [`PLAN-DONE.md`](PLAN-DONE.md). Not a
+runtime item after all — the call edges were already in every generated
+map, so nothing here needed telemetry.
 
 ### M10 · Runtime evidence as a *check input* — **M**, runtime-analysis (§1.5)
 
@@ -276,31 +276,32 @@ owning scope to live in, so deeper Python and Rust are behind nothing.
 
 ## Where I would pick up
 
-Seventeen items have been worked off since 2026-08-20; they are in
+Eighteen items have been worked off since 2026-08-20; they are in
 [`PLAN-DONE.md`](PLAN-DONE.md) with their reasoning, not here. The last of
-them was **M8**, on 2026-08-30 — the same day **M13** shipped and **M12** was
-deferred, both with their reasoning recorded above.
+them was **M9**, on 2026-08-30 — the same day **M8** and **M13** shipped and
+**M12** was deferred, all with their reasoning recorded above.
 
-**M9 next**, and the reason is unchanged from the one that put M8 first. Nothing gates
-anything, so what decides is which answer stands on its own — and M8 having
-shipped, **M9** (`:DocMap why` × call trees) is the next of the four with a
-question of its own rather than a second view on an answered one.
+**M14 next**, and it is the last small item on this list. Nothing gates
+anything, so what decides is which answer stands on its own — and of what is
+left, M14 is the only one whose value has already been demonstrated rather than
+argued: nine dead cross-repository doc references sat unreported for weeks in
+August, and neither existing check could have found them.
 
-*Concrete effect*: `why <a> <b>` walks the **static require graph** today —
-"what loads what". Crossed with call trees it also answers "what calls what",
-which is a different chain and the one people usually mean when they ask why
-two modules are connected. Two answers to two questions that are readily
-confused, which is the argument for building it rather than picking one.
+*Concrete effect*: `scripts/ci.sh map` fails on a sibling path that no longer
+exists, instead of a reader finding it years later. `external_repos` already
+carries the mapping this needs (`repo` plus an optional `local_path`, verified
+with `uv.fs_stat`, no network), so it is an extension rather than a new
+subsystem.
 
-*Worth checking first*, on the pattern M8 and M12 both set: how much of the
-call-tree half `core/calls.lua` already answers. M8 turned out to be a crossing
-of two existing answers, not a build; three of the last six descriptions here
-were stale in some direction.
+*What is left after that is genuinely bigger*: **M7b** (a scope is not a node),
+**M10** and **M11** (runtime evidence as suppression; the endpoint × history
+join), **QW6**, and the L items. None is a session's work the way the last ten
+have been.
 
-**The cheap alternative, if a session is short: M14** (cross-repository doc
-references, checked) — the half of M13 that was not a pointer. *Concrete
-effect*: `scripts/ci.sh map` fails on a dead sibling path, instead of nine of
-them sitting unreported for weeks as they just did.
+*Worth checking first*, on the pattern M8, M9 and M12 all set: read the source
+before trusting the entry. **Four of the last eight descriptions here were
+stale** in some direction — M12 was already built, M13 was worse than
+written, M8 and M9 were both smaller, and M9 was not even a runtime item.
 
 **Not next**, big and visible though they are: **L1** and **L2**. Both are
 several sessions and both a scope decision rather than a technical one — the

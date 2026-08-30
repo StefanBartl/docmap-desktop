@@ -1188,3 +1188,61 @@ names them because there the user did ask.
 *Verified* end to end against this repository's own working diff, not only
 against the six new fixtures in `runtime_joins_spec.lua` — the same spec that
 already holds the other two crossings.
+
+
+---
+
+## M9 · `:DocMap why` × call trees — 2026-08-30
+
+`documentation.nvim` `ff18561`.
+
+**Filed under runtime-analysis, and it turned out not to be a runtime item at
+all.** The call edges have been in every generated map since `calls.build`
+landed — `from`, `from_fn`, `to`, `to_fn`, `line`, `confidence`. Nothing
+here needed telemetry, a plugin, or a session. That is the fourth entry in
+eight whose description was off in some direction, and the second in two days.
+
+**What was actually missing was a traversal, and the check confirmed it before
+a line was written**: `deps.path` was the only path-finder in the tree and
+walks `require` edges exclusively; the Calls view in `:DocBrowse` is one hop in
+or out, not a walk; `core/calls.lua` exported `extract`, `identifier_counts`
+and `build`, and no path. Edges yes, walk no.
+
+*Visible effect.* `:DocMap why a b` answered one question and looked like it
+answered the other. It now answers both, and the call chain is
+**function-precise** because the edges are:
+
+```
+loads · 1 hop, all at load time:  documentation.bindings.usrcmds.why → documentation.core.deps
+calls · 1 hop:  documentation.bindings.usrcmds.why#M.run → documentation.core.deps#M.path
+```
+
+`deps.path` can only ever say "A reaches B". This says through which functions,
+which is the half a reader was walking the Deps view by hand to reconstruct.
+
+**And what came out of it was the disagreement being the product**, not a side
+effect. Two shapes, both real in this repository:
+
+* **Loads but never calls.** The top-level `documentation` module requires
+  `core.cli`, `core.diff` and both renderers and calls into none of them. In
+  the require graph alone that is indistinguishable from a live dependency —
+  which is precisely why the second chain had to exist before anyone could see
+  it.
+* **Calls with no require path.** The static graph understating the link, via a
+  deferred or dynamically built require `deps` could not follow.
+
+*The design decision worth keeping*: heuristic hops are **traversed and
+marked**, not dropped. `build` labels a bare-name match `"heuristic"`; dropping
+those hops would hide real chains, and passing them along silently would
+present a guess as a fact. `chain_confidence` collapses a chain to its weakest
+hop — one heuristic link makes the whole chain heuristic, because that is
+what a chain's certainty is. The `~` mark is the one the Calls view already
+uses for the same fact, so a reader learns it once.
+
+*A detail the fixtures could not cover*: this repository has **zero** heuristic
+call edges, so the mark is exercised only by a constructed assertion. Said out
+loud rather than left looking like coverage.
+
+*Verified* on the real map, not only on the twelve fixtures in the new
+`call_path_spec.lua` — including a scan for the loads-but-never-calls
+shape, which is where the four real cases above came from.
