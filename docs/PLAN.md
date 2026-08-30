@@ -160,25 +160,12 @@ housekeeping, and it is tracked as **M14** below.
 
 ---
 
-### M14 · Cross-repository doc references, checked — **M**, engine + CI
+### M14 · ~~Cross-repository doc references, checked~~ — **built 2026-08-31**, engine + CI
 
-The half of M13 that is not a pointer. `runtime-analysis.nvim` carried nine
-dead `docs/ECOSYSTEM.md` citations, every one of them dead from the moment it
-was written, and nothing reported any of them — the two existing checks each
-decline this case for a stated reason: `doc-references-missing` resolves *code
-identifiers* against this repo's own module map, and `dead-readme-link`
-resolves *markdown links* within one repository after stripping code spans.
-
-Neither is a defect. What is missing is a third thing: a reference of the shape
-`<repo>/<path>` resolved against a declared set of sibling checkouts —
-`external_repos` already carries exactly that mapping (`repo` plus an optional
-`local_path`, verified with `uv.fs_stat`, no network), which is why this is an
-extension rather than a new subsystem.
-
-*Concrete effect*: `scripts/ci.sh map` fails on a sibling path that no longer
-exists, instead of a reader finding it years later. On-thesis, too — the
-ecosystem ships a plugin whose whole purpose is finding where documentation
-and code stop agreeing, and it does not yet point it at its own siblings.
+`documentation.nvim` `66c429f`, `runtime-analysis.nvim` `ae7af45`; see
+[`PLAN-DONE.md`](PLAN-DONE.md). Shipped as the `sibling-reference-missing`
+check. Larger than the entry implied: the configuration form it was supposed to
+build on did not exist yet.
 
 ---
 
@@ -276,32 +263,29 @@ owning scope to live in, so deeper Python and Rust are behind nothing.
 
 ## Where I would pick up
 
-Eighteen items have been worked off since 2026-08-20; they are in
+Nineteen items have been worked off since 2026-08-20; they are in
 [`PLAN-DONE.md`](PLAN-DONE.md) with their reasoning, not here. The last of
-them was **M9**, on 2026-08-30 — the same day **M8** and **M13** shipped and
-**M12** was deferred, all with their reasoning recorded above.
+them was **M14**, on 2026-08-31 — the day after **M8**, **M9** and **M13**
+shipped and **M12** was deferred, all with their reasoning recorded above.
 
-**M14 next**, and it is the last small item on this list. Nothing gates
-anything, so what decides is which answer stands on its own — and of what is
-left, M14 is the only one whose value has already been demonstrated rather than
-argued: nine dead cross-repository doc references sat unreported for weeks in
-August, and neither existing check could have found them.
+**M7b next**, and there is no small item left to prefer over it. Everything
+remaining is a session or more: **M7b** (a scope is not a node), **M10** and
+**M11** (runtime evidence as suppression; the endpoint × history join), **QW6**
+(fenced blocks on the page), and the L items. Of those, M7b is the one that is
+*wrong* rather than *missing* — a Rust `mod x { … }` is grouped under its
+file today and so carries a false identity, which is a different and worse
+state than an absent feature.
 
-*Concrete effect*: `scripts/ci.sh map` fails on a sibling path that no longer
-exists, instead of a reader finding it years later. `external_repos` already
-carries the mapping this needs (`repo` plus an optional `local_path`, verified
-with `uv.fs_stat`, no network), so it is an extension rather than a new
-subsystem.
+*Concrete effect*: a `mod`, a `class` or an `impl` block becomes a node —
+with its own id, summary, coverage and edges — instead of a grouping label
+over functions that still belong, as far as every consumer is concerned, to the
+file around them.
 
-*What is left after that is genuinely bigger*: **M7b** (a scope is not a node),
-**M10** and **M11** (runtime evidence as suppression; the endpoint × history
-join), **QW6**, and the L items. None is a session's work the way the last ten
-have been.
-
-*Worth checking first*, on the pattern M8, M9 and M12 all set: read the source
-before trusting the entry. **Four of the last eight descriptions here were
-stale** in some direction — M12 was already built, M13 was worse than
-written, M8 and M9 were both smaller, and M9 was not even a runtime item.
+*Worth checking first*, and by now this is the rule rather than the caution:
+read the source before trusting the entry. **Five of the last nine descriptions
+here were off** — M12 was already built, M13 was worse than written, M8 and
+M9 were both smaller, M9 was misfiled as a runtime item, and M14 was larger
+because the configuration form it assumed did not exist.
 
 **Not next**, big and visible though they are: **L1** and **L2**. Both are
 several sessions and both a scope decision rather than a technical one — the

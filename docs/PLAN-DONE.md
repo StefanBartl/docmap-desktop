@@ -1246,3 +1246,62 @@ loud rather than left looking like coverage.
 *Verified* on the real map, not only on the twelve fixtures in the new
 `call_path_spec.lua` — including a scan for the loads-but-never-calls
 shape, which is where the four real cases above came from.
+
+
+---
+
+## M14 · Cross-repository doc references, checked — 2026-08-31
+
+`documentation.nvim` `66c429f`, `runtime-analysis.nvim` `ae7af45`. Shipped as
+the `sibling-reference-missing` check.
+
+**Larger than the entry implied, and the reason is worth keeping.** The entry
+said `external_repos` "already carries exactly that mapping". It does not,
+quite. `external_repos` and `tag_files` are both keyed by **module prefix**; a
+doc citation is keyed by **repository directory name**, and the two coincide
+for `lib.nvim` and diverge for `documentation.nvim`, whose module prefix is
+`documentation` — the very repository the nine dead citations pointed at.
+Worse, `documentation.nvim`'s own `.docmap.json` declared no `external_repos`
+at all, and the schema's object form forbade `local_path` outright
+(`additionalProperties: false`). So the work was configuration form **plus**
+check, not check alone.
+
+*What shipped*: `name` on `Documentation.ExternalRepo` (the directory name,
+stated by hand), `local_path` admitted to the schema and made resolvable
+**relative to `opts.root`**, so a committed `.docmap.json` can say
+`../sibling` and stay true on every machine instead of carrying one
+developer's absolute path.
+
+**And what came out of it was two false positives on real docs, both from
+URL-shaped text, both excluded by rule rather than by tuning.** The first run
+against this repository reported
+`lib.nvim/blob/main/lua/lib/nvim/notify/init.lua` from its own `FEATURE_LOG.md`
+— a GitHub blob link, which contains a repository name followed by a path
+and therefore matches any `<name>/<path>` pattern. Stripping full URLs fixed
+half of it; the other half was the same link written **without its scheme**,
+which no URL stripper can see. `<repo>/blob/<ref>/…` and `<repo>/tree/<ref>/…`
+are now excluded as the URL paths they are. Both rules are stated in the source
+with the case that produced them, because "why does this check ignore that"
+is otherwise a question with no answer.
+
+*The discipline that keeps it usable*: only a first segment matching a
+**declared** `name` is considered. Nothing is inferred from path shape, so an
+ordinary `docs/foo.md`, a prose slash or an undeclared repository cannot be
+mistaken for a broken citation. A check that guessed would fire everywhere and
+be switched off within a day, which is worse than not having it.
+
+*A defect the suite caught, which is what it is for*: `vim.fs.normalize` was
+the obvious way to join root and relative path, and it is not in the standalone
+shim. `shim_contract_spec.lua` failed on it — the spec written after two
+releases went out broken on exactly this. Plain concatenation instead;
+`uv.fs_stat` resolves `..` itself.
+
+*Where it actually runs*: `documentation.nvim` and `runtime-analysis.nvim`,
+the two repositories with a docmap configuration and a map gate. `lib.nvim`
+and `mdview.nvim` have neither a `.docmap.json` nor a `gen_map.lua`, so the
+check has no surface there — and saying so plainly beats implying that
+five repositories are covered.
+
+*Verified* by probe in both repositories, not only by the twelve fixtures in
+the new `sibling_references_spec.lua`: a dead sibling path is reported, a live
+one beside it is not.
