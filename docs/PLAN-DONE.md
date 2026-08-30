@@ -1128,3 +1128,63 @@ none.
 *Not done, deliberately*: `mdview.nvim` got the pointer but no content pass.
 `ECOSYSTEM.md` mentions it in one line ("presentation: Markdown to a browser")
 and that line is still accurate.
+
+
+---
+
+## M8 · `:DocMap impact`, weighted by runtime reach — 2026-08-30
+
+`documentation.nvim` `bd081b2`.
+
+**Smaller than its class said, and the reason is worth keeping**: both halves
+already keyed their answers the same way. `history.analyze` keys its hits
+`"<node>#<fn>"`; `telemetry_join.by_key` returns rows under `ir_key`, whose own
+annotation reads *"the same key shape `check.used_keys` returns"*. So this was
+a crossing of two existing answers over a shared key, not a build — two
+functions and an optional parameter, where the entry said M.
+
+*Visible effect*, which is what the item was for. `:DocMap impact` answered as
+a **set**: thirty touched functions, thirty equal rows, and "where do I start"
+unanswered. It now answers as a **queue** — what ran this week on top, each row
+carrying its counts:
+
+```
+changed: runtime_reach(cfg, ir)   (1 caller)  · 4000 calls, 340 this week (yours)
+  ← M.run calls it   (documentation.bindings.usrcmds.impact)
+changed: M.run(ctx, arg)   (0 callers)  · 12 calls, none in the last week (yours)
+```
+
+**And what came out of it was a decision that had to be argued rather than
+copied.** `churn` ranks the same kind of list from the same data and
+**deliberately refuses to let telemetry move a row** — `COMMANDS.md` states it:
+a ranking of the codebase must not depend on whose machine produced it, or two
+developers get two orders and neither is wrong. Doing the opposite here needed
+a reason better than convenience, and there is one: `churn` is a durable,
+shareable verdict *about the codebase*; `impact` is a private one-shot answer
+about *your own uncommitted work*, read once before a commit and never compared
+with anyone. "Which of the things I just changed do I actually exercise" is a
+question about this machine by construction. Both headers now carry the
+argument and cite each other, because the next reader would otherwise harmonise
+them into one rule and break whichever they touched.
+
+**Recency, not totals** — and that is the opposite call from `untested_hot` in
+the very same module, for the same kind of reason. That list ranks on lifetime
+counts because its question ("did this ever run without a test watching") is
+not about this week. This one's question is whether a path is alive, and only
+recency answers it.
+
+*One refactor fell out of it.* The wording rule — never "unused", always "in
+your sessions", and absence is never a zero — was a file-local in `churn.lua`
+with `IDEAS.md` §1.1 cited as *a requirement on the render*. There are two
+renders now. It moved to `telemetry_join.session_note`, beside the data whose
+meaning it is, so the three states cannot be worded two ways.
+
+*The base case is protected as an identity, not by inspection.* Without
+telemetry the list is byte-identical to before — order included — and silently
+so: `impact` is not a telemetry command, so the three causes of "no data" stay
+unnamed here rather than answering a question nobody asked. `usrcmds/untested.lua`
+names them because there the user did ask.
+
+*Verified* end to end against this repository's own working diff, not only
+against the six new fixtures in `runtime_joins_spec.lua` — the same spec that
+already holds the other two crossings.

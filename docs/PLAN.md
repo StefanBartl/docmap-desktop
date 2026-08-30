@@ -101,11 +101,11 @@ today, and `Documentation.Node` is keyed on a path in the walk, in `stats`, in
 every `id`, and in the artifact. The entry stays so that the day it is asked,
 the shape of the answer is already written down.
 
-### M8 · `:DocMap impact`, weighted by runtime reach — **M**, runtime-analysis (§1.3)
+### M8 · ~~`:DocMap impact`, weighted by runtime reach~~ — **built 2026-08-30**, runtime-analysis (§1.3)
 
-`impact` answers "which functions touch my changed lines, and who calls
-them". With telemetry beside it that becomes "…and how often did that
-actually happen" — a ranking instead of a list.
+`documentation.nvim` `bd081b2`; see [`PLAN-DONE.md`](PLAN-DONE.md). Smaller
+than an M in the end: both halves already keyed their answers `"<node>#<fn>"`,
+so it was a crossing rather than a build.
 
 ### M9 · `:DocMap why` × call trees — **M**, runtime-analysis (§1.4)
 
@@ -276,23 +276,26 @@ owning scope to live in, so deeper Python and Rust are behind nothing.
 
 ## Where I would pick up
 
-Sixteen items have been worked off since 2026-08-20; they are in
+Seventeen items have been worked off since 2026-08-20; they are in
 [`PLAN-DONE.md`](PLAN-DONE.md) with their reasoning, not here. The last of
-them was **M13**, on 2026-08-30 — the same day **M12** was deferred with its
-reasoning recorded above.
+them was **M8**, on 2026-08-30 — the same day **M13** shipped and **M12** was
+deferred, both with their reasoning recorded above.
 
-**M8 next**, and the reason is that M12 stopped being a gate. Read against the
-source on 2026-08-30, its surface turned out to be built: `Telemetry` and
-`Loaded` already ship on the page as view-time-fetched Analysis tools, honest
-empty state and all. So M8 through M11 are not waiting for a place to appear —
-they have one, and what M12 still owes them is a top-level name once there are
-enough of them to group. Of the four, **M8** (`:DocMap impact` weighted by
-runtime reach) is the one whose answer is useful on its own: a changed-lines
-impact list ranked by what actually ran, rather than an unordered set.
+**M9 next**, and the reason is unchanged from the one that put M8 first. Nothing gates
+anything, so what decides is which answer stands on its own — and M8 having
+shipped, **M9** (`:DocMap why` × call trees) is the next of the four with a
+question of its own rather than a second view on an answered one.
 
-*Concrete effect*: `:DocMap impact` stops answering "these 30 functions touch
-your change" and starts answering "these 30, and these 6 of them ran this
-week" — a queue instead of a list.
+*Concrete effect*: `why <a> <b>` walks the **static require graph** today —
+"what loads what". Crossed with call trees it also answers "what calls what",
+which is a different chain and the one people usually mean when they ask why
+two modules are connected. Two answers to two questions that are readily
+confused, which is the argument for building it rather than picking one.
+
+*Worth checking first*, on the pattern M8 and M12 both set: how much of the
+call-tree half `core/calls.lua` already answers. M8 turned out to be a crossing
+of two existing answers, not a build; three of the last six descriptions here
+were stale in some direction.
 
 **The cheap alternative, if a session is short: M14** (cross-repository doc
 references, checked) — the half of M13 that was not a pointer. *Concrete
