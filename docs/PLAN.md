@@ -51,27 +51,16 @@ None of this costs me time; each costs you a sentence or one action.
 ## Quick wins
 
 Hours. **Nothing left, and that is meant literally:** all eight are done and
-recorded in [`PLAN-DONE.md`](PLAN-DONE.md). What remained under the old
-number QW6 is no longer an hour but an **M** — it is still in this section
-only because the number would otherwise point nowhere.
+recorded in [`PLAN-DONE.md`](PLAN-DONE.md). The ninth number, QW6, had long
+since stopped being an hour and stayed here only so it would point somewhere;
+it is now built too.
 
-### QW6 · Fenced blocks on the page — **M**, engine
+### ~~QW6 · Fenced blocks on the page~~ — **built 2026-08-31**, engine
 
 Multi-line ```` ``` ```` blocks with syntax highlighting in the generated
-HTML.
-
-Stage 1 — inline code through a single `prose()` function across thirteen
-surfaces — is built and recorded in [`PLAN-DONE.md`](PLAN-DONE.md). Stage 2
-was deliberately left out at the time: a summary is single-line, the
-multi-line case is `@example`, and that is a different surface with a
-different shape. Both in one regex is the road to a renderer nobody can
-reason about any more.
-
-**`color_my_ascii.nvim` does not help here**, and that is a property of the
-surfaces rather than a judgement: its fence API is buffer-based and needs a
-Neovim buffer. The generated page is a standalone artifact in a browser, and
-the standalone engine runs without Neovim at all. For `:DocBrowse` it very
-much did help — that was QW8.
+HTML. Reasoning in [`PLAN-DONE.md`](PLAN-DONE.md) — including the part the
+entry had wrong: the Features tab already split fences, it only threw the
+language away.
 
 ## Medium
 
@@ -285,14 +274,16 @@ was the `file-holds-many-modules` check on 2026-08-31, in the same pass that
 **deferred M7b** — the day after **M14**, and two days after **M8**, **M9** and
 **M13** shipped and **M12** was deferred.
 
-**What remains is M11, QW6 and the L items**, and every one of them is a
+**What remains is M11 and the L items**, and every one of them is a
 session or more. None of them is *wrong* any longer, only missing: the one
 entry that carried a false identity — M7b — now reports itself instead, which
 is the half that was useful without an id-shape change.
 
 *Worth checking first*, and by now this is the rule rather than the caution:
-read the source before trusting the entry. **Seven of the last eleven
-descriptions here were off** — M12 was already built, M13 was worse than
+read the source before trusting the entry. **Eight of the last twelve
+descriptions here were off** — QW6 joined them from the other side, being
+*further along* than written: the Features tab already split fences and only
+dropped the language. Before it, **seven of eleven** — M12 was already built, M13 was worse than
 written, M8 and M9 were both smaller, M9 was misfiled as a runtime item, M14
 was larger because the configuration form it assumed did not exist, M7b was an
 L priced as an M with nothing in this ecosystem to gain from it, and M10 was
