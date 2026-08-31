@@ -1358,3 +1358,56 @@ job — plus the live probe against this repository.
 
 **What reopens M7b**: a tree with genuine inline modules gets mapped. The check
 is then its own tickler.
+
+---
+
+## M10 · Runtime evidence as a check input — 2026-08-31
+
+**`documentation.nvim` [`b632673`](https://github.com/StefanBartl/documentation.nvim/commit/b632673),
+`runtime-analysis.nvim` [`0b3b895`](https://github.com/StefanBartl/runtime-analysis.nvim/commit/0b3b895).**
+
+**Half of this was already built and the entry did not say so.**
+`dead-function` has been reading telemetry as suppression since 2026-08-30 —
+with precisely the reasoning §1.5 states for the general shape. What was open
+was the second place the same argument applies, and it is the sharper one.
+
+`unreferenced-module` has carried its own counter-argument in a comment since
+it was written: *"a module may legitimately be reached only through the
+aggregator's string map rather than a literal require"*. That is not a caveat
+about an edge case, it is a description of `lib.nvim`, whose entire surface is
+reached that way — `strategies/metatable.lua` maps names to module paths and
+requires them at access time, so there is no literal `require` for a static
+scan to find anywhere. The check has been reporting those as suspicious ever
+since, at `info`, permanently.
+
+*What shipped*: `loaded_diff.loaded_modules(opts)` — the coarse question
+(*was this module ever loaded*) beside the field-level diff `rows` already
+answered (*which of its exported functions are on the table*). `check_orphans`
+reads it and skips a node the evidence covers.
+
+**And what came out of it was that the live process is the wrong source**,
+which is the one design decision here worth keeping. `package.loaded` in the
+process running a check is polluted by the check itself: `core/scan.lua`
+requires the scanned tree's own modules in order to read them, so a self-scan
+would find nearly everything loaded and suppress every finding. Evidence
+produced by the observation is not evidence. The newest **snapshot** is read
+instead — taken deliberately, in a session someone was working in, and
+therefore meaning what it says.
+
+No option names which snapshot: newest wins. A stale one can only ever
+suppress a finding that would otherwise appear, which is the direction already
+chosen for runtime evidence everywhere in this ecosystem.
+
+*Measured on the tree the case is about.* Scanning `lib.nvim` with ten of its
+modules loaded to stand in for a session: **71 findings before, 68 after, 0
+manufactured**. The three suppressed are exactly the shape the comment
+predicted — `lib.strategies.metatable` (the aggregator itself),
+`lib.lua.memo.memo`, and `lib.nvim.frecency`, whose only consumers live in
+other repositories. A real session loads hundreds rather than ten.
+
+*Verified*: four gates green, nineteen assertions in a new
+`loaded_suppression_spec.lua` over a synthetic IR and a stubbed
+`runtime-analysis.loaded`. Four of them cover absence — no snapshot, no
+runtime-analysis, a raising probe, an unreadable snapshot — because "no data
+changes nothing" is the property that makes a suppression safe and the one
+that breaks silently. That is also CI's normal state.

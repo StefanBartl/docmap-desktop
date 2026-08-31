@@ -128,12 +128,13 @@ so it was a crossing rather than a build.
 runtime item after all — the call edges were already in every generated
 map, so nothing here needed telemetry.
 
-### M10 · Runtime evidence as a *check input* — **M**, runtime-analysis (§1.5)
+### M10 · ~~Runtime evidence as a *check input*~~ — **built 2026-08-31**, runtime-analysis (§1.5)
 
-Every other crossing is a view. The stronger form feeds runtime evidence into
-the checks — **as suppression, never as escalation**. The line is drawn in §7
-and it holds: a warning that appears on one machine and not another is worse
-than no warning.
+`documentation.nvim` `b632673`; see [`PLAN-DONE.md`](PLAN-DONE.md). Half of it
+turned out to be built already — `dead-function` has read telemetry as
+suppression since 2026-08-30 — and the open half was `unreferenced-module`,
+which had carried its own counter-argument in a comment since it was written.
+Suppression, never escalation, in both.
 
 ### M11 · Endpoint inventory × request history × response shape — **M**, runtime-analysis (§1.7)
 
@@ -284,17 +285,18 @@ was the `file-holds-many-modules` check on 2026-08-31, in the same pass that
 **deferred M7b** — the day after **M14**, and two days after **M8**, **M9** and
 **M13** shipped and **M12** was deferred.
 
-**What remains is M10, M11, QW6 and the L items**, and every one of them is a
+**What remains is M11, QW6 and the L items**, and every one of them is a
 session or more. None of them is *wrong* any longer, only missing: the one
 entry that carried a false identity — M7b — now reports itself instead, which
 is the half that was useful without an id-shape change.
 
 *Worth checking first*, and by now this is the rule rather than the caution:
-read the source before trusting the entry. **Six of the last ten descriptions
-here were off** — M12 was already built, M13 was worse than written, M8 and
-M9 were both smaller, M9 was misfiled as a runtime item, M14 was larger
-because the configuration form it assumed did not exist, and M7b was an L
-priced as an M with nothing in this ecosystem to gain from it.
+read the source before trusting the entry. **Seven of the last eleven
+descriptions here were off** — M12 was already built, M13 was worse than
+written, M8 and M9 were both smaller, M9 was misfiled as a runtime item, M14
+was larger because the configuration form it assumed did not exist, M7b was an
+L priced as an M with nothing in this ecosystem to gain from it, and M10 was
+half-built without the entry saying so.
 
 **Not next**, big and visible though they are: **L1** and **L2**. Both are
 several sessions and both a scope decision rather than a technical one — the
