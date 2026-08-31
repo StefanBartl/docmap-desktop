@@ -83,23 +83,38 @@ A working day or more.
 a class with its methods under it. Reasoning in
 [`PLAN-DONE.md`](PLAN-DONE.md). *Previously: M11.*
 
-### M7b · One file, many modules — **M**, engine
+### ~~M7b · One file, many modules~~ — **deferred 2026-08-31**, engine
 
-**The other half of the same Phase-0 entry, and what is left of it.** A scope
-is not a node: a Rust `mod x { … }` is grouped with its members and still read
-as part of its file, so it has no summary, no coverage and no edges of its
-own. Elixir has the same shape from the other direction — a `.ex` file
-routinely holds several `defmodule`s, each of them a real module.
+**The other half of the same Phase-0 entry.** A scope is not a node: a Rust
+`mod x { … }` is grouped with its members and still read as part of its file,
+so it has no summary, no coverage and no edges of its own. Elixir has the same
+shape from the other direction — a `.ex` file routinely holds several
+`defmodule`s, each of them a real module.
 
 That is a wrong *identity*, not missing data, which is why it has never hurt.
 It will the day a question is keyed on module identity in a Rust or Elixir
 tree — "what does this module require", "how documented is it" — because the
 answer would be the file's, silently.
 
-**Not scheduled by that argument alone.** Nothing here asks that question
-today, and `Documentation.Node` is keyed on a path in the walk, in `stats`, in
-every `id`, and in the artifact. The entry stays so that the day it is asked,
-the shape of the answer is already written down.
+**Deferred, and this entry's own "not scheduled by that argument alone" is
+why.** Read against the source it is an **L**, not an M: `Documentation.Node`
+is keyed on a path in the walk, in `stats`, in every `id` and in the artifact —
+31 Lua files here and 23 places in `server.rs` depend on it. And there is
+nothing to gain today: this repository is the ecosystem's only Rust tree, holds
+eleven inline modules, and every one of them is `mod tests`; no Elixir tree
+exists at all. Built now, it would promote test modules to nodes and make the
+map worse.
+
+**What shipped instead, on 2026-08-31: the finding.**
+`documentation.nvim` `1e95a40` adds the `file-holds-many-modules` check —
+a file carrying several module identities is reported at `info` rather than
+silently answering for all of them, without touching the id shape. A test
+module is not counted, which is the whole check on a real tree: without that
+filter it would have fired on all eleven files here. See
+[`PLAN-DONE.md`](PLAN-DONE.md).
+
+**What reopens this**: a Rust or Elixir tree with genuine inline modules gets
+mapped — and then the check says so itself.
 
 ### M8 · ~~`:DocMap impact`, weighted by runtime reach~~ — **built 2026-08-30**, runtime-analysis (§1.3)
 
@@ -263,29 +278,23 @@ owning scope to live in, so deeper Python and Rust are behind nothing.
 
 ## Where I would pick up
 
-Nineteen items have been worked off since 2026-08-20; they are in
-[`PLAN-DONE.md`](PLAN-DONE.md) with their reasoning, not here. The last of
-them was **M14**, on 2026-08-31 — the day after **M8**, **M9** and **M13**
-shipped and **M12** was deferred, all with their reasoning recorded above.
+Twenty items have been worked off since 2026-08-20; they are in
+[`PLAN-DONE.md`](PLAN-DONE.md) with their reasoning, not here. The last of them
+was the `file-holds-many-modules` check on 2026-08-31, in the same pass that
+**deferred M7b** — the day after **M14**, and two days after **M8**, **M9** and
+**M13** shipped and **M12** was deferred.
 
-**M7b next**, and there is no small item left to prefer over it. Everything
-remaining is a session or more: **M7b** (a scope is not a node), **M10** and
-**M11** (runtime evidence as suppression; the endpoint × history join), **QW6**
-(fenced blocks on the page), and the L items. Of those, M7b is the one that is
-*wrong* rather than *missing* — a Rust `mod x { … }` is grouped under its
-file today and so carries a false identity, which is a different and worse
-state than an absent feature.
-
-*Concrete effect*: a `mod`, a `class` or an `impl` block becomes a node —
-with its own id, summary, coverage and edges — instead of a grouping label
-over functions that still belong, as far as every consumer is concerned, to the
-file around them.
+**What remains is M10, M11, QW6 and the L items**, and every one of them is a
+session or more. None of them is *wrong* any longer, only missing: the one
+entry that carried a false identity — M7b — now reports itself instead, which
+is the half that was useful without an id-shape change.
 
 *Worth checking first*, and by now this is the rule rather than the caution:
-read the source before trusting the entry. **Five of the last nine descriptions
+read the source before trusting the entry. **Six of the last ten descriptions
 here were off** — M12 was already built, M13 was worse than written, M8 and
-M9 were both smaller, M9 was misfiled as a runtime item, and M14 was larger
-because the configuration form it assumed did not exist.
+M9 were both smaller, M9 was misfiled as a runtime item, M14 was larger
+because the configuration form it assumed did not exist, and M7b was an L
+priced as an M with nothing in this ecosystem to gain from it.
 
 **Not next**, big and visible though they are: **L1** and **L2**. Both are
 several sessions and both a scope decision rather than a technical one — the
