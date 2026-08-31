@@ -1305,3 +1305,56 @@ five repositories are covered.
 *Verified* by probe in both repositories, not only by the twelve fixtures in
 the new `sibling_references_spec.lua`: a dead sibling path is reported, a live
 one beside it is not.
+
+---
+
+## M7b, answered sideways · `file-holds-many-modules` — 2026-08-31
+
+**`documentation.nvim` [`1e95a40`](https://github.com/StefanBartl/documentation.nvim/commit/1e95a40).
+M7b itself is deferred in [`PLAN.md`](PLAN.md); what shipped is the half of it
+that was useful without an id-shape change.**
+
+The entry asked for a scope to become a node. Read against the source, that is
+an **L** and not the M it was priced at: `Documentation.Node` is keyed on a
+path in the walk, in `stats`, in every `id` and in the artifact — 31 Lua files
+in the plugin and 23 places in this repository's `server.rs` depend on it, plus
+a schema bump and both consumers.
+
+**And what came out of measuring it was that there is nothing to gain today.**
+This repository is the ecosystem's only Rust tree. It holds eleven inline
+modules across eleven files — and every single one of them is `mod tests`. No
+Elixir tree exists anywhere in the ecosystem; everything else is Lua, a
+language with no owning module construct at all. Built now, M7b would have
+promoted eleven test modules to nodes and made the map worse than it is.
+
+*What is wrong with the current state is not the data, it is the silence.* A
+consumer asking "how documented is module X" in such a tree gets the file's
+answer and has no way to know it asked the wrong thing. So the check says it:
+`src/lib.rs holds 2 module identities the map cannot separate: lib, x`, at
+`info`, because Rust and Elixir are written this way on purpose and there is
+nothing for the scanned tree's author to fix — the same grade and the same
+reason as `missing-readme`.
+
+**The test-module filter is the whole check on a real tree, not a nicety.**
+Without it this would have fired on all eleven files here, on its first run,
+and been switched off the same day. With it: zero findings, verified against
+this checkout. A class, an `impl` block and a trait are not identities either
+— owned, but not by a module — and count toward the file instead. A single
+`defmodule` is the file's own identity and not a second one, which matters
+because Elixir sets `owner_kind = "module"` on *every* function it holds: a
+check counting owners rather than identities would have reported every correct
+`.ex` file in existence.
+
+*The discipline*: counted through `core/scopes.lua`, never over `fn.owner`
+directly. That module declares itself the single reader of
+`owner`/`owner_kind`, and a second grouping inside a check is exactly the drift
+this plugin exists to detect.
+
+*Verified*: four gates green, thirteen assertions in a new
+`many_modules_spec.lua` over a synthetic IR — a Rust or Elixir fixture would
+have gated them on treesitter grammars a plain local run does not have, and
+what the backends set is `lang_rust_spec.lua`'s and `lang_elixir_spec.lua`'s
+job — plus the live probe against this repository.
+
+**What reopens M7b**: a tree with genuine inline modules gets mapped. The check
+is then its own tickler.
