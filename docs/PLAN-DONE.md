@@ -693,7 +693,72 @@ Mutation-checked: take the call out of `show_detail` and the spec fails by
 name (`expected 30, got 0`).
 
 **Stage 2 of QW6 stays open** — fenced blocks *on the page*. That is a
-different surface from this one and still an **M**.
+different surface from this one and still an **M**. *(Built 2026-08-31, its
+own entry below.)*
+
+---
+
+### ~~QW6 · Fenced blocks on the page~~ — **built 2026-08-31**, `ccab142`, engine
+
+**Stage 2, and it was further along than the entry said.** The Features tab
+already *split* fenced blocks — `renderFeatureBody` has matched `/^```/` since
+it existed. What it did with them was write its own `<pre><code>` and throw the
+info string away one character before it was needed: the regex said "a fence
+starts here" and nothing captured the `lua` after it. So this was not "build a
+fence renderer", it was "have one, and give it the language".
+
+*What shipped*: one `fenceHTML(src, lang)`, the Features tab routed through it,
+and the two surfaces that did not split at all wired up — a module's
+`@description` body (via a new `richText`, which splits on fences and hands
+everything else to `prose`) and `@example` (via `exampleHTML`).
+
+**The decision that carries the whole thing: highlighting reuses
+`snipBodyHTML`.** That is the tokenizer the source snippets already use —
+glossary-driven, string- and comment-aware, keyed by file extension. A fence's
+info string *is* that extension for most languages, so handing it a synthetic
+`fence.lua` path reuses it whole. The consequence is the point: a `lua` fence
+and a Lua snippet decorate identically, share the keyword card, and pick up any
+future language the moment a backend declares one. A second highlighter — in
+the generator, pre-rendering markup into the IR — would have given the same Lua
+two looks on one page, put presentation into a data contract that
+`docmap-desktop` and the MCP layer also read, and contradicted `html.lua`'s own
+header ("the IR is embedded as JSON rather than being expanded into markup at
+generation time"). The alias table for info strings that are not extensions
+(`python`→`py`, `rust`→`rs`, …) lists only the spellings that actually differ,
+so it stays a spelling table rather than a second language registry.
+
+**A bug found while wiring it, one sentence away from having been prevented.**
+The keyword card resolved its glossary with `closest(".fn-snip")`, so a
+decorated keyword anywhere else — a fence, now — would find no container, read
+no glossary, and show nothing on click. `snippetHTML`'s own comment already
+described the intent: *"the path rides on the container … and the lookup walks
+up to it, which is what `.closest` is for."* Written as a class name, it
+silently meant "and only snippets". The selector now says `[data-path]`.
+
+*Deliberately unchanged*: an `@example` with no fence stays escaped and nothing
+more, because a backtick in a shell example is a backtick and `prose()` over it
+would invent markup. An unclosed fence goes back exactly as written, opening
+line included — the same stance `prose()` takes on an unpaired backtick, for
+the same reason: half a block is a typo, and swallowing it hides the one thing
+the author needs to see.
+
+**Measured, and the number is not in this repo.** 5 module bodies here carry a
+fence and there are **zero** `@example` blocks — QW8's 2026-08 count holding
+steady, and on its own it would make this look cosmetic. The payoff is in the
+features corpora: **`lib.nvim` alone has 43 ```` ```lua ```` blocks** under
+`docs/FEATURES/`, every one of which rendered undecorated until now, plus four
+in `filetree.nvim`. Those are the pages somebody actually reads to learn an
+API.
+
+*Tests*: `fence_render_spec.lua` lifts the pure renderer out of the embedded
+`JS` string and runs it in **node** against real inputs — 24 assertions
+covering highlighting, the aliases, unknown-language degradation, escaping,
+unclosed fences, `@example`, and the string/comment skip. Without node it skips
+rather than fails. Its sibling `prose_render_spec.lua` opens by stating that no
+Lua spec can see a `<code>` element and settles for asserting the routing; that
+was the honest answer for what it could reach, and this one no longer has to
+settle. The routing half is kept anyway, as an assertion that nothing writes
+its own `<pre><code>` again.
 
 ---
 
