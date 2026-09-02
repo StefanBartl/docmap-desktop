@@ -5,6 +5,31 @@ live in five places — two `WORKPLAN.md`, three `ROADMAP.md`, an `IDEAS.md`
 and this plan — and the same task showed up in several of them in different
 states. Now it is here and nowhere else.
 
+## Table of content
+
+  - [What is here and what is not](#what-is-here-and-what-is-not)
+  - [Contents](#contents)
+  - [Waiting on you](#waiting-on-you)
+  - [Quick wins](#quick-wins)
+    - [~~QW6 · Fenced blocks on the page~~ — **built 2026-08-31**, engine](#qw6-fenced-blocks-on-the-page-built-2026-08-31-engine)
+  - [Medium](#medium)
+    - [~~M7 · Phase-0 IR: owning scope~~ — **built 2026-08-30**, engine](#m7-phase-0-ir-owning-scope-built-2026-08-30-engine)
+    - [~~M7b · One file, many modules~~ — **deferred 2026-08-31**, engine](#m7b-one-file-many-modules-deferred-2026-08-31-engine)
+    - [M8 · ~~`:DocMap impact`, weighted by runtime reach~~ — **built 2026-08-30**, runtime-analysis (§1.3)](#m8-docmap-impact-weighted-by-runtime-reach-built-2026-08-30-runtime-analysis-13)
+    - [M9 · ~~`:DocMap why` × call trees~~ — **built 2026-08-30**, runtime-analysis (§1.4)](#m9-docmap-why-call-trees-built-2026-08-30-runtime-analysis-14)
+    - [M10 · ~~Runtime evidence as a *check input*~~ — **built 2026-08-31**, runtime-analysis (§1.5)](#m10-runtime-evidence-as-a-check-input-built-2026-08-31-runtime-analysis-15)
+    - [M11 · Endpoint inventory × request history × response shape — **M**, runtime-analysis (§1.7)](#m11-endpoint-inventory-request-history-response-shape-m-runtime-analysis-17)
+    - [M12 · ~~Runtime tab in the shipped artifact~~ — **deferred 2026-08-30**, three repos (§3.2)](#m12-runtime-tab-in-the-shipped-artifact-deferred-2026-08-30-three-repos-32)
+    - [M13 · ~~One `ECOSYSTEM.md`, four repositories read it~~ — **built 2026-08-30**, five repos](#m13-one-ecosystemmd-four-repositories-read-it-built-2026-08-30-five-repos)
+    - [M14 · ~~Cross-repository doc references, checked~~ — **built 2026-08-31**, engine + CI](#m14-cross-repository-doc-references-checked-built-2026-08-31-engine-ci)
+  - [Large](#large)
+  - [Adjacent — mdview.nvim](#adjacent-mdviewnvim)
+  - [Explicitly not planned](#explicitly-not-planned)
+  - [Dependencies](#dependencies)
+  - [Where I would pick up](#where-i-would-pick-up)
+
+---
+
 ## What is here and what is not
 
 | | Where | What |
@@ -23,6 +48,8 @@ hours · **M** a working day or more · **L** several sessions.
 
 **The IDs are new.** Where an item had a different number before, it is given
 alongside — commit messages and records point at it.
+
+---
 
 ## Contents
 
@@ -51,26 +78,34 @@ None of this costs me time; each costs you a sentence or one action.
 ## Quick wins
 
 Hours. **Nothing left, and that is meant literally:** all eight are done and
-recorded in [`PLAN-DONE.md`](PLAN-DONE.md). The ninth number, QW6, had long
+recorded in [`PLAN-DONE.md`](./PLAN-DONE.md). The ninth number, QW6, had long
 since stopped being an hour and stayed here only so it would point somewhere;
 it is now built too.
+
+---
 
 ### ~~QW6 · Fenced blocks on the page~~ — **built 2026-08-31**, engine
 
 Multi-line ```` ``` ```` blocks with syntax highlighting in the generated
-HTML. Reasoning in [`PLAN-DONE.md`](PLAN-DONE.md) — including the part the
+HTML. Reasoning in [`PLAN-DONE.md`](./PLAN-DONE.md) — including the part the
 entry had wrong: the Features tab already split fences, it only threw the
 language away.
+
+---
 
 ## Medium
 
 A working day or more.
 
+---
+
 ### ~~M7 · Phase-0 IR: owning scope~~ — **built 2026-08-30**, engine
 
 `Documentation.FunctionInfo` carries `owner` and `owner_kind`; the page groups
 a class with its methods under it. Reasoning in
-[`PLAN-DONE.md`](PLAN-DONE.md). *Previously: M11.*
+[`PLAN-DONE.md`](./PLAN-DONE.md). *Previously: M11.*
+
+---
 
 ### ~~M7b · One file, many modules~~ — **deferred 2026-08-31**, engine
 
@@ -100,36 +135,46 @@ a file carrying several module identities is reported at `info` rather than
 silently answering for all of them, without touching the id shape. A test
 module is not counted, which is the whole check on a real tree: without that
 filter it would have fired on all eleven files here. See
-[`PLAN-DONE.md`](PLAN-DONE.md).
+[`PLAN-DONE.md`](./PLAN-DONE.md).
 
 **What reopens this**: a Rust or Elixir tree with genuine inline modules gets
 mapped — and then the check says so itself.
 
+---
+
 ### M8 · ~~`:DocMap impact`, weighted by runtime reach~~ — **built 2026-08-30**, runtime-analysis (§1.3)
 
-`documentation.nvim` `bd081b2`; see [`PLAN-DONE.md`](PLAN-DONE.md). Smaller
+`documentation.nvim` `bd081b2`; see [`PLAN-DONE.md`](./PLAN-DONE.md). Smaller
 than an M in the end: both halves already keyed their answers `"<node>#<fn>"`,
 so it was a crossing rather than a build.
 
+---
+
 ### M9 · ~~`:DocMap why` × call trees~~ — **built 2026-08-30**, runtime-analysis (§1.4)
 
-`documentation.nvim` `ff18561`; see [`PLAN-DONE.md`](PLAN-DONE.md). Not a
+`documentation.nvim` `ff18561`; see [`PLAN-DONE.md`](./PLAN-DONE.md). Not a
 runtime item after all — the call edges were already in every generated
 map, so nothing here needed telemetry.
 
+---
+
 ### M10 · ~~Runtime evidence as a *check input*~~ — **built 2026-08-31**, runtime-analysis (§1.5)
 
-`documentation.nvim` `b632673`; see [`PLAN-DONE.md`](PLAN-DONE.md). Half of it
+`documentation.nvim` `b632673`; see [`PLAN-DONE.md`](./PLAN-DONE.md). Half of it
 turned out to be built already — `dead-function` has read telemetry as
 suppression since 2026-08-30 — and the open half was `unreferenced-module`,
 which had carried its own counter-argument in a comment since it was written.
 Suppression, never escalation, in both.
+
+---
 
 ### M11 · Endpoint inventory × request history × response shape — **M**, runtime-analysis (§1.7)
 
 Which declared route was ever called, with which response shape. The "which
 route is declared" half exists; the other lies in the request runner's
 history.
+
+---
 
 ### M12 · ~~Runtime tab in the shipped artifact~~ — **deferred 2026-08-30**, three repos (§3.2)
 
@@ -151,9 +196,11 @@ occupant. Building it now is a labelled frame around two panels.
 **Deferred, not dropped**, on those terms: pick it up with the first of M8–M11,
 which is when the grouping starts carrying its own weight.
 
+---
+
 ### M13 · ~~One `ECOSYSTEM.md`, four repositories read it~~ — **built 2026-08-30**, five repos
 
-Pointers shipped; see [`PLAN-DONE.md`](PLAN-DONE.md). The problem was worse
+Pointers shipped; see [`PLAN-DONE.md`](./PLAN-DONE.md). The problem was worse
 than "not findable": `runtime-analysis.nvim` cited `docs/ECOSYSTEM.md` as a
 **repo-relative path in nine places**, and no such path exists there.
 
@@ -168,7 +215,7 @@ housekeeping, and it is tracked as **M14** below.
 ### M14 · ~~Cross-repository doc references, checked~~ — **built 2026-08-31**, engine + CI
 
 `documentation.nvim` `66c429f`, `runtime-analysis.nvim` `ae7af45`; see
-[`PLAN-DONE.md`](PLAN-DONE.md). Shipped as the `sibling-reference-missing`
+[`PLAN-DONE.md`](./PLAN-DONE.md). Shipped as the `sibling-reference-missing`
 check. Larger than the entry implied: the configuration form it was supposed to
 build on did not exist yet.
 
@@ -269,7 +316,7 @@ owning scope to live in, so deeper Python and Rust are behind nothing.
 ## Where I would pick up
 
 Twenty items have been worked off since 2026-08-20; they are in
-[`PLAN-DONE.md`](PLAN-DONE.md) with their reasoning, not here. The last of them
+[`PLAN-DONE.md`](./PLAN-DONE.md) with their reasoning, not here. The last of them
 was the `file-holds-many-modules` check on 2026-08-31, in the same pass that
 **deferred M7b** — the day after **M14**, and two days after **M8**, **M9** and
 **M13** shipped and **M12** was deferred.
@@ -292,3 +339,6 @@ half-built without the entry saying so.
 **Not next**, big and visible though they are: **L1** and **L2**. Both are
 several sessions and both a scope decision rather than a technical one — the
 kind you make rested, not in passing.
+
+---
+
