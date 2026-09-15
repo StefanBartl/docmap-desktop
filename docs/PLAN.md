@@ -23,7 +23,7 @@ states. Now it is here and nowhere else.
     - [M13 · ~~One `ECOSYSTEM.md`, four repositories read it~~ — **built 2026-08-30**, five repos](#m13-one-ecosystemmd-four-repositories-read-it-built-2026-08-30-five-repos)
     - [M14 · ~~Cross-repository doc references, checked~~ — **built 2026-08-31**, engine + CI](#m14-cross-repository-doc-references-checked-built-2026-08-31-engine-ci)
     - [M15 · ~~Bulk import from a parent folder~~ — **built 2026-09-15**, docmap-desktop](#m15-bulk-import-from-a-parent-folder-built-2026-09-15-docmap-desktop)
-    - [M16 · Cross-project dependencies as a matrix, not a list — **M**, docmap-desktop](#m16-cross-project-dependencies-as-a-matrix-not-a-list-m-docmap-desktop)
+    - [M16 · ~~Cross-project dependencies as a matrix, not a list~~ — **built 2026-09-15**, docmap-desktop](#m16-cross-project-dependencies-as-a-matrix-not-a-list-built-2026-09-15-docmap-desktop)
   - [Large](#large)
   - [Adjacent — mdview.nvim](#adjacent-mdviewnvim)
   - [Explicitly not planned](#explicitly-not-planned)
@@ -247,39 +247,40 @@ itself.
 
 ---
 
-### M16 · Cross-project dependencies as a matrix, not a list — **M**, docmap-desktop
+### M16 · ~~Cross-project dependencies as a matrix, not a list~~ — **built 2026-09-15**, docmap-desktop
 
-**The data half of this is already built and has been since before this
-entry existed.** `src-tauri/src/deps.rs` resolves every project's
-`requires_external` against every other project's declared modules —
-project-to-project edges, each with a call-site count and its modules
-ranked by how often they are reached for. `src/lib/deps.js` folds that into
-*"lib.nvim, used by 20 projects, in 197 places"*. What is missing is only
-the picture: today it renders as a ranked list under the workspace
-overview, and a list of forty-nine edges across thirty projects is a wall
-of text where a shape would be read at a glance.
+**The data half of this was already built before this entry existed.**
+`src-tauri/src/deps.rs` resolves every project's `requires_external`
+against every other project's declared modules — project-to-project edges,
+each with a call-site count and its modules ranked by how often they are
+reached for. `src/lib/deps.js` folds that into *"lib.nvim, used by 20
+projects, in 197 places"*. The only thing missing was the picture: a list
+of forty-nine edges across thirty projects is a wall of text where a shape
+reads at a glance — so this entry was a rendering, not a resolver.
 
-**Ships as an adjacency matrix, not a node-link graph — a scope decision,
-not a technical one.** Rows and columns are projects, a cell is the
-call-site count between them; no layout algorithm needed, which matters
-because this app ships no charting library and does not intend to start —
-"no CDN, no build step" is a project-wide constraint (see the README), so a
-force-directed graph would mean writing and maintaining a simulation by
-hand for a payoff a matrix already delivers. A matrix also scales better at
-the sizes this workspace actually has (measured: 30 projects, 49 edges) —
-readable at a glance up to several dozen projects, which a tangle of
-crossing arrows is not.
+**Shipped as an adjacency matrix, not a node-link graph — a scope decision,
+made and held.** Rows require columns, a cell is the call-site count
+between them, shaded by how heavy (never fully opaque, so the darkest cell
+keeps its number legible); no layout algorithm needed, which mattered
+because this app ships no charting library and was not going to start —
+"no CDN, no build step" is a project-wide constraint (see the README), and
+a force-directed graph would have meant writing and maintaining a
+simulation by hand for a payoff a matrix already delivers. A matrix also
+scales better at the sizes this workspace actually has (measured: 30
+projects, 49 edges) than a tangle of crossing arrows would.
 
-**A view of its own, off the default path** — reached from the workspace
-overview rather than folded into it, the same way the per-project map lives
-behind selecting a project rather than on the landing screen. Clicking a
-cell opens the same detail the current list row does: which modules, most-
-reached-for first.
+**A view of its own, off the default path** — a `<dialog>` reached by
+**View as matrix…** in the overview's Dependencies panel, the same pattern
+every other secondary view in this window already uses (Workspaces, Add
+project, Settings, project settings), rather than folded into the panel
+itself. Opening it asks the engine nothing a second time: it reads the same
+`workspace_deps` result the panel already fetched. Pointing at a cell names
+the modules behind it, most-reached-for first.
 
-**Not planned as part of this**: call edges for languages beyond Lua (every
-example edge in the workspace today is Lua-to-Lua) — that is **L1**, and
-this view shows whatever `deps.rs` can resolve today and grows automatically
-the day L1 adds a second language's `requires_external`.
+**Left out on purpose, not deferred**: call edges for languages beyond Lua
+(every example edge in the workspace today is Lua-to-Lua) is **L1**'s job,
+not this view's — the matrix shows whatever `deps.rs` can resolve and grows
+automatically the day L1 adds a second language's `requires_external`.
 
 ---
 
@@ -377,11 +378,12 @@ owning scope to live in, so deeper Python and Rust are behind nothing.
 
 ## Where I would pick up
 
-**M15 built 2026-09-15** — bulk import from a parent folder, docmap-desktop.
-Smaller than it looked before reading the source: `add_project` and
-`import_from_nvim_config` already covered every hard part, and the new
-commands only connect them. **M16 is next**, in the same session: the same
-dependency data rendered as a matrix instead of a list.
+**M15 and M16 both built 2026-09-15**, docmap-desktop, same session — bulk
+import from a parent folder, then the dependency data as a matrix instead of
+a list. Both smaller than they looked before reading the source: M15's
+`add_project` and `import_from_nvim_config` already covered every hard part,
+and M16's `deps.rs`/`deps.js` had already done the resolving — both entries
+turned out to be connecting or rendering work, not new analysis.
 
 Twenty items have been worked off since 2026-08-20; they are in
 [`PLAN-DONE.md`](./PLAN-DONE.md) with their reasoning, not here. Before M15,
@@ -389,7 +391,7 @@ the last of them was the `file-holds-many-modules` check on 2026-08-31, in
 the same pass that **deferred M7b** — the day after **M14**, and two days
 after **M8**, **M9** and **M13** shipped and **M12** was deferred.
 
-**What remains after M16 is M11 and the L items**, and every one of them is a
+**What remains is M11 and the L items**, and every one of them is a
 session or more. None of them is *wrong* any longer, only missing: the one
 entry that carried a false identity — M7b — now reports itself instead, which
 is the half that was useful without an id-shape change.

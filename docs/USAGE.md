@@ -235,6 +235,19 @@ reaching once each is a convention.
 Nothing here asks the engine anything — it is all read from the artifacts on
 disk, so it works in a workspace whose engine is not configured at all.
 
+**View as matrix…**, at the bottom of the panel, opens the same edges as a
+grid instead of a list: rows require columns, and a cell is the call-site
+count between them, shaded by how heavy — the darkest cell never quite
+reaches full opacity, so its number stays readable. Point at a cell for
+which modules. Nothing is asked again to open it; the dialog reads the same
+data the panel already fetched.
+
+It is a matrix rather than a node-and-arrow graph on purpose: this app ships
+no charting library, a force-directed layout would be the one thing that
+made writing one worthwhile, and a matrix reads at a glance at the sizes a
+real workspace has (measured: 30 projects, 49 edges) where a tangle of
+crossing arrows would not.
+
 ### The project picker, and how to sort it
 
 A native `<select>`, so it already answers Arrow, `Home`/`End`, `Enter` and

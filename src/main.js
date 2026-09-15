@@ -647,6 +647,11 @@ async function renderDeps() {
     return;
   }
 
+  // Cached for the matrix dialog, which reads this instead of asking the
+  // engine a second time -- the same reasoning `repos` is cached for the
+  // GitHub pick-list.
+  lastDeps = deps;
+
   const s = summarizeDeps(deps);
   if (s.edges === 0 && s.outsideNames === 0) return;
 
@@ -704,6 +709,103 @@ async function renderDeps() {
   if (s.unread > 0) parts.push(plural("deps.unread", s.unread));
   els.ovDepsOutside.textContent = parts.join(" ");
 }
+
+// ---------------------------------------------------------------------
+// The dependency matrix
+//
+// The same edges `renderDeps` already fetched, as a picture instead of a
+// list: `usedBy` folds edges into one row per *target* project, which is
+// the right shape for "who finds out if I change this" but throws away who
+// specifically reaches for what -- a 30-project workspace with 49 edges is
+// a wall of text as a list and a shape at a glance as a grid. Rows require
+// columns, matching `deps.rs`'s own `Edge { from, to }` direction.
+//
+// A matrix rather than a node-link graph, deliberately: no layout algorithm
+// to write and maintain (this app ships no charting library — see the
+// README's "no CDN, no build step" — a force simulation would be the one
+// exception), and a grid stays readable at the sizes this workspace
+// actually has, where a tangle of crossing arrows would not.
+// ---------------------------------------------------------------------
+
+/** The last `workspace_deps` result, cached by `renderDeps` so opening the
+ *  matrix dialog asks the engine nothing a second time. */
+let lastDeps = null;
+
+const matrixbox = {
+  el: document.getElementById("matrixbox"),
+  wrap: document.getElementById("matrix-wrap"),
+  table: document.getElementById("matrix-table"),
+  empty: document.getElementById("matrix-empty"),
+};
+
+function renderMatrix() {
+  const names = {};
+  for (const p of projects) names[p.id] = p.name;
+
+  const edges = (lastDeps && lastDeps.edges) || [];
+  const ids = [...new Set(edges.flatMap((e) => [e.from, e.to]))].sort((a, b) =>
+    (names[a] ?? a).localeCompare(names[b] ?? b)
+  );
+
+  matrixbox.table.innerHTML = "";
+  matrixbox.empty.hidden = ids.length > 0;
+  matrixbox.wrap.hidden = ids.length === 0;
+  if (ids.length === 0) return;
+
+  const byPair = new Map(edges.map((e) => [`${e.from} ${e.to}`, e]));
+  const max = edges.reduce((m, e) => Math.max(m, e.count), 1);
+
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  headRow.append(document.createElement("th"));
+  for (const id of ids) {
+    const th = document.createElement("th");
+    const span = document.createElement("span");
+    span.textContent = names[id] ?? id;
+    th.append(span);
+    th.title = names[id] ?? id;
+    headRow.append(th);
+  }
+  thead.append(headRow);
+  matrixbox.table.append(thead);
+
+  const tbody = document.createElement("tbody");
+  for (const from of ids) {
+    const tr = document.createElement("tr");
+    const rowHead = document.createElement("th");
+    rowHead.scope = "row";
+    rowHead.textContent = names[from] ?? from;
+    rowHead.title = names[from] ?? from;
+    tr.append(rowHead);
+
+    for (const to of ids) {
+      const td = document.createElement("td");
+      if (from === to) {
+        td.className = "matrix-self";
+      } else {
+        const e = byPair.get(`${from} ${to}`);
+        if (e) {
+          td.className = "matrix-hit";
+          // 15-70%, never fully opaque: the count is still legible on the
+          // heaviest cell, which a solid fill at the max would not be.
+          td.style.setProperty("--v", String(Math.round(15 + 55 * (e.count / max))));
+          td.textContent = String(e.count);
+          const mods = e.modules.slice(0, 8).join(", ") + (e.modules.length > 8 ? "…" : "");
+          td.title =
+            `${names[from] ?? from} → ${names[to] ?? to}: ${plural("deps.sites", e.count)}\n${mods}`;
+        }
+      }
+      tr.append(td);
+    }
+    tbody.append(tr);
+  }
+  matrixbox.table.append(tbody);
+}
+
+document.getElementById("ov-deps-matrix").addEventListener("click", () => {
+  renderMatrix();
+  matrixbox.el.showModal();
+});
 
 async function renderOverview() {
   const show = !selectedId && projects.length > 0;

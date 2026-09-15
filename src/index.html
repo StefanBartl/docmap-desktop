@@ -191,6 +191,7 @@
           <summary><span id="ov-deps-sum"></span></summary>
           <ul id="ov-deps-list" class="ov-deps-list"></ul>
           <p id="ov-deps-outside" class="ov-deps-outside"></p>
+          <button id="ov-deps-matrix" class="addbox-secondary" type="button" data-i18n="deps.matrix.open">View as matrix…</button>
         </details>
       </section>
 
@@ -405,6 +406,29 @@
         <input id="ws-skip" type="checkbox" />
         <span data-i18n="ws.skip">Don't show this again — open the last workspace</span>
       </label>
+    </dialog>
+
+    <!-- Who depends on whom, as a picture instead of a list -- a view of its
+         own, reached from the overview's Dependencies panel rather than
+         folded into it. `workspace_deps` is not re-asked here: the panel
+         already fetched it, and this dialog reads what `renderDeps` cached. -->
+    <dialog id="matrixbox" class="addbox matrixbox">
+      <form method="dialog" class="addbox-close-form">
+        <button class="addbox-x" value="cancel" aria-label="Close">&times;</button>
+      </form>
+
+      <h2 class="addbox-title" data-i18n="deps.matrix.title">Dependency matrix</h2>
+      <p class="addbox-note" data-i18n="deps.matrix.lead">
+        Rows require columns. A cell is call sites, not distinct modules —
+        point at one for which modules.
+      </p>
+
+      <div id="matrix-wrap" class="matrix-wrap" hidden>
+        <table id="matrix-table" class="matrix-table"></table>
+      </div>
+      <p id="matrix-empty" class="addbox-note" hidden data-i18n="deps.matrix.empty">
+        No cross-project dependencies to show yet.
+      </p>
     </dialog>
 
     <dialog id="aboutbox" class="addbox">

@@ -110,6 +110,24 @@ so it works in a workspace whose engine is not configured at all.
 - **Module:** `src-tauri/src/deps.rs` (computed from the artifacts), `src/lib/deps.js` (shaping it into the direction people ask it in)
 - **Docs:** [USAGE.md](../USAGE.md#what-depends-on-what)
 
+## The dependency matrix
+
+The same edges as a picture instead of a list — **View as matrix…** in the
+Dependencies panel opens a dialog of its own, off the default path, rather
+than folding a grid into the overview. Rows require columns, a cell is
+call-site count (shaded by how heavy — never fully opaque, so even the
+darkest cell keeps its number legible), and pointing at a cell names the
+modules behind it. Asks the engine nothing a second time: it reads the same
+`workspace_deps` result the panel already fetched.
+
+An adjacency matrix rather than a node-link graph, on purpose — no layout
+algorithm to write and maintain for a workspace-sized win a grid already
+delivers, and a grid stays readable at the sizes this app actually sees
+where a tangle of crossing arrows would not.
+
+- **Module:** `src/main.js` (`renderMatrix`), `src/index.html` (`#matrixbox`)
+- **Usercmds:** the Dependencies panel under the workspace overview → View as matrix…
+
 ## Language detection per project
 
 What a directory is written in, counted before anything else runs, so a

@@ -267,6 +267,11 @@ const CATALOGS = {
     "deps.outside.all": "From outside the workspace: {list}.",
     "deps.unread.one": "One map could not be read, so nothing here speaks for it.",
     "deps.unread": "{n} maps could not be read, so nothing here speaks for them.",
+    "deps.matrix.open": "View as matrix…",
+    "deps.matrix.title": "Dependency matrix",
+    "deps.matrix.lead":
+      "Rows require columns. A cell is call sites, not distinct modules — point at one for which modules.",
+    "deps.matrix.empty": "No cross-project dependencies to show yet.",
     "ov.title": "Your projects",
     "ov.empty": "Nothing here yet. <strong>Add project…</strong> points this at a repository — it does not need a map already.",
     "ov.headline.allGood": "All {total} look fine.",
@@ -599,6 +604,11 @@ const CATALOGS = {
     "deps.outside.all": "Von außerhalb des Workspace: {list}.",
     "deps.unread.one": "Eine Karte ließ sich nicht lesen, für die spricht hier also nichts.",
     "deps.unread": "{n} Karten ließen sich nicht lesen, für die spricht hier also nichts.",
+    "deps.matrix.open": "Als Matrix anzeigen…",
+    "deps.matrix.title": "Abhängigkeits-Matrix",
+    "deps.matrix.lead":
+      "Zeilen benötigen Spalten. Eine Zelle zählt Aufrufstellen, nicht einzelne Module — zeig auf eine Zelle für die Module.",
+    "deps.matrix.empty": "Noch keine projektübergreifenden Abhängigkeiten vorhanden.",
     "ov.title": "Deine Projekte",
     "ov.empty": "Hier ist noch nichts. <strong>Projekt hinzufügen…</strong> zeigt auf ein Repository — eine Karte braucht es dafür noch nicht.",
     "ov.headline.allGood": "Alle {total} sehen gut aus.",
