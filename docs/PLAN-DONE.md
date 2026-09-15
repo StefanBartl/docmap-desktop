@@ -1476,3 +1476,100 @@ other repositories. A real session loads hundreds rather than ten.
 runtime-analysis, a raising probe, an unreadable snapshot — because "no data
 changes nothing" is the property that makes a suppression safe and the one
 that breaks silently. That is also CI's normal state.
+
+---
+
+## M15 · Bulk import from a parent folder — 2026-09-15
+
+**`docmap-desktop`, `3d078dd`.**
+
+Asked for as "point the app at `$REPOS_DIR`, get a checklist of the plugins
+inside it" — a container holding several projects, not a repository itself.
+Priced as an **S** before reading the source, on the strength of what
+already existed to connect rather than build: `add_project` was already a
+single, idempotent unit (adding the same directory twice is a no-op, not a
+duplicate), and `import_from_nvim_config` was already the same
+loop-over-a-batch-of-roots-and-report shape, just fed by a headless Neovim
+script instead of a directory listing. **And what came out of it was that
+the estimate held** — the two new commands, `inspect_folder` and
+`import_many`, are almost entirely delegation: the first reuses nothing new
+to *decide* (is this directory a repository itself, or does it hold
+several), the second reuses `add_project` and the `ImportResult` shape
+`import_from_nvim_config` had already defined, verbatim.
+
+*What shipped*: `inspect_folder` is read-only, the same free-of-side-effects
+posture `list_github_repos` already has, so the dialog can call it the
+moment a folder is picked without asking first. The Folder tab's single
+button is unchanged for the common case — pick a repository, it is added —
+and only swaps for a checklist when the chosen directory is not itself a
+checkout. Already-added entries are ticked and locked, so re-scanning a
+mostly-imported folder does not ask to click past what is already there;
+**Select all** / **Select none** cover the rest, including a plain
+non-`.git` folder, because not everything worth mapping is a checkout.
+
+**Deliberately left out**: no auto-generate loop after a bulk add. The
+Neovim import already declined this for the same reason — `add_project`'s
+own auto-generate exists because a freshly added *single* project has
+nothing to overwrite, but thirty sequential engine runs would block the
+window for a decision the reader should make once, in bulk, with
+**Generate the out-of-date ones**, which already exists to catch exactly
+this.
+
+*Verified*: `cargo test` (75 passing, three new specs for the pure
+directory-walk helper `list_subdirs` — a `.git` entry is flagged and a plain
+folder is not, hidden directories and files are left out, the order is
+alphabetical and case-insensitive) and `node --test` (130 passing,
+unaffected). Walked through by hand in `tools/preview/`'s stubbed bridge:
+folder scan, disabled already-added rows, **Select all**, submit, the
+"2 of 2 project(s) were added" status line — the whole path a real
+filesystem dialog cannot exercise there.
+
+---
+
+## M16 · Cross-project dependencies as a matrix, not a list — 2026-09-15
+
+**`docmap-desktop`, `e1207d1`.**
+
+**The data half of this was already built and had been since before this
+entry existed** — the entry itself said so. `src-tauri/src/deps.rs` resolves
+every project's `requires_external` against every other project's declared
+modules and has done since M13/M14's era; `src/lib/deps.js` was already
+folding that into *"lib.nvim, used by 20 projects, in 197 places"*. So this
+was a rendering task from the start, not a resolver — read against the
+source before being priced, which is by now the rule this plan applies to
+itself rather than the exception.
+
+**Shipped as an adjacency matrix, not a node-link graph, and that is the one
+decision worth recording.** This app ships no charting library and the
+README states why — "no CDN, no build step" — so a force-directed graph
+would have meant writing and maintaining a layout simulation by hand for a
+payoff a matrix already delivers without one: rows require columns, a cell
+is the call-site count between them. Measured against the corpus the
+argument was made on (30 projects, 49 edges) a matrix reads at a glance;
+forty-nine crossing arrows would not.
+
+*What shipped*: `#matrixbox`, a `<dialog>` reached by **View as matrix…** in
+the overview's Dependencies panel — a view of its own, off the default
+overview, the same pattern every other secondary view in this window already
+uses. It asks the engine nothing a second time: `renderDeps` already fetches
+`workspace_deps` for the panel, and the dialog reads that same result,
+cached in `lastDeps`, the same reasoning the GitHub pick-list's `repos`
+cache already uses. A cell's shading is capped at 70% mix rather than
+running to solid fill, so the heaviest cell's number stays legible instead
+of vanishing into its own background — found by looking at it once
+rendered, not decided in advance.
+
+**Left out on purpose, not deferred**: call edges for languages beyond Lua.
+Every edge in the workspace today is Lua-to-Lua because `requires_external`
+is only populated by the Lua backend; that is **L1**'s scope, not this
+view's, and the matrix will show a second language's edges automatically
+the day L1 adds them — nothing here is keyed to Lua specifically.
+
+*Verified*: no Rust changed, so `cargo test` stayed at 75 passing;
+`node --test` at 130, unaffected — this view reads data two already-tested
+modules produce and adds no new resolution logic of its own. Walked through
+by hand in `tools/preview/`'s stubbed bridge against the six-project,
+six-edge corpus already seeded there (including the one deliberately
+reverse edge, `lib.nvim → runtime-analysis.telemetry`, count 1): the matrix
+renders, the faint single-count cell is still there and still readable, and
+each hit cell's tooltip names the modules behind it.
