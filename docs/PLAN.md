@@ -225,62 +225,24 @@ build on did not exist yet.
 
 ### M15 · ~~Bulk import from a parent folder~~ — **built 2026-09-15**, docmap-desktop
 
-Asked for as "point at `$REPOS_DIR`, get a checklist of the plugins inside
-it" — a container of many, not a repository itself. Sized as an **S** before
-being read against the source, and it stayed one: `add_project` was already
-a single, idempotent unit and `import_from_nvim_config` was already the same
-loop-and-report shape over a batch of roots from somewhere else. Nothing new
-to design, only to connect.
-
-Shipped as two commands. `inspect_folder` looks at one directory without
-changing anything — is it a repository itself, or does it hold several —
-the same free-of-side-effects posture `list_github_repos` already has.
-`import_many` reuses `add_project` and the `ImportResult` shape verbatim.
-The dialog's Folder tab now asks first and only shows a checklist when the
-folder is not itself a checkout; picking a repository directly is unchanged.
-
-**Deliberately left out**: no auto-generate loop after a bulk add. See
-[USAGE.md](USAGE.md#adding-a-project) for why — the short version is that
-**Generate the out-of-date ones** already exists and thirty sequential
-engine runs would block the window for nothing this bulk button should own
-itself.
+`docmap-desktop` `3d078dd`; see [`PLAN-DONE.md`](./PLAN-DONE.md). Sized as
+an **S** and stayed one: `add_project` and `import_from_nvim_config` already
+covered every hard part, and `inspect_folder`/`import_many` mostly connect
+them. The Folder tab's single button now asks first and only shows a
+checklist when the chosen directory is not itself a checkout.
 
 ---
 
 ### M16 · ~~Cross-project dependencies as a matrix, not a list~~ — **built 2026-09-15**, docmap-desktop
 
-**The data half of this was already built before this entry existed.**
-`src-tauri/src/deps.rs` resolves every project's `requires_external`
-against every other project's declared modules — project-to-project edges,
-each with a call-site count and its modules ranked by how often they are
-reached for. `src/lib/deps.js` folds that into *"lib.nvim, used by 20
-projects, in 197 places"*. The only thing missing was the picture: a list
-of forty-nine edges across thirty projects is a wall of text where a shape
-reads at a glance — so this entry was a rendering, not a resolver.
-
-**Shipped as an adjacency matrix, not a node-link graph — a scope decision,
-made and held.** Rows require columns, a cell is the call-site count
-between them, shaded by how heavy (never fully opaque, so the darkest cell
-keeps its number legible); no layout algorithm needed, which mattered
-because this app ships no charting library and was not going to start —
-"no CDN, no build step" is a project-wide constraint (see the README), and
-a force-directed graph would have meant writing and maintaining a
-simulation by hand for a payoff a matrix already delivers. A matrix also
-scales better at the sizes this workspace actually has (measured: 30
-projects, 49 edges) than a tangle of crossing arrows would.
-
-**A view of its own, off the default path** — a `<dialog>` reached by
-**View as matrix…** in the overview's Dependencies panel, the same pattern
-every other secondary view in this window already uses (Workspaces, Add
-project, Settings, project settings), rather than folded into the panel
-itself. Opening it asks the engine nothing a second time: it reads the same
-`workspace_deps` result the panel already fetched. Pointing at a cell names
-the modules behind it, most-reached-for first.
-
-**Left out on purpose, not deferred**: call edges for languages beyond Lua
-(every example edge in the workspace today is Lua-to-Lua) is **L1**'s job,
-not this view's — the matrix shows whatever `deps.rs` can resolve and grows
-automatically the day L1 adds a second language's `requires_external`.
+`docmap-desktop` `e1207d1`; see [`PLAN-DONE.md`](./PLAN-DONE.md). The
+resolver (`deps.rs`/`deps.js`) already existed — this was a rendering task,
+not a new analysis. **View as matrix…** in the overview's Dependencies panel
+opens a `<dialog>` of its own: rows require columns, a cell is call-site
+count. Shipped as an adjacency matrix rather than a node-link graph on
+purpose — no layout algorithm to write for an app that ships no charting
+library, and a matrix stays readable at the sizes this workspace actually
+has.
 
 ---
 

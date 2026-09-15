@@ -94,13 +94,19 @@ used by five others, in 197 places, and here is what they reach for*. It asks
 the engine nothing: the artifacts on disk are the whole input, which is
 [`HOSTING.md`'s "the artifact is the extension
 point"](https://github.com/StefanBartl/documentation.nvim/blob/main/docs/HOSTING.md)
-with its first consumer attached.
+with its first consumer attached. **View as matrix…** renders the same edges
+as a grid instead of a list — rows require columns, a cell is call-site
+count — in a dialog of its own, off the default overview, for the workspace
+sizes where a list of edges stops being something you can read at a glance.
 
 ## Status
 
 Usable. Add projects — from a folder, a URL, or the plugin specs your
 Neovim config declares — generate their maps, read them, and move between
-them. Group them into **workspaces** and switch between whole sets. Browse
+them. Point the folder picker at a directory that is not itself a
+repository — `$REPOS_DIR` holding thirty-two plugins, say — and a checklist
+of what is inside it replaces the single add button. Group them into
+**workspaces** and switch between whole sets. Browse
 the project's **files as they are on disk**, and open any file, or the line
 a function lives on, in your own editor. Export a diagram, switch the theme
 and the interface language, see which projects need regenerating and
