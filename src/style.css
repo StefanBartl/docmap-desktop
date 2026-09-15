@@ -853,6 +853,74 @@ button:focus-visible {
   white-space: nowrap;
 }
 
+/* The dependency matrix. Wider than the ordinary `.addbox` -- a grid earns
+   the room a form never needed -- and its own scroll box rather than
+   letting the dialog itself scroll, so the sticky headers below have a
+   single scrolling ancestor to stick within. */
+.matrixbox {
+  width: min(92vw, 900px);
+}
+.matrix-wrap {
+  overflow: auto;
+  max-height: 60vh;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+.matrix-table {
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.matrix-table th,
+.matrix-table td {
+  padding: 4px 7px;
+  border: 1px solid var(--line);
+  text-align: center;
+  white-space: nowrap;
+}
+.matrix-table tbody th {
+  text-align: right;
+  font-weight: 500;
+}
+/* Both header rows/columns stay put while the grid scrolls underneath --
+   the one thing that makes a 30-project matrix readable instead of a scroll
+   of numbers nobody can trace back to a name. The corner cell needs both. */
+.matrix-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 1;
+}
+.matrix-table tbody th {
+  position: sticky;
+  left: 0;
+  background: var(--bg);
+  z-index: 1;
+}
+.matrix-table thead th:first-child {
+  left: 0;
+  z-index: 2;
+}
+/* Column names read top-to-bottom -- thirty full names across would force
+   the dialog wider than the window; rotated, each column is only as wide as
+   the grid of numbers it holds. */
+.matrix-table thead th:not(:first-child) span {
+  display: inline-block;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  max-height: 140px;
+  color: var(--ink);
+}
+.matrix-hit {
+  background: color-mix(in srgb, var(--accent) calc(var(--v, 15) * 1%), var(--bg));
+  color: var(--ink);
+  font-weight: 600;
+}
+.matrix-self {
+  background: var(--line);
+  opacity: 0.5;
+}
+
 /* A `.repo` row that carries a checkbox instead of being the click target
    itself — the folder-scan checklist. The `<label>` is what makes clicking
    the name toggle the box, same as everywhere else in this window. */
