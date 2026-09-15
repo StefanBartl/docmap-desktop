@@ -64,6 +64,22 @@ not, and an engine is configured, generation starts automatically — but
 that condition matters and does not extend to a project that already has
 one.
 
+**Pick a folder that is not itself a repository — `$REPOS_DIR` holding
+thirty-two plugins, say — and a checklist replaces the single button**: one
+row per immediate subdirectory, name-sorted, each marked whether it has a
+`.git` entry and whether it is already in the workspace (ticked and
+un-editable, so re-scanning a folder you have mostly added already does not
+ask you to click past what is already there). Everything with `.git` is
+pre-ticked; **Select all** / **Select none** cover the rest, including a
+plain folder with no `.git` — not everything worth mapping is a checkout.
+**Add selected** adds them the same way the single-folder path does, one at
+a time so that one bad entry does not fail the rest, and reports how many of
+how many were added. Unlike the Neovim tab, added projects are **not**
+auto-generated in bulk — thirty-two sequential engine runs would block the
+window for no reason when [Generate the out-of-date
+ones](#generate-generate-all-generate-the-out-of-date-ones) already covers
+exactly this case afterwards.
+
 **Neovim** — the plugin specs your personal Neovim config declares, added in
 one step instead of one folder picker per plugin. The tab is named for what
 it reads: it runs your config headless and asks it which

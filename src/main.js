@@ -1815,6 +1815,7 @@ addbox.tabs.forEach((tab) => {
 
 els.add.addEventListener("click", () => {
   showPane("pane-folder");
+  resetFolderScan();
   addbox.el.showModal();
 });
 
@@ -1831,17 +1832,138 @@ async function closeThen(fn) {
   }
 }
 
-document.getElementById("pick-folder").addEventListener("click", () =>
+// ---------------------------------------------------------------------
+// Bulk import from a parent folder
+//
+// `pick-folder` used to always add whatever was chosen. Now it asks first:
+// `inspect_folder` says whether the chosen directory is a repository itself
+// (unchanged behaviour, added straight away) or a container of several
+// — a `$REPOS_DIR` holding three dozen plugins, say — in which case a
+// checklist replaces the single button, the same pattern the GitHub
+// pick-list already established for "list, then choose".
+// ---------------------------------------------------------------------
+
+const folderScan = {
+  wrap: document.getElementById("folder-scan"),
+  list: document.getElementById("folder-scan-list"),
+  go: document.getElementById("folder-scan-go"),
+  all: document.getElementById("folder-scan-all"),
+  none: document.getElementById("folder-scan-none"),
+  note: document.getElementById("folder-note"),
+};
+
+/** Subdirectories offered by the last `inspect_folder` call. */
+let scanCandidates = [];
+
+function resetFolderScan() {
+  scanCandidates = [];
+  folderScan.wrap.hidden = true;
+  folderScan.list.innerHTML = "";
+  folderScan.note.textContent = "";
+}
+
+function updateFolderScanGo() {
+  const n = scanCandidates.filter((c) => c.checked && !c.alreadyAdded).length;
+  folderScan.go.disabled = n === 0;
+  folderScan.go.textContent = t("add.folder.scan.go").replace("{n}", String(n));
+}
+
+function renderFolderScan() {
+  folderScan.note.textContent = "";
+  folderScan.list.innerHTML = "";
+  scanCandidates.forEach((c, i) => {
+    const li = document.createElement("li");
+    li.className = "repo";
+
+    const label = document.createElement("label");
+    label.className = "addbox-check";
+
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.checked = c.checked;
+    box.disabled = c.alreadyAdded;
+    box.addEventListener("change", () => {
+      scanCandidates[i].checked = box.checked;
+      updateFolderScanGo();
+    });
+
+    const name = document.createElement("span");
+    name.className = "repo-name";
+    name.textContent = c.name;
+
+    label.append(box, name);
+
+    const meta = document.createElement("span");
+    meta.className = "repo-meta";
+    meta.textContent = c.alreadyAdded
+      ? t("add.folder.scan.already")
+      : c.isGit
+        ? ""
+        : t("add.folder.scan.notGit");
+
+    li.append(label, meta);
+    folderScan.list.append(li);
+  });
+  folderScan.wrap.hidden = false;
+  updateFolderScanGo();
+}
+
+folderScan.all.addEventListener("click", () => {
+  scanCandidates.forEach((c) => (c.checked = !c.alreadyAdded));
+  renderFolderScan();
+});
+folderScan.none.addEventListener("click", () => {
+  scanCandidates.forEach((c) => (c.checked = false));
+  renderFolderScan();
+});
+
+folderScan.go.addEventListener("click", () =>
   closeThen(async () => {
-    const dir = await open({ directory: true, multiple: false, title: "Add project" });
-    if (!dir) return;
-    const before = new Set(projects.map((x) => x.id));
-    await refresh(await invoke("add_project", { root: dir }));
-    say(`Added ${dir}`);
-    const added = projects.find((x) => !before.has(x.id));
-    if (added) await autoGenerate(added);
+    const roots = scanCandidates.filter((c) => c.checked && !c.alreadyAdded).map((c) => c.path);
+    resetFolderScan();
+    if (roots.length === 0) return;
+    const res = await invoke("import_many", { roots });
+    await refresh();
+    say(
+      t("add.folder.scan.done")
+        .replace("{added}", String(res.added.length))
+        .replace("{found}", String(res.found))
+    );
   })
 );
+
+document.getElementById("pick-folder").addEventListener("click", async () => {
+  const dir = await open({ directory: true, multiple: false, title: "Add project" });
+  if (!dir) return;
+
+  resetFolderScan();
+  let scan;
+  try {
+    scan = await invoke("inspect_folder", { root: dir });
+  } catch (e) {
+    folderScan.note.textContent = String(e);
+    return;
+  }
+
+  if (scan.isGit) {
+    await closeThen(async () => {
+      const before = new Set(projects.map((x) => x.id));
+      await refresh(await invoke("add_project", { root: dir }));
+      say(`Added ${dir}`);
+      const added = projects.find((x) => !before.has(x.id));
+      if (added) await autoGenerate(added);
+    });
+    return;
+  }
+
+  if (scan.subrepos.length === 0) {
+    folderScan.note.textContent = t("add.folder.scan.empty");
+    return;
+  }
+
+  scanCandidates = scan.subrepos.map((r) => ({ ...r, checked: r.isGit && !r.alreadyAdded }));
+  renderFolderScan();
+});
 
 document.getElementById("run-nvim-import").addEventListener("click", () =>
   closeThen(async () => {

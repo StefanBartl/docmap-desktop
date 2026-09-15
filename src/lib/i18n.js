@@ -53,6 +53,15 @@ const CATALOGS = {
     "add.folder.lead":
       "Any folder on this machine. It does not need a <code>docs/map</code> yet — if it has none and an engine is set up, we build one right away, because there is nothing to overwrite.",
     "add.folder.go": "Choose a folder…",
+    "add.folder.scan.lead":
+      "This folder is not a repository itself — here is what is in it. Pick the ones to add:",
+    "add.folder.scan.all": "Select all",
+    "add.folder.scan.none": "Select none",
+    "add.folder.scan.go": "Add selected ({n})",
+    "add.folder.scan.already": "already added",
+    "add.folder.scan.notGit": "no .git found",
+    "add.folder.scan.empty": "No subdirectories found in that folder.",
+    "add.folder.scan.done": "{added} of {found} project(s) were added.",
     "add.nvim.lead":
       "Reads the <strong>plugin specs your Neovim config declares</strong> and adds every plugin as its own project, cloning the ones you do not have yet. It reads nothing else about your config, and changes nothing in it.",
     "add.nvim.note":
@@ -395,6 +404,15 @@ const CATALOGS = {
     "add.folder.lead":
       "Ein beliebiger Ordner auf diesem Rechner. Er braucht noch kein <code>docs/map</code> — wenn keines da ist und eine Engine bereitsteht, erzeugen wir die Karte gleich, weil es nichts zu überschreiben gibt.",
     "add.folder.go": "Ordner wählen…",
+    "add.folder.scan.lead":
+      "Dieser Ordner ist selbst kein Repository — das steckt drin. Wähle aus, was hinzugefügt werden soll:",
+    "add.folder.scan.all": "Alle auswählen",
+    "add.folder.scan.none": "Keine auswählen",
+    "add.folder.scan.go": "Auswahl hinzufügen ({n})",
+    "add.folder.scan.already": "schon hinzugefügt",
+    "add.folder.scan.notGit": "kein .git gefunden",
+    "add.folder.scan.empty": "In diesem Ordner wurden keine Unterordner gefunden.",
+    "add.folder.scan.done": "{added} von {found} Projekt(en) hinzugefügt.",
     "add.nvim.lead":
       "Liest die <strong>Plugin-Specs, die deine Neovim-Config deklariert</strong>, und legt jedes Plugin als eigenes Projekt an; was du noch nicht hast, wird geklont. Sonst wird nichts aus deiner Config gelesen und nichts daran verändert.",
     "add.nvim.note":
