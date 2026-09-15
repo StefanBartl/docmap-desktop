@@ -236,6 +236,22 @@
           nothing to overwrite.
         </p>
         <button id="pick-folder" class="addbox-go" type="button" data-i18n="add.folder.go">Choose a folder…</button>
+        <p id="folder-note" class="addbox-note"></p>
+
+        <!-- Shown instead of adding straight away when the chosen folder is
+             not itself a repository — a `$REPOS_DIR` holding several. -->
+        <div id="folder-scan" class="addbox-repos" hidden>
+          <p class="addbox-note" data-i18n="add.folder.scan.lead">
+            This folder is not a repository itself — here is what is in it.
+            Pick the ones to add:
+          </p>
+          <div class="addbox-row">
+            <button id="folder-scan-all" class="addbox-secondary" type="button" data-i18n="add.folder.scan.all">Select all</button>
+            <button id="folder-scan-none" class="addbox-secondary" type="button" data-i18n="add.folder.scan.none">Select none</button>
+          </div>
+          <ul id="folder-scan-list" class="addbox-list"></ul>
+          <button id="folder-scan-go" class="addbox-go" type="button" data-i18n="add.folder.scan.go">Add selected…</button>
+        </div>
       </section>
 
       <section id="pane-nvim" class="addbox-pane" role="tabpanel">

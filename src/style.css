@@ -853,6 +853,26 @@ button:focus-visible {
   white-space: nowrap;
 }
 
+/* A `.repo` row that carries a checkbox instead of being the click target
+   itself — the folder-scan checklist. The `<label>` is what makes clicking
+   the name toggle the box, same as everywhere else in this window. */
+.addbox-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  cursor: pointer;
+}
+.addbox-check input {
+  flex: none;
+  margin: 0;
+}
+.addbox-check .repo-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Preferences, in the sidebar footer beside the status line: settings a
    reader changes once and then wants out of the way, not controls competing
    with the project list. */

@@ -18,6 +18,25 @@ in its own config directory, so adding a repository never writes to it.
 - **Usercmds:** File → Add project…
 - **Docs:** [USAGE.md](../USAGE.md#adding-a-project)
 
+## Bulk import from a parent folder
+
+The Folder tab's single button only ever added the directory you picked. If
+that directory is not itself a repository, `inspect_folder` says so and
+lists its immediate subdirectories instead — each flagged for a `.git` entry
+and for already being in the workspace — and the dialog swaps the button for
+a checklist. **Add selected** calls `import_many`, which adds every checked
+path the same way `add_project` adds one, one at a time so a single bad
+entry does not fail the batch.
+
+No auto-generate loop follows a bulk add — the same restraint
+`import_from_nvim_config` already applies, for the same reason: thirty
+sequential engine runs would block the window, and **Generate the
+out-of-date ones** already exists to catch every project left without a map.
+
+- **Module:** `src-tauri/src/main.rs` (`inspect_folder`, `import_many`, both reusing `add_project` and the `ImportResult` shape `import_from_nvim_config` already defined), `src/main.js` (the checklist)
+- **Usercmds:** File → Add project… → Folder → pick a non-repository directory
+- **Docs:** [USAGE.md](../USAGE.md#adding-a-project)
+
 ## Auto-generate on add
 
 A project added without a map gets one generated immediately — and only then.

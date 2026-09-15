@@ -524,6 +524,133 @@ fn add_project(app: tauri::AppHandle, root: String) -> Result<Vec<Project>, Stri
     })
 }
 
+/// One candidate directory found under a folder someone pointed at, before
+/// it becomes a `Project`.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SubRepo {
+    name: String,
+    path: String,
+    /// Has a `.git` entry — a plain clone or a worktree, either is a file or
+    /// a directory named `.git`. Informational only: a directory without one
+    /// is still offered, because not everything worth mapping is a checkout.
+    is_git: bool,
+    already_added: bool,
+}
+
+/// What picking a single folder in the add dialog needs to know before it
+/// decides between "add this one" and "list what is inside it".
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FolderScan {
+    /// The folder itself has a `.git` entry, so it is a project on its own
+    /// rather than a container of several.
+    is_git: bool,
+    /// Immediate subdirectories, alphabetical. Hidden ones (leading `.`) are
+    /// left out — `.git` itself included — the same as everything else in
+    /// this program's own directory listings.
+    subrepos: Vec<SubRepo>,
+}
+
+/// Immediate, non-hidden subdirectories of `root` — name, canonical path,
+/// and whether a `.git` entry sits in it — alphabetical by name.
+///
+/// Pure and `AppHandle`-free on purpose: the one thing here worth getting
+/// wrong is the filesystem walk, and that is what a test can hold a tempdir
+/// up to without building a mock app around it, the same split `languages.rs`
+/// and `filetree.rs` already make.
+///
+/// A directory that vanishes or resolves to nowhere between listing and
+/// canonicalising is skipped rather than aborting the whole scan — a stale
+/// symlink two directories down should not blank out the other thirty-one.
+fn list_subdirs(root: &Path) -> Result<Vec<(String, String, bool)>, String> {
+    let mut out = Vec::new();
+    let entries =
+        fs::read_dir(root).map_err(|e| format!("cannot read {}: {e}", root.display()))?;
+    for entry in entries {
+        let entry = entry.map_err(|e| format!("cannot read {}: {e}", root.display()))?;
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.starts_with('.') {
+            continue;
+        }
+        let canonical = match fs::canonicalize(&path) {
+            Ok(c) => portable(&c),
+            Err(_) => continue,
+        };
+        out.push((name, canonical, path.join(".git").exists()));
+    }
+    out.sort_by(|a, b| a.0.to_lowercase().cmp(&b.0.to_lowercase()));
+    Ok(out)
+}
+
+/// Look at one folder without adding anything: is it a repository itself, or
+/// does it hold several — `$REPOS_DIR` with three dozen plugins in it, say.
+///
+/// Read-only, so the dialog can call it the moment a folder is picked and
+/// decide what to show next, the same way `list_github_repos` is opt-in but
+/// free of side effects.
+#[tauri::command]
+fn inspect_folder(app: tauri::AppHandle, root: String) -> Result<FolderScan, String> {
+    let root_path = Path::new(&root);
+    if !root_path.is_dir() {
+        return Err(format!("{root} is not a directory"));
+    }
+
+    let existing_ids: std::collections::HashSet<String> =
+        read_workspace(&app)?.projects.iter().map(|p| p.id.clone()).collect();
+
+    let subrepos = list_subdirs(root_path)?
+        .into_iter()
+        .map(|(name, path, is_git)| SubRepo {
+            already_added: existing_ids.contains(&path),
+            name,
+            path,
+            is_git,
+        })
+        .collect();
+
+    Ok(FolderScan {
+        is_git: root_path.join(".git").exists(),
+        subrepos,
+    })
+}
+
+/// Add every one of the given directories, the same way `add_project` adds
+/// one — same rules, same idempotency, one `Project` list read back once
+/// instead of once per call.
+///
+/// Mirrors `import_from_nvim_config`'s loop exactly, because it is the same
+/// problem: a batch of roots from somewhere else, added one at a time so
+/// that one bad entry does not fail the rest.
+#[tauri::command]
+fn import_many(app: tauri::AppHandle, roots: Vec<String>) -> Result<ImportResult, String> {
+    let existing_ids: std::collections::HashSet<String> =
+        read_workspace(&app)?.projects.iter().map(|p| p.id.clone()).collect();
+    let mut seen_ids = existing_ids;
+    let mut added = Vec::new();
+    let mut already_present = 0usize;
+    let mut errors = Vec::new();
+
+    for root in &roots {
+        match add_project(app.clone(), root.clone()) {
+            Ok(projects) => match projects.iter().find(|p| !seen_ids.contains(&p.id)) {
+                Some(proj) => {
+                    seen_ids.insert(proj.id.clone());
+                    added.push(proj.clone());
+                }
+                None => already_present += 1,
+            },
+            Err(e) => errors.push(format!("{root}: {e}")),
+        }
+    }
+
+    Ok(ImportResult { found: roots.len(), added, already_present, errors })
+}
+
 /// One project's settings, for the dialog to render.
 ///
 /// Its own command rather than reading it off the `Project` the frontend
@@ -2261,6 +2388,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             list_projects,
             add_project,
+            inspect_folder,
+            import_many,
             remove_project,
             project_scope_get,
             project_scope_set,
@@ -2425,6 +2554,57 @@ mod tests {
         assert_eq!(workspace_file_name("..."), "___");
         assert_eq!(workspace_file_name("   "), DEFAULT_WORKSPACE);
         assert_eq!(workspace_file_name(""), DEFAULT_WORKSPACE);
+    }
+
+    /// A scratch directory under the OS temp dir, cleared first so a
+    /// previous run's leftovers cannot pass this one.
+    fn scratch(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("docmap-subdirs-{name}"));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn a_git_checkout_is_flagged_and_a_plain_folder_is_not() {
+        let root = scratch("mixed");
+        fs::create_dir_all(root.join("lib.nvim/.git")).unwrap();
+        fs::create_dir_all(root.join("notes")).unwrap();
+
+        let found = list_subdirs(&root).unwrap();
+        assert_eq!(found.len(), 2);
+        let lib = found.iter().find(|(n, ..)| n == "lib.nvim").unwrap();
+        assert!(lib.2, "a .git entry makes it a repository");
+        let notes = found.iter().find(|(n, ..)| n == "notes").unwrap();
+        assert!(!notes.2, "no .git entry, no claim of being one");
+    }
+
+    #[test]
+    fn hidden_directories_and_plain_files_are_left_out() {
+        let root = scratch("hidden-and-files");
+        fs::create_dir_all(root.join(".git")).unwrap();
+        fs::create_dir_all(root.join(".hidden")).unwrap();
+        fs::create_dir_all(root.join("real")).unwrap();
+        fs::write(root.join("README.md"), "not a directory").unwrap();
+
+        let found = list_subdirs(&root).unwrap();
+        assert_eq!(
+            found.iter().map(|(n, ..)| n.as_str()).collect::<Vec<_>>(),
+            vec!["real"]
+        );
+    }
+
+    #[test]
+    fn the_order_is_alphabetical_and_case_insensitive() {
+        let root = scratch("order");
+        for name in ["Zeta", "alpha", "Beta"] {
+            fs::create_dir_all(root.join(name)).unwrap();
+        }
+        let found = list_subdirs(&root).unwrap();
+        assert_eq!(
+            found.iter().map(|(n, ..)| n.as_str()).collect::<Vec<_>>(),
+            vec!["alpha", "Beta", "Zeta"]
+        );
     }
 
     #[test]

@@ -165,7 +165,33 @@ const R = {
   about_info: () => ({ app: "docmap-desktop", version: "0.1.0" }),
   project_icon: () => null,
   editor_command: () => "nvim",
-  file_tree: () => ({ name: "root", children: [] })
+  file_tree: () => ({ name: "root", children: [] }),
+  // `pick-folder`'s dialog.open below always answers this path, so this is
+  // the one shape worth previewing: not itself a repository, a mix of
+  // already-added names (from PROJECTS, matched by name to exercise the
+  // disabled-checkbox state), a plain new one, and one non-`.git` folder.
+  inspect_folder: () => {
+    const already = new Set(PROJECTS.map((p) => p.name));
+    const names = ["documentation.nvim", "lib.nvim", "sandbox.nvim", "new-plugin.nvim", "notes"];
+    return {
+      isGit: false,
+      subrepos: names.map((name) => ({
+        name,
+        path: `E:/repos/${name}`,
+        isGit: name !== "notes",
+        alreadyAdded: already.has(name)
+      }))
+    };
+  },
+  import_many: (a) => ({
+    found: (a.roots || []).length,
+    added: (a.roots || []).map((r) => ({
+      id: r, name: r.split("/").pop(), root: r, map_dir: `${r}/docs/map`,
+      exclude: [], languages: null
+    })),
+    already_present: 0,
+    errors: []
+  })
 };
 
 window.__stubListeners = {};
@@ -181,7 +207,9 @@ window.__TAURI__ = {
     },
     convertFileSrc: (p) => p
   },
-  dialog: { open: async () => null, save: async () => null },
+  // Always the same directory: enough to preview `inspect_folder`'s
+  // checklist path (see `R.inspect_folder`) without a real filesystem.
+  dialog: { open: async () => "E:/repos", save: async () => null },
   event: {
     listen: async (name, cb) => {
       (window.__stubListeners[name] ||= []).push(cb);

@@ -22,6 +22,8 @@ states. Now it is here and nowhere else.
     - [M12 · ~~Runtime tab in the shipped artifact~~ — **deferred 2026-08-30**, three repos (§3.2)](#m12-runtime-tab-in-the-shipped-artifact-deferred-2026-08-30-three-repos-32)
     - [M13 · ~~One `ECOSYSTEM.md`, four repositories read it~~ — **built 2026-08-30**, five repos](#m13-one-ecosystemmd-four-repositories-read-it-built-2026-08-30-five-repos)
     - [M14 · ~~Cross-repository doc references, checked~~ — **built 2026-08-31**, engine + CI](#m14-cross-repository-doc-references-checked-built-2026-08-31-engine-ci)
+    - [M15 · ~~Bulk import from a parent folder~~ — **built 2026-09-15**, docmap-desktop](#m15-bulk-import-from-a-parent-folder-built-2026-09-15-docmap-desktop)
+    - [M16 · Cross-project dependencies as a matrix, not a list — **M**, docmap-desktop](#m16-cross-project-dependencies-as-a-matrix-not-a-list-m-docmap-desktop)
   - [Large](#large)
   - [Adjacent — mdview.nvim](#adjacent-mdviewnvim)
   - [Explicitly not planned](#explicitly-not-planned)
@@ -221,6 +223,66 @@ build on did not exist yet.
 
 ---
 
+### M15 · ~~Bulk import from a parent folder~~ — **built 2026-09-15**, docmap-desktop
+
+Asked for as "point at `$REPOS_DIR`, get a checklist of the plugins inside
+it" — a container of many, not a repository itself. Sized as an **S** before
+being read against the source, and it stayed one: `add_project` was already
+a single, idempotent unit and `import_from_nvim_config` was already the same
+loop-and-report shape over a batch of roots from somewhere else. Nothing new
+to design, only to connect.
+
+Shipped as two commands. `inspect_folder` looks at one directory without
+changing anything — is it a repository itself, or does it hold several —
+the same free-of-side-effects posture `list_github_repos` already has.
+`import_many` reuses `add_project` and the `ImportResult` shape verbatim.
+The dialog's Folder tab now asks first and only shows a checklist when the
+folder is not itself a checkout; picking a repository directly is unchanged.
+
+**Deliberately left out**: no auto-generate loop after a bulk add. See
+[USAGE.md](USAGE.md#adding-a-project) for why — the short version is that
+**Generate the out-of-date ones** already exists and thirty sequential
+engine runs would block the window for nothing this bulk button should own
+itself.
+
+---
+
+### M16 · Cross-project dependencies as a matrix, not a list — **M**, docmap-desktop
+
+**The data half of this is already built and has been since before this
+entry existed.** `src-tauri/src/deps.rs` resolves every project's
+`requires_external` against every other project's declared modules —
+project-to-project edges, each with a call-site count and its modules
+ranked by how often they are reached for. `src/lib/deps.js` folds that into
+*"lib.nvim, used by 20 projects, in 197 places"*. What is missing is only
+the picture: today it renders as a ranked list under the workspace
+overview, and a list of forty-nine edges across thirty projects is a wall
+of text where a shape would be read at a glance.
+
+**Ships as an adjacency matrix, not a node-link graph — a scope decision,
+not a technical one.** Rows and columns are projects, a cell is the
+call-site count between them; no layout algorithm needed, which matters
+because this app ships no charting library and does not intend to start —
+"no CDN, no build step" is a project-wide constraint (see the README), so a
+force-directed graph would mean writing and maintaining a simulation by
+hand for a payoff a matrix already delivers. A matrix also scales better at
+the sizes this workspace actually has (measured: 30 projects, 49 edges) —
+readable at a glance up to several dozen projects, which a tangle of
+crossing arrows is not.
+
+**A view of its own, off the default path** — reached from the workspace
+overview rather than folded into it, the same way the per-project map lives
+behind selecting a project rather than on the landing screen. Clicking a
+cell opens the same detail the current list row does: which modules, most-
+reached-for first.
+
+**Not planned as part of this**: call edges for languages beyond Lua (every
+example edge in the workspace today is Lua-to-Lua) — that is **L1**, and
+this view shows whatever `deps.rs` can resolve today and grows automatically
+the day L1 adds a second language's `requires_external`.
+
+---
+
 ## Large
 
 Several sessions. Each is a **scope decision** first, not a technical one.
@@ -315,13 +377,19 @@ owning scope to live in, so deeper Python and Rust are behind nothing.
 
 ## Where I would pick up
 
-Twenty items have been worked off since 2026-08-20; they are in
-[`PLAN-DONE.md`](./PLAN-DONE.md) with their reasoning, not here. The last of them
-was the `file-holds-many-modules` check on 2026-08-31, in the same pass that
-**deferred M7b** — the day after **M14**, and two days after **M8**, **M9** and
-**M13** shipped and **M12** was deferred.
+**M15 built 2026-09-15** — bulk import from a parent folder, docmap-desktop.
+Smaller than it looked before reading the source: `add_project` and
+`import_from_nvim_config` already covered every hard part, and the new
+commands only connect them. **M16 is next**, in the same session: the same
+dependency data rendered as a matrix instead of a list.
 
-**What remains is M11 and the L items**, and every one of them is a
+Twenty items have been worked off since 2026-08-20; they are in
+[`PLAN-DONE.md`](./PLAN-DONE.md) with their reasoning, not here. Before M15,
+the last of them was the `file-holds-many-modules` check on 2026-08-31, in
+the same pass that **deferred M7b** — the day after **M14**, and two days
+after **M8**, **M9** and **M13** shipped and **M12** was deferred.
+
+**What remains after M16 is M11 and the L items**, and every one of them is a
 session or more. None of them is *wrong* any longer, only missing: the one
 entry that carried a false identity — M7b — now reports itself instead, which
 is the half that was useful without an id-shape change.
