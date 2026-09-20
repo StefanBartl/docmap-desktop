@@ -356,7 +356,9 @@ Independent of the app, and worth building first because the app needs it:
   keymaps, writing through the same store.
 
 `ai.nvim` needs nothing new. `loomAI` needs nothing new for the first version;
-one optional change is worth asking for ([P6](#steps-sizes-repositories)).
+one optional change is worth asking for ([P6](#steps-sizes-repositories)), and
+its `/health` already reports which cloud backends are configured — presence
+only, never a key — which is what the app's consent summary (D6) can show.
 
 ---
 
@@ -373,7 +375,7 @@ measurements. Every step ships something usable without the ones after it.
 | **P3** | `docmap-desktop` | Rules view, panes 1 and 2; `.rules.json`; the trust store (D5) | ~1.5 |
 | **P4** | `rules.nvim` | `agent/plan`, `agent/validate`, verdict store; `:Rules agent`/`review` over `ai.nvim` | ~1.5 |
 | **P5** | `docmap-desktop` | Panes 3 and 4; the Rust call to loomAI; D6's consent summary | ~1.5 |
-| **P6** | `loomAI` | Optional: `temperature` and a JSON response mode on `/ask` | ~0.5 |
+| **P6** | `loomAI` | Optional: an optional `temperature` field on `/ask`, passed to all four backends. Not a JSON mode — that is not offered in one form by every backend, so the prompt asks for JSON and `validate` enforces it | ~0.5–1 |
 | **P7** | `documentation.nvim`, `docmap-desktop` | Checklist items as the second input: a *stale* item becomes an agent task; the answer is a proposal, `@verified` stays human | ~0.5 |
 
 **~8–9 sessions in all, and P0–P3 — about 4.5 to 5 — deliver a rules catalog
