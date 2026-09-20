@@ -25,15 +25,16 @@ that directory is not itself a repository, `inspect_folder` says so and
 lists its immediate subdirectories instead — each flagged for a `.git` entry
 and for already being in the workspace — and the dialog swaps the button for
 a checklist. **Add selected** calls `import_many`, which adds every checked
-path the same way `add_project` adds one, one at a time so a single bad
-entry does not fail the batch.
+path under one lock-read-write of `workspace.json` — not one per directory —
+so a folder of thirty-two plugins costs the same one write as a folder of
+one; a single bad entry still does not fail the rest of the batch.
 
 No auto-generate loop follows a bulk add — the same restraint
 `import_from_nvim_config` already applies, for the same reason: thirty
 sequential engine runs would block the window, and **Generate the
 out-of-date ones** already exists to catch every project left without a map.
 
-- **Module:** `src-tauri/src/main.rs` (`inspect_folder`, `import_many`, both reusing `add_project` and the `ImportResult` shape `import_from_nvim_config` already defined), `src/main.js` (the checklist)
+- **Module:** `src-tauri/src/main.rs` (`inspect_folder`; `import_many` and `add_project` both wrap `add_one`, the in-memory add neither does its own disk I/O for), `src/main.js` (the checklist)
 - **Usercmds:** File → Add project… → Folder → pick a non-repository directory
 - **Docs:** [USAGE.md](../USAGE.md#adding-a-project)
 

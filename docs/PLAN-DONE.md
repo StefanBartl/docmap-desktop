@@ -1494,8 +1494,25 @@ script instead of a directory listing. **And what came out of it was that
 the estimate held** — the two new commands, `inspect_folder` and
 `import_many`, are almost entirely delegation: the first reuses nothing new
 to *decide* (is this directory a repository itself, or does it hold
-several), the second reuses `add_project` and the `ImportResult` shape
-`import_from_nvim_config` had already defined, verbatim.
+several); the second was *meant* to reuse `add_project` verbatim.
+
+**One correction to the entry, found the same day in a pass looking for
+exactly this:** it did reuse `add_project` at first, and that was the bug.
+`import_many` called `add_project` once per root, and `add_project` locks,
+reads and writes `workspace.json` on every call — for thirty-two plugins,
+that is thirty-two full read-modify-write cycles of the same file behind
+the same mutex, serially, where one would do. The doc comment even claimed
+otherwise ("one `Project` list read back once instead of once per call") —
+a comment describing the design intent rather than what the code in front
+of it did, caught by rereading the two side by side rather than by a gate.
+Fixed by splitting `add_project` into `add_one` (the in-memory add, no
+disk I/O of its own) and a single `with_workspace` call around it;
+`add_project` itself now wraps one call to `add_one`, and `import_many`
+loops it inside *one* lock-read-write instead of thirty-two. Four new
+tests exercise `add_one` directly against a plain `Workspace` — idempotency
+within one batch, a refused non-directory, and the exact
+add/already-present/error split `import_many` reports, all without needing
+an `AppHandle`.
 
 *What shipped*: `inspect_folder` is read-only, the same free-of-side-effects
 posture `list_github_repos` already has, so the dialog can call it the
