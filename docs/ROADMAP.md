@@ -39,6 +39,32 @@ thing to know before anything else: a page feature that appeared after your
 map arrives by *regenerating that project* — not by updating the app or the
 engine. What an app update changes is this window.
 
+**Rules, and an agent for the manual ones (concept, decided 2026-09-21).**
+The workspace level has a second half besides maps: a project's *rules*.
+A **Rules** tab would list every rule of the configured rulesets — grouped by
+file and section or by family, selectable down to a single rule or up to a whole
+family with one click — and keep the automated rules visibly apart from the
+manual ones. The real corpus this is meant for, `wkdbook-lua/checklists`, is 421
+rules, **92 % of them manual**, so the manual worklist is the point and not the
+leftover. A selection gets a title and notes, a provider, and is worked by an
+agent in a window of its own, with a chat next to it. The agent only ever
+*proposes*: a machine answer never looks like a hand-checked one, quotes are
+checked against the tree, and only a person's accept writes a verdict. The
+provider is chosen in the app and carried out by loomAI, which routes by model
+name; `ai.nvim` is Neovim's own answer to the same question. This is a direction
+and not a schedule — the design, the seven decisions and the sizes (~12–13
+sessions, ~5 of them useful with no agent at all) are in
+[`RULES_AGENT_CONCEPT.md`](RULES_AGENT_CONCEPT.md), and the queue entry is
+**L10** in [`PLAN.md`](PLAN.md).
+
+**Decided with it, so nobody has to ask again:** the project file is
+`.rules.json` (not a section of `.docmap.json`, because `rules.nvim` has to work
+without `documentation.nvim`); proposals live in the project, in
+`.rules-proposals/`, git-ignored; the app gets a small blocking HTTP client
+rather than spawning `curl`; and the engine is extended inside the one `docmap`
+sidecar — the last one provisional until a spike shows what the engine bundle
+does with a second Lua repository.
+
 ## Where it is explicitly not going
 
 The full list with reasoning is in [`PLAN.md`](PLAN.md). The two that concern

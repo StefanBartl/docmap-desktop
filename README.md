@@ -144,7 +144,7 @@ this app, `documentation.nvim` and `runtime-analysis.nvim` together** — and
 | [docs/MENUBAR.md](docs/MENUBAR.md) | The menu's **design record**: why it is shaped the way it is, the four constraints that shaped it, and the three places the build went against the design. What the menu *does* is in USAGE.md. |
 | [docs/RELEASING.md](docs/RELEASING.md) | Cutting a release: what to check before tagging, what the workflow builds, and why the last step is a person opening the app. |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Where this program is going, in prose — direction, not schedule. The slice-by-slice derivation it used to hold is now the appendix of `WORKPLAN.md`. |
-| [docs/RULES_AGENT_CONCEPT.md](docs/RULES_AGENT_CONCEPT.md) | A concept, not a feature: `rules.nvim`'s rulesets in the explorer, and an agent (loomAI / `ai.nvim`) working the rules that have no automated check — as *proposals* a person reviews, never as verdicts. Six decisions, the file formats, the steps and what is still open. |
+| [docs/RULES_AGENT_CONCEPT.md](docs/RULES_AGENT_CONCEPT.md) | A concept, not a feature: `rules.nvim`'s rulesets in the explorer, and an agent (loomAI / `ai.nvim`) working the rules that have no automated check — as *proposals* a person reviews, never as verdicts. The Rules tab, run window and chat; seven decisions, the file formats, the steps and what was decided. |
 | [docs/HANDOVER.md](docs/HANDOVER.md) | How to work here: the state of the three repositories, what is installed on the machine, every gate and how to run it, and the traps that cost a day each. |
 
 ### The engine
