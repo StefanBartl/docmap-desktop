@@ -28,8 +28,23 @@ operating knowledge is below under *Running everything*.
 |---|---|---|---|
 | `C:\repos\documentation.nvim` | main | `21d0a51`, tagged **`v0.1.0`** | green, 5/5 gates |
 | `E:\repos\runtime-analysis.nvim` | main | `e10c374` | green |
-| `C:\repos\docmap-desktop` | main | `faf39e9`, tagged **`v0.4.0`** (draft, see below) | green; the release workflow is tag-triggered (`v*`) and downloads the engine from `standalone-latest` before `cargo tauri build` starts. The procedure is in [`RELEASING.md`](RELEASING.md) |
+| `C:\repos\docmap-desktop` | main | `d5c8cde`, tagged **`v0.5.0`** (published, see below) | green; the release workflow is tag-triggered (`v*`) and downloads the engine from `standalone-latest` before `cargo tauri build` starts. The procedure is in [`RELEASING.md`](RELEASING.md) |
 | `C:\Users\bartl\AppData\Local\nvim` (personal config) | main | `597af5d5` | no CI |
+
+**2026-09-21: `v0.5.0` tagged (2026-09-20) and published.** Bulk import from a
+parent folder (M15), the dependency matrix (M16), and two fixes from reviewing
+them; 21 commits since `v0.4.0`. Cut the way `RELEASING.md` says: CI green on
+the bump commit first, `standalone-latest` checked rather than rebuilt (its
+`publishedAt` 2026-09-20T05:32:48Z was already after the engine's last code
+commit), then the tag. All four platform jobs passed, nine assets.
+
+**Published without the click-through.** That was a decision made on request
+("offer the setup.exe for download"), not a step that was done: the Windows
+installer was unpacked and its bundled engine queried with `--capabilities`
+(23 grammars loaded, build not dirty), but the installed app was not opened
+and walked through, and the release notes say so. **A1 in
+[`PLAN.md`](PLAN.md) is that walk-through, after the fact.** If it finds
+something, the cheap answer is a `v0.5.1`, not withdrawing the release.
 
 **2026-08-24: `v0.1.0` and `v0.4.0` tagged, in that order.**
 `documentation.nvim` had no version scheme at all until then — only
@@ -47,12 +62,9 @@ push on `documentation.nvim`), **then** tag `v0.4.0` — otherwise the bundled
 sidecar would have lagged behind its own fixes, exactly the mistake
 `RELEASING.md` records from `v0.2.0`.
 
-**`v0.4.0` is a draft, not published yet.** The build was still running as
-this line was written — check the status with `gh run list
---workflow=release.yml --limit 1`. Once green, **A1 in [`PLAN.md`](PLAN.md)**
-is next: the human check (open the app, load a map, try the project settings
-with a few of the new flags), then `gh release edit v0.4.0 --draft=false`.
-That is deliberately not automated — see `RELEASING.md`.
+**`v0.4.0` was a draft when this was written, and has been published since**
+(it was *Latest* until `v0.5.0`). The human check is deliberately not
+automated — see `RELEASING.md`.
 
 **`v0.3.0` cut on 2026-08-21, published.** The release workflow builds the
 installers from the tag and files them as a **draft** — the last step is a

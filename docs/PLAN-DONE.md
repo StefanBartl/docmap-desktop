@@ -1590,3 +1590,34 @@ six-edge corpus already seeded there (including the one deliberately
 reverse edge, `lib.nvim → runtime-analysis.telemetry`, count 1): the matrix
 renders, the faint single-count cell is still there and still readable, and
 each hit cell's tooltip names the modules behind it.
+
+---
+
+## v0.5.0 · Released, and published before the click-through — 2026-09-21
+
+Everything since `v0.4.0` that touched the app: M15 (bulk import), M16 (the
+dependency matrix) and the two fixes their review turned up (`df53a54`,
+`08a9bda`). Tagged on `ad17a46`, the manifest-bump commit, after CI was green on
+that very commit and `standalone-latest` had been checked (published
+2026-09-20T05:32:48Z, after the engine's last code commit — so no rebuild).
+
+**The decision worth keeping: it was published without the walk-through.**
+`RELEASING.md` says the last step is a person opening the app, and that a draft
+older than a day is better re-cut than published. Both were set aside because
+the release was asked for as a download, on the day it was built. What replaced
+the walk-through, honestly named as a substitute: the Windows installer was
+unpacked (not installed) and its bundled `docmap.exe` asked `--capabilities` —
+23 grammars loaded, build commit `5c84f26`, not dirty. That proves the engine
+that shipped is the current one. It proves nothing about the window, which is
+why the release notes carry a *Checked, and not checked* section and `PLAN.md`
+keeps the walk-through as **A1**.
+
+**Two things the process turned up.**
+
+- A draft's body is empty by default; the notes were written by hand from the
+  tag message and the README's description of M16. Getting M16 wrong in the
+  first draft of the tag message ("next to the graph") is the reason to check a
+  description against the source before it goes into a tag, which cannot be
+  edited without moving it.
+- `PLAN.md` A1 and `HANDOVER.md` still described `v0.4.0` as an unpublished
+  draft while it had been public for weeks. Corrected in place.
