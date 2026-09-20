@@ -31,6 +31,31 @@ operating knowledge is below under *Running everything*.
 | `C:\repos\docmap-desktop` | main | `d5c8cde`, tagged **`v0.5.0`** (published, see below) | green; the release workflow is tag-triggered (`v*`) and downloads the engine from `standalone-latest` before `cargo tauri build` starts. The procedure is in [`RELEASING.md`](RELEASING.md) |
 | `C:\Users\bartl\AppData\Local\nvim` (personal config) | main | `597af5d5` | no CI |
 
+**2026-09-21: L10 designed, four questions decided, nothing built.**
+[`RULES_AGENT_CONCEPT.md`](RULES_AGENT_CONCEPT.md) is the design for a Rules tab
+and an agent for the manual rules; the queue entry is **L10** in
+[`PLAN.md`](PLAN.md). It touches four repositories, and the first change is not
+in this one. **The four open questions were answered by taking the
+recommendation each time:**
+
+1. Project file **`.rules.json`**, not a section in `.docmap.json`.
+2. Proposals in the project, **`.rules-proposals/`**, git-ignored (the ignore
+   entry is offered on first use).
+3. **A small blocking HTTP crate** in the app, not spawning `curl`. It is needed
+   because loomAI answers 403 to any request with a foreign `Origin` header, so
+   the call cannot come from the webview.
+4. **One sidecar** — extend `docmap`. **Provisional:** it is the *first step*
+   (P1, a spike) that decides it, because what the bundle pipeline does with a
+   second Lua repository has not been measured.
+
+**What to know before starting.** Start at P0 in `rules.nvim`, not here: its
+parser drops the rule text and evaluates rule blocks with the full environment,
+and both must change first. The real corpus (`wkdbook-lua/checklists`) has 421
+rules in 13 families and **389 of them have no `check`** — so batching per scope
+and scopes per family are not optimisations, they are what makes a
+"select a family, one click" affordable. loomAI has no model-list endpoint and
+its stream sends no token usage; both are optional asks (P6), not blockers.
+
 **2026-09-21: `v0.5.0` tagged (2026-09-20) and published.** Bulk import from a
 parent folder (M15), the dependency matrix (M16), and two fixes from reviewing
 them; 21 commits since `v0.4.0`. Cut the way `RELEASING.md` says: CI green on
