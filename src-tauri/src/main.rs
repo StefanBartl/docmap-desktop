@@ -473,15 +473,20 @@ fn list_projects(app: tauri::AppHandle) -> Result<Vec<Project>, String> {
     Ok(read_workspace(&app)?.projects)
 }
 
-/// Add a directory to the workspace.
+/// Resolve and add one directory to an in-memory workspace, without touching
+/// disk itself — `add_project` wraps this in a single `with_workspace` for
+/// the ordinary one-at-a-time case, and `import_many` loops it inside *one*
+/// `with_workspace` instead of locking, reading and writing the workspace
+/// file once per directory.
 ///
-/// Does **not** require the project to have a map yet: reporting "no map here"
-/// in the view is more useful than refusing to add the project, and
-/// generating one is the next slice's job. What it does refuse is a path that
-/// is not a directory, because that is a mistake rather than a state.
-#[tauri::command]
-fn add_project(app: tauri::AppHandle, root: String) -> Result<Vec<Project>, String> {
-    let root_path = Path::new(&root);
+/// Returns the added `Project`, or `None` when the canonical path was
+/// already present — adding the same directory twice is a no-op rather than
+/// an error, the same reasoning `add_project`'s doc comment states. Does
+/// **not** sort `ws.projects` or require a map to exist yet; the caller sorts
+/// once after its own batch, and reporting "no map here" in the view is more
+/// useful than refusing to add the project.
+fn add_one(ws: &mut Workspace, root: &str) -> Result<Option<Project>, String> {
+    let root_path = Path::new(root);
     if !root_path.is_dir() {
         return Err(format!("{root} is not a directory"));
     }
@@ -489,37 +494,44 @@ fn add_project(app: tauri::AppHandle, root: String) -> Result<Vec<Project>, Stri
         &fs::canonicalize(root_path).map_err(|e| format!("cannot resolve {root}: {e}"))?,
     );
 
+    if ws.projects.iter().any(|p| p.id == canonical) {
+        return Ok(None);
+    }
+
     let name = root_path
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_else(|| canonical.clone());
 
+    let project = Project {
+        id: canonical.clone(),
+        name,
+        root: canonical.clone(),
+        map_dir: format!("{canonical}/docs/map"),
+        exclude: Vec::new(),
+        languages: None,
+        // Every engine setting starts unset, meaning "whatever the engine
+        // decides" — which includes whatever the repository states in its
+        // own `.docmap.json`. A project added here therefore behaves exactly
+        // as `docmap <root>` would on a command line, and the dialog is
+        // where somebody departs from that on purpose.
+        out_dir: None,
+        source: None,
+        repo_url: None,
+        branch: None,
+        full: false,
+    };
+    ws.projects.push(project.clone());
+    Ok(Some(project))
+}
+
+/// Add a directory to the workspace. See `add_one` for what actually happens;
+/// this is the single-directory case wrapped in its own lock-read-write.
+#[tauri::command]
+fn add_project(app: tauri::AppHandle, root: String) -> Result<Vec<Project>, String> {
     with_workspace(&app, |ws| {
-        // Adding the same directory twice is a no-op rather than an error: the
-        // user's intent ("I want this project in the list") is already satisfied,
-        // and a dialog saying so would be noise.
-        if !ws.projects.iter().any(|p| p.id == canonical) {
-            ws.projects.push(Project {
-                id: canonical.clone(),
-                name,
-                root: canonical.clone(),
-                map_dir: format!("{canonical}/docs/map"),
-                exclude: Vec::new(),
-                languages: None,
-                // Every engine setting starts unset, meaning "whatever the
-                // engine decides" — which includes whatever the repository
-                // states in its own `.docmap.json`. A project added here
-                // therefore behaves exactly as `docmap <root>` would on a
-                // command line, and the dialog is where somebody departs
-                // from that on purpose.
-                out_dir: None,
-                source: None,
-                repo_url: None,
-                branch: None,
-                full: false,
-            });
-            ws.projects.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
-        }
+        add_one(ws, &root)?;
+        ws.projects.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
         Ok(ws.projects.clone())
     })
 }
@@ -620,33 +632,32 @@ fn inspect_folder(app: tauri::AppHandle, root: String) -> Result<FolderScan, Str
 }
 
 /// Add every one of the given directories, the same way `add_project` adds
-/// one — same rules, same idempotency, one `Project` list read back once
-/// instead of once per call.
+/// one — same rules, same idempotency — but through a single lock-read-write
+/// of the workspace file rather than one per directory. A folder of thirty
+/// plugins used to mean thirty full read-modify-write cycles of
+/// `workspace.json`, each behind the same mutex; `add_one` lets this batch
+/// share one.
 ///
-/// Mirrors `import_from_nvim_config`'s loop exactly, because it is the same
-/// problem: a batch of roots from somewhere else, added one at a time so
-/// that one bad entry does not fail the rest.
+/// One bad entry does not fail the rest: each `add_one` result is collected
+/// on its own, the same isolation `import_from_nvim_config`'s loop already
+/// gives its own batch.
 #[tauri::command]
 fn import_many(app: tauri::AppHandle, roots: Vec<String>) -> Result<ImportResult, String> {
-    let existing_ids: std::collections::HashSet<String> =
-        read_workspace(&app)?.projects.iter().map(|p| p.id.clone()).collect();
-    let mut seen_ids = existing_ids;
     let mut added = Vec::new();
     let mut already_present = 0usize;
     let mut errors = Vec::new();
 
-    for root in &roots {
-        match add_project(app.clone(), root.clone()) {
-            Ok(projects) => match projects.iter().find(|p| !seen_ids.contains(&p.id)) {
-                Some(proj) => {
-                    seen_ids.insert(proj.id.clone());
-                    added.push(proj.clone());
-                }
-                None => already_present += 1,
-            },
-            Err(e) => errors.push(format!("{root}: {e}")),
+    with_workspace(&app, |ws| {
+        for root in &roots {
+            match add_one(ws, root) {
+                Ok(Some(project)) => added.push(project),
+                Ok(None) => already_present += 1,
+                Err(e) => errors.push(format!("{root}: {e}")),
+            }
         }
-    }
+        ws.projects.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        Ok(())
+    })?;
 
     Ok(ImportResult { found: roots.len(), added, already_present, errors })
 }
@@ -2605,6 +2616,89 @@ mod tests {
             found.iter().map(|(n, ..)| n.as_str()).collect::<Vec<_>>(),
             vec!["alpha", "Beta", "Zeta"]
         );
+    }
+
+    // `add_one` is the core `import_many` batches inside a single
+    // `with_workspace` instead of one lock-read-write per directory — these
+    // exercise it directly, against a plain in-memory `Workspace`, the same
+    // split from `AppHandle` that makes `list_subdirs` testable above.
+
+    #[test]
+    fn add_one_adds_a_new_directory_and_returns_it() {
+        let root = scratch("add-one-new");
+        let mut ws = Workspace::default();
+
+        let added = add_one(&mut ws, &root.to_string_lossy()).unwrap();
+        assert!(added.is_some(), "a directory not yet in the workspace is added");
+        assert_eq!(ws.projects.len(), 1);
+        assert_eq!(ws.projects[0].id, added.unwrap().id);
+    }
+
+    #[test]
+    fn add_one_is_idempotent_within_one_batch() {
+        // The case `import_many` exists for: the same path offered twice in
+        // one call -- once because it was genuinely picked twice, and once
+        // because two names in a checklist canonicalise to the same
+        // directory -- must not become two rows.
+        let root = scratch("add-one-twice");
+        let mut ws = Workspace::default();
+        let path = root.to_string_lossy().to_string();
+
+        let first = add_one(&mut ws, &path).unwrap();
+        let second = add_one(&mut ws, &path).unwrap();
+
+        assert!(first.is_some(), "the first call adds it");
+        assert!(second.is_none(), "the second call reports nothing new");
+        assert_eq!(ws.projects.len(), 1, "still exactly one project");
+    }
+
+    #[test]
+    fn add_one_refuses_a_path_that_is_not_a_directory() {
+        let root = scratch("add-one-not-a-dir");
+        let file = root.join("plain.txt");
+        fs::write(&file, "not a directory").unwrap();
+        let mut ws = Workspace::default();
+
+        let err = add_one(&mut ws, &file.to_string_lossy()).unwrap_err();
+        assert!(err.contains("is not a directory"));
+        assert!(ws.projects.is_empty(), "a refused root adds nothing");
+    }
+
+    #[test]
+    fn add_one_over_a_batch_matches_what_import_many_reports() {
+        // The exact loop `import_many` runs, against a `Workspace` built in
+        // memory instead of through `with_workspace` -- proving the batching
+        // refactor preserves `import_from_nvim_config`'s per-entry isolation:
+        // one bad root does not stop the rest, and repeats are counted, not
+        // duplicated.
+        let good_a = scratch("batch-a");
+        let good_b = scratch("batch-b");
+        let missing = scratch("batch-missing");
+        fs::remove_dir_all(&missing).unwrap(); // exists() is false, not a directory
+
+        let roots = vec![
+            good_a.to_string_lossy().to_string(),
+            good_b.to_string_lossy().to_string(),
+            good_a.to_string_lossy().to_string(), // repeated on purpose
+            missing.to_string_lossy().to_string(),
+        ];
+
+        let mut ws = Workspace::default();
+        let mut added = 0;
+        let mut already_present = 0;
+        let mut errors = 0;
+        for root in &roots {
+            match add_one(&mut ws, root) {
+                Ok(Some(_)) => added += 1,
+                Ok(None) => already_present += 1,
+                Err(_) => errors += 1,
+            }
+        }
+
+        assert_eq!(added, 2, "the two distinct directories");
+        assert_eq!(already_present, 1, "the repeat of the first");
+        assert_eq!(errors, 1, "the directory that does not exist");
+        assert_eq!(ws.projects.len(), 2, "no duplicate rows from the repeat");
     }
 
     #[test]

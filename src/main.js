@@ -752,7 +752,7 @@ function renderMatrix() {
   matrixbox.wrap.hidden = ids.length === 0;
   if (ids.length === 0) return;
 
-  const byPair = new Map(edges.map((e) => [`${e.from} ${e.to}`, e]));
+  const byPair = new Map(edges.map((e) => [`${e.from}\u0000${e.to}`, e]));
   const max = edges.reduce((m, e) => Math.max(m, e.count), 1);
 
   const thead = document.createElement("thead");
@@ -783,7 +783,7 @@ function renderMatrix() {
       if (from === to) {
         td.className = "matrix-self";
       } else {
-        const e = byPair.get(`${from} ${to}`);
+        const e = byPair.get(`${from}\u0000${to}`);
         if (e) {
           td.className = "matrix-hit";
           // 15-70%, never fully opaque: the count is still legible on the
