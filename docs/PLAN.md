@@ -72,7 +72,7 @@ None of this costs me time; each costs you a sentence or one action.
 
 | # | What | Why you |
 |---|---|---|
-| **A1** | **Publish `v0.4.0`.** Tagged and built on 2026-08-24 — project settings now know every flag the engine has (`df8e4a4`), plus `.docmap.json` on the engine side. The last step of `RELEASING.md` stays a person: walk the four standard points, and open **Project → Project settings…** yourself and set a few of the new flags | Nothing automates this, and nothing should |
+| **A1** | **Walk through `v0.5.0` — it is already public.** Install `docmap-desktop_0.5.0_x64-setup.exe` and go through the four standard points of `RELEASING.md`: a project selects and its map loads; **Generate map** runs; **File > Settings...** opens and the theme switch takes; **Help > About** names an engine and a build. Also try **Add from a parent folder** and **View as matrix...** — the two things this release is for. It went out on request without this step (see `HANDOVER.md`); if it finds something, cut a `v0.5.1` | Nothing automates this, and nothing should |
 | **A2** | **Turn Discussions on** — as soon as **somebody else** asks a real question. Then `question` moves to `discussions/new?category=q-a`, one line in `TOPICS` | Decided (off, with a tripwire). The trigger is an event, not a task |
 
 ---
