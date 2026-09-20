@@ -1564,31 +1564,21 @@ async fn import_from_nvim_config(app: tauri::AppHandle) -> Result<ImportResult, 
         format!("could not parse nvim's output as JSON: {e}\noutput was: {stdout}")
     })?;
 
-    let existing_ids: std::collections::HashSet<String> =
-        read_workspace(&app)?.projects.iter().map(|p| p.id.clone()).collect();
-    let mut seen_ids = existing_ids;
     let mut added = Vec::new();
     let mut already_present = 0usize;
     let mut errors = Vec::new();
 
-    for entry in &found {
-        match add_project(app.clone(), entry.dir.clone()) {
-            Ok(projects) => {
-                // Identify the one just added by which id is new, not by
-                // matching `entry.dir` against `root`: the Rust side
-                // normalises separators, so the string that went in is not
-                // always the string that comes back.
-                match projects.iter().find(|p| !seen_ids.contains(&p.id)) {
-                    Some(proj) => {
-                        seen_ids.insert(proj.id.clone());
-                        added.push(proj.clone());
-                    }
-                    None => already_present += 1,
-                }
+    with_workspace(&app, |ws| {
+        for entry in &found {
+            match add_one(ws, &entry.dir) {
+                Ok(Some(project)) => added.push(project),
+                Ok(None) => already_present += 1,
+                Err(e) => errors.push(format!("{}: {e}", entry.name)),
             }
-            Err(e) => errors.push(format!("{}: {e}", entry.name)),
         }
-    }
+        ws.projects.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        Ok(())
+    })?;
 
     Ok(ImportResult { found: found.len(), added, already_present, errors })
 }
