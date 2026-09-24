@@ -1,7 +1,7 @@
 # L6 · Have an agent run the checklists — anchored on loomAI
 
 Companion to the one-line entry in [`PLAN.md`](PLAN.md#large) (**L6**) and the
-sketch in [`WORKPLAN.md`](WORKPLAN.md#idea-not-scheduled-executing-the-checklist)
+sketch in [`WORKPLAN.md`](WORKPLAN.md#idea-not-scheduled--executing-the-checklist)
 ("Idea, not scheduled — executing the checklist"). This file exists because
 the backend for L6 is now decided — **loomAI** (`E:\repos\loomAI`, actively
 developed by the same author) — and that decision changes the sizing enough

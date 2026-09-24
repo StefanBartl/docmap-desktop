@@ -25,14 +25,14 @@ is here rather than the assumption — that is the point of writing it down.
 
 - [Done in this round](#done-in-this-round)
 - [Decisions taken 2026-08-19](#decisions-taken-2026-08-19)
-- [1. The map pane ignores the theme — fixed 2026-08-19](#1-the-map-pane-ignores-the-theme-fixed-2026-08-19)
-- [2. The three generate surfaces — built 2026-08-19](#2-the-three-generate-surfaces-built-2026-08-19)
-- [3. A staleness mark — built 2026-08-19](#3-a-staleness-mark-built-2026-08-19)
-- [4. Settings — built 2026-08-19](#4-settings-built-2026-08-19)
-- [5. The project list — a dropdown, sorted — built 2026-08-19](#5-the-project-list-a-dropdown-sorted-built-2026-08-19)
-- [6. The motto — know your project, done 2026-08-19](#6-the-motto-know-your-project-done-2026-08-19)
-- [7. Telemetry — measured, and it splits in two](#7-telemetry-measured-and-it-splits-in-two)
-- [8. The inbound page channel — built 2026-08-19, and smaller than expected](#8-the-inbound-page-channel-built-2026-08-19-and-smaller-than-expected)
+- [1. The map pane ignores the theme — fixed 2026-08-19](#1-the-map-pane-ignores-the-theme--fixed-2026-08-19)
+- [2. The three generate surfaces — built 2026-08-19](#2-the-three-generate-surfaces--built-2026-08-19)
+- [3. A staleness mark — built 2026-08-19](#3-a-staleness-mark--built-2026-08-19)
+- [4. Settings — built 2026-08-19](#4-settings--built-2026-08-19)
+- [5. The project list — a dropdown, sorted — built 2026-08-19](#5-the-project-list--a-dropdown-sorted--built-2026-08-19)
+- [6. The motto — know your project, done 2026-08-19](#6-the-motto--know-your-project-done-2026-08-19)
+- [7. Telemetry — measured, and it splits in two](#7-telemetry--measured-and-it-splits-in-two)
+- [8. The inbound page channel — built 2026-08-19, and smaller than expected](#8-the-inbound-page-channel--built-2026-08-19-and-smaller-than-expected)
 - [9. Requested 2026-08-19, not started](#9-requested-2026-08-19-not-started)
 - [10. From the installed v0.1.0, 2026-08-19](#10-from-the-installed-v010-2026-08-19)
 - [11. Several workspaces, and a dashboard — built 2026-08-19](#11-several-workspaces-and-a-dashboard-to-choose-between-them)
@@ -179,7 +179,7 @@ generated is not behind, it is absent.
       modification times and says *something was touched*, this runs the
       analysis and compares the output byte for byte. The mark's own
       tooltip had been pointing at a command that did not exist yet; it
-      does now. See [§10.9](#109-which-app-features-belong-in-the-menu-a-review-not-a-task).
+      does now. See [§10.9](#109-which-app-features-belong-in-the-menu--a-review-not-a-task).
 
 ---
 ## 4. ~~Settings~~ — built 2026-08-19
@@ -1424,12 +1424,12 @@ and anything that starts to reimplement them is a wrong turn.
   - [Built](#built)
   - [The shell (slice 1)](#the-shell-slice-1)
   - [Generation (slice 2)](#generation-slice-2)
-  - [Then — a repository URL](#then-a-repository-url)
+  - [Then — a repository URL](#then--a-repository-url)
   - [The panels that need a host](#the-panels-that-need-a-host)
   - [Languages](#languages--saying-which-ones-this-can-read)
   - [Interface languages](#interface-languages--a-separate-axis-planned-separately)
-  - [Idea, not scheduled — executing the checklist](#idea-not-scheduled-executing-the-checklist)
-  - [Idea, not scheduled — the analysis itself, not just the engine](#idea-not-scheduled-the-analysis-itself-not-just-the-engine)
+  - [Idea, not scheduled — executing the checklist](#idea-not-scheduled--executing-the-checklist)
+  - [Idea, not scheduled — the analysis itself, not just the engine](#idea-not-scheduled--the-analysis-itself-not-just-the-engine)
 
 ---
 
