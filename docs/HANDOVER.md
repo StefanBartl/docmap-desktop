@@ -35,7 +35,7 @@ operating knowledge is below under *Running everything*.
 [`GITHUB_STATS_CONCEPT.md`](GITHUB_STATS_CONCEPT.md) — `github_stats.nvim`'s
 traffic data in this app and in `documentation.nvim`, read-only and only when
 the plugin is installed; queue entry **L11** in [`PLAN.md`](PLAN.md). The first
-change is in `github_stats.nvim` (it writes a local summary), not here. Two
+change is in `github_stats.nvim` (it writes a local digest), not here. Two
 things to know before starting: its history sits in the **synced** Neovim config
 on purpose (one dataset for two machines), so nothing derived may be written
 there; and `require("github_stats")` loads its dashboard and therefore
