@@ -139,12 +139,39 @@ per-machine** place and are regenerated from the synced history at any time:
 - `stdpath("data")/github_stats.nvim/root.json` — `{ "data_dir": "...", "repos": { "owner/name": "owner_name" } }`
 - `stdpath("data")/github_stats.nvim/summary/<owner_name>.json`
 
-The app reads `root.json`, then the summary. If `root.json` is absent (plugin
-never ran on this machine), the app offers a **folder setting** for the synced
-data and computes nothing from it itself — the summary then simply does not
-exist, and the panel says "start Neovim once with github_stats". Never a search
-of the disk. The index in `root.json` means the app never computes a sanitized
-directory name.
+**The location is a setting, not a constant.** Other users may already use
+`stdpath("data")` for `github_stats.nvim`'s own `data_dir`, or want the derived
+files elsewhere. So `github_stats.nvim` gets one option, `summary_dir`
+(default `stdpath("data")/github_stats.nvim`), and always writes the tiny
+`root.json` pointer to the *default* place, naming wherever `summary_dir` really
+is. (The two cannot collide when they overlap: history directories are always
+`owner_repo`, a summary is `summary/…`, and `root.json` is a file.)
+
+Each reader finds the summary through the same **discovery chain**, first hit
+wins:
+
+1. **An explicit setting.** In the app: the Traffic tab has a **folder button**
+   (the native folder dialog, which the app already has) to choose the summary
+   directory; the choice is stored per machine, and the app shows what it found
+   there (repos, `generated`, span) or says why it does not qualify. In
+   `documentation.nvim`: `opts.traffic.summary_dir` in the plugin's own setup
+   spec.
+2. **`root.json`** at the default place.
+3. **Ask the loaded plugin** (`documentation.nvim` only):
+   `require("github_stats")` — through `soft_require.probe`, which also loads a
+   lazy-loaded plugin — and read its resolved `summary_dir()`. This replaces the
+   idea of reading the path out of the user's installation spec: a spec is Lua
+   *code* (`opts` may be a function, `dir` may be computed), so parsing it is
+   guesswork, while asking the running plugin returns the value it actually
+   uses. No user command or autocmd is needed for it; it happens when the
+   browse mode opens.
+4. **Nothing found** → the panel says so and names steps 1 and 2. Never a
+   search of the disk.
+
+The app cannot do step 3 — it has no Neovim. An optional convenience button,
+**"Ask Neovim"**, could run `nvim --headless` once to print `summary_dir()` when
+`nvim` is on the `PATH`; that is a shortcut for step 1, off by default, and the
+app keeps working without it.
 
 ### D3 — project → repository, reported not assumed
 
@@ -162,10 +189,10 @@ only). Three outcomes, each shown as what it is:
 
 | Repo | Change | Nature |
 |---|---|---|
-| `github_stats.nvim` | Write `summary/<repo>.json` and the `root.json` index under `stdpath("data")` after each fetch; document the schema as a stable contract in `docs/FEATURES/` | small, additive |
-| `documentation.nvim` (Neovim side) | `core/traffic_join.lua`: `soft_require.probe("github_stats")`, then either its live API (`analytics.get_top_paths`, `query_metric`) or `summary.json`; a `traffic` browse mode beside `telemetry`/`rules` | small, same pattern as `rules_join` |
+| `github_stats.nvim` | Write `summary/<repo>.json` and the `root.json` index after each fetch, into the configurable `summary_dir` (default under `stdpath("data")`); expose `summary_dir()`; document the schema as a stable contract in `docs/FEATURES/` | small, additive |
+| `documentation.nvim` (Neovim side) | `core/traffic_join.lua`: `soft_require.probe("github_stats")`, then either its live API (`analytics.get_top_paths`, `query_metric`) or `summary.json`; a `traffic` browse mode beside `telemetry`/`rules`; `opts.traffic.summary_dir` and the discovery chain of D2 | small, same pattern as `rules_join` |
 | `documentation.nvim` (standalone engine) | **Nothing.** The engine stays a pure static map; the join is a consumer concern, like telemetry | — |
-| `docmap-desktop` | `traffic.rs` next to `telemetry.rs`: read pointer + summary, resolve project → repo, one Tauri command; a Traffic panel and a column in the project list | medium |
+| `docmap-desktop` | `traffic.rs` next to `telemetry.rs`: read pointer + summary, resolve project → repo, one Tauri command; a Traffic tab with the folder button, the panel, and a column in the project list | medium |
 | `gitsuite.nvim` | none | see below |
 
 ---
@@ -180,7 +207,7 @@ In order of value per effort:
 2. **A sortable column in the project list** (desktop only) — the natural home,
    since the list is the one place many projects sit side by side: "which of my
    twelve projects is anyone looking at". This is the strongest use.
-3. **A Traffic panel**: daily sparkline over the whole stored span (not just 14
+3. **A Traffic tab**: the folder button and what was found there, then the panel — daily sparkline over the whole stored span (not just 14
    days — that is the point), referrers, top pages.
 4. **Top pages linked into the docs view**: a `paths` entry that resolves to a
    file the map knows gets a small badge and a jump. Entries that do not resolve
@@ -222,8 +249,8 @@ own autocmd — never a `require("gitsuite")`.
 
 | Step | What | Where | Size |
 |---|---|---|---|
-| **P0** | Summary + `root.json` written locally after each fetch; the schema documented as a contract | `github_stats.nvim` | ~0.5 session |
-| **P1** | `traffic.rs`, project → repo resolution, the header line and the project-list column | `docmap-desktop` | ~1 session |
+| **P0** | Summary + `root.json` written after each fetch into a configurable `summary_dir`, `summary_dir()` exposed; the schema documented as a contract | `github_stats.nvim` | ~0.5 session |
+| **P1** | `traffic.rs`, the discovery chain with the folder button, project → repo resolution, the header line and the project-list column | `docmap-desktop` | ~1 session |
 | **P2** | Traffic panel (sparkline, referrers, pages), pages linked into the docs view | `docmap-desktop` | ~1 session |
 | **P3** | `traffic_join.lua` and the `traffic` browse mode, live or via the summary | `documentation.nvim` | ~0.5–1 session |
 | P4 | traffic × churn | `documentation.nvim` | not planned |
@@ -267,3 +294,8 @@ Decided 2026-09-25.
    consumers are checked against one contract.
 3. **A per-project opt-out lives in the app**, as a plain per-project setting,
    not in the plugins.
+4. **The summary location is configurable** (`summary_dir`), because users may
+   already use `stdpath("data")` for their own data. Readers use one discovery
+   chain: explicit setting (app: folder button in the Traffic tab;
+   `documentation.nvim`: `opts.traffic.summary_dir`) → `root.json` → asking the
+   loaded plugin. The installation spec is never parsed.
