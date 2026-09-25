@@ -220,8 +220,8 @@ let it go stale on purpose and re-cut from `main` when there is time to
 check it.
 
 What to do with the number is a smaller question with a clear answer.
-`v0.2.0` was never public, so 0.2.0 was technically free — but `HANDOVER.md`
-and `PLAN-DONE.md` already described what was *in* it, and a tag pointing at
+`v0.2.0` was never public, so 0.2.0 was technically free — but the handover
+notes and the build log already described what was *in* it, and a tag pointing at
 a different tree than the prose written about it is worse than a gap in the
 sequence. The draft was deleted, the tag left standing as a point in the
 history, and the next release took the next number.
@@ -246,7 +246,7 @@ download history, which is why the draft step exists at all.
 ## Two things worth knowing before you publish
 
 **The macOS installers ship a menu bar nobody has checked on macOS.**
-[`MENUBAR.md`](MENUBAR.md) records that the tree needs a documented macOS
+The menu bar's design record (kept with the author's notes) records that the tree needs a documented macOS
 variant before shipping there — on that platform the first submenu is the
 *application* menu and carries About, Preferences and Quit by convention, and
 File does not own Quit. The tests that would catch a wrong tree cannot run on

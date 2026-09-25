@@ -1099,7 +1099,7 @@ button:focus-visible {
 
 /* ------------------------------------------------------------ settings
 
-   Sections, not a flat list. `docs/MENUBAR.md` argued against a dialog for
+   Sections, not a flat list. `MENUBAR.md` argued against a dialog for
    two controls and named what would make it right: more than a handful, and
    somewhere for what comes next to live. A list that grows becomes a wall,
    and a wall is what people stop reading. */

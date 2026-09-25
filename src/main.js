@@ -1638,7 +1638,7 @@ els.gen.addEventListener("click", () => selectedId && generateFor(selectedId));
 /**
  * Generate every project in the workspace.
  *
- * No longer a sidebar button. `docs/MENUBAR.md`'s rule is that the sidebar
+ * No longer a sidebar button. `MENUBAR.md`'s rule is that the sidebar
  * keeps exactly one command rather than a mirror of the menu, and this is
  * the rare one — it writes into repositories you did not select, which is
  * also why its wording never gets shortened.
@@ -3023,7 +3023,7 @@ async function maybeOpenWorkspaces() {
 // live, with a spec that fails when a locale is short a key.
 //
 // Every item calls the same function its sidebar button calls. Two ways to
-// reach one implementation, never two implementations: `docs/MENUBAR.md`'s
+// reach one implementation, never two implementations: `MENUBAR.md`'s
 // last "what I would not build" entry is exactly this, and it is the reason
 // the sidebar keeps one button rather than a mirror of the menu.
 // =====================================================================

@@ -13,7 +13,6 @@ Project items are greyed when nothing is selected.
 
 - **Module:** `src-tauri/src/menu.rs`
 - **Usercmds:** the full table in [USAGE.md](../USAGE.md#the-menu-bar)
-- **Docs:** [MENUBAR.md](../MENUBAR.md) — the design record: the rule every item had to pass, the four constraints that shaped it, and the three places the build went against the design
 
 ## Keyboard shortcuts
 

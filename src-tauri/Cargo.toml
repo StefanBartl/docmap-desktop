@@ -25,7 +25,7 @@ tauri = { version = "2", features = ["protocol-asset"] }
 # field: the thing being named is a directory that must exist, and letting the
 # OS answer that is both less code and less wrong.
 tauri-plugin-dialog = "2"
-# The engine as a bundled sidecar (see #7 in docs/HANDOVER.md): a fallback
+# The engine as a bundled sidecar (see #7 in HANDOVER.md): a fallback
 # for when nothing is configured and nothing is on PATH, so the app works
 # out of the box instead of sending a first-run user to build
 # documentation.nvim's standalone binary themselves before anything works.
@@ -43,7 +43,7 @@ tauri = { version = "2", features = ["test"] }
 [profile.release]
 # A viewer that ships as a download: size is worth more here than the last
 # few percent of speed, and the expensive work happens in a separate process
-# anyway (see docs/ROADMAP.md — the analysis is documentation.nvim's binary).
+# anyway (see ROADMAP.md — the analysis is documentation.nvim's binary).
 opt-level = "s"
 lto = true
 codegen-units = 1
