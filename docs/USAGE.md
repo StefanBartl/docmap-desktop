@@ -1,8 +1,8 @@
 # Using the app
 
-`README.md` says what the program is for; `ROADMAP.md` says why it is
-shaped the way it is. This is the third thing: what each button, pane and
-indicator actually does, so using it does not mean reading `main.js` first.
+`README.md` says what the program is for. This is the second thing: what each
+button, pane and indicator actually does, so using it does not mean reading
+`main.js` first.
 
 Rewritten 2026-08-19 from an inventory of what the app actually has, rather
 than patched where it had gone false. Everything below was checked against
@@ -712,9 +712,9 @@ decide whether the next action works.
 | | Send feedback… | |
 | | About docmap | |
 
-Project items are greyed when nothing is selected. `docs/MENUBAR.md` has
-the rule every one of these had to pass, and the review that checked them
-all against it.
+Project items are greyed when nothing is selected. The menu's design record
+(kept with the author's notes, not in this repository) has the rule every one
+of these had to pass, and the review that checked them all against it.
 
 ### Export the current view
 
@@ -763,14 +763,13 @@ Everything the generated page itself shows — the module tree, the Analysis
 tabs, the Findings tab, the Checklist panel and its `@ref`/`@verified`
 syntax, what Telemetry and Loaded need to show real data — is
 `documentation.nvim`'s own surface, not this app's. This app is one more
-place that page can run (`ROADMAP.md` calls it *the fourth host*); it does
+place that page can run (the project's roadmap calls it *the fourth host*); it does
 not change what the page means.
 
 | Question | Where |
 |---|---|
 | What each tab and Analysis panel shows | [`documentation.nvim` — WORKFLOW.md](https://github.com/StefanBartl/documentation.nvim/blob/main/docs/WORKFLOW.md) |
-| Which languages the engine reads, and how fully | [`documentation.nvim` — MULTILANG.md](https://github.com/StefanBartl/documentation.nvim/blob/main/docs/ROADMAP/IDEAS/MULTILANG.md) |
-| The checklist ledger's syntax and states | [`documentation.nvim` — CHECKLIST_FORMAT.md](https://github.com/StefanBartl/documentation.nvim/blob/main/docs/CHECKLIST_FORMAT.md) |
-| How the map is built, stage by stage | [`documentation.nvim` — PIPELINE.md](https://github.com/StefanBartl/documentation.nvim/blob/main/docs/PIPELINE.md) |
-| Talking to a project's map from an agent | [`documentation.nvim` — MCP.md](https://github.com/StefanBartl/documentation.nvim/blob/main/docs/MCP.md) |
-| Why Telemetry/Loaded need Neovim, not this app | [`WORKPLAN.md` § The panels that need a host](WORKPLAN.md#the-panels-that-need-a-host) |
+| Which languages the engine reads, and how fully | [`documentation.nvim` — languages.md](https://github.com/StefanBartl/documentation.nvim/blob/main/docs/languages.md) |
+| The checklist ledger's syntax and states | [`documentation.nvim` — checklist_format.md](https://github.com/StefanBartl/documentation.nvim/blob/main/docs/checklist_format.md) |
+| How the map is built, stage by stage | [`documentation.nvim` — pipeline.md](https://github.com/StefanBartl/documentation.nvim/blob/main/docs/pipeline.md) |
+| Talking to a project's map from an agent | [`documentation.nvim` — mcp.md](https://github.com/StefanBartl/documentation.nvim/blob/main/docs/mcp.md) |

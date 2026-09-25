@@ -2,7 +2,7 @@
 /src-tauri/target/
 /src-tauri/gen/
 
-# The bundled engine sidecar and its grammars (#7, docs/HANDOVER.md) --
+# The bundled engine sidecar and its grammars (#7, HANDOVER.md) --
 # real binaries, platform-specific, tens of MB. release.yml builds and
 # stages these fresh on each platform's own CI runner right before
 # `cargo tauri build`; a local dev build wanting the sidecar path places

@@ -1026,7 +1026,7 @@ fn engine_on_path() -> Option<String> {
     None
 }
 
-/// The engine bundled as a Tauri sidecar (#7, `docs/HANDOVER.md`), if this
+/// The engine bundled as a Tauri sidecar (#7, `HANDOVER.md`), if this
 /// build actually shipped one for the platform it is running on.
 ///
 /// `externalBin` in `tauri.conf.json` declares the *name* `docmap` is
@@ -1633,7 +1633,7 @@ async fn generate(
         // tool on PATH and says `lua-language-server not found on PATH`
         // when it is missing, rather than quietly producing a thinner map.
         // The caller has to put that sentence somewhere the reader is
-        // looking — see `docs/WORKPLAN.md` §2 on why that obligation is
+        // looking — see `WORKPLAN.md` §2 on why that obligation is
         // this side's rather than the menu's.
         if full {
             cmd.arg("--full");
@@ -2452,7 +2452,7 @@ mod tests {
     // Requires the sidecar/grammars to actually be staged under
     // `target/debug/` before running -- true after any `cargo build`/
     // `cargo check` once `src-tauri/binaries/docmap-<target-triple>.exe`
-    // and `src-tauri/resources/grammars/` exist, which `docs/HANDOVER.md`
+    // and `src-tauri/resources/grammars/` exist, which `HANDOVER.md`
     // #7 explains how to populate. Not run in CI for that reason -- same
     // posture `documentation.nvim`'s own `check_treesitter.lua` states for
     // needing a real grammar on hand.
@@ -2718,7 +2718,7 @@ mod tests {
         assert!(
             sidecar.is_some(),
             "expected src-tauri/binaries/docmap-<this platform's target triple> to resolve \
-             as a real sidecar file -- see docs/HANDOVER.md #7"
+             as a real sidecar file -- see README.md, 'The engine'"
         );
         let program = sidecar.unwrap().get_program().to_os_string();
         assert!(Path::new(&program).is_file(), "resolved sidecar path {program:?} is not a real file");
@@ -2740,7 +2740,7 @@ mod tests {
         assert!(
             dir.is_dir(),
             "expected {dir:?} (src-tauri/resources/grammars/, staged next to the built exe) \
-             to exist -- see docs/HANDOVER.md #7"
+             to exist -- see README.md, 'The engine'"
         );
         let has_a_grammar = fs::read_dir(&dir)
             .map(|mut entries| entries.next().is_some())

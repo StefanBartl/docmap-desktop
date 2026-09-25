@@ -2,7 +2,7 @@
 //
 // The Rust side counts; everything here is about saying it in the smallest
 // space that is still honest. Two rules drive the shapes below, both from
-// docs/ROADMAP.md's language section:
+// ROADMAP.md's language section:
 //
 //   * The sidebar is a list, not a report. A project line gets a couple of
 //     words, and the full breakdown lives in its tooltip — depth on demand,

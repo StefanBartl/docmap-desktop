@@ -29,14 +29,11 @@ Lua. The format reads Markdown, not a language.
   interface language.
 
 Reference documentation lives one level up and is not repeated here:
-[`USAGE.md`](../USAGE.md) is the button-by-button manual,
-[`MENUBAR.md`](../MENUBAR.md) the menu's design record,
-[`RELEASING.md`](../RELEASING.md) the release procedure, and
-[`HANDOVER.md`](../HANDOVER.md) how to work in this repository.
+[`USAGE.md`](../USAGE.md) is the button-by-button manual and
+[`RELEASING.md`](../RELEASING.md) the release procedure.
 
 > **Only theme files belong in this folder.** The Features tab's parser reads
 > every `##` here as a feature, so a document that uses `##` for its own
 > structure — a plan, a decision record, an essay — is counted as features
-> that do not exist. [`PLAN.md`](../PLAN.md),
-> [`PLAN-DONE.md`](../PLAN-DONE.md) and [`WORKPLAN.md`](../WORKPLAN.md) stay
-> where they are for that reason.
+> that do not exist. Such documents do not belong in this repository's `docs/`
+> at all; they are kept with the author's working notes.

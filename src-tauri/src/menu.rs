@@ -6,7 +6,7 @@
 //! translations, and translations already live in `src/lib/i18n.js` with a
 //! spec that fails when a locale is missing a key or carries one the source
 //! no longer has. A second catalog in Rust would be two files with one
-//! meaning, and `docs/MENUBAR.md` names that as the wrong answer before it
+//! meaning, and `MENUBAR.md` names that as the wrong answer before it
 //! was written — the same drift that cost `to_json` and the page payload six
 //! fields between them.
 //!
@@ -32,7 +32,7 @@ use tauri::{AppHandle, Emitter, Runtime};
 ///
 /// A checkmark is a claim about how the window currently is, so it cannot be
 /// inferred here: theme, interface language and sidebar visibility all live
-/// in the frontend (in `localStorage`, per `docs/MENUBAR.md`'s note on why
+/// in the frontend (in `localStorage`, per `MENUBAR.md`'s note on why
 /// they are properties of this machine rather than of the project list).
 /// They are handed over on every rebuild instead, which is also what makes
 /// the marks correct after a change made from somewhere other than the menu.
@@ -107,7 +107,7 @@ enum Node {
 }
 
 /// The tree, as data. Read top to bottom this is the whole menu;
-/// `docs/MENUBAR.md` argues each placement.
+/// `MENUBAR.md` argues each placement.
 struct Group {
     id: &'static str,
     items: &'static [Node],
@@ -392,7 +392,7 @@ mod tests {
     // thread there, and Rust's test harness runs every test on a worker.
     // Nothing about the menu differs on macOS — the builder simply cannot
     // be called from where a test lives, so the assertion is unreachable
-    // rather than untrue. `docs/MENUBAR.md` already records that the tree
+    // rather than untrue. `MENUBAR.md` already records that the tree
     // itself needs a documented macOS variant before shipping there, and
     // that is the check this cannot substitute for.
     #[cfg(not(target_os = "macos"))]
@@ -410,7 +410,7 @@ mod tests {
     // thread there, and Rust's test harness runs every test on a worker.
     // Nothing about the menu differs on macOS — the builder simply cannot
     // be called from where a test lives, so the assertion is unreachable
-    // rather than untrue. `docs/MENUBAR.md` already records that the tree
+    // rather than untrue. `MENUBAR.md` already records that the tree
     // itself needs a documented macOS variant before shipping there, and
     // that is the check this cannot substitute for.
     #[cfg(not(target_os = "macos"))]
@@ -427,7 +427,7 @@ mod tests {
     // thread there, and Rust's test harness runs every test on a worker.
     // Nothing about the menu differs on macOS — the builder simply cannot
     // be called from where a test lives, so the assertion is unreachable
-    // rather than untrue. `docs/MENUBAR.md` already records that the tree
+    // rather than untrue. `MENUBAR.md` already records that the tree
     // itself needs a documented macOS variant before shipping there, and
     // that is the check this cannot substitute for.
     #[cfg(not(target_os = "macos"))]

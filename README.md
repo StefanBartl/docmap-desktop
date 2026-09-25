@@ -57,8 +57,7 @@ invocation. Inside an editor that is not a question a UI should ask, and a
 project switcher there would be a second, worse answer to a settled one.
 
 Outside an editor there is nothing to resolve from — which is exactly where a
-switcher belongs. That reasoning is recorded in the plugin's own
-[implementation plan](https://github.com/StefanBartl/documentation.nvim/blob/main/docs/ROADMAP/V1_EXTENSION/IMPLEMENTATION_PLAN.md);
+switcher belongs. That reasoning is recorded in the plugin's own design notes;
 this repository is its consequence.
 
 ## What already exists, and what this adds
@@ -126,10 +125,10 @@ page feature that shipped after your map was written arrives by
 updating the app changes is this window: the sidebar, the menu, the panes,
 the settings.
 
-See [docs/USAGE.md](docs/USAGE.md) for what every button does,
-[docs/PLAN.md](docs/PLAN.md) for what is being worked on — **one plan for
-this app, `documentation.nvim` and `runtime-analysis.nvim` together** — and
-[docs/ROADMAP.md](docs/ROADMAP.md) for where this program is going.
+See [docs/USAGE.md](docs/USAGE.md) for what every button does. Where the program
+is going, what is being worked on and the design records behind it are the
+author's working notes and are kept outside this repository; this one holds what
+a user or a contributor needs.
 
 ## Documentation
 
@@ -137,16 +136,8 @@ this app, `documentation.nvim` and `runtime-analysis.nvim` together** — and
 |---|---|
 | [docs/FEATURES/](docs/FEATURES/README.md) | The catalogue, by theme: the workspace model, running the engine, the window, settings, and the desktop parts. What it does, with the module behind each — the same shape the Neovim siblings use, so one reader can move between all three repositories. |
 | [docs/USAGE.md](docs/USAGE.md) | Using it, button by button: adding projects, workspaces, the project picker and its four sort orders, the files pane, opening a file in your editor, the four Generate commands, settings and per-project settings, the notes that appear over some panels, the menu bar, and where everything is stored. |
-| [documentation.nvim/docs/ECOSYSTEM.md](https://github.com/StefanBartl/documentation.nvim/blob/main/docs/ECOSYSTEM.md) | **The architecture, and it is not in this repository.** Where docs, static analysis and runtime each belong, and why `runtime-analysis.nvim` is a separate plugin rather than a module. Written before this app existed, so it describes four pieces and not five — a header there records why that needed a note and not a revision: this app is a second host for the artifact-and-serve tier its Seam B already covers. |
-| [docs/PLAN.md](docs/PLAN.md) | **The one queue for all three repositories** — `documentation.nvim`, this app, `runtime-analysis.nvim` — by effort: quick wins, medium, large. Plus what waits on a person and what is deliberately not planned. Since 2026-08-20 the only place open work is tracked. |
-| [docs/PLAN-DONE.md](docs/PLAN-DONE.md) | What was built and *why that way*, including the decisions that should not be re-opened. A plan that keeps its finished entries stops being a plan. |
-| [docs/WORKPLAN.md](docs/WORKPLAN.md) | The 2026-08-19 review this app grew out of: every request, and the measurement behind the answer to it. A record, not a queue. |
-| [docs/MENUBAR.md](docs/MENUBAR.md) | The menu's **design record**: why it is shaped the way it is, the four constraints that shaped it, and the three places the build went against the design. What the menu *does* is in USAGE.md. |
+| [documentation.nvim/docs/ecosystem.md](https://github.com/StefanBartl/documentation.nvim/blob/main/docs/ecosystem.md) | **The architecture, and it is not in this repository.** Where docs, static analysis and runtime each belong, and why `runtime-analysis.nvim` is a separate plugin rather than a module. Written before this app existed, so it describes four pieces and not five — a header there records why that needed a note and not a revision: this app is a second host for the artifact-and-serve tier its Seam B already covers. |
 | [docs/RELEASING.md](docs/RELEASING.md) | Cutting a release: what to check before tagging, what the workflow builds, and why the last step is a person opening the app. |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | Where this program is going, in prose — direction, not schedule. The slice-by-slice derivation it used to hold is now the appendix of `WORKPLAN.md`. |
-| [docs/RULES_AGENT_CONCEPT.md](docs/RULES_AGENT_CONCEPT.md) | A concept, not a feature: `rules.nvim`'s rulesets in the explorer, and an agent (loomAI / `ai.nvim`) working the rules that have no automated check — as *proposals* a person reviews, never as verdicts. The Rules tab, run window and chat; seven decisions, the file formats, the steps and what was decided. |
-| [docs/GITHUB_STATS_CONCEPT.md](docs/GITHUB_STATS_CONCEPT.md) | A concept, not a feature: `github_stats.nvim`'s traffic history (views, clones, referrers, top pages) as a read-only join — a Traffic section and a project-list column here, a browse mode in `documentation.nvim` — when the plugin is installed and only then. Where the data lives on a two-machine setup, how it is found, and what it can and cannot say (repo-level, top-10 pages). |
-| [docs/HANDOVER.md](docs/HANDOVER.md) | How to work here: the state of the three repositories, what is installed on the machine, every gate and how to run it, and the traps that cost a day each. |
 
 ### The engine
 

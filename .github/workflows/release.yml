@@ -12,7 +12,7 @@
 # no package.json, nothing to `npm install` — so this workflow only ever
 # needs the Rust toolchain plus each OS's native webview dependencies.
 #
-# The engine sidecar (docs/HANDOVER.md, #7): downloaded from
+# The engine sidecar (HANDOVER.md, #7): downloaded from
 # documentation.nvim's own `standalone-latest` rolling release before
 # `tauri-action` runs, staged under src-tauri/binaries|resources exactly
 # where tauri.windows.conf.json/tauri.linux.conf.json's `externalBin`/
