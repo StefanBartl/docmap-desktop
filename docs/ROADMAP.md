@@ -57,6 +57,18 @@ sessions, ~5 of them useful with no agent at all) are in
 [`RULES_AGENT_CONCEPT.md`](RULES_AGENT_CONCEPT.md), and the queue entry is
 **L10** in [`PLAN.md`](PLAN.md).
 
+**GitHub traffic (concept, decided 2026-09-25).** `github_stats.nvim` keeps
+what GitHub throws away after fourteen days. The explorer could show it — a
+Traffic line on a project, a sortable column in the project list, a panel with
+the whole stored history — so that "which of my projects does anyone look at"
+has an answer. Read-only, only when the plugin is installed, and honest about
+its limit: the numbers are per repository, and the per-page ones are GitHub's
+top ten, so there is no heat map over the module tree. `gitsuite.nvim` is not
+needed. Design, the two-machine question and the security notes are in
+[`GITHUB_STATS_CONCEPT.md`](GITHUB_STATS_CONCEPT.md); the queue entry is **L11**
+in [`PLAN.md`](PLAN.md) (~2.5 sessions for the part that needs no
+`documentation.nvim` change).
+
 **Decided with it, so nobody has to ask again:** the project file is
 `.rules.json` (not a section of `.docmap.json`, because `rules.nvim` has to work
 without `documentation.nvim`); proposals live in the project, in

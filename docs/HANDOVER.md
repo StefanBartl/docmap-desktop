@@ -31,6 +31,16 @@ operating knowledge is below under *Running everything*.
 | `C:\repos\docmap-desktop` | main | `d5c8cde`, tagged **`v0.5.0`** (published, see below) | green; the release workflow is tag-triggered (`v*`) and downloads the engine from `standalone-latest` before `cargo tauri build` starts. The procedure is in [`RELEASING.md`](RELEASING.md) |
 | `C:\Users\bartl\AppData\Local\nvim` (personal config) | main | `597af5d5` | no CI |
 
+**2026-09-25: L11 designed, nothing built.**
+[`GITHUB_STATS_CONCEPT.md`](GITHUB_STATS_CONCEPT.md) — `github_stats.nvim`'s
+traffic data in this app and in `documentation.nvim`, read-only and only when
+the plugin is installed; queue entry **L11** in [`PLAN.md`](PLAN.md). The first
+change is in `github_stats.nvim` (it writes a local summary), not here. Two
+things to know before starting: its history sits in the **synced** Neovim config
+on purpose (one dataset for two machines), so nothing derived may be written
+there; and `require("github_stats")` loads its dashboard and therefore
+`ui.nvim`, so a probe must target a UI-free module.
+
 **2026-09-21: L10 designed, four questions decided, nothing built.**
 [`RULES_AGENT_CONCEPT.md`](RULES_AGENT_CONCEPT.md) is the design for a Rules tab
 and an agent for the manual rules; the queue entry is **L10** in
