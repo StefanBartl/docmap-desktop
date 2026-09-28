@@ -13,10 +13,10 @@ mod deps;
 mod feedback;
 mod filetree;
 mod freshness;
-mod icon;
 mod github;
-mod menu;
+mod icon;
 mod languages;
+mod menu;
 mod server;
 mod telemetry;
 mod traffic;
@@ -416,7 +416,10 @@ fn read_settings(app: &tauri::AppHandle) -> Result<Workspace, String> {
 /// list is not a feature.
 fn read_workspace(app: &tauri::AppHandle) -> Result<Workspace, String> {
     let mut ws = read_settings(app)?;
-    let name = ws.active.clone().unwrap_or_else(|| DEFAULT_WORKSPACE.to_string());
+    let name = ws
+        .active
+        .clone()
+        .unwrap_or_else(|| DEFAULT_WORKSPACE.to_string());
     let path = workspace_projects_path(app, &name)?;
 
     if path.is_file() {
@@ -437,14 +440,17 @@ fn read_workspace(app: &tauri::AppHandle) -> Result<Workspace, String> {
 }
 
 fn write_workspace(app: &tauri::AppHandle, ws: &Workspace) -> Result<(), String> {
-    let name = ws.active.clone().unwrap_or_else(|| DEFAULT_WORKSPACE.to_string());
+    let name = ws
+        .active
+        .clone()
+        .unwrap_or_else(|| DEFAULT_WORKSPACE.to_string());
 
     // The project list, in its own file. Written first: if the settings
     // write fails afterwards the projects are still saved, which is the
     // right way round for the half nobody can retype.
     let list_path = workspace_projects_path(app, &name)?;
-    let list = serde_json::to_string_pretty(&ws.projects)
-        .map_err(|e| format!("cannot serialise: {e}"))?;
+    let list =
+        serde_json::to_string_pretty(&ws.projects).map_err(|e| format!("cannot serialise: {e}"))?;
     fs::write(&list_path, list)
         .map_err(|e| format!("cannot write {}: {e}", list_path.display()))?;
 
@@ -464,8 +470,8 @@ fn write_workspace(app: &tauri::AppHandle, ws: &Workspace) -> Result<(), String>
     settings.editor = ws.editor.clone();
 
     let path = workspace_path(app)?;
-    let body = serde_json::to_string_pretty(&settings)
-        .map_err(|e| format!("cannot serialise: {e}"))?;
+    let body =
+        serde_json::to_string_pretty(&settings).map_err(|e| format!("cannot serialise: {e}"))?;
     fs::write(&path, body).map_err(|e| format!("cannot write {}: {e}", path.display()))
 }
 
@@ -514,9 +520,8 @@ fn add_one(ws: &mut Workspace, root: &str) -> Result<Option<Project>, String> {
     if !root_path.is_dir() {
         return Err(format!("{root} is not a directory"));
     }
-    let canonical = portable(
-        &fs::canonicalize(root_path).map_err(|e| format!("cannot resolve {root}: {e}"))?,
-    );
+    let canonical =
+        portable(&fs::canonicalize(root_path).map_err(|e| format!("cannot resolve {root}: {e}"))?);
 
     if ws.projects.iter().any(|p| p.id == canonical) {
         return Ok(None);
@@ -556,7 +561,8 @@ fn add_one(ws: &mut Workspace, root: &str) -> Result<Option<Project>, String> {
 fn add_project(app: tauri::AppHandle, root: String) -> Result<Vec<Project>, String> {
     with_workspace(&app, |ws| {
         add_one(ws, &root)?;
-        ws.projects.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        ws.projects
+            .sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
         Ok(ws.projects.clone())
     })
 }
@@ -602,8 +608,7 @@ struct FolderScan {
 /// symlink two directories down should not blank out the other thirty-one.
 fn list_subdirs(root: &Path) -> Result<Vec<(String, String, bool)>, String> {
     let mut out = Vec::new();
-    let entries =
-        fs::read_dir(root).map_err(|e| format!("cannot read {}: {e}", root.display()))?;
+    let entries = fs::read_dir(root).map_err(|e| format!("cannot read {}: {e}", root.display()))?;
     for entry in entries {
         let entry = entry.map_err(|e| format!("cannot read {}: {e}", root.display()))?;
         let path = entry.path();
@@ -637,8 +642,11 @@ fn inspect_folder(app: tauri::AppHandle, root: String) -> Result<FolderScan, Str
         return Err(format!("{root} is not a directory"));
     }
 
-    let existing_ids: std::collections::HashSet<String> =
-        read_workspace(&app)?.projects.iter().map(|p| p.id.clone()).collect();
+    let existing_ids: std::collections::HashSet<String> = read_workspace(&app)?
+        .projects
+        .iter()
+        .map(|p| p.id.clone())
+        .collect();
 
     let subrepos = list_subdirs(root_path)?
         .into_iter()
@@ -680,11 +688,17 @@ fn import_many(app: tauri::AppHandle, roots: Vec<String>) -> Result<ImportResult
                 Err(e) => errors.push(format!("{root}: {e}")),
             }
         }
-        ws.projects.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        ws.projects
+            .sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
         Ok(())
     })?;
 
-    Ok(ImportResult { found: roots.len(), added, already_present, errors })
+    Ok(ImportResult {
+        found: roots.len(),
+        added,
+        already_present,
+        errors,
+    })
 }
 
 /// One project's settings, for the dialog to render.
@@ -879,7 +893,11 @@ fn repo_dir_name(url: &str) -> Option<String> {
     let trimmed = url.trim_end_matches('/');
     let last = trimmed.rsplit(['/', ':']).next()?;
     let name = last.strip_suffix(".git").unwrap_or(last);
-    if name.is_empty() { None } else { Some(name.to_string()) }
+    if name.is_empty() {
+        None
+    } else {
+        Some(name.to_string())
+    }
 }
 
 /// Clone a repository into the cache directory and add it as a project.
@@ -902,7 +920,8 @@ fn repo_dir_name(url: &str) -> Option<String> {
 /// that was already imported should not be an error.
 #[tauri::command]
 async fn import_from_url(app: tauri::AppHandle, url: String) -> Result<Vec<Project>, String> {
-    let name = repo_dir_name(&url).ok_or_else(|| format!("could not derive a folder name from {url}"))?;
+    let name =
+        repo_dir_name(&url).ok_or_else(|| format!("could not derive a folder name from {url}"))?;
     let dest = repos_cache_dir(&app)?.join(&name);
 
     if dest.is_dir() {
@@ -931,7 +950,10 @@ async fn import_from_url(app: tauri::AppHandle, url: String) -> Result<Vec<Proje
         // every retry after a failure would hit "directory already exists"
         // instead of trying again.
         let _ = fs::remove_dir_all(&dest_for_cleanup);
-        return Err(format!("git clone failed: {}", String::from_utf8_lossy(&out.stderr).trim()));
+        return Err(format!(
+            "git clone failed: {}",
+            String::from_utf8_lossy(&out.stderr).trim()
+        ));
     }
 
     add_project(app, portable(&dest))
@@ -1031,7 +1053,10 @@ async fn list_github_repos() -> github::RepoList {
 /// `map_dir` is optional because the caller does not always have one: a
 /// folder being previewed is not a `Project` yet.
 #[tauri::command]
-fn scan_languages(root: String, map_dir: Option<String>) -> Result<languages::LanguageScan, String> {
+fn scan_languages(
+    root: String,
+    map_dir: Option<String>,
+) -> Result<languages::LanguageScan, String> {
     languages::scan(Path::new(&root), map_dir.as_deref().map(Path::new))
 }
 
@@ -1098,7 +1123,10 @@ fn engine_sidecar<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Option<std::p
 /// build that bundled the engine without grammars is a real, supported
 /// case: parser-less fidelity, exactly like an unconfigured `grammars`
 /// today).
-fn resolve_grammars<R: tauri::Runtime>(app: &tauri::AppHandle<R>, configured: Option<String>) -> Option<String> {
+fn resolve_grammars<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    configured: Option<String>,
+) -> Option<String> {
     if let Some(g) = configured {
         if Path::new(&g).is_dir() {
             return Some(g);
@@ -1229,7 +1257,12 @@ fn engine_info(app: tauri::AppHandle) -> Result<EngineInfo, String> {
 
     if let Some(p) = ws.engine.clone() {
         if Path::new(&p).is_file() {
-            return Ok(EngineInfo { path: Some(p), from_path: false, bundled: false, grammars });
+            return Ok(EngineInfo {
+                path: Some(p),
+                from_path: false,
+                bundled: false,
+                grammars,
+            });
         }
         // A configured path that no longer exists is worse than none: it
         // would fail at generation time with a confusing OS error. Fall
@@ -1257,14 +1290,29 @@ fn engine_info(app: tauri::AppHandle) -> Result<EngineInfo, String> {
     // environment.
     if let Some(cmd) = engine_sidecar(&app) {
         let path = portable(Path::new(cmd.get_program()));
-        return Ok(EngineInfo { path: Some(path), from_path: false, bundled: true, grammars });
+        return Ok(EngineInfo {
+            path: Some(path),
+            from_path: false,
+            bundled: true,
+            grammars,
+        });
     }
 
     if let Some(p) = engine_on_path() {
-        return Ok(EngineInfo { path: Some(p), from_path: true, bundled: false, grammars });
+        return Ok(EngineInfo {
+            path: Some(p),
+            from_path: true,
+            bundled: false,
+            grammars,
+        });
     }
 
-    Ok(EngineInfo { path: None, from_path: true, bundled: false, grammars })
+    Ok(EngineInfo {
+        path: None,
+        from_path: true,
+        bundled: false,
+        grammars,
+    })
 }
 
 /// One language backend the engine reports.
@@ -1371,8 +1419,9 @@ fn engine_languages(app: tauri::AppHandle) -> Result<EngineLanguages, String> {
         });
     }
 
-    let value: serde_json::Value = serde_json::from_slice(&out.stdout)
-        .map_err(|e| format!("{engine} answered --capabilities with something that is not JSON: {e}"))?;
+    let value: serde_json::Value = serde_json::from_slice(&out.stdout).map_err(|e| {
+        format!("{engine} answered --capabilities with something that is not JSON: {e}")
+    })?;
 
     // Absent field and unparseable field are both "cannot be asked". A
     // partially-shaped answer is not worth guessing at -- the engine that
@@ -1421,7 +1470,11 @@ fn set_grammars(app: tauri::AppHandle, path: Option<String>) -> Result<EngineInf
 /// Look for `nvim` on `PATH`, the same way `engine_on_path` looks for the
 /// docmap engine.
 fn nvim_on_path() -> Option<String> {
-    let names: &[&str] = if cfg!(windows) { &["nvim.exe", "nvim"] } else { &["nvim"] };
+    let names: &[&str] = if cfg!(windows) {
+        &["nvim.exe", "nvim"]
+    } else {
+        &["nvim"]
+    };
     let path = std::env::var_os("PATH")?;
     for dir in std::env::split_paths(&path) {
         for name in names {
@@ -1478,7 +1531,12 @@ fn nvim_info(app: tauri::AppHandle) -> Result<NvimInfo, String> {
         _ => (default_nvim_config_dir(), true),
     };
 
-    Ok(NvimInfo { path, from_path, config_dir, config_dir_from_default })
+    Ok(NvimInfo {
+        path,
+        from_path,
+        config_dir,
+        config_dir_from_default,
+    })
 }
 
 #[tauri::command]
@@ -1553,8 +1611,7 @@ async fn import_from_nvim_config(app: tauri::AppHandle) -> Result<ImportResult, 
         "No nvim binary configured. Put it on PATH, or point at it in the sidebar.".to_string()
     })?;
     let config_dir = info.config_dir.ok_or_else(|| {
-        "No Neovim config directory configured, and none found at the default location."
-            .to_string()
+        "No Neovim config directory configured, and none found at the default location.".to_string()
     })?;
 
     // Absolute path to the script rather than a relative one plus a
@@ -1577,7 +1634,8 @@ async fn import_from_nvim_config(app: tauri::AppHandle) -> Result<ImportResult, 
             const CREATE_NO_WINDOW: u32 = 0x0800_0000;
             cmd.creation_flags(CREATE_NO_WINDOW);
         }
-        cmd.output().map_err(|e| format!("could not run {nvim_path}: {e}"))
+        cmd.output()
+            .map_err(|e| format!("could not run {nvim_path}: {e}"))
     })
     .await
     .map_err(|e| format!("import task failed: {e}"))??;
@@ -1591,9 +1649,8 @@ async fn import_from_nvim_config(app: tauri::AppHandle) -> Result<ImportResult, 
     }
 
     let stdout = String::from_utf8_lossy(&out.stdout);
-    let found: Vec<NvimProjectEntry> = serde_json::from_str(stdout.trim()).map_err(|e| {
-        format!("could not parse nvim's output as JSON: {e}\noutput was: {stdout}")
-    })?;
+    let found: Vec<NvimProjectEntry> = serde_json::from_str(stdout.trim())
+        .map_err(|e| format!("could not parse nvim's output as JSON: {e}\noutput was: {stdout}"))?;
 
     let mut added = Vec::new();
     let mut already_present = 0usize;
@@ -1607,11 +1664,17 @@ async fn import_from_nvim_config(app: tauri::AppHandle) -> Result<ImportResult, 
                 Err(e) => errors.push(format!("{}: {e}", entry.name)),
             }
         }
-        ws.projects.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        ws.projects
+            .sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
         Ok(())
     })?;
 
-    Ok(ImportResult { found: found.len(), added, already_present, errors })
+    Ok(ImportResult {
+        found: found.len(),
+        added,
+        already_present,
+        errors,
+    })
 }
 
 #[derive(Debug, Serialize)]
@@ -1927,10 +1990,7 @@ fn traffic_settings(app: tauri::AppHandle) -> Result<traffic::Survey, String> {
 /// scope (`capabilities/default.json`): the webview asks for numbers through
 /// the commands above and never gets a path it could read on its own.
 #[tauri::command]
-fn traffic_set_dir(
-    app: tauri::AppHandle,
-    path: Option<String>,
-) -> Result<traffic::Survey, String> {
+fn traffic_set_dir(app: tauri::AppHandle, path: Option<String>) -> Result<traffic::Survey, String> {
     let path = text(path);
     if let Some(ref p) = path {
         if !Path::new(p).is_dir() {
@@ -1968,7 +2028,8 @@ async fn traffic_ask_neovim(app: tauri::AppHandle) -> Result<traffic::Survey, St
             const CREATE_NO_WINDOW: u32 = 0x0800_0000;
             cmd.creation_flags(CREATE_NO_WINDOW);
         }
-        cmd.output().map_err(|e| format!("could not run {nvim}: {e}"))
+        cmd.output()
+            .map_err(|e| format!("could not run {nvim}: {e}"))
     })
     .await
     .map_err(|e| format!("traffic task failed: {e}"))??;
@@ -2112,7 +2173,8 @@ async fn set_telemetry(
             const CREATE_NO_WINDOW: u32 = 0x0800_0000;
             cmd.creation_flags(CREATE_NO_WINDOW);
         }
-        cmd.output().map_err(|e| format!("could not run {nvim}: {e}"))
+        cmd.output()
+            .map_err(|e| format!("could not run {nvim}: {e}"))
     })
     .await
     .map_err(|e| format!("telemetry task failed: {e}"))??;
@@ -2198,7 +2260,11 @@ fn editor_command(app: tauri::AppHandle, set: Option<String>) -> Result<Option<S
     if let Some(value) = set {
         let trimmed = value.trim().to_string();
         return with_workspace(&app, |ws| {
-            ws.editor = if trimmed.is_empty() { None } else { Some(trimmed.clone()) };
+            ws.editor = if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.clone())
+            };
             Ok(ws.editor.clone())
         });
     }
@@ -2262,8 +2328,8 @@ fn switch_workspace(app: tauri::AppHandle, name: String) -> Result<Vec<Project>,
     settings.active = Some(clean.clone());
     settings.projects = Vec::new();
     let path = workspace_path(&app)?;
-    let body = serde_json::to_string_pretty(&settings)
-        .map_err(|e| format!("cannot serialise: {e}"))?;
+    let body =
+        serde_json::to_string_pretty(&settings).map_err(|e| format!("cannot serialise: {e}"))?;
     fs::write(&path, body).map_err(|e| format!("cannot write {}: {e}", path.display()))?;
 
     // A workspace that has never been written yet is an empty one, and an
@@ -2298,8 +2364,8 @@ fn rename_workspace(app: tauri::AppHandle, from: String, to: String) -> Result<(
     }
     settings.projects = Vec::new();
     let path = workspace_path(&app)?;
-    let body = serde_json::to_string_pretty(&settings)
-        .map_err(|e| format!("cannot serialise: {e}"))?;
+    let body =
+        serde_json::to_string_pretty(&settings).map_err(|e| format!("cannot serialise: {e}"))?;
     fs::write(&path, body).map_err(|e| format!("cannot write {}: {e}", path.display()))
 }
 
@@ -2329,8 +2395,8 @@ fn delete_workspace(app: tauri::AppHandle, name: String) -> Result<Vec<Workspace
     }
     settings.projects = Vec::new();
     let settings_path = workspace_path(&app)?;
-    let body = serde_json::to_string_pretty(&settings)
-        .map_err(|e| format!("cannot serialise: {e}"))?;
+    let body =
+        serde_json::to_string_pretty(&settings).map_err(|e| format!("cannot serialise: {e}"))?;
     fs::write(&settings_path, body)
         .map_err(|e| format!("cannot write {}: {e}", settings_path.display()))?;
 
@@ -2724,8 +2790,14 @@ mod tests {
     // genuinely types into the dialog.
     #[test]
     fn a_typed_path_is_normalised_to_what_the_engine_matches_on() {
-        assert_eq!(rel_path(Some("  docs\\map  ".into())), Some("docs/map".into()));
-        assert_eq!(rel_path(Some("./docs/map/".into())), Some("docs/map".into()));
+        assert_eq!(
+            rel_path(Some("  docs\\map  ".into())),
+            Some("docs/map".into())
+        );
+        assert_eq!(
+            rel_path(Some("./docs/map/".into())),
+            Some("docs/map".into())
+        );
         assert_eq!(rel_path(Some("/docs/map".into())), Some("docs/map".into()));
     }
 
@@ -2768,13 +2840,8 @@ mod tests {
         // checked against a deliberately wrong path to prove the probe
         // discriminates -- which is a reason to fix it in one place rather
         // than a reason to leave it in thirteen.
-        let ugly = std::path::PathBuf::from(
-            r"\\?\C:\Program Files\docmap-desktop\grammars",
-        );
-        assert_eq!(
-            portable(&ugly),
-            "C:/Program Files/docmap-desktop/grammars"
-        );
+        let ugly = std::path::PathBuf::from(r"\\?\C:\Program Files\docmap-desktop\grammars");
+        assert_eq!(portable(&ugly), "C:/Program Files/docmap-desktop/grammars");
 
         // An ordinary path is only slash-normalised, and a path that never
         // had the prefix must not lose leading characters to the trim.
@@ -2869,7 +2936,10 @@ mod tests {
         let mut ws = Workspace::default();
 
         let added = add_one(&mut ws, &root.to_string_lossy()).unwrap();
-        assert!(added.is_some(), "a directory not yet in the workspace is added");
+        assert!(
+            added.is_some(),
+            "a directory not yet in the workspace is added"
+        );
         assert_eq!(ws.projects.len(), 1);
         assert_eq!(ws.projects[0].id, added.unwrap().id);
     }
@@ -2971,7 +3041,10 @@ mod tests {
              as a real sidecar file -- see README.md, 'The engine'"
         );
         let program = sidecar.unwrap().get_program().to_os_string();
-        assert!(Path::new(&program).is_file(), "resolved sidecar path {program:?} is not a real file");
+        assert!(
+            Path::new(&program).is_file(),
+            "resolved sidecar path {program:?} is not a real file"
+        );
 
         // `resolve_grammars` goes through `app.path().resource_dir()`
         // instead, which has no equivalent `deps/`-awareness -- measured
@@ -2984,8 +3057,16 @@ mod tests {
         // for the sidecar, purely to give this assertion the same real
         // exe-relative directory a genuine run would use -- not a second,
         // separately-trusted implementation of `resolve_grammars` itself.
-        let exe_dir = std::env::current_exe().expect("current_exe").parent().unwrap().to_path_buf();
-        let real_app_dir = if exe_dir.ends_with("deps") { exe_dir.parent().unwrap().to_path_buf() } else { exe_dir };
+        let exe_dir = std::env::current_exe()
+            .expect("current_exe")
+            .parent()
+            .unwrap()
+            .to_path_buf();
+        let real_app_dir = if exe_dir.ends_with("deps") {
+            exe_dir.parent().unwrap().to_path_buf()
+        } else {
+            exe_dir
+        };
         let dir = real_app_dir.join("grammars");
         assert!(
             dir.is_dir(),
@@ -3001,6 +3082,9 @@ mod tests {
         // override -- the code path an actual `set_grammars` call takes,
         // fully exercisable without the `deps/` detour at all.
         let via_configured = resolve_grammars(handle, Some(portable(&dir)));
-        assert!(via_configured.is_some(), "resolve_grammars did not accept a real, existing configured dir");
+        assert!(
+            via_configured.is_some(),
+            "resolve_grammars did not accept a real, existing configured dir"
+        );
     }
 }

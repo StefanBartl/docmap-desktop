@@ -171,11 +171,7 @@ pub fn check(root: &Path, map_dir: &Path) -> Result<Freshness, String> {
     Ok(Freshness {
         has_map: true,
         stale,
-        newest: newest.and_then(|(_, p)| {
-            p.strip_prefix(root)
-                .ok()
-                .map(|r| crate::portable(&r))
-        }),
+        newest: newest.and_then(|(_, p)| p.strip_prefix(root).ok().map(|r| crate::portable(&r))),
         behind_secs,
         truncated,
         generated_secs,

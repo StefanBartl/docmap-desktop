@@ -171,7 +171,11 @@ pub fn find(root: &Path) -> Option<PathBuf> {
 
     // 5: iOS. The appiconset is a directory of sizes with a JSON index; the
     // largest file in it is the one worth showing.
-    for assets in ["Assets.xcassets", "ios/Assets.xcassets", "Resources/Assets.xcassets"] {
+    for assets in [
+        "Assets.xcassets",
+        "ios/Assets.xcassets",
+        "Resources/Assets.xcassets",
+    ] {
         let dir = root.join(assets).join("AppIcon.appiconset");
         if dir.is_dir() {
             if let Some(p) = largest_png(&dir) {
@@ -274,7 +278,10 @@ mod tests {
     #[test]
     fn an_android_launcher_icon_is_found() {
         let root = tmp("android");
-        write(&root.join("app/src/main/res/mipmap-mdpi/ic_launcher.png"), b"s");
+        write(
+            &root.join("app/src/main/res/mipmap-mdpi/ic_launcher.png"),
+            b"s",
+        );
         write(
             &root.join("app/src/main/res/mipmap-xxxhdpi/ic_launcher.png"),
             b"much-larger-file",
