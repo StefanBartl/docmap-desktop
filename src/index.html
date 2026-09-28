@@ -81,6 +81,15 @@
              with textContent — every string here can come from a file. -->
         <p id="proj-traffic" class="meta traffic" hidden></p>
         <p id="proj-traffic-age" class="meta traffic-age" hidden></p>
+        <button
+          id="proj-traffic-detail"
+          class="addbox-secondary traffic-detail-open"
+          type="button"
+          hidden
+          data-i18n="traffic.detail.open"
+        >
+          Traffic details…
+        </button>
       </div>
 
       <p id="empty" class="empty" data-i18n="sidebar.empty" hidden>
@@ -436,6 +445,51 @@
       </div>
       <p id="matrix-empty" class="addbox-note" hidden data-i18n="deps.matrix.empty">
         No cross-project dependencies to show yet.
+      </p>
+    </dialog>
+
+    <!-- One project's GitHub traffic, over the whole span the digest keeps
+         (not GitHub's own 14 days) -- reached from the sidebar line, on a
+         project that has one. Hand-rolled SVG, same reasoning as the
+         dependency matrix: this app ships no charting library. -->
+    <dialog id="trafficbox" class="addbox trafficbox">
+      <form method="dialog" class="addbox-close-form">
+        <button class="addbox-x" value="cancel" aria-label="Close">&times;</button>
+      </form>
+
+      <h2 class="addbox-title" data-i18n="traffic.detail.title">GitHub traffic</h2>
+      <p id="traffic-detail-span" class="addbox-note"></p>
+
+      <div id="traffic-spark-views-block" class="traffic-spark-block" hidden>
+        <h3 data-i18n="traffic.detail.views">Views</h3>
+        <svg
+          id="traffic-spark-views"
+          class="traffic-spark"
+          viewBox="0 0 600 90"
+          preserveAspectRatio="none"
+        ></svg>
+      </div>
+
+      <div id="traffic-spark-clones-block" class="traffic-spark-block" hidden>
+        <h3 data-i18n="traffic.detail.clones">Clones</h3>
+        <svg
+          id="traffic-spark-clones"
+          class="traffic-spark"
+          viewBox="0 0 600 90"
+          preserveAspectRatio="none"
+        ></svg>
+      </div>
+
+      <h3 data-i18n="traffic.detail.referrers">Referrers</h3>
+      <ul id="traffic-referrers" class="ov-deps-list"></ul>
+      <p id="traffic-referrers-empty" class="addbox-note" hidden data-i18n="traffic.detail.referrers.empty">
+        No referrers yet.
+      </p>
+
+      <h3 data-i18n="traffic.detail.paths">Top 10 on GitHub</h3>
+      <ul id="traffic-paths" class="ov-deps-list"></ul>
+      <p id="traffic-paths-empty" class="addbox-note" hidden data-i18n="traffic.detail.paths.empty">
+        Nothing yet.
       </p>
     </dialog>
 

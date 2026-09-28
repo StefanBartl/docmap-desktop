@@ -138,6 +138,12 @@ pub struct PathItem {
     pub title: Option<String>,
     pub count: Count,
     pub uniques: Count,
+    /// `path` resolved to a project-relative file, by [`resolve_page_path`] —
+    /// `skip_deserializing` because this is never the digest's own claim:
+    /// the file is untrusted text, and this field exists to hold what *this*
+    /// process verified, not what it was told.
+    #[serde(skip_deserializing, default)]
+    pub project_path: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
@@ -816,6 +822,57 @@ pub fn detail(repo: Option<&str>, hidden: bool, sources: &Sources) -> Option<Dig
     }
 }
 
+/// A "top pages" entry's GitHub path (`/owner/repo/blob/<ref>/<file>`)
+/// resolved to a path relative to the project root — `None` if it cannot be
+/// trusted to stay inside the project. The frontend hands the result straight
+/// to `open_in_editor`, which repeats the same canonicalize-then-contain
+/// check on its own; this one exists so a badge is offered only when that
+/// later check would actually succeed, not to replace it.
+///
+/// The `<ref>` component is assumed to carry no `/` of its own — a branch
+/// name that does leaves the entry unresolved rather than guessed at, which
+/// is the safe failure here: the row stays plain text instead of jumping
+/// somewhere wrong.
+pub fn resolve_page_path(
+    github_path: &str,
+    digest_repo: &str,
+    project_root: &Path,
+) -> Option<String> {
+    if digest_repo.is_empty() {
+        return None;
+    }
+    let prefix = format!("/{digest_repo}/blob/");
+    let rest = github_path.strip_prefix(&prefix)?;
+    let (_branch, file_path) = rest.split_once('/')?;
+    // Pre-validated before it ever touches the filesystem: a `..`, a
+    // backslash, a leading `/` or a drive letter each mean something
+    // different than "a repo-relative path" to `Path::join`, which is
+    // exactly the gap `fs::canonicalize` closes below for everything else.
+    if file_path.is_empty()
+        || file_path.contains("..")
+        || file_path.contains('\\')
+        || file_path.starts_with('/')
+        || has_drive_letter(file_path)
+    {
+        return None;
+    }
+    let root = fs::canonicalize(project_root).ok()?;
+    let target = fs::canonicalize(root.join(file_path)).ok()?;
+    if !target.starts_with(&root) {
+        return None;
+    }
+    Some(file_path.to_string())
+}
+
+/// `C:`-style prefix at the front of a path some other file supplied. Not a
+/// Windows-only concern: a digest can be read on any OS the plugin wrote it
+/// on, and `Path::join` treats a "prefix but no root" component as license to
+/// replace the base it was joined onto, on the platform that recognises one.
+fn has_drive_letter(s: &str) -> bool {
+    let mut chars = s.chars();
+    matches!(chars.next(), Some(c) if c.is_ascii_alphabetic()) && chars.next() == Some(':')
+}
+
 /// One project's row for the project list: the numbers the sort order and the
 /// column need, nothing else.
 #[derive(Debug, Clone, Serialize)]
@@ -1389,6 +1446,74 @@ mod tests {
         assert_eq!(d.daily.clones.len(), 1);
         assert!(detail(Some("owner/beta"), false, &sources_for(&root)).is_none());
         assert!(detail(None, false, &sources_for(&root)).is_none());
+    }
+
+    // ------------------------------------------------- resolving top pages
+
+    #[test]
+    fn a_top_page_resolves_to_a_project_relative_path() {
+        let root = tmp("resolve-ok");
+        write(&root.join("docs/X.md"), "content");
+        assert_eq!(
+            resolve_page_path("/owner/alpha/blob/main/docs/X.md", "owner/alpha", &root),
+            Some("docs/X.md".to_string())
+        );
+        // A branch name is one path segment, not zero: nothing after `blob/`
+        // but the branch itself is not a file either.
+        assert_eq!(
+            resolve_page_path("/owner/alpha/blob/main", "owner/alpha", &root),
+            None
+        );
+    }
+
+    #[test]
+    fn a_top_page_path_cannot_leave_the_project() {
+        let root = tmp("resolve-traversal");
+        write(&root.join("docs/X.md"), "content");
+        write(&root.join("../resolve-traversal-secret.txt"), "secret");
+
+        for (name, github_path) in [
+            (
+                "dot-dot",
+                "/owner/alpha/blob/main/../resolve-traversal-secret.txt",
+            ),
+            ("dot-dot-backslash", "/owner/alpha/blob/main/..\\secret.txt"),
+            ("drive-relative", "/owner/alpha/blob/main/C:evil.txt"),
+            (
+                "drive-absolute-backslash",
+                "/owner/alpha/blob/main/C:\\evil.txt",
+            ),
+            // A double slash after the branch is what makes the *file* part
+            // itself rooted, as opposed to the whole GitHub path (which is
+            // always rooted).
+            ("leading-slash", "/owner/alpha/blob/main//etc/passwd"),
+            // Never decoded, so this is just a literal, nonexistent
+            // directory name — rejected by not resolving, same as any other
+            // entry that does not exist, not by special-casing `%2e%2e`.
+            (
+                "url-encoded-dot-dot",
+                "/owner/alpha/blob/main/%2e%2e/docs/X.md",
+            ),
+            ("no-file-after-branch", "/owner/alpha/blob/main/"),
+            ("does-not-exist", "/owner/alpha/blob/main/docs/missing.md"),
+            ("wrong-repo", "/owner/beta/blob/main/docs/X.md"),
+        ] {
+            assert_eq!(
+                resolve_page_path(github_path, "owner/alpha", &root),
+                None,
+                "{name}: {github_path}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_top_page_with_no_repo_to_match_against_is_unresolved() {
+        let root = tmp("resolve-no-repo");
+        write(&root.join("docs/X.md"), "content");
+        assert_eq!(
+            resolve_page_path("/owner/alpha/blob/main/docs/X.md", "", &root),
+            None
+        );
     }
 
     // ----------------------------------------------------------- discovery

@@ -1929,6 +1929,11 @@ async fn traffic_info(app: tauri::AppHandle, id: String) -> Result<traffic::Info
 
 /// The whole digest of one project, for the detail dialog: the daily series,
 /// referrers and paths. `None` unless there is a readable one.
+///
+/// Each `paths` entry's `project_path` is resolved here, against this
+/// project's own root — the one piece `traffic::detail` cannot do on its
+/// own, since it only knows where the *digest* lives, never where the
+/// repository it describes was checked out.
 #[tauri::command]
 async fn traffic_detail(
     app: tauri::AppHandle,
@@ -1941,7 +1946,18 @@ async fn traffic_detail(
 
     tauri::async_runtime::spawn_blocking(move || {
         let repo = traffic_repo(&root, repo_url.as_deref(), hidden);
-        traffic::detail(repo.as_deref(), hidden, &sources)
+        let mut digest = traffic::detail(repo.as_deref(), hidden, &sources);
+        if let Some(d) = digest.as_mut() {
+            let digest_repo = d.repo.clone();
+            if let Some(paths) = d.paths.as_mut() {
+                let project_root = Path::new(&root);
+                for item in paths.iter_mut() {
+                    item.project_path =
+                        traffic::resolve_page_path(&item.path, &digest_repo, project_root);
+                }
+            }
+        }
+        digest
     })
     .await
     .map_err(|e| format!("traffic task failed: {e}"))

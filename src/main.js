@@ -32,6 +32,7 @@ import {
   hasNumbers,
   isStale,
   ageInDays,
+  sparklinePoints,
 } from "./lib/traffic.js";
 import {
   scanLanguages,
@@ -87,6 +88,7 @@ const els = {
   stale: document.getElementById("proj-stale"),
   traffic: document.getElementById("proj-traffic"),
   trafficAge: document.getElementById("proj-traffic-age"),
+  trafficDetailOpen: document.getElementById("proj-traffic-detail"),
   empty: document.getElementById("empty"),
   add: document.getElementById("add"),
   status: document.getElementById("status"),
@@ -2662,6 +2664,7 @@ function trafficDay(iso) {
 async function renderTraffic(p) {
   els.traffic.hidden = true;
   els.trafficAge.hidden = true;
+  els.trafficDetailOpen.hidden = true;
   els.traffic.textContent = "";
   els.trafficAge.textContent = "";
   els.traffic.removeAttribute("title");
@@ -2703,6 +2706,7 @@ async function renderTraffic(p) {
     trend: tr.text || "–",
   });
   els.traffic.hidden = false;
+  els.trafficDetailOpen.hidden = false;
 
   // How old the data is, and a plain statement when it is old: a number that
   // is three weeks stale and looks current is the one way this line can lie.
@@ -2849,6 +2853,143 @@ trafficUi.show.addEventListener("change", async () => {
   }
 });
 
+// ---------------------------------------------------------------------
+// The traffic detail dialog
+//
+// The whole digest for one project: a sparkline per series over the *whole*
+// stored span (github_stats.nvim keeps well past GitHub's own 14 days — that
+// is the reason this dialog exists rather than just a wider sidebar line),
+// referrers, and the top pages GitHub reported. Reached from the sidebar
+// line, on a project that has one.
+//
+// Same reasoning as the dependency matrix for the chart: no charting
+// library, a hand-rolled `<svg>`. Same reasoning as the rest of this section
+// for the lists: a referrer or a page title is text from outside, so every
+// row is built with `textContent`, never `innerHTML`.
+// ---------------------------------------------------------------------
+
+const trafficBox = {
+  el: document.getElementById("trafficbox"),
+  span: document.getElementById("traffic-detail-span"),
+  viewsBlock: document.getElementById("traffic-spark-views-block"),
+  views: document.getElementById("traffic-spark-views"),
+  clonesBlock: document.getElementById("traffic-spark-clones-block"),
+  clones: document.getElementById("traffic-spark-clones"),
+  referrers: document.getElementById("traffic-referrers"),
+  referrersEmpty: document.getElementById("traffic-referrers-empty"),
+  paths: document.getElementById("traffic-paths"),
+  pathsEmpty: document.getElementById("traffic-paths-empty"),
+};
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+/** One series' polyline, over its own peak. `false` (nothing drawn) when
+    there are fewer than two points to describe a line. */
+function buildSparkline(svg, daily) {
+  svg.replaceChildren();
+  const box = svg.viewBox.baseVal;
+  const points = sparklinePoints(daily, box.width, box.height);
+  if (!points.length) return false;
+  const poly = document.createElementNS(SVG_NS, "polyline");
+  poly.setAttribute("class", "traffic-spark-line");
+  poly.setAttribute("points", points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" "));
+  svg.append(poly);
+  return true;
+}
+
+/** A plain row: a name and its two counts. Never a link — a referrer is
+    whatever a website sent, never a place this app opens anything. */
+function renderTrafficReferrers(list) {
+  trafficBox.referrers.replaceChildren();
+  const rows = Array.isArray(list) ? list : [];
+  trafficBox.referrersEmpty.hidden = rows.length > 0;
+  const nf = new Intl.NumberFormat(locale);
+  for (const r of rows) {
+    const li = document.createElement("li");
+    const name = document.createElement("span");
+    name.className = "ov-deps-name";
+    name.textContent = r.referrer;
+    const who = document.createElement("span");
+    who.className = "ov-deps-who";
+    who.textContent = fill(t("traffic.detail.count"), {
+      count: nf.format(r.count ?? 0),
+      uniques: nf.format(r.uniques ?? 0),
+    });
+    li.append(name, who);
+    trafficBox.referrers.append(li);
+  }
+}
+
+/**
+ * A top-page row — a link to the file, but only for the entries the Rust
+ * side resolved (`project_path`): a raw GitHub path is untrusted text, and
+ * `traffic_detail` already did the one check that decides whether this row
+ * may jump anywhere. Everything else stays a plain row, same as a referrer.
+ */
+function renderTrafficPaths(list, id) {
+  trafficBox.paths.replaceChildren();
+  const rows = Array.isArray(list) ? list : [];
+  trafficBox.pathsEmpty.hidden = rows.length > 0;
+  const nf = new Intl.NumberFormat(locale);
+  for (const p of rows) {
+    const li = document.createElement("li");
+    const name = document.createElement("span");
+    name.className = "ov-deps-name";
+    name.textContent = p.title || p.path;
+    const who = document.createElement("span");
+    who.className = "ov-deps-who";
+    who.textContent = fill(t("traffic.detail.count"), {
+      count: nf.format(p.count ?? 0),
+      uniques: nf.format(p.uniques ?? 0),
+    });
+    li.append(name, who);
+    if (p.project_path) {
+      li.classList.add("traffic-path-open");
+      li.title = t("traffic.detail.openFile");
+      li.addEventListener("click", () => {
+        invoke("open_in_editor", { id, path: p.project_path, line: null }).catch((err) =>
+          say(String(err))
+        );
+      });
+    }
+    trafficBox.paths.append(li);
+  }
+}
+
+/** Fill the dialog from one project's whole digest. */
+function renderTrafficDetail(d, id) {
+  trafficBox.span.textContent = d.span
+    ? fill(t("traffic.detail.span"), {
+        from: trafficDay(d.span.from) ?? d.span.from,
+        to: trafficDay(d.span.to) ?? d.span.to,
+      })
+    : "";
+
+  trafficBox.viewsBlock.hidden = !buildSparkline(trafficBox.views, d.daily?.views);
+  trafficBox.clonesBlock.hidden = !buildSparkline(trafficBox.clones, d.daily?.clones);
+  renderTrafficReferrers(d.referrers);
+  renderTrafficPaths(d.paths, id);
+}
+
+document.getElementById("proj-traffic-detail").addEventListener("click", async () => {
+  const id = selectedId;
+  if (!id) return;
+  try {
+    const d = await invoke("traffic_detail", { id });
+    // The answer can arrive after the selection moved on — same guard as
+    // `renderTraffic`, so a slow read never shows one project's traffic
+    // under another's name.
+    if (selectedId !== id) return;
+    if (!d) {
+      say(t("traffic.detail.none"));
+      return;
+    }
+    renderTrafficDetail(d, id);
+    trafficBox.el.showModal();
+  } catch (e) {
+    say(String(e));
+  }
+});
 
 // =====================================================================
 // Asking the map a question

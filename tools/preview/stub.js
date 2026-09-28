@@ -126,6 +126,55 @@ const trafficEntry = (id) => {
     fetched: s ? s.fetched : null
   };
 };
+// The detail dialog. Shapes are `traffic.rs`'s `Digest` verbatim -- unlike
+// `Summary` above, `Digest`/`PathItem`/`Referrer` carry no `rename_all`, so
+// every field here is the Rust name as-is (snake_case where it has one,
+// `project_path` included). Two things worth previewing on purpose: a
+// referrer name that looks like a markup injection (must render as inert
+// text, never parsed), and a `paths` entry with `project_path: null` next
+// to ones that resolved, so an unclickable row is visibly different from a
+// clickable one.
+const dailySeries = (days, base, amplitude) =>
+  Array.from({ length: days }, (_, i) => {
+    const iso = new Date(Date.now() - (days - 1 - i) * 86400000).toISOString().slice(0, 10);
+    const v = Math.max(0, Math.round(base + amplitude * Math.sin(i / 6) + (i % 5) * 4));
+    return [iso, v, Math.ceil(v * 0.6)];
+  });
+const TRAFFIC_DETAIL = {
+  p1: {
+    schema: 1,
+    repo: "StefanBartl/documentation.nvim",
+    generated: daysAgo(1),
+    fetched: daysAgo(1),
+    span: { from: "2026-06-29", to: "2026-09-23" },
+    views: metric(41, 210, 655, 12.5),
+    clones: metric(19, 88, 300, -3),
+    daily: { views: dailySeries(87, 8, 30), clones: dailySeries(87, 3, 10) },
+    referrers: [
+      { referrer: "github.com", count: 120, uniques: 95 },
+      { referrer: "google.com", count: 44, uniques: 40 },
+      { referrer: "<img src=x onerror=alert(1)>", count: 3, uniques: 2 },
+    ],
+    paths: [
+      { path: "/StefanBartl/documentation.nvim/blob/main/README.md", title: "README.md", count: 300, uniques: 210, project_path: "README.md" },
+      { path: "/StefanBartl/documentation.nvim/blob/main/docs/USAGE.md", title: "docs/USAGE.md", count: 120, uniques: 88, project_path: "docs/USAGE.md" },
+      { path: "/StefanBartl/documentation.nvim/blob/main/docs/deleted.md", title: "docs/deleted.md", count: 12, uniques: 9, project_path: null },
+    ],
+  },
+  p3: {
+    schema: 1,
+    repo: "StefanBartl/lib.nvim",
+    generated: daysAgo(9),
+    fetched: daysAgo(9),
+    span: { from: "2026-07-10", to: "2026-09-15" },
+    views: metric(2, 17, 60, null),
+    clones: metric(0, 4, 21, null),
+    daily: { views: dailySeries(67, 1, 3), clones: [] },
+    referrers: [],
+    paths: null,
+  },
+};
+
 const SURVEY = {
   explicit: null, asked: null, defaultDir: "C:/Users/bartl/AppData/Local/nvim-data/github_stats.nvim",
   attempts: [{ via: "root", dir: "C:/Users/bartl/AppData/Local/nvim-data/github_stats.nvim", ok: true, reason: null }],
@@ -135,6 +184,7 @@ const SURVEY = {
 const R = {
   traffic_info: (a) => TRAFFIC[a.id] || { status: "no_remote", repo: null, message: null, summary: null, dir: null, via: null },
   traffic_list: (a) => (a.ids || []).map(trafficEntry),
+  traffic_detail: (a) => TRAFFIC_DETAIL[a.id] || null,
   traffic_settings: () => SURVEY,
   traffic_set_dir: (a) => ({ ...SURVEY, explicit: a.path || null }),
   traffic_ask_neovim: () => SURVEY,

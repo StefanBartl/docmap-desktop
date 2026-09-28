@@ -142,6 +142,33 @@ export function compareTraffic(a, b) {
 }
 
 /**
+ * Points for a sparkline `<polyline>`, normalized into a `width`×`height`
+ * box. Scaled to the series' *own* peak, not an absolute or cross-project
+ * scale — this view is never comparing one project with another.
+ *
+ * `daily` is oldest first, exactly as the digest stores it (`[date, count,
+ * uniques]`). Fewer than two points cannot describe a line and get none,
+ * and a series whose peak is 0 is still drawn, flat along the bottom: a
+ * chart that vanished would read as "no data", but this *is* the data.
+ *
+ * @param {Array<[string, number, number]>} daily
+ * @param {number} width
+ * @param {number} height
+ * @returns {{x:number, y:number}[]}
+ */
+export function sparklinePoints(daily, width, height) {
+  const days = Array.isArray(daily) ? daily : [];
+  if (days.length < 2) return [];
+  const values = days.map((d) => (Number.isFinite(d[1]) ? d[1] : 0));
+  const max = Math.max(...values, 0);
+  const last = days.length - 1;
+  return values.map((v, i) => ({
+    x: (i / last) * width,
+    y: max > 0 ? height - (v / max) * height : height,
+  }));
+}
+
+/**
  * A link to a repository on GitHub, or `null`.
  *
  * Built from a validated `owner/name` and always `https://github.com/…`, never
