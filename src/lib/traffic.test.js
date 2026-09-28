@@ -220,3 +220,37 @@ test("the traffic commands the window calls are the ones the backend registers",
     assert.match(rust, new RegExp(`\\b${name},`), `${name} is called but not registered in generate_handler!`);
   }
 });
+
+// ---------------------------------------------------------------- overview
+
+test("the overview shows a figure only for a project that has numbers", () => {
+  const start = MAIN.indexOf("async function fillOverviewTraffic");
+  assert.ok(start > 0, "fillOverviewTraffic should exist");
+  const body = MAIN.slice(start, MAIN.indexOf("\n}\n", start));
+  // The gate is the same predicate the sort uses, so "has numbers" means one
+  // thing in both places, and no remote / no plugin / not tracked add nothing.
+  assert.match(body, /!hasNumbers\(entry\)\) continue/);
+  assert.doesNotMatch(body, /\.innerHTML\s*=/);
+});
+
+test("the overview's traffic keys exist in both shipped locales, translated", async () => {
+  const { t, setLocale } = await import("./i18n.js");
+  for (const key of ["ov.traffic", "ov.trafficTitle"]) {
+    const seen = {};
+    for (const code of ["en", "de"]) {
+      setLocale(code);
+      seen[code] = t(key);
+      assert.ok(seen[code] && seen[code] !== key, `${key} is missing from ${code}`);
+    }
+    assert.notEqual(seen.en, seen.de, `${key} was not translated`);
+  }
+  setLocale("en");
+});
+
+test("a row without a figure keeps the layout it always had", () => {
+  const css = readFileSync(here + "../style.css", "utf8");
+  // The extra grid area exists only under the modifier class.
+  assert.match(css, /\.ov-open\.has-traffic\s*\{[^}]*"state traffic"/);
+  const base = css.slice(css.indexOf(".ov-open {"), css.indexOf("}", css.indexOf(".ov-open {")));
+  assert.doesNotMatch(base, /traffic/, "the base row must not know about traffic");
+});

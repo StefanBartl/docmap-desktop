@@ -25,6 +25,10 @@ distinct visitors, and is never called visitors.
 - **Config:** `traffic_dir`, `traffic_asked_dir` in `workspace.json`; per project `traffic_hidden`
 - **Docs:** [USAGE.md](../USAGE.md#github-traffic)
 
+A row on the **All projects** overview carries the 30-day views figure too, where
+there is one; a row without numbers is untouched, and the overview's own order —
+by what needs doing — does not change.
+
 ## The fifth sort order — most traffic
 
 **Most traffic** puts the projects with the most views in the last 30 days first,
