@@ -24,6 +24,9 @@ Lua. The format reads Markdown, not a language.
   entity lives.
 - **[SETTINGS](SETTINGS.md)** — global and per-project settings, and where
   everything is stored.
+- **[TRAFFIC](TRAFFIC.md)** — GitHub traffic from `github_stats.nvim`'s digest: the
+  sidebar line, the fifth sort order, how the digest is found, and how a file
+  that is not yours is read.
 - **[DESKTOP](DESKTOP.md)** — the parts that make it a desktop program rather
   than a page: menu bar, keyboard and mouse behaviour, export, feedback,
   interface language.
