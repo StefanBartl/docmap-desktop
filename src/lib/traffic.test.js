@@ -14,6 +14,7 @@ import {
   hasNumbers,
   compareTraffic,
   githubUrl,
+  sparklinePoints,
 } from "./traffic.js";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
@@ -253,4 +254,110 @@ test("a row without a figure keeps the layout it always had", () => {
   assert.match(css, /\.ov-open\.has-traffic\s*\{[^}]*"state traffic"/);
   const base = css.slice(css.indexOf(".ov-open {"), css.indexOf("}", css.indexOf(".ov-open {")));
   assert.doesNotMatch(base, /traffic/, "the base row must not know about traffic");
+});
+
+// ------------------------------------------------------------- sparkline
+
+test("a sparkline needs at least two points to describe a line", () => {
+  assert.deepEqual(sparklinePoints([], 100, 50), []);
+  assert.deepEqual(sparklinePoints([["2026-09-01", 5, 2]], 100, 50), []);
+  assert.deepEqual(sparklinePoints(undefined, 100, 50), []);
+});
+
+test("a sparkline is scaled to its own peak, oldest point first", () => {
+  const daily = [
+    ["2026-09-01", 0, 0],
+    ["2026-09-02", 10, 5],
+    ["2026-09-03", 5, 3],
+  ];
+  const points = sparklinePoints(daily, 100, 50);
+  assert.equal(points.length, 3);
+  assert.deepEqual(points[0], { x: 0, y: 50 }, "0 sits on the baseline");
+  assert.deepEqual(points[1], { x: 50, y: 0 }, "the peak sits at the top");
+  assert.deepEqual(points[2], { x: 100, y: 25 }, "half the peak sits halfway up");
+});
+
+test("a flat series (peak 0) is drawn along the baseline, not hidden", () => {
+  const daily = [
+    ["2026-09-01", 0, 0],
+    ["2026-09-02", 0, 0],
+  ];
+  const points = sparklinePoints(daily, 100, 50);
+  assert.deepEqual(points, [
+    { x: 0, y: 50 },
+    { x: 100, y: 50 },
+  ]);
+});
+
+// --------------------------------------------------------- detail dialog
+
+test("the detail dialog's elements main.js reaches for exist in the markup", () => {
+  const ids = [...new Set([...MAIN.matchAll(/getElementById\("(traffic(?:box|-[a-z-]*))"\)/g)].map((m) => m[1]))];
+  assert.ok(ids.length >= 8, `expected the dialog's elements, found ${ids.length}`);
+  const missing = ids.filter((id) => !HTML.includes(`id="${id}"`));
+  assert.deepEqual(missing, [], `main.js reads ids the markup does not define: ${missing}`);
+});
+
+test("a referrer or a page title reaches the dialog only through textContent", () => {
+  // Same guard as the section-wide one, scoped to the two functions that
+  // build the dialog's rows — a website's referrer and a repository's own
+  // path title are both text from outside, same as every other string in
+  // this section.
+  for (const fn of ["renderTrafficReferrers", "renderTrafficPaths"]) {
+    const start = MAIN.indexOf(`function ${fn}(`);
+    assert.ok(start > 0, `${fn} should exist`);
+    const body = MAIN.slice(start, MAIN.indexOf("\n}\n", start));
+    assert.match(body, /name\.textContent = /, `${fn} must set the name via textContent`);
+    assert.doesNotMatch(body, /\.innerHTML\s*=/, `${fn} must not assign innerHTML`);
+  }
+});
+
+test("a top-page row is a link only when the Rust side resolved project_path", () => {
+  // The wire name is snake_case (`PathItem` carries no `rename_all`) — the
+  // same class of bug the file-level comment above warns about, and the one
+  // this specific assertion exists to catch: `projectPath` would read
+  // `undefined` and silently make every row unclickable.
+  const start = MAIN.indexOf("function renderTrafficPaths(");
+  const body = MAIN.slice(start, MAIN.indexOf("\n}\n", start));
+  assert.match(body, /p\.project_path/, "renderTrafficPaths must read project_path, not projectPath");
+  assert.doesNotMatch(body, /p\.projectPath/);
+});
+
+test("open_in_editor and traffic_detail are the commands the dialog calls, and both are registered", () => {
+  const rust = readFileSync(here + "../../src-tauri/src/main.rs", "utf8");
+  const start = MAIN.indexOf("// The traffic detail dialog");
+  assert.ok(start > 0, "the detail dialog's section should be marked");
+  const section = MAIN.slice(start, MAIN.indexOf("\n// ====", start));
+  for (const cmd of ["traffic_detail", "open_in_editor"]) {
+    assert.match(section, new RegExp(`invoke\\("${cmd}"`), `the dialog should call ${cmd}`);
+    assert.match(rust, new RegExp(`\\b${cmd},`), `${cmd} should be in the invoke_handler list`);
+  }
+});
+
+test("the detail dialog's keys exist in both shipped locales, translated", async () => {
+  const { t, setLocale } = await import("./i18n.js");
+  const keys = [
+    "traffic.detail.open",
+    "traffic.detail.title",
+    "traffic.detail.span",
+    "traffic.detail.views",
+    "traffic.detail.clones",
+    "traffic.detail.referrers",
+    "traffic.detail.referrers.empty",
+    "traffic.detail.paths",
+    "traffic.detail.paths.empty",
+    "traffic.detail.count",
+    "traffic.detail.openFile",
+    "traffic.detail.none",
+  ];
+  for (const key of keys) {
+    const seen = {};
+    for (const code of ["en", "de"]) {
+      setLocale(code);
+      seen[code] = t(key);
+      assert.ok(seen[code] && seen[code] !== key, `${key} is missing from ${code}`);
+    }
+    assert.notEqual(seen.en, seen.de, `${key} was not translated`);
+  }
+  setLocale("en");
 });
