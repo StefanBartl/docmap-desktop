@@ -2778,6 +2778,10 @@ async function refreshTraffic() {
     await render();
   } else {
     renderDetail();
+    // The overview's per-row chips (fillOverviewTraffic) are the other
+    // reader of trafficEntries; without this they keep showing the source
+    // that was just replaced or cleared.
+    if (!selectedId) renderOverview();
   }
 }
 
@@ -2836,7 +2840,11 @@ trafficUi.show.addEventListener("change", async () => {
     p.traffic_hidden = hidden;
     await refreshTraffic();
   } catch (e) {
-    trafficUi.show.checked = !hidden;
+    // The checkbox already flipped to `!hidden` when the user clicked it,
+    // before this handler ran. `hidden` is the pre-click state, so revert
+    // to `hidden` (not `!hidden`, which would just re-apply the failed
+    // toggle) to match `p.traffic_hidden`, which was never updated.
+    trafficUi.show.checked = hidden;
     say(String(e));
   }
 });
