@@ -29,6 +29,7 @@ import {
   windows as trafficWindows,
   lineFor as trafficLine,
   compareTraffic,
+  hasNumbers,
   isStale,
   ageInDays,
 } from "./lib/traffic.js";
@@ -869,6 +870,7 @@ async function renderOverview() {
   for (const r of rows) {
     const li = document.createElement("li");
     li.className = "ov-row " + (RANK_CLASS[r.rank] || "");
+    li.dataset.id = r.id;
 
     const btn = document.createElement("button");
     btn.type = "button";
@@ -899,8 +901,10 @@ async function renderOverview() {
 
   // After the list, and not awaited into it: the graph reads every artifact
   // in the workspace, and the ranked list is the thing worth having on
-  // screen first.
+  // screen first. The traffic figures follow for the same reason — the
+  // first ask may run `git` once per project.
   renderDeps();
+  fillOverviewTraffic();
 }
 
 /** What the row used to carry, for the selected project only. */
@@ -2609,8 +2613,8 @@ const trafficEntries = new Map();
  * One call for the whole list — the backend resolves each project's remote
  * once and remembers it, so this is cheap after the first time.
  */
-async function measureTraffic() {
-  els.sort.disabled = true;
+async function measureTraffic({ busy = true } = {}) {
+  if (busy) els.sort.disabled = true;
   try {
     const list = await invoke("traffic_list", { ids: projects.map((p) => p.id) });
     trafficEntries.clear();
@@ -2620,7 +2624,31 @@ async function measureTraffic() {
     // every project sorts as "unknown", i.e. by name.
     void e;
   } finally {
-    els.sort.disabled = false;
+    if (busy) els.sort.disabled = false;
+  }
+}
+
+/**
+ * The last-30-days figure on each row of the overview, where it has one.
+ *
+ * A chip only for a project that has numbers: no remote, no plugin and
+ * "not tracked" leave the row exactly as it was, because a `0` there would
+ * be a claim. The ranking itself is untouched — this list is ordered by what
+ * needs doing, and traffic is a fact about the project, not a task.
+ */
+async function fillOverviewTraffic() {
+  if (!trafficEntries.size) await measureTraffic({ busy: false });
+  const nf = new Intl.NumberFormat(locale);
+  for (const li of els.ovList.children) {
+    const entry = trafficEntries.get(li.dataset.id);
+    const open = li.querySelector(".ov-open");
+    if (!open || open.querySelector(".ov-traffic") || !hasNumbers(entry)) continue;
+    const chip = document.createElement("span");
+    chip.className = "ov-traffic";
+    chip.textContent = fill(t("ov.traffic"), { views: nf.format(entry.views30) });
+    chip.title = fill(t("ov.trafficTitle"), { clones: nf.format(entry.clones30 ?? 0) });
+    open.classList.add("has-traffic");
+    open.append(chip);
   }
 }
 

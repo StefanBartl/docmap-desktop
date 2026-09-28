@@ -471,6 +471,11 @@ Hover for the uniques (a sum of the daily uniques — not distinct visitors). A
 quieter line under it says **how old the data is**, and says so when it is more
 than three days old: the digest only refreshes while Neovim runs the plugin.
 
+**On the overview.** On the first screen (**All projects**) a row that has traffic
+data carries one more figure under its counts — *210 views / 30 d* — and a row
+that has none is exactly as it was. The overview's own order is unchanged: it
+ranks by what needs doing, and traffic is a fact about a project, not a task.
+
 **What it says when there is nothing to show — and what it does not say:**
 
 | Situation | What you see |
