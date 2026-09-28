@@ -399,10 +399,7 @@ mod tests {
 
     #[test]
     fn counts_by_language_and_ranks_by_count() {
-        let root = tree(
-            "rank",
-            &["a.py", "b.py", "c.py", "d.rs", "e.rs", "f.lua"],
-        );
+        let root = tree("rank", &["a.py", "b.py", "c.py", "d.rs", "e.rs", "f.lua"]);
         let scan = scan(&root, None).unwrap();
         assert_eq!(
             scan.languages,
@@ -471,10 +468,7 @@ mod tests {
         // are skipped by name, and `docs/map` by the separate path check --
         // its 1.5 MB index.html would otherwise make every mapped project
         // partly "HTML" the moment it was generated.
-        assert_eq!(
-            scan.languages,
-            vec![lc("Rust", 1, "rust")]
-        );
+        assert_eq!(scan.languages, vec![lc("Rust", 1, "rust")]);
     }
 
     #[test]
@@ -489,10 +483,7 @@ mod tests {
         let scan = scan(&root, Some(&root.join("elsewhere"))).unwrap();
         assert_eq!(
             scan.languages,
-            vec![
-                lc("HTML", 1, "html"),
-                lc("Lua", 1, "lua"),
-            ]
+            vec![lc("HTML", 1, "html"), lc("Lua", 1, "lua"),]
         );
     }
 
@@ -508,10 +499,7 @@ mod tests {
         fs::write(root.join("worktrees/copy/.git"), "gitdir: /elsewhere").unwrap();
 
         let scan = scan(&root, None).unwrap();
-        assert_eq!(
-            scan.languages,
-            vec![lc("Lua", 1, "lua")]
-        );
+        assert_eq!(scan.languages, vec![lc("Lua", 1, "lua")]);
     }
 
     #[test]

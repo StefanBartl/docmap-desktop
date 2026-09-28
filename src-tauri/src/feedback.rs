@@ -147,7 +147,10 @@ mod tests {
         // how a title ends up truncated at the first ampersand.
         assert!(u.contains("title=a%26b%3Dc%23d"), "{u}");
         assert!(u.contains("%0A"), "a newline must survive as %0A: {u}");
-        assert!(u.contains("%C3%BC"), "ü is two bytes and both are encoded: {u}");
+        assert!(
+            u.contains("%C3%BC"),
+            "ü is two bytes and both are encoded: {u}"
+        );
         assert_eq!(u.matches('#').count(), 0, "a bare # would cut the URL: {u}");
     }
 

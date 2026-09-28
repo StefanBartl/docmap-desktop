@@ -138,7 +138,13 @@ fn git_states(root: &Path, dir: &Path) -> GitStates {
     let mut cmd = std::process::Command::new("git");
     cmd.arg("-C")
         .arg(root)
-        .args(["status", "--porcelain", "--ignored=matching", "-unormal", "--"])
+        .args([
+            "status",
+            "--porcelain",
+            "--ignored=matching",
+            "-unormal",
+            "--",
+        ])
         .arg(dir);
     #[cfg(windows)]
     {
@@ -237,7 +243,10 @@ pub fn list(root: &Path, sub: &str) -> Result<Listing, String> {
     let git = git_states(&root, &dir);
 
     let mut entries = Vec::new();
-    for entry in fs::read_dir(&dir).map_err(|e| format!("cannot read {sub}: {e}"))?.flatten() {
+    for entry in fs::read_dir(&dir)
+        .map_err(|e| format!("cannot read {sub}: {e}"))?
+        .flatten()
+    {
         let ft = match entry.file_type() {
             Ok(t) => t,
             Err(_) => continue,
@@ -258,7 +267,11 @@ pub fn list(root: &Path, sub: &str) -> Result<Listing, String> {
             nested_repo: is_dir && crate::languages::is_nested_checkout(&path),
             untracked: git.dir_untracked || git.untracked.contains(&name),
             ignored: git.dir_ignored || git.ignored.contains(&name),
-            size: if is_dir { None } else { meta.as_ref().map(|m| m.len()) },
+            size: if is_dir {
+                None
+            } else {
+                meta.as_ref().map(|m| m.len())
+            },
             modified: meta.as_ref().and_then(|m| m.modified().ok()).and_then(secs),
             is_dir,
             name,
@@ -326,7 +339,10 @@ mod tests {
     }
 
     fn entry<'a>(l: &'a Listing, name: &str) -> &'a Entry {
-        l.entries.iter().find(|e| e.name == name).unwrap_or_else(|| panic!("no entry {name}"))
+        l.entries
+            .iter()
+            .find(|e| e.name == name)
+            .unwrap_or_else(|| panic!("no entry {name}"))
     }
 
     #[test]
@@ -398,7 +414,10 @@ mod tests {
 
         let mine = entry(&l, "mine");
         assert!(mine.ignored, "git ignores it");
-        assert!(!mine.skipped, "but the scan still walks it — .gitignore is not read");
+        assert!(
+            !mine.skipped,
+            "but the scan still walks it — .gitignore is not read"
+        );
 
         let nm = entry(&l, "node_modules");
         assert!(nm.skipped, "the scan skips it by its own rule");
@@ -437,7 +456,12 @@ mod tests {
         write(&root.join("Apple.lua"), b"x");
         fs::create_dir_all(root.join("src")).unwrap();
         fs::create_dir_all(root.join("Docs")).unwrap();
-        let names: Vec<String> = list(&root, "").unwrap().entries.into_iter().map(|e| e.name).collect();
+        let names: Vec<String> = list(&root, "")
+            .unwrap()
+            .entries
+            .into_iter()
+            .map(|e| e.name)
+            .collect();
         assert_eq!(names, vec!["Docs", "src", "Apple.lua", "zebra.lua"]);
     }
 
@@ -463,8 +487,20 @@ mod tests {
         write(&root.join("sub/.git"), b"gitdir: elsewhere");
         fs::create_dir_all(root.join("plain")).unwrap();
         let l = list(&root, "").unwrap();
-        assert!(l.entries.iter().find(|e| e.name == "sub").unwrap().nested_repo);
-        assert!(!l.entries.iter().find(|e| e.name == "plain").unwrap().nested_repo);
+        assert!(
+            l.entries
+                .iter()
+                .find(|e| e.name == "sub")
+                .unwrap()
+                .nested_repo
+        );
+        assert!(
+            !l.entries
+                .iter()
+                .find(|e| e.name == "plain")
+                .unwrap()
+                .nested_repo
+        );
     }
 
     #[test]
@@ -473,7 +509,10 @@ mod tests {
         write(&root.join("a.lua"), b"1234567890");
         fs::create_dir_all(root.join("d")).unwrap();
         let l = list(&root, "").unwrap();
-        assert_eq!(l.entries.iter().find(|e| e.name == "a.lua").unwrap().size, Some(10));
+        assert_eq!(
+            l.entries.iter().find(|e| e.name == "a.lua").unwrap().size,
+            Some(10)
+        );
         assert_eq!(l.entries.iter().find(|e| e.name == "d").unwrap().size, None);
     }
 

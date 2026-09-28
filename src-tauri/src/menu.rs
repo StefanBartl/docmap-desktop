@@ -25,7 +25,9 @@
 use std::collections::HashMap;
 
 use serde::Deserialize;
-use tauri::menu::{CheckMenuItemBuilder, Menu, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
+use tauri::menu::{
+    CheckMenuItemBuilder, Menu, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder,
+};
 use tauri::{AppHandle, Emitter, Runtime};
 
 /// The window state the menu has to *show*, not just act on.
@@ -133,7 +135,11 @@ const GROUPS: &[Group] = &[
         id: "menu.project",
         items: &[
             item("menu.project.generate", Some("CmdOrCtrl+G"), true),
-            item("menu.project.generate_all", Some("CmdOrCtrl+Shift+G"), false),
+            item(
+                "menu.project.generate_all",
+                Some("CmdOrCtrl+Shift+G"),
+                false,
+            ),
             item("menu.project.generate_stale", None, false),
             Node::Separator,
             // Reads, never writes — which is why it sits apart from the three
@@ -453,7 +459,10 @@ mod tests {
         // folded into Settings, and is the reason the assertion below names
         // the key rather than merely checking for an error.
         let victim = "menu.file.settings";
-        assert!(labels().contains_key(victim), "{victim} is no longer a menu label");
+        assert!(
+            labels().contains_key(victim),
+            "{victim} is no longer a menu label"
+        );
         incomplete.remove(victim);
         let err = match build(app.handle(), &incomplete, true, &state()) {
             Err(e) => e,
