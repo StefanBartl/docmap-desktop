@@ -73,10 +73,11 @@ Delete key over a list of repositories was the more frightening of the two.
 - **Keymaps:** the platform's own `<select>` behaviour; right-click opens the same per-project commands as a context menu
 - **Docs:** [USAGE.md](../USAGE.md#the-project-picker-and-how-to-sort-it)
 
-## Four sort orders, named for the question
+## Five sort orders, named for the question
 
 Each order is named for what it answers rather than the field it sorts on,
-because nobody sorts by a timestamp. The control is the same setting as
+because nobody sorts by a timestamp. The fifth, **Most traffic**, reads GitHub
+traffic (see [TRAFFIC](TRAFFIC.md)). The control is the same setting as
 **Order projects by** in Settings — changing either moves both.
 
 - **Module:** `src/main.js`

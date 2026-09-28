@@ -88,7 +88,58 @@ const SCOPES = {
   p2: { exclude: ["vendor", "third_party/grpc"], languages: ["go", "python"] }
 };
 
+// GitHub traffic. The numbers are illustrative; the *shapes* are what
+// `traffic.rs` serialises (camelCase fields, snake_case status), and the mix of
+// outcomes is the point: one project with fresh data, one whose data is old,
+// one the plugin does not track, one with an unreadable digest, one from a
+// newer plugin, and the rest with no GitHub remote — which show nothing.
+const daysAgo = (n) => new Date(Date.now() - n * 86400000).toISOString();
+const metric = (d7, d30, d90, trend) => ({
+  d7: { count: d7, uniques: Math.ceil(d7 * 0.6) },
+  d30: { count: d30, uniques: Math.ceil(d30 * 0.6) },
+  d90: { count: d90, uniques: Math.ceil(d90 * 0.6) },
+  trend
+});
+const okInfo = (repo, fetchedDaysAgo, views, clones) => ({
+  status: "ok", repo, message: null, dir: "C:/Users/bartl/AppData/Local/nvim-data/github_stats.nvim/digest",
+  via: "root",
+  summary: {
+    generated: daysAgo(fetchedDaysAgo), fetched: daysAgo(fetchedDaysAgo),
+    spanFrom: "2026-06-29", spanTo: "2026-09-23", views, clones, daysKept: 87,
+    hasReferrers: true, hasPaths: true
+  }
+});
+const TRAFFIC = {
+  p1: okInfo("StefanBartl/documentation.nvim", 1, metric(41, 210, 655, 12.5), metric(19, 88, 300, -3)),
+  p3: okInfo("StefanBartl/lib.nvim", 9, metric(2, 17, 60, null), metric(0, 4, 21, null)),
+  p4: { status: "not_tracked", repo: "StefanBartl/sandbox.nvim", message: null, summary: null, dir: "x", via: "root" },
+  p5: { status: "unreadable", repo: "StefanBartl/runtime-analysis.nvim", message: "not JSON: expected value at line 1 column 1", summary: null, dir: "x", via: "root" },
+  p6: { status: "newer_schema", repo: "StefanBartl/debugging.nvim", message: "schema 2, this app understands up to 1", summary: null, dir: "x", via: "root" }
+};
+const trafficEntry = (id) => {
+  const info = TRAFFIC[id] || { status: "no_remote" };
+  const s = info.summary;
+  return {
+    id, status: info.status,
+    views7: s ? s.views.d7.count : null, views30: s ? s.views.d30.count : null,
+    clones30: s ? s.clones.d30.count : null, trend: s ? s.views.trend : null,
+    fetched: s ? s.fetched : null
+  };
+};
+const SURVEY = {
+  explicit: null, asked: null, defaultDir: "C:/Users/bartl/AppData/Local/nvim-data/github_stats.nvim",
+  attempts: [{ via: "root", dir: "C:/Users/bartl/AppData/Local/nvim-data/github_stats.nvim", ok: true, reason: null }],
+  found: { via: "root", dir: "C:/Users/bartl/AppData/Local/nvim-data/github_stats.nvim/digest", repos: 6, newest: Math.floor(Date.now() / 1000) - 86400 }
+};
+
 const R = {
+  traffic_info: (a) => TRAFFIC[a.id] || { status: "no_remote", repo: null, message: null, summary: null, dir: null, via: null },
+  traffic_list: (a) => (a.ids || []).map(trafficEntry),
+  traffic_settings: () => SURVEY,
+  traffic_set_dir: (a) => ({ ...SURVEY, explicit: a.path || null }),
+  traffic_ask_neovim: () => SURVEY,
+  traffic_set_hidden: () => null,
+  traffic_refresh: () => null,
   list_projects: () => PROJECTS,
   list_workspaces: () => WORKSPACES.map((w) => ({ ...w, active: w.name === ACTIVE })),
   switch_workspace: (a) => {

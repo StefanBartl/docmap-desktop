@@ -25,6 +25,14 @@ import { row as overviewRow, sortRows, summarize, RANK } from "./lib/overview.js
 import { usedBy, summarizeDeps } from "./lib/deps.js";
 import { t, setLocale, initialLocale, LOCALES, keys } from "./lib/i18n.js";
 import {
+  trend as trendOf,
+  windows as trafficWindows,
+  lineFor as trafficLine,
+  compareTraffic,
+  isStale,
+  ageInDays,
+} from "./lib/traffic.js";
+import {
   scanLanguages,
   invalidateLanguages,
   badgeText,
@@ -76,6 +84,8 @@ const els = {
   langs: document.getElementById("proj-langs"),
   schema: document.getElementById("proj-schema"),
   stale: document.getElementById("proj-stale"),
+  traffic: document.getElementById("proj-traffic"),
+  trafficAge: document.getElementById("proj-traffic-age"),
   empty: document.getElementById("empty"),
   add: document.getElementById("add"),
   status: document.getElementById("status"),
@@ -436,6 +446,16 @@ function sortedProjects() {
       if (aa !== ab) return ab - aa;
       return a.name.localeCompare(b.name);
     });
+  } else if (sortBy === "traffic") {
+    // Most views in the last 30 days first. A project with no numbers — no
+    // GitHub remote, no plugin, not tracked — comes after every project that
+    // has some, zero included, and those tie on name: "nobody looked" and
+    // "we cannot tell whether anybody looked" are not the same rank.
+    list.sort(
+      (a, b) =>
+        compareTraffic(trafficEntries.get(a.id), trafficEntries.get(b.id)) ||
+        a.name.localeCompare(b.name)
+    );
   }
   return list;
 }
@@ -924,6 +944,7 @@ async function renderDetail() {
     });
 
   refreshFreshness(p.id);
+  renderTraffic(p);
 }
 
 /**
@@ -1141,6 +1162,8 @@ async function applySort(value) {
   // projects are selected — so both have to wait for the walk, or the sort
   // silently falls back to alphabetical on a fresh window.
   if (sortBy === "stale" || sortBy === "generated") await measureAll();
+  // Same rule for the order that reads the digest: it has to have been read.
+  if (sortBy === "traffic") await measureTraffic();
   render();
 }
 
@@ -1242,6 +1265,9 @@ async function select(id) {
 
 async function refresh(next) {
   projects = next ?? (await invoke("list_projects"));
+  // The traffic order reads numbers that arrive from the backend, so a fresh
+  // list needs them again before it can be ordered.
+  if (sortBy === "traffic") await measureTraffic();
   await render();
   syncActions();
 }
@@ -2555,6 +2581,240 @@ tel.toggle.addEventListener("click", async () => {
 
 
 // =====================================================================
+// GitHub traffic
+//
+// The numbers are `github_stats.nvim`'s, read through the `traffic_*`
+// commands from the small digest that plugin writes; this window never talks
+// to GitHub and never sees a token. Two places show them: a line under the
+// project in the sidebar, and a fifth sort order. Settings holds the panel
+// that says where the digest was found and offers the two ways to point at it
+// when the default is wrong.
+//
+// **Everything from the digest is text from outside** — a referrer is
+// whatever a website sent — so nothing in this section assigns `innerHTML`.
+// The catalog's own markup (`<strong>`, `<code>`) reaches the page through
+// `data-i18n`, never through here; what this section writes is `textContent`.
+//
+// And absent is not zero: a project with no GitHub remote, no plugin, or a
+// repository the plugin does not track says nothing (or says which of those
+// it is) — it never shows `0`.
+// =====================================================================
+
+/** The list entries `traffic_list` returned, by project id. Filled when the
+    order is asked for, and again by "Look again". */
+const trafficEntries = new Map();
+
+/**
+ * Read every listed project's numbers, so the order has something to sort by.
+ * One call for the whole list — the backend resolves each project's remote
+ * once and remembers it, so this is cheap after the first time.
+ */
+async function measureTraffic() {
+  els.sort.disabled = true;
+  try {
+    const list = await invoke("traffic_list", { ids: projects.map((p) => p.id) });
+    trafficEntries.clear();
+    for (const entry of list) trafficEntries.set(entry.id, entry);
+  } catch (e) {
+    // Not knowing is not the same as no traffic; the entries stay empty and
+    // every project sorts as "unknown", i.e. by name.
+    void e;
+  } finally {
+    els.sort.disabled = false;
+  }
+}
+
+/** A day, in the reader's own date format. `null` if the value is unusable. */
+function trafficDay(iso) {
+  const at = Date.parse(iso);
+  return Number.isFinite(at) ? new Date(at).toLocaleDateString(locale) : null;
+}
+
+/** The sidebar's traffic line for one project — or nothing at all. */
+async function renderTraffic(p) {
+  els.traffic.hidden = true;
+  els.trafficAge.hidden = true;
+  els.traffic.textContent = "";
+  els.trafficAge.textContent = "";
+  els.traffic.removeAttribute("title");
+  els.trafficAge.classList.remove("old");
+  if (!p) return;
+
+  let info;
+  try {
+    info = await invoke("traffic_info", { id: p.id });
+  } catch (e) {
+    // A failed read costs the line and nothing else.
+    void e;
+    return;
+  }
+  // The answer can arrive after the selection moved on; writing it then would
+  // put one project's numbers under another's name.
+  if (selectedId !== p.id) return;
+
+  const line = trafficLine(info);
+  if (!line) return;
+
+  if (info.status !== "ok") {
+    els.traffic.textContent = fill(t(line.key), line.vars);
+    if (info.status === "not_tracked") els.traffic.title = t("traffic.notTrackedTitle");
+    els.traffic.hidden = false;
+    return;
+  }
+
+  const s = info.summary;
+  const tr = trendOf(s.views.trend, locale);
+  els.traffic.textContent = fill(t("traffic.line"), {
+    views: trafficWindows(s.views, "count", locale),
+    clones: trafficWindows(s.clones, "count", locale),
+    trend: tr.arrow ? tr.arrow + " " + tr.text : "",
+  }).trim();
+  els.traffic.title = fill(t("traffic.lineTitle"), {
+    viewsUniques: trafficWindows(s.views, "uniques", locale),
+    clonesUniques: trafficWindows(s.clones, "uniques", locale),
+    trend: tr.text || "–",
+  });
+  els.traffic.hidden = false;
+
+  // How old the data is, and a plain statement when it is old: a number that
+  // is three weeks stale and looks current is the one way this line can lie.
+  const asOf = s.fetched || s.generated;
+  const day = trafficDay(asOf);
+  if (day) {
+    const old = isStale(asOf);
+    els.trafficAge.textContent = old
+      ? fill(t("traffic.stale"), { date: day, days: String(ageInDays(asOf)) })
+      : fill(t("traffic.asof"), { date: day });
+    els.trafficAge.classList.toggle("old", old);
+    els.trafficAge.hidden = false;
+  }
+}
+
+const trafficUi = {
+  state: document.getElementById("traffic-state"),
+  looked: document.getElementById("traffic-looked"),
+  choose: document.getElementById("traffic-choose"),
+  ask: document.getElementById("traffic-ask"),
+  clear: document.getElementById("traffic-clear"),
+  refresh: document.getElementById("traffic-refresh"),
+  show: document.getElementById("traffic-show"),
+};
+
+/** What the panel says about the discovery chain: what was found, or what was
+    looked at and why it did not qualify. */
+function renderTrafficSurvey(survey) {
+  trafficUi.clear.hidden = !survey.explicit;
+  trafficUi.looked.hidden = true;
+  trafficUi.looked.textContent = "";
+
+  if (survey.found) {
+    const f = survey.found;
+    trafficUi.state.textContent = fill(t("traffic.found"), {
+      dir: f.dir,
+      repos: String(f.repos),
+      when: f.newest ? new Date(f.newest * 1000).toLocaleDateString(locale) : "–",
+      via: t("traffic.via." + f.via),
+    });
+    return;
+  }
+
+  trafficUi.state.textContent = t("traffic.none");
+  const tried = survey.attempts.map((a) =>
+    fill(t("traffic.lookedItem"), { dir: a.dir, via: t("traffic.via." + a.via), reason: a.reason || "" })
+  );
+  if (tried.length) {
+    trafficUi.looked.textContent = fill(t("traffic.looked"), { list: tried.join("; ") });
+    trafficUi.looked.hidden = false;
+  }
+}
+
+/** Fill the Settings panel. Asked when the dialog opens, like telemetry. */
+async function renderTrafficSettings() {
+  const p = projects.find((x) => x.id === selectedId);
+  trafficUi.show.disabled = !p;
+  trafficUi.show.checked = p ? !p.traffic_hidden : true;
+
+  try {
+    renderTrafficSurvey(await invoke("traffic_settings"));
+  } catch (e) {
+    void e;
+    trafficUi.state.textContent = t("traffic.failed");
+  }
+}
+
+/** Every reader of the numbers, after something that changes them. */
+async function refreshTraffic() {
+  trafficEntries.clear();
+  if (sortBy === "traffic") {
+    await measureTraffic();
+    await render();
+  } else {
+    renderDetail();
+  }
+}
+
+trafficUi.choose.addEventListener("click", async () => {
+  try {
+    const dir = await open({ directory: true, multiple: false, title: t("traffic.chooseTitle") });
+    if (!dir) return;
+    renderTrafficSurvey(await invoke("traffic_set_dir", { path: dir }));
+    await refreshTraffic();
+  } catch (e) {
+    say(String(e));
+  }
+});
+
+trafficUi.clear.addEventListener("click", async () => {
+  try {
+    renderTrafficSurvey(await invoke("traffic_set_dir", { path: null }));
+    await refreshTraffic();
+  } catch (e) {
+    say(String(e));
+  }
+});
+
+trafficUi.ask.addEventListener("click", async () => {
+  // A real `nvim --headless` run, so it gets the same busy treatment as the
+  // other long buttons rather than a silent freeze.
+  await withBusyButton(trafficUi.ask, t("traffic.asking"), async () => {
+    try {
+      renderTrafficSurvey(await invoke("traffic_ask_neovim"));
+      await refreshTraffic();
+    } catch (e) {
+      trafficUi.state.textContent = String(e);
+    }
+  });
+});
+
+trafficUi.refresh.addEventListener("click", async () => {
+  try {
+    await invoke("traffic_refresh");
+    renderTrafficSurvey(await invoke("traffic_settings"));
+    await refreshTraffic();
+  } catch (e) {
+    say(String(e));
+  }
+});
+
+// The opt-out. Per project, kept in this app: a repository someone tracks in
+// the plugin and still does not want on screen or in a screenshot. Off means
+// nothing is read for it — not even its remote.
+trafficUi.show.addEventListener("change", async () => {
+  const p = projects.find((x) => x.id === selectedId);
+  if (!p) return;
+  const hidden = !trafficUi.show.checked;
+  try {
+    await invoke("traffic_set_hidden", { id: p.id, hidden });
+    p.traffic_hidden = hidden;
+    await refreshTraffic();
+  } catch (e) {
+    trafficUi.show.checked = !hidden;
+    say(String(e));
+  }
+});
+
+
+// =====================================================================
 // Asking the map a question
 //
 // The map is a cross-origin document: this window cannot read into it. The
@@ -3425,6 +3685,7 @@ function openPrefs() {
   // Asked when the dialog opens rather than kept live: reading it walks a
   // directory, and nothing changes it while the dialog is shut.
   renderTelemetry();
+  renderTrafficSettings();
   document.getElementById("prefsbox").showModal();
 }
 

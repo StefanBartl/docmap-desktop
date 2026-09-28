@@ -2,11 +2,12 @@
 
 Two dialogs, and the split between them is the whole reason there are two.
 
-## Settings — six sections, belonging to this machine
+## Settings — seven sections, belonging to this machine
 
 **File → Settings…** (`Ctrl+,`): Appearance (theme and interface language),
 Behaviour (project order, whether the app starts on the overview), Engine
-(the binary and an optional grammar directory), Telemetry, Editor (the
+(the binary and an optional grammar directory), Telemetry, GitHub traffic
+(where the digest is, and whether the selected project shows it), Editor (the
 command used to open a file), Neovim (the binary and config directory behind
 the Neovim tab of Add project).
 

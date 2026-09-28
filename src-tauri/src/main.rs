@@ -19,6 +19,7 @@ mod menu;
 mod languages;
 mod server;
 mod telemetry;
+mod traffic;
 
 use std::collections::HashMap;
 use std::fs;
@@ -139,6 +140,16 @@ struct Project {
     /// "generate all", which never offered the choice at all.
     #[serde(default)]
     full: bool,
+    /// The project was opted out of GitHub traffic in this app.
+    ///
+    /// Per project and in this app rather than in `github_stats.nvim`, which
+    /// has no notion of "the explorer": a private repository is one a person
+    /// tracks in the plugin and still does not want on screen or in a
+    /// screenshot. `true` means nothing is read, resolved or shown for the
+    /// project (`traffic::Status::Disabled`). `#[serde(default)]`, so a
+    /// workspace file from before this existed loads with it off.
+    #[serde(default)]
+    traffic_hidden: bool,
 }
 
 /// One project's engine settings, as the engine's flags want them.
@@ -262,6 +273,17 @@ struct Workspace {
     nvim_path: Option<String>,
     #[serde(default)]
     nvim_config_dir: Option<String>,
+    /// A folder the user chose as the home of `github_stats.nvim`'s traffic
+    /// digest — either the plugin's data folder (has `root.json`), a
+    /// `digest_dir`, or the `digest/` folder itself. First step of the
+    /// discovery chain in `traffic.rs`; `None` falls through to the rest.
+    #[serde(default)]
+    traffic_dir: Option<String>,
+    /// What Neovim answered when asked where the digest is (the "Ask Neovim"
+    /// button), kept like a chosen folder: one process on a button, never on
+    /// a render. Third step of the chain.
+    #[serde(default)]
+    traffic_asked_dir: Option<String>,
     /// How to open a source file in an editor, as a command template.
     ///
     /// `{file}` and `{line}` are substituted; anything else is passed
@@ -437,6 +459,8 @@ fn write_workspace(app: &tauri::AppHandle, ws: &Workspace) -> Result<(), String>
     settings.grammars = ws.grammars.clone();
     settings.nvim_path = ws.nvim_path.clone();
     settings.nvim_config_dir = ws.nvim_config_dir.clone();
+    settings.traffic_dir = ws.traffic_dir.clone();
+    settings.traffic_asked_dir = ws.traffic_asked_dir.clone();
     settings.editor = ws.editor.clone();
 
     let path = workspace_path(app)?;
@@ -520,6 +544,7 @@ fn add_one(ws: &mut Workspace, root: &str) -> Result<Option<Project>, String> {
         repo_url: None,
         branch: None,
         full: false,
+        traffic_hidden: false,
     };
     ws.projects.push(project.clone());
     Ok(Some(project))
@@ -803,6 +828,9 @@ fn project_scope_set(
         project.repo_url = url.clone();
         project.branch = br.clone();
         project.full = want_full;
+        // Its origin may be what the edit is about; the remembered answer is
+        // cheap to ask for again.
+        traffic::forget(&project.root);
         project.map_dir = format!(
             "{}/{}",
             project.root.replace('\\', "/").trim_end_matches('/'),
@@ -823,6 +851,9 @@ fn project_scope_set(
 #[tauri::command]
 fn remove_project(app: tauri::AppHandle, id: String) -> Result<Vec<Project>, String> {
     with_workspace(&app, |ws| {
+        if let Some(p) = ws.projects.iter().find(|p| p.id == id) {
+            traffic::forget(&p.root);
+        }
         ws.projects.retain(|p| p.id != id);
         Ok(ws.projects.clone())
     })
@@ -1776,6 +1807,217 @@ fn serve_project(app: tauri::AppHandle, id: String) -> Result<String, String> {
     Ok(server::url(port))
 }
 
+// =====================================================================
+// GitHub traffic (`github_stats.nvim`'s digest)
+//
+// Read-only, and nothing here talks to GitHub or handles a token. The logic
+// lives in `traffic.rs` and is testable without an app; what is here is the
+// part that needs one: the workspace lookup, the settings, and the one
+// subprocess ("Ask Neovim"). See `docs/FEATURES/TRAFFIC.md`.
+// =====================================================================
+
+/// The discovery chain's starting points, from the saved settings.
+fn traffic_sources(ws: &Workspace) -> traffic::Sources {
+    traffic::Sources {
+        explicit: ws.traffic_dir.clone(),
+        default_dir: traffic::default_data_dir(),
+        asked: ws.traffic_asked_dir.clone(),
+    }
+}
+
+/// What a project needs to resolve its repository: root, an already-known
+/// `repo_url`, and whether it was opted out. `None` for an id nobody added.
+fn traffic_project(ws: &Workspace, id: &str) -> Option<(String, Option<String>, bool)> {
+    ws.projects
+        .iter()
+        .find(|p| p.id == id)
+        .map(|p| (p.root.clone(), p.repo_url.clone(), p.traffic_hidden))
+}
+
+/// The repository of a project, unless it was opted out — an opted-out project
+/// resolves nothing, not even its remote, so no process is spawned for it.
+fn traffic_repo(root: &str, repo_url: Option<&str>, hidden: bool) -> Option<String> {
+    if hidden {
+        None
+    } else {
+        traffic::repo_of(root, repo_url)
+    }
+}
+
+/// One project's traffic, or the reason there is none.
+///
+/// `async` + `spawn_blocking`: the first ask for a project may run
+/// `git remote get-url origin`, and a command that blocks freezes the window
+/// it was invoked from. Every later ask is a cache hit.
+#[tauri::command]
+async fn traffic_info(app: tauri::AppHandle, id: String) -> Result<traffic::Info, String> {
+    let ws = read_workspace(&app)?;
+    let sources = traffic_sources(&ws);
+    let (root, repo_url, hidden) =
+        traffic_project(&ws, &id).ok_or_else(|| format!("no such project: {id}"))?;
+
+    tauri::async_runtime::spawn_blocking(move || {
+        let repo = traffic_repo(&root, repo_url.as_deref(), hidden);
+        traffic::info_for(repo.as_deref(), hidden, &sources)
+    })
+    .await
+    .map_err(|e| format!("traffic task failed: {e}"))
+}
+
+/// The whole digest of one project, for the detail dialog: the daily series,
+/// referrers and paths. `None` unless there is a readable one.
+#[tauri::command]
+async fn traffic_detail(
+    app: tauri::AppHandle,
+    id: String,
+) -> Result<Option<traffic::Digest>, String> {
+    let ws = read_workspace(&app)?;
+    let sources = traffic_sources(&ws);
+    let (root, repo_url, hidden) =
+        traffic_project(&ws, &id).ok_or_else(|| format!("no such project: {id}"))?;
+
+    tauri::async_runtime::spawn_blocking(move || {
+        let repo = traffic_repo(&root, repo_url.as_deref(), hidden);
+        traffic::detail(repo.as_deref(), hidden, &sources)
+    })
+    .await
+    .map_err(|e| format!("traffic task failed: {e}"))
+}
+
+/// Every listed project's traffic numbers in one call — what the sort order
+/// and the list column read. One async read for the whole list, never one
+/// call per row.
+#[tauri::command]
+async fn traffic_list(
+    app: tauri::AppHandle,
+    ids: Vec<String>,
+) -> Result<Vec<traffic::ListEntry>, String> {
+    let ws = read_workspace(&app)?;
+    let sources = traffic_sources(&ws);
+    let wanted: Vec<(String, (String, Option<String>, bool))> = ids
+        .into_iter()
+        .filter_map(|id| traffic_project(&ws, &id).map(|p| (id, p)))
+        .collect();
+
+    tauri::async_runtime::spawn_blocking(move || {
+        wanted
+            .into_iter()
+            .map(|(id, (root, repo_url, hidden))| {
+                let repo = traffic_repo(&root, repo_url.as_deref(), hidden);
+                let info = traffic::info_for(repo.as_deref(), hidden, &sources);
+                traffic::list_entry(&id, &info)
+            })
+            .collect()
+    })
+    .await
+    .map_err(|e| format!("traffic task failed: {e}"))
+}
+
+/// What the Settings panel shows: the chosen folder, the answer Neovim gave,
+/// and what the discovery chain found (or why not).
+#[tauri::command]
+fn traffic_settings(app: tauri::AppHandle) -> Result<traffic::Survey, String> {
+    let ws = read_workspace(&app)?;
+    Ok(traffic::survey(&traffic_sources(&ws)))
+}
+
+/// Choose (or clear) the folder the digest is read from.
+///
+/// The folder is read by this process only. It is **not** added to a Tauri fs
+/// scope (`capabilities/default.json`): the webview asks for numbers through
+/// the commands above and never gets a path it could read on its own.
+#[tauri::command]
+fn traffic_set_dir(
+    app: tauri::AppHandle,
+    path: Option<String>,
+) -> Result<traffic::Survey, String> {
+    let path = text(path);
+    if let Some(ref p) = path {
+        if !Path::new(p).is_dir() {
+            return Err(format!("{p} is not a folder"));
+        }
+    }
+    with_workspace(&app, |ws| {
+        ws.traffic_dir = path.clone();
+        Ok(())
+    })?;
+    traffic::forget_all();
+    traffic_settings(app)
+}
+
+/// Ask Neovim where `github_stats.nvim` keeps its digest, and remember the
+/// answer like a chosen folder.
+///
+/// One `nvim --headless` process, only on the button and never on a render —
+/// modelled on `import_from_nvim_config`, including `spawn_blocking`. It asks
+/// the *loaded plugin* rather than reading the path out of the user's
+/// installation spec, which is Lua code (`opts` may be a function).
+#[tauri::command]
+async fn traffic_ask_neovim(app: tauri::AppHandle) -> Result<traffic::Survey, String> {
+    let info = nvim_info(app.clone())?;
+    let nvim = info.path.ok_or_else(|| {
+        "No nvim binary configured. Put it on PATH, or point at it in Settings.".to_string()
+    })?;
+
+    let out = tauri::async_runtime::spawn_blocking(move || {
+        let mut cmd = std::process::Command::new(&nvim);
+        cmd.args(["--headless", "-c", traffic::ASK_LUA, "-c", "qa"]);
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            cmd.creation_flags(CREATE_NO_WINDOW);
+        }
+        cmd.output().map_err(|e| format!("could not run {nvim}: {e}"))
+    })
+    .await
+    .map_err(|e| format!("traffic task failed: {e}"))??;
+
+    // `io.write` reaches stdout; a config's own startup noise may share it,
+    // which is why the answer sits between markers.
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let dir = traffic::parse_asked(&stdout).map_err(|e| {
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        let stderr = stderr.trim();
+        if stderr.is_empty() {
+            e
+        } else {
+            format!("{e} ({stderr})")
+        }
+    })?;
+
+    with_workspace(&app, |ws| {
+        ws.traffic_asked_dir = Some(dir.clone());
+        Ok(())
+    })?;
+    traffic::forget_all();
+    traffic_settings(app)
+}
+
+/// Opt one project in or out of showing GitHub traffic.
+///
+/// Off means nothing is read, resolved or shown for it — including not the
+/// `git` process that would find its remote.
+#[tauri::command]
+fn traffic_set_hidden(app: tauri::AppHandle, id: String, hidden: bool) -> Result<(), String> {
+    with_workspace(&app, |ws| {
+        let project = ws
+            .projects
+            .iter_mut()
+            .find(|p| p.id == id)
+            .ok_or_else(|| format!("no such project: {id}"))?;
+        project.traffic_hidden = hidden;
+        Ok(())
+    })
+}
+
+/// Forget every remembered origin and parsed digest, so the next look reads
+/// disk and `git` again. What "Look again" calls.
+#[tauri::command]
+fn traffic_refresh() {
+    traffic::forget_all();
+}
+
 /// Write text the page handed over to a path the reader chose.
 ///
 /// The bytes come from the map page through its inbound channel, and the
@@ -2431,6 +2673,14 @@ fn main() {
             editor_command,
             telemetry_info,
             set_telemetry,
+            traffic_info,
+            traffic_detail,
+            traffic_list,
+            traffic_settings,
+            traffic_set_dir,
+            traffic_ask_neovim,
+            traffic_set_hidden,
+            traffic_refresh,
             save_text
         ])
         .run(tauri::generate_context!())

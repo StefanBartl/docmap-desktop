@@ -1097,6 +1097,26 @@ button:focus-visible {
   text-overflow: ellipsis;
 }
 
+/* GitHub traffic. Plain ink like the counts above it: it is a fact about the
+   project, not a warning. The age line is quieter, and marked with the same
+   bullet as a stale map when the data is old, so "this is old" reads as one
+   thing wherever it appears — and, like staleness, without red. */
+.proj-detail .traffic {
+  color: var(--ink);
+  overflow-wrap: anywhere;
+  /* The catalog string carries its own line breaks. */
+  white-space: pre-line;
+}
+
+.proj-detail .traffic-age {
+  font-size: 11px;
+}
+
+.proj-detail .traffic-age.old::before {
+  content: "• ";
+  color: var(--accent);
+}
+
 /* ------------------------------------------------------------ settings
 
    Sections, not a flat list. `MENUBAR.md` argued against a dialog for

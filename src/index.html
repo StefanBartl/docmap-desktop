@@ -50,6 +50,7 @@
           <option value="stale" data-i18n="sort.stale">Needs regenerating</option>
           <option value="generated" data-i18n="sort.generated">Least recently generated</option>
           <option value="added" data-i18n="sort.added">Added</option>
+          <option value="traffic" data-i18n="sort.traffic">Most traffic</option>
         </select>
       </div>
 
@@ -73,6 +74,13 @@
         <p id="proj-langs" class="meta langs" hidden></p>
         <p id="proj-schema" class="meta stale" hidden></p>
         <p id="proj-stale" class="meta stale" hidden></p>
+        <!-- GitHub traffic, from the digest github_stats.nvim writes. Shown
+             only when there is something true to say: no GitHub remote, no
+             plugin and an opted-out project all leave these two hidden, so a
+             machine without the plugin looks exactly as it did before. Filled
+             with textContent — every string here can come from a file. -->
+        <p id="proj-traffic" class="meta traffic" hidden></p>
+        <p id="proj-traffic-age" class="meta traffic-age" hidden></p>
       </div>
 
       <p id="empty" class="empty" data-i18n="sidebar.empty" hidden>
@@ -531,6 +539,34 @@
         <ul id="tel-snaps" class="prefs-snaps" hidden></ul>
       </section>
 
+
+      <!-- GitHub traffic. Read-only, and the whole integration is a small file
+           on this machine: github_stats.nvim collects the numbers and writes a
+           digest; this window reads it. Nothing here talks to GitHub, and no
+           token ever enters this app. Found on its own where the plugin puts
+           it; the folder button and "Ask Neovim" are for the machines where
+           it is somewhere else. -->
+      <section class="prefs-section">
+        <h3 data-i18n="prefs.traffic">GitHub traffic</h3>
+        <p class="addbox-note" data-i18n="prefs.traffic.note">
+          Shows the traffic <strong>github_stats.nvim</strong> collects for a
+          project's GitHub repository. It reads the small digest that plugin
+          writes after each fetch — never GitHub itself, and no token ever
+          enters this app. Without the plugin nothing here changes.
+        </p>
+        <p id="traffic-state" class="prefs-state"></p>
+        <p id="traffic-looked" class="prefs-state" hidden></p>
+        <div class="prefs-buttons">
+          <button id="traffic-choose" data-i18n-help="help.trafficFolder" type="button" data-i18n="traffic.choose">Choose folder…</button>
+          <button id="traffic-ask" data-i18n-help="help.trafficAsk" type="button" data-i18n="traffic.ask">Ask Neovim</button>
+          <button id="traffic-clear" type="button" data-i18n="traffic.clear" hidden>Clear choice</button>
+          <button id="traffic-refresh" type="button" data-i18n="traffic.refresh">Look again</button>
+        </div>
+        <label class="prefs-check">
+          <input id="traffic-show" type="checkbox" checked />
+          <span data-i18n="traffic.show">Show GitHub traffic for the selected project</span>
+        </label>
+      </section>
 
       <section class="prefs-section">
         <h3 data-i18n="prefs.editor">Editor</h3>

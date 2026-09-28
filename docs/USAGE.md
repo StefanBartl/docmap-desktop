@@ -18,6 +18,7 @@ the code, not recalled.
 - [Opening a file where an entity lives](#opening-a-file-where-an-entity-lives)
 - [Generate, Generate all, Generate the out-of-date ones](#generate-generate-all-generate-the-out-of-date-ones)
 - [The staleness mark](#the-staleness-mark)
+- [GitHub traffic](#github-traffic)
 - [Settings](#settings)
 - [Project settings](#project-settings)
 - [The engine indicator](#the-engine-indicator)
@@ -251,7 +252,7 @@ crossing arrows would not.
 ### The project picker, and how to sort it
 
 A native `<select>`, so it already answers Arrow, `Home`/`End`, `Enter` and
-type-ahead the way your platform does. Beside it is a sort control with four
+type-ahead the way your platform does. Beside it is a sort control with five
 orders, and each is **named for the question rather than the field**, because
 nobody sorts by a timestamp:
 
@@ -261,6 +262,7 @@ nobody sorts by a timestamp:
 | **Needs regenerating** | Which maps have fallen behind their code — the staleness mark, gathered into an order. |
 | **Least recently generated** | Which have you left alone the longest. |
 | **Added** | The order you added them in. |
+| **Most traffic** | Which projects is anyone looking at: most GitHub views in the last 30 days first (see [GitHub traffic](#github-traffic)). A project with no traffic data comes after every project that has some. |
 
 **The last two are not the same question**, which is the reason both exist.
 Staleness cannot answer for a tree that did not move: a repository nobody has
@@ -405,7 +407,7 @@ a command for yet.
 
 ## Settings
 
-**File → Settings…** (`Ctrl+,`), in six sections.
+**File → Settings…** (`Ctrl+,`), in seven sections.
 
 | Section | What it holds |
 |---|---|
@@ -413,6 +415,7 @@ a command for yet.
 | **Behaviour** | The order the project list is in, and whether the app starts on the workspace overview. |
 | **Engine** | Where the engine binary is, and optionally a directory of compiled tree-sitter grammars. |
 | **Telemetry** | Whether `runtime-analysis.nvim` collects for the selected project, and the snapshots it has taken. |
+| **GitHub traffic** | Where the traffic digest is read from, and whether the selected project shows it — see [GitHub traffic](#github-traffic). |
 | **Editor** | The command used to open a file — see [above](#opening-a-file-where-an-entity-lives). |
 | **Neovim** | The `nvim` binary and the config directory behind the Neovim tab of Add project. |
 
@@ -451,6 +454,67 @@ registers telemetry under its own. The snapshots listed are captures taken
 with `:RATelemetry snapshot <name>`, never automatically; to compare two,
 the map's own **Analysis → Telemetry** panel is the place, since it can
 hold two at once.
+
+## GitHub traffic
+
+**Optional, read-only, and this app never talks to GitHub or sees a token.**
+[github_stats.nvim](https://github.com/StefanBartl/github_stats.nvim) collects
+the traffic GitHub reports for a repository — views, clones, referrers, popular
+paths — and keeps it past the 14 days GitHub itself reports. After each fetch it
+writes a small file (the *digest*) to a local folder; this window reads that
+file. **Without the plugin, nothing here appears and nothing changes.**
+
+**The line.** Under the selected project: `GitHub · 7 / 30 / 90 d — 41 / 210 /
+655 views · 19 / 88 / 300 clones ↑ +12.5 %`. Views and clones over the last 7,
+30 and 90 *complete* days, and the trend of the last 7 against the 7 before.
+Hover for the uniques (a sum of the daily uniques — not distinct visitors). A
+quieter line under it says **how old the data is**, and says so when it is more
+than three days old: the digest only refreshes while Neovim runs the plugin.
+
+**What it says when there is nothing to show — and what it does not say:**
+
+| Situation | What you see |
+|---|---|
+| A digest for this repository | The line above. |
+| The project has no GitHub remote | **Nothing.** Not an error. |
+| The plugin is not installed, or has never run here | **Nothing** in the sidebar. Settings says what was looked at. |
+| A GitHub repository the plugin does not track | *"owner/name is not tracked by github_stats.nvim."* |
+| The digest is broken | *"The traffic digest could not be read: …"* with the reason. |
+| The digest is from a newer plugin | *"…is newer than this app understands."* |
+| You opted this project out | **Nothing.** |
+
+None of these is ever shown as `0`. Absent is not zero, and the same rule holds
+inside the plugin: a page that is not in GitHub's top 10 is *unknown*, not
+*zero views*.
+
+**How it finds the digest.** A fixed chain, first hit wins, never a search of
+your disk: a folder you chose (**Settings → GitHub traffic → Choose folder…**),
+then `root.json` at the plugin's default place (`stdpath("data")/github_stats.nvim`
+— on Windows `%LOCALAPPDATA%\nvim-data\github_stats.nvim`), then the answer
+**Ask Neovim** stored. The default is usually all it takes. **Ask Neovim** starts
+Neovim once, headless, and asks the loaded plugin where it writes — for when you
+moved `digest_dir` or run Neovim under another `NVIM_APPNAME`; it needs the
+`nvim` binary from [Settings → Neovim](#settings) and never runs on its own.
+**Look again** forgets what was remembered (each project's remote, each parsed
+digest) and reads afresh. The panel shows the folder that was found, how many
+repositories it holds and when it last changed — or, if none qualified, each
+folder that was looked at and why it did not count.
+
+**Which repository a project is.** Its `repo_url` if it has one (a project
+imported from a URL does), otherwise its `origin` remote, read once and
+remembered. Only `github.com`. A project whose origin is anywhere else has no
+traffic to show.
+
+**Opting a project out.** **Show GitHub traffic for the selected project**
+(Settings → GitHub traffic) turns it off for one repository, for the private one
+you track in the plugin and still do not want on screen or in a screenshot. Off
+means nothing is read for it — not even its remote. It is stored with the
+project, in this app; the plugin has no notion of the app.
+
+**The files are not yours.** A digest is written from data a website supplied,
+so it is read with a size cap, refused with a message if it is from a newer
+schema, and shown as text — never as markup. A broken digest costs its own line
+and nothing else.
 
 ## Project settings
 
