@@ -89,6 +89,8 @@ then adds each one exactly as the Folder tab would. It reads the same
 `plugins.personal.export.projects()` list `:MyPlugins` and the statusline
 already use — the real, currently-active list, not a guess at a policy
 table. Nothing else about the config is read, and nothing is changed.
+It waits at most 60 seconds: a configuration that stops to ask something ends in
+an error saying so, and the dialog is usable again.
 
 Afterwards the status line reports what happened: how many were found, how
 many newly added, how many were already in the list, and how many failed —
@@ -109,7 +111,9 @@ reused rather than re-cloned.
 
 This app holds no credentials: whatever a plain `git clone` of that URL
 needs on this machine (an HTTPS credential helper, an SSH agent) is exactly
-what runs here, unchanged. A clone that fails shows git's own error, not a
+what runs here, unchanged — with one exception: git is never allowed to *ask*
+(`GIT_TERMINAL_PROMPT=0`), because there is no terminal to answer on, and a clone
+gives up after 15 minutes. A clone that fails shows git's own error, not a
 guess at what went wrong.
 
 The URL tab can also list **your own GitHub repositories** to pick from,

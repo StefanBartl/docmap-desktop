@@ -17,9 +17,18 @@ mod github;
 mod icon;
 mod languages;
 mod menu;
+mod proc;
 mod server;
 mod telemetry;
 mod traffic;
+
+/// How long a button waits for a headless Neovim that loads the user's whole
+/// configuration (import from the config, the telemetry folder question).
+const NVIM_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
+/// `git clone --depth 1` of a repository the user pasted a URL for.
+const CLONE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15 * 60);
+/// `docmap --capabilities`: it answers in milliseconds, or it is hung.
+const ENGINE_PROBE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(20);
 
 use std::collections::HashMap;
 use std::fs;
@@ -934,13 +943,17 @@ async fn import_from_url(app: tauri::AppHandle, url: String) -> Result<Vec<Proje
     let out = tauri::async_runtime::spawn_blocking(move || {
         let mut cmd = std::process::Command::new("git");
         cmd.args(["clone", "--depth", "1", &url_owned, &dest_str]);
+        // No credential prompt, ever: there is no terminal to answer it on,
+        // and a prompt nobody can see is a clone that never ends.
+        cmd.env("GIT_TERMINAL_PROMPT", "0");
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;
             const CREATE_NO_WINDOW: u32 = 0x0800_0000;
             cmd.creation_flags(CREATE_NO_WINDOW);
         }
-        cmd.output().map_err(|e| format!("could not run git: {e}"))
+        proc::run_with_timeout(&mut cmd, CLONE_TIMEOUT)
+            .map_err(|e| format!("could not run git: {e}"))
     })
     .await
     .map_err(|e| format!("clone task failed: {e}"))??;
@@ -1406,9 +1419,8 @@ fn engine_languages(app: tauri::AppHandle) -> Result<EngineLanguages, String> {
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
 
-    let out = cmd
-        .output()
-        .map_err(|e| format!("could not run {engine}: {e}"))?;
+    let out = proc::run_with_timeout(&mut cmd, ENGINE_PROBE_TIMEOUT)
+        .map_err(|e| format!("{engine}: {e}"))?;
     if !out.status.success() {
         // An older engine exits non-zero here. Not an error to show: it is
         // the "cannot be asked" case, which the frontend renders as unknown.
@@ -1634,8 +1646,9 @@ async fn import_from_nvim_config(app: tauri::AppHandle) -> Result<ImportResult, 
             const CREATE_NO_WINDOW: u32 = 0x0800_0000;
             cmd.creation_flags(CREATE_NO_WINDOW);
         }
-        cmd.output()
-            .map_err(|e| format!("could not run {nvim_path}: {e}"))
+        proc::run_with_timeout(&mut cmd, NVIM_TIMEOUT).map_err(|e| {
+            format!("{nvim_path}: {e} - does the Neovim configuration wait for input?")
+        })
     })
     .await
     .map_err(|e| format!("import task failed: {e}"))??;
@@ -1979,11 +1992,13 @@ async fn traffic_list(
         .collect();
 
     tauri::async_runtime::spawn_blocking(move || {
+        // The discovery chain once for the whole list, not once per project.
+        let located = traffic::locate(&sources).0;
         wanted
             .into_iter()
             .map(|(id, (root, repo_url, hidden))| {
                 let repo = traffic_repo(&root, repo_url.as_deref(), hidden);
-                let info = traffic::info_for(repo.as_deref(), hidden, &sources);
+                let info = traffic::info_with(repo.as_deref(), hidden, located.as_ref());
                 traffic::list_entry(&id, &info)
             })
             .collect()
@@ -2044,7 +2059,7 @@ async fn traffic_ask_neovim(app: tauri::AppHandle) -> Result<traffic::Survey, St
             const CREATE_NO_WINDOW: u32 = 0x0800_0000;
             cmd.creation_flags(CREATE_NO_WINDOW);
         }
-        traffic::run_with_timeout(&mut cmd, traffic::ASK_TIMEOUT)
+        proc::run_with_timeout(&mut cmd, traffic::ASK_TIMEOUT)
             .map_err(|e| format!("{nvim}: {e} - does the Neovim configuration wait for input?"))
     })
     .await
@@ -2189,8 +2204,8 @@ async fn set_telemetry(
             const CREATE_NO_WINDOW: u32 = 0x0800_0000;
             cmd.creation_flags(CREATE_NO_WINDOW);
         }
-        cmd.output()
-            .map_err(|e| format!("could not run {nvim}: {e}"))
+        proc::run_with_timeout(&mut cmd, NVIM_TIMEOUT)
+            .map_err(|e| format!("{nvim}: {e} - does the Neovim configuration wait for input?"))
     })
     .await
     .map_err(|e| format!("telemetry task failed: {e}"))??;
