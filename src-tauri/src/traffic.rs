@@ -815,10 +815,15 @@ pub fn detail(repo: Option<&str>, hidden: bool, sources: &Sources) -> Option<Dig
     }
     let (hit, _) = locate(sources);
     let (_, found) = hit?;
-    let path = digest_file(&found, repo?)?;
+    let repo = repo?;
+    let path = digest_file(&found, repo)?;
     match &*load(&path) {
-        Ok(d) => Some(d.clone()),
-        Err(_) => None,
+        // Same rule as `info_for`: two names can share a file stem, and the
+        // file says which repository it holds. Without this the dialog would
+        // show another repository's numbers under a sidebar line that says
+        // "not tracked".
+        Ok(d) if d.repo.is_empty() || d.repo.eq_ignore_ascii_case(repo) => Some(d.clone()),
+        _ => None,
     }
 }
 
@@ -1336,6 +1341,20 @@ mod tests {
         assert_eq!(s.span_from.as_deref(), Some("2026-06-29"));
         assert_eq!(s.days_kept, 2);
         assert!(s.has_referrers && s.has_paths);
+    }
+
+    #[test]
+    fn a_digest_for_another_repository_sharing_the_stem_is_not_shown_in_detail() {
+        // `a_b/c` and `a/b_c` both become the stem `a_b_c`; the file holds
+        // `owner/alpha`, which is neither.
+        let root = tmp("stem-collision");
+        write(&root.join("digest/a_b_c.json"), DIGEST);
+        let sources = sources_for(&root);
+        assert!(detail(Some("a_b/c"), false, &sources).is_none());
+        assert_eq!(
+            info_for(Some("a_b/c"), false, &sources).status,
+            Status::NotTracked
+        );
     }
 
     #[test]
