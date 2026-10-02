@@ -1734,10 +1734,18 @@ mod tests {
             "not a folder"
         );
 
+        // An absolute path on *this* OS: `Z:/...` reads as absolute on
+        // Windows but, by Rust's own `Path::is_absolute`, as relative on
+        // POSIX (no leading `/`) -- using the test's own absolute tmp dir
+        // keeps this assertion the same claim on every platform it runs on.
         let pointed = tmp("shapes-pointed-nowhere");
+        let nowhere = tmp("shapes-pointed-nowhere-target").join("no/such/place");
         write(
             &pointed.join("root.json"),
-            r#"{"schema":1,"digest_dir":"Z:/no/such/place","repos":{}}"#,
+            &format!(
+                r#"{{"schema":1,"digest_dir":"{}","repos":{{}}}}"#,
+                nowhere.to_string_lossy().replace('\\', "/")
+            ),
         );
         assert!(probe(&pointed).unwrap_err().contains("no digests"));
     }
