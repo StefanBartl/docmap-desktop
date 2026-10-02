@@ -2044,8 +2044,8 @@ async fn traffic_ask_neovim(app: tauri::AppHandle) -> Result<traffic::Survey, St
             const CREATE_NO_WINDOW: u32 = 0x0800_0000;
             cmd.creation_flags(CREATE_NO_WINDOW);
         }
-        cmd.output()
-            .map_err(|e| format!("could not run {nvim}: {e}"))
+        traffic::run_with_timeout(&mut cmd, traffic::ASK_TIMEOUT)
+            .map_err(|e| format!("{nvim}: {e} - does the Neovim configuration wait for input?"))
     })
     .await
     .map_err(|e| format!("traffic task failed: {e}"))??;
