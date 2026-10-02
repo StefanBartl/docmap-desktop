@@ -2509,18 +2509,34 @@ fn workspace_deps(app: tauri::AppHandle) -> Result<deps::Deps, String> {
 /// Written here rather than reached for through a plugin because it is
 /// three lines per platform and the alternative is another capability
 /// surface for the webview. Nothing from the page reaches this: both
-/// callers pass a path this process produced.
+/// callers pass a path this process produced — but "produced by this
+/// process" still means a project's own folder name, which is not this
+/// program's to constrain (`Foo & Bar`, say, is a real folder name nobody
+/// would call hostile).
+/// `explorer <target>`, not `cmd /c start "" <target>`. `cmd.exe` parses its
+/// *whole command line* for `&`, `|`, `^`, `<`, `>` before `start` ever sees
+/// an argument — confirmed by building a Rust CLI that called exactly the
+/// previous line with a path containing `&` and watching the part after it
+/// run as a second command. That is not this process's own quoting failing
+/// (`Command` quotes each argument correctly for a normal argv-parsing
+/// program); it is that `cmd.exe`'s *own* parser does not read its command
+/// line that way, no matter how correctly the caller quoted it — the
+/// documented reason Rust's std singles out `cmd.exe`/batch files as unsafe
+/// targets for argument passing. `explorer.exe` is an ordinary Win32 program
+/// (`CommandLineToArgvW` parsing, the same convention `Command` quotes for)
+/// and still honours the default browser for a URL and the default handler
+/// for a file, same as `start` did. Pulled out of `open_externally` so the
+/// one-argument shape is a thing a test can check without opening a window.
+#[cfg(target_os = "windows")]
+fn windows_open_command(target: &str) -> std::process::Command {
+    let mut c = std::process::Command::new("explorer");
+    c.arg(target);
+    c
+}
+
 fn open_externally(target: &str) -> Result<(), String> {
     #[cfg(target_os = "windows")]
-    let mut cmd = {
-        // Through `cmd /c start` rather than `explorer <url>`: `start`
-        // honours the user's default browser, and its first quoted
-        // argument is the *window title*, which is why the empty string
-        // has to be there.
-        let mut c = std::process::Command::new("cmd");
-        c.args(["/c", "start", "", target]);
-        c
-    };
+    let mut cmd = windows_open_command(target);
     #[cfg(target_os = "macos")]
     let mut cmd = {
         let mut c = std::process::Command::new("open");
@@ -2787,6 +2803,22 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // `open_externally`'s own `windows_open_command` is not spawned here (it
+    // opens a real window on this machine); what is checked is the `Command`
+    // it builds. A regression here means `target` is no longer passed as one
+    // argv entry to a non-shell program -- the exact class of change that
+    // reintroduces the `&`-splits-the-command-line defect `cmd /c start` had.
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn open_externally_passes_the_target_as_one_argument_to_explorer_not_cmd() {
+        let target = r"C:\repos\Foo & Bar\file.txt";
+        let cmd = windows_open_command(target);
+
+        assert_eq!(cmd.get_program(), "explorer");
+        let args: Vec<&std::ffi::OsStr> = cmd.get_args().collect();
+        assert_eq!(args, vec![std::ffi::OsStr::new(target)]);
+    }
 
     // The one thing this environment cannot verify by eye: whether the
     // bundled sidecar and grammars actually resolve to real files once
