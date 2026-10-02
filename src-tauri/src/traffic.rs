@@ -31,7 +31,7 @@ use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, SystemTime};
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -472,12 +472,29 @@ pub struct Found {
     pub newest: Option<u64>,
 }
 
+/// A UNC, device or verbatim path (`\\server\share`, `\\?\C:\...`, `//host/x`).
+fn is_network_path(path: &str) -> bool {
+    path.starts_with("\\\\") || path.starts_with("//")
+}
+
+/// Names Windows treats as devices whatever the extension (`CON.json` is the
+/// console). Opening one can block on input; refused on every OS so a digest
+/// folder behaves the same on all of them.
+fn is_reserved_device_name(stem: &str) -> bool {
+    let base = stem.split('.').next().unwrap_or("").to_ascii_uppercase();
+    matches!(base.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+        || (base.len() == 4
+            && (base.starts_with("COM") || base.starts_with("LPT"))
+            && matches!(base.as_bytes()[3], b'1'..=b'9'))
+}
+
 /// A file stem from `root.json` is used to build a path, so it is checked like
 /// any other name from a file: no separators, no traversal.
 fn safe_stem(stem: &str) -> bool {
     !stem.is_empty()
         && stem != "."
         && stem != ".."
+        && !is_reserved_device_name(stem)
         && stem
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | '%'))
@@ -534,16 +551,19 @@ pub fn probe(folder: &Path) -> Result<Found, String> {
         if value.get("schema").and_then(|s| s.as_u64()).unwrap_or(0) > KNOWN_SCHEMA {
             return Err("root.json is newer than this app understands".to_string());
         }
-        // Absolute only: a relative path would resolve against this process's
-        // working directory, which is wherever the app was started from and
-        // not a place `root.json` has any claim on. The plugin writes an
-        // absolute one (`fn.expand` of the setting), so nothing legitimate is
-        // refused. A relative or empty value is ignored like an absent one.
+        // Absolute and local only. A relative path would resolve against this
+        // process's working directory, which is wherever the app was started
+        // from and not a place `root.json` has any claim on; a `\\host\share`
+        // path makes Windows open a network session -- and offer the user's
+        // credentials -- to a host a data file named. The plugin writes an
+        // absolute local one (`fn.expand` of the setting), so nothing legitimate
+        // is refused. Such a value is ignored like an absent one. (A folder the
+        // user picks themselves is not filtered: that is their decision.)
         if let Some(dir) = value
             .get("digest_dir")
             .and_then(|d| d.as_str())
             .map(PathBuf::from)
-            .filter(|d| d.is_absolute())
+            .filter(|d| d.is_absolute() && !is_network_path(&d.to_string_lossy()))
         {
             pointed = Some(dir);
         }
@@ -772,6 +792,18 @@ impl Info {
 /// The order is the order of the answers' cost: an opted-out project reads
 /// nothing, a project with no GitHub remote reads nothing.
 pub fn info_for(repo: Option<&str>, hidden: bool, sources: &Sources) -> Info {
+    if hidden || repo.is_none() {
+        return info_with(repo, hidden, None);
+    }
+    let (hit, _) = locate(sources);
+    info_with(repo, hidden, hit.as_ref())
+}
+
+/// [`info_for`] with the discovery chain already walked. `locate` reads
+/// `root.json` and stats every digest file, so a list of N projects that called
+/// `info_for` N times did that N times over; the list walks the chain once and
+/// hands the result to each project.
+pub fn info_with(repo: Option<&str>, hidden: bool, located: Option<&(Via, Found)>) -> Info {
     if hidden {
         return Info::bare(Status::Disabled, None);
     }
@@ -780,17 +812,16 @@ pub fn info_for(repo: Option<&str>, hidden: bool, sources: &Sources) -> Info {
     };
     let repo = repo.to_string();
 
-    let (hit, _) = locate(sources);
-    let Some((via, found)) = hit else {
+    let Some((via, found)) = located else {
         return Info::bare(Status::NoDigest, Some(repo));
     };
     let dir = crate::portable(&found.files_dir);
 
     let mut info = Info::bare(Status::NotTracked, Some(repo.clone()));
     info.dir = Some(dir);
-    info.via = Some(via);
+    info.via = Some(*via);
 
-    let Some(path) = digest_file(&found, &repo) else {
+    let Some(path) = digest_file(found, &repo) else {
         return info;
     };
     match &*load(&path) {
@@ -958,65 +989,6 @@ pub fn survey(sources: &Sources) -> Survey {
 /// seconds to start. What it must not do is wait forever on a configuration
 /// that blocks (an update prompt, a debugger waiting for a client).
 pub const ASK_TIMEOUT: Duration = Duration::from_secs(30);
-
-/// Run `cmd` to completion and collect its output, or kill it after `limit`.
-///
-/// Only the child this function started is killed, by its handle. The output
-/// is read on separate threads so a full pipe cannot stall the child while this
-/// one waits, and after a kill the readers get a short grace period rather
-/// than being joined: a grandchild that inherited the pipe would otherwise keep
-/// them (and this call) alive.
-pub fn run_with_timeout(
-    cmd: &mut std::process::Command,
-    limit: Duration,
-) -> Result<std::process::Output, String> {
-    use std::process::Stdio;
-    use std::sync::mpsc;
-
-    cmd.stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-    let mut child = cmd.spawn().map_err(|e| e.to_string())?;
-
-    fn drain<R: Read + Send + 'static>(pipe: Option<R>) -> mpsc::Receiver<Vec<u8>> {
-        let (tx, rx) = mpsc::channel();
-        std::thread::spawn(move || {
-            let mut buf = Vec::new();
-            if let Some(mut p) = pipe {
-                let _ = p.read_to_end(&mut buf);
-            }
-            let _ = tx.send(buf);
-        });
-        rx
-    }
-    let out_rx = drain(child.stdout.take());
-    let err_rx = drain(child.stderr.take());
-
-    let deadline = Instant::now() + limit;
-    let status = loop {
-        match child.try_wait().map_err(|e| e.to_string())? {
-            Some(status) => break Some(status),
-            None if Instant::now() >= deadline => {
-                let _ = child.kill();
-                let _ = child.wait();
-                break None;
-            }
-            None => std::thread::sleep(Duration::from_millis(25)),
-        }
-    };
-
-    let grace = Duration::from_millis(500);
-    let stdout = out_rx.recv_timeout(grace).unwrap_or_default();
-    let stderr = err_rx.recv_timeout(grace).unwrap_or_default();
-    match status {
-        Some(status) => Ok(std::process::Output {
-            status,
-            stdout,
-            stderr,
-        }),
-        None => Err(format!("no answer within {} s", limit.as_secs())),
-    }
-}
 
 /// Pull Neovim's answer out of what a headless run printed.
 ///
@@ -1445,38 +1417,50 @@ mod tests {
         assert_eq!(found.files_dir, root.join("digest"));
     }
 
-    #[cfg(windows)]
-    fn shell(line: &str) -> std::process::Command {
-        let mut c = std::process::Command::new("cmd");
-        c.args(["/c", line]);
-        c
-    }
-    #[cfg(not(windows))]
-    fn shell(line: &str) -> std::process::Command {
-        let mut c = std::process::Command::new("sh");
-        c.args(["-c", line]);
-        c
+    #[test]
+    fn a_unc_digest_dir_in_root_json_is_ignored() {
+        let root = tmp("unc-digest-dir");
+        write(&root.join("digest/owner_alpha.json"), DIGEST);
+        for pointed in ["//attacker/share", r"\\\\attacker\\share"] {
+            write(
+                &root.join("root.json"),
+                &format!(r#"{{"schema":1,"digest_dir":"{pointed}","repos":{{}}}}"#),
+            );
+            let found = probe(&root).unwrap();
+            assert_eq!(found.files_dir, root.join("digest"), "{pointed}");
+        }
     }
 
     #[test]
-    fn a_finished_process_returns_its_output() {
-        let out = run_with_timeout(&mut shell("echo hello"), Duration::from_secs(20)).unwrap();
-        assert!(out.status.success());
-        assert!(String::from_utf8_lossy(&out.stdout).contains("hello"));
+    fn device_names_are_never_a_digest_stem() {
+        for bad in [
+            "CON", "con", "NUL.json", "aux", "PRN", "COM1", "lpt9", "COM3.x",
+        ] {
+            assert!(!safe_stem(bad), "{bad}");
+        }
+        for fine in ["owner_alpha", "COM", "COM0", "COMX", "console", "a.b"] {
+            assert!(safe_stem(fine), "{fine}");
+        }
     }
 
     #[test]
-    fn a_process_that_does_not_finish_is_killed_and_reported() {
-        #[cfg(windows)]
-        let line = "ping -n 30 127.0.0.1 >nul";
-        #[cfg(not(windows))]
-        let line = "sleep 30";
-        let started = Instant::now();
-        let err = run_with_timeout(&mut shell(line), Duration::from_millis(300)).unwrap_err();
-        assert!(err.contains("no answer"), "{err}");
-        assert!(
-            started.elapsed() < Duration::from_secs(10),
-            "must not wait for the child"
+    fn a_list_walks_the_chain_once_and_agrees_with_asking_per_project() {
+        let root = data_dir("list-once");
+        let sources = sources_for(&root);
+        let located = locate(&sources).0;
+        for repo in [Some("owner/alpha"), Some("owner/missing"), None] {
+            let once = info_with(repo, false, located.as_ref());
+            let each = info_for(repo, false, &sources);
+            assert_eq!(once.status, each.status, "{repo:?}");
+            assert_eq!(once.summary, each.summary, "{repo:?}");
+        }
+        assert_eq!(
+            info_with(Some("owner/alpha"), true, located.as_ref()).status,
+            Status::Disabled
+        );
+        assert_eq!(
+            info_with(Some("owner/alpha"), false, None).status,
+            Status::NoDigest
         );
     }
 
