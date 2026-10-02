@@ -499,11 +499,15 @@ then `root.json` at the plugin's default place (`stdpath("data")/github_stats.nv
 **Ask Neovim** stored. The default is usually all it takes. **Ask Neovim** starts
 Neovim once, headless, and asks the loaded plugin where it writes — for when you
 moved `digest_dir` or run Neovim under another `NVIM_APPNAME`; it needs the
-`nvim` binary from [Settings → Neovim](#settings) and never runs on its own.
+`nvim` binary from [Settings → Neovim](#settings) and never runs on its own. It
+waits at most 30 seconds: a Neovim configuration that stops to ask something (an
+update prompt, a debugger waiting for a client) ends in an error saying so, and the
+button is usable again.
 **Look again** forgets what was remembered (each project's remote, each parsed
 digest) and reads afresh. The panel shows the folder that was found, how many
 repositories it holds and when it last changed — or, if none qualified, each
-folder that was looked at and why it did not count.
+folder that was looked at and why it did not count. A `digest_dir` that
+`root.json` names must be an absolute path; a relative one is ignored.
 
 **Which repository a project is.** Its `repo_url` if it has one (a project
 imported from a URL does), otherwise its `origin` remote, read once and
