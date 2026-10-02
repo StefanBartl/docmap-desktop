@@ -43,28 +43,40 @@ pub fn run_with_timeout(
     let err_rx = drain(child.stderr.take());
 
     let deadline = Instant::now() + limit;
+    // `None` covers both ways out of the loop without a status: the deadline
+    // passed, or `try_wait` itself errored. Either way the child is killed
+    // before this function returns -- a bare `?` on the error would have
+    // left it running, unread and un-reaped, for as long as it lives.
+    let mut wait_err: Option<String> = None;
     let status = loop {
-        match child.try_wait().map_err(|e| e.to_string())? {
-            Some(status) => break Some(status),
-            None if Instant::now() >= deadline => {
+        match child.try_wait() {
+            Ok(Some(status)) => break Some(status),
+            Ok(None) if Instant::now() >= deadline => {
                 let _ = child.kill();
                 let _ = child.wait();
                 break None;
             }
-            None => std::thread::sleep(Duration::from_millis(25)),
+            Ok(None) => std::thread::sleep(Duration::from_millis(25)),
+            Err(e) => {
+                wait_err = Some(e.to_string());
+                let _ = child.kill();
+                let _ = child.wait();
+                break None;
+            }
         }
     };
 
     let grace = Duration::from_millis(500);
     let stdout = out_rx.recv_timeout(grace).unwrap_or_default();
     let stderr = err_rx.recv_timeout(grace).unwrap_or_default();
-    match status {
-        Some(status) => Ok(std::process::Output {
+    match (status, wait_err) {
+        (Some(status), _) => Ok(std::process::Output {
             status,
             stdout,
             stderr,
         }),
-        None => Err(format!("no answer within {} s", limit.as_secs())),
+        (None, Some(e)) => Err(e),
+        (None, None) => Err(format!("no answer within {} s", limit.as_secs())),
     }
 }
 

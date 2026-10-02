@@ -543,6 +543,7 @@ pub fn probe(folder: &Path) -> Result<Found, String> {
     let root_path = folder.join("root.json");
     let mut repos: Option<HashMap<String, String>> = None;
     let mut pointed: Option<PathBuf> = None;
+    let mut rejected_digest_dir: Option<String> = None;
 
     if root_path.is_file() {
         let bytes = read_capped(&root_path).map_err(|e| format!("root.json: {e}"))?;
@@ -557,15 +558,25 @@ pub fn probe(folder: &Path) -> Result<Found, String> {
         // path makes Windows open a network session -- and offer the user's
         // credentials -- to a host a data file named. The plugin writes an
         // absolute local one (`fn.expand` of the setting), so nothing legitimate
-        // is refused. Such a value is ignored like an absent one. (A folder the
-        // user picks themselves is not filtered: that is their decision.)
-        if let Some(dir) = value
+        // is refused -- such a value is ignored like an absent one when something
+        // else still qualifies. (A folder the user picks themselves is not
+        // filtered: that is their decision.)
+        let digest_dir_raw = value
             .get("digest_dir")
             .and_then(|d| d.as_str())
+            .map(str::to_string);
+        if let Some(dir) = digest_dir_raw
+            .as_deref()
             .map(PathBuf::from)
             .filter(|d| d.is_absolute() && !is_network_path(&d.to_string_lossy()))
         {
             pointed = Some(dir);
+        } else if let Some(raw) = digest_dir_raw {
+            // Present but rejected -- kept so the final `Err`, if nothing else
+            // qualifies either, can say *that* rather than the generic "no
+            // digests here", which would send someone looking at the wrong
+            // folder for a setting that was never actually honoured.
+            rejected_digest_dir = Some(raw);
         }
         // `repos` is omitted while empty, and an empty table encodes as `[]`
         // on the plugin's side — both mean "none", neither is an error.
@@ -602,7 +613,19 @@ pub fn probe(folder: &Path) -> Result<Found, String> {
         });
     }
 
-    Err(if root_path.is_file() {
+    Err(if let Some(raw) = rejected_digest_dir {
+        // A file's own claim, truncated: read_capped bounds the whole file at
+        // 2 MiB, not this one field, and this sentence ends up on the Settings
+        // panel as a single line. By chars, not bytes: a byte index is not
+        // guaranteed to land on a UTF-8 character boundary and slicing on one
+        // that does not panics.
+        let shown = if raw.chars().count() > 200 {
+            format!("{}...", raw.chars().take(200).collect::<String>())
+        } else {
+            raw
+        };
+        format!("root.json's digest_dir ({shown}) is not an absolute local path -- ignored")
+    } else if root_path.is_file() {
         "root.json points to a folder with no digests".to_string()
     } else {
         "no root.json and no digest folder".to_string()
@@ -1415,6 +1438,50 @@ mod tests {
         let found = probe(&root).unwrap();
         // Fell through to `<folder>/digest`, not to `somewhere/else/digest`.
         assert_eq!(found.files_dir, root.join("digest"));
+    }
+
+    #[test]
+    fn a_relative_digest_dir_is_reported_not_silently_ignored() {
+        // No fallback digest/ folder, so the rejection is the only thing that
+        // could explain "nothing found" -- the message must say so.
+        let root = tmp("relative-digest-dir-reported");
+        write(
+            &root.join("root.json"),
+            r#"{"schema":1,"digest_dir":"somewhere/else","repos":{}}"#,
+        );
+        let err = probe(&root).unwrap_err();
+        assert!(err.contains("digest_dir"), "{err}");
+        assert!(err.contains("somewhere/else"), "{err}");
+    }
+
+    #[test]
+    fn a_rejected_digest_dir_is_silent_when_a_local_one_still_works() {
+        // The existing, unchanged case: a relative digest_dir is ignored with
+        // no error at all once the local digest/ folder qualifies instead.
+        let root = tmp("relative-digest-dir-with-fallback");
+        write(&root.join("digest/owner_alpha.json"), DIGEST);
+        write(
+            &root.join("root.json"),
+            r#"{"schema":1,"digest_dir":"somewhere/else","repos":{}}"#,
+        );
+        let found = probe(&root).unwrap();
+        assert_eq!(found.files_dir, root.join("digest"));
+    }
+
+    #[test]
+    fn a_huge_rejected_digest_dir_is_truncated_on_a_char_boundary() {
+        // A multi-byte character sits right at the truncation point; slicing on
+        // a raw byte index there would panic instead of reporting.
+        let root = tmp("huge-digest-dir");
+        let mut long = "x".repeat(199);
+        long.push('é'); // 2 UTF-8 bytes, straddling the 200-byte cut
+        long.push_str(&"y".repeat(50));
+        write(
+            &root.join("root.json"),
+            &format!(r#"{{"schema":1,"digest_dir":"{long}","repos":{{}}}}"#),
+        );
+        let err = probe(&root).unwrap_err();
+        assert!(err.contains("..."), "{err}");
     }
 
     #[test]
