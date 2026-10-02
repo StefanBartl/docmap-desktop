@@ -167,6 +167,21 @@ Download the installer for the platform you are on:
 gh release download v0.2.0 --pattern "*.msi" --dir .
 ```
 
+If you cannot install it right away, you can still look inside the Windows
+installer without installing or starting anything. It is an NSIS archive, so
+7-Zip unpacks it, and the bundled engine answers on its own:
+
+```bash
+7z x -o"$TMP/x" docmap-desktop_0.6.0_x64-setup.exe
+cd "$TMP/x" && DOCMAP_TS_DIR="$PWD/grammars" ./docmap.exe --capabilities
+```
+
+That prints the engine's `build.commit` (compare it with `documentation.nvim`'s
+`main`) and how many grammars loaded. **Do not run `docmap-desktop.exe` for a
+version check** - it has no `--version`, it opens the window. This proves which
+engine shipped; it proves nothing about the window, which is why it does not
+replace the walk-through below.
+
 Install it, open it, and walk through the things a build cannot check:
 
 - a project selects and its map loads;
@@ -240,6 +255,15 @@ gh release delete v0.2.0 --yes --cleanup-tag
 Then commit the fix, re-tag, and push. While nothing is published this costs
 nothing. A public release that gets withdrawn is already in somebody's
 download history, which is why the draft step exists at all.
+
+**Re-cutting a version is for the case where nobody has seen it.** `v0.6.0` was
+published, an hour later a review of it found a real defect, and the tag was cut
+again on a newer commit (`gh release delete v0.6.0 --yes --cleanup-tag`, tag the
+new commit, push, wait for four green jobs, publish). That was defensible only
+because the tag was an hour old and the author was the only person who knew the
+repository; anyone who had installed the first build still has it, and *Help ->
+About* is how to tell the two apart (the engine commit differs). Once anyone else
+could have it, a fix is a patch release.
 
 ---
 
