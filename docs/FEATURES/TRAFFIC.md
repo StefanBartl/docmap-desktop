@@ -59,6 +59,9 @@ writes (`require("github_stats.digest").digest_dir()` — a small module that
 needs neither the plugin's dashboard nor `ui.nvim`). It never runs on a render.
 It replaces reading the path out of your installation spec, which is Lua code
 (`opts` may be a function).
+The process is bounded: `traffic::run_with_timeout` kills the one child it started
+after 30 s (`ASK_TIMEOUT`) and reports it, so a configuration that blocks cannot
+hang the button. A `digest_dir` read from `root.json` is used only when absolute.
 
 The chosen folder is read by the app's own process only; it is **not** added to
 any Tauri fs scope, so the window can ask for numbers but never gets a path it
