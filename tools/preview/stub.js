@@ -243,8 +243,22 @@ const R = {
   },
   map_freshness: (a) => {
     const fr = STATE[(a && a.id) in STATE ? a.id : "p1"].fr;
-    return { has_map: true, stale: false, truncated: false, ...fr };
+    // camelCase, as `freshness.rs` serialises it (`#[serde(rename_all =
+    // "camelCase")]`); the table above keeps the older snake_case spelling.
+    return {
+      hasMap: fr.has_map ?? true, stale: fr.stale ?? false, truncated: fr.truncated ?? false,
+      newest: fr.newest ?? null, behindSecs: fr.behind_secs ?? null, generatedSecs: 100000,
+    };
   },
+  map_changes: (a) => ({
+    files: [
+      { path: "lua/lib/nvim/cross/fs/init.lua", afterSecs: 600 },
+      { path: "lua/lib/nvim/window.lua", afterSecs: 7200 },
+      { path: "README.md", afterSecs: 90000 },
+    ],
+    total: (a.id === "p2") ? 250 : 3,
+    truncated: false,
+  }),
   scan_languages: (a) => (String(a.root).includes("mono")
     ? { total: 210, truncated: false, languages: [
         { name: "Go", files: 150, grammar: "go", backend: null },

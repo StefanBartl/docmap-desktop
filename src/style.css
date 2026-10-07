@@ -1100,17 +1100,39 @@ button:focus-visible {
    thing in the list and the sentence under it are visibly one fact. No red:
    a map that has fallen behind is not an error, and colouring it as one
    would make every working repository look broken between saves. */
-.proj-detail .stale::before {
-  content: "• ";
+.proj-detail .stale-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 4px;
+  padding: 1px 9px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-size: 11.5px;
+  line-height: 1.6;
+  cursor: pointer;
+}
+
+.proj-detail .stale-chip::before {
+  content: "•";
   color: var(--accent);
 }
 
-.proj-detail .stale {
-  color: var(--ink);
-  /* A path can be long; one line, elided, with the whole of it in the title. */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.proj-detail .stale-chip[hidden] {
+  display: none;
+}
+
+.changes-list {
+  max-height: 46vh;
+  overflow: auto;
+}
+
+/* Clear of the list: the pinned button's ring would otherwise sit on the
+   last row. */
+.changesbox > .addbox-go {
+  margin-top: 16px;
 }
 
 /* GitHub traffic. Plain ink like the counts above it: it is a fact about the

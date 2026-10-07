@@ -70,10 +70,16 @@
              and absent is what they get: a grey placeholder in front of
              thirty projects is noise pretending to be information. -->
         <img id="proj-icon" class="proj-icon" alt="" hidden />
-        <p id="proj-counts" class="meta counts"></p>
+        <!-- Only for a project with no map. With one, the counts are in the
+             map's own header and a second copy here said the same thing
+             twice. -->
+        <p id="proj-counts" class="meta counts nomap" hidden></p>
         <p id="proj-langs" class="meta langs" hidden></p>
         <p id="proj-schema" class="meta stale" hidden></p>
-        <p id="proj-stale" class="meta stale" hidden></p>
+        <!-- One keyword rather than a sentence: either the map is behind
+             its sources or it is not. Clicking lists what changed; the hover
+             text says what to do about it. -->
+        <button id="proj-stale" class="stale-chip" type="button" hidden></button>
         <!-- GitHub traffic, from the digest github_stats.nvim writes. Shown
              only when there is something true to say: no GitHub remote, no
              plugin and an opted-out project all leave these two hidden, so a
@@ -466,6 +472,21 @@
       <p id="traffic-paths-empty" class="addbox-note" hidden data-i18n="traffic.detail.paths.empty">
         Nothing yet.
       </p>
+    </dialog>
+
+    <!-- What changed since the map was made: the evidence behind the
+         "map outdated" chip, newest first. Plain rows -- each one opens the
+         file, and none of this is a verdict about the map's content. -->
+    <dialog id="changesbox" class="addbox changesbox">
+      <form method="dialog" class="addbox-close-form">
+        <button class="addbox-x" value="cancel" aria-label="Close">&times;</button>
+      </form>
+
+      <h2 class="addbox-title" data-i18n="changes.title">Changed since the map was made</h2>
+      <p id="changes-lead" class="addbox-note"></p>
+      <ul id="changes-list" class="ov-deps-list changes-list"></ul>
+      <p id="changes-more" class="addbox-note" hidden></p>
+      <button id="changes-generate" class="addbox-go" type="button" data-i18n="changes.generate">Generate a new map</button>
     </dialog>
 
     <dialog id="aboutbox" class="addbox">

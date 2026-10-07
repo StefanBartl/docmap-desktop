@@ -2481,6 +2481,24 @@ fn map_freshness(app: tauri::AppHandle, id: String) -> Result<freshness::Freshne
     freshness::check(Path::new(&project.root), Path::new(&project.map_dir))
 }
 
+/// The files modified after the project's map was written — what the
+/// "map outdated" mark is made of. At most `limit` of them, newest first,
+/// plus the true total. See `freshness::changed_since_map`.
+#[tauri::command]
+fn map_changes(app: tauri::AppHandle, id: String, limit: usize) -> Result<freshness::Changes, String> {
+    let ws = read_workspace(&app)?;
+    let project = ws
+        .projects
+        .iter()
+        .find(|p| p.id == id)
+        .ok_or_else(|| format!("no such project: {id}"))?;
+    freshness::changed_since_map(
+        Path::new(&project.root),
+        Path::new(&project.map_dir),
+        limit.min(500),
+    )
+}
+
 /// Which projects in this workspace depend on which others.
 ///
 /// The whole workspace in one call rather than one per project: the answer
@@ -2776,6 +2794,7 @@ fn main() {
             open_feedback,
             about_info,
             map_freshness,
+            map_changes,
             project_icon,
             open_in_editor,
             file_tree,

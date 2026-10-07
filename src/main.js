@@ -499,7 +499,9 @@ async function render() {
   els.list.innerHTML = "";
   els.empty.hidden = projects.length > 0;
   els.list.hidden = projects.length === 0;
-  els.sort.hidden = projects.length < 2;
+  // Ordering is a question about *many* projects. With one selected there
+  // is nothing to order, so the control only exists on the overview.
+  els.sort.hidden = projects.length < 2 || !!selectedId;
 
   // Nothing selected is a state a `<select>` cannot express on its own: it
   // always has one option selected, so with no selection the control named
@@ -917,10 +919,6 @@ async function renderDetail() {
   const status = await mapStatus(invoke, p.map_dir);
   renderIcon(p.id);
   renderCounts(status);
-  // The two counts the artifact does not carry are asked for when the page
-  // *reports itself*, not here: at this point the frame has not been
-  // pointed at this project's map yet, so a question would go to whatever
-  // was showing before — or to nothing at all.
 
   // A different question from "are the sources newer": this one is about
   // the *engine*, and regenerating is the answer to both.
@@ -961,80 +959,15 @@ async function renderDetail() {
  * of the artifact.
  */
 /**
- * The map's own counts, in the sidebar, as links.
+ * The line under the picker for a project that has no map yet.
  *
- * They sat top-right inside the page, which is the wrong place for them:
- * somebody choosing between projects is looking at the sidebar, and the
- * header only exists once you are already in the map you chose.
- *
- * **They stay links.** Each count was an anchor into the view it names, and
- * moving the text without the navigation would leave five decorative
- * numbers. Navigation is by the frame's URL — the same mechanism the theme
- * uses, and the reason the page's inbound channel takes no instructions.
- *
- * Two sources, because no single one has all five. `modules`, `namespaces`
- * and `files` come from `module_map.json`, which the app reads directly.
- * `errors` and `warnings` do not exist in the artifact at all — findings are
- * computed at render time — so those come from asking the page, and arrive a
- * moment later. The line renders with what it has and fills in the rest.
+ * It used to carry the map's own counts as links (modules, namespaces,
+ * files, errors, warnings). Those are in the map's header, next to the
+ * project name, so the sidebar copy said everything twice and was dropped.
  */
-const COUNT_LINKS = [
-  { key: "modules", tab: "index", iview: "modules" },
-  { key: "namespaces", tab: "index", iview: "modules" },
-  { key: "files", tab: "index", iview: "functions" },
-  { key: "errors", tab: null },
-  { key: "warnings", tab: null },
-];
-
-/** What the page last told us, per project id. */
-const pageCounts = new Map();
-
 function renderCounts(status) {
-  els.counts.innerHTML = "";
-  if (!status.exists) {
-    els.counts.textContent = t("detail.nomap");
-    els.counts.classList.add("nomap");
-    return;
-  }
-  els.counts.classList.remove("nomap");
-
-  const asked = pageCounts.get(selectedId) || {};
-  const have = {
-    modules: status.modules,
-    namespaces: status.namespaces,
-    files: status.files,
-    errors: asked.errors,
-    warnings: asked.warnings,
-  };
-
-  let first = true;
-  for (const spec of COUNT_LINKS) {
-    const n = have[spec.key];
-    // Absent, not zero: errors and warnings are unknown until the page
-    // answers, and showing "0 errors" before knowing would be a claim.
-    if (n === undefined || n === null) continue;
-    if (!first) els.counts.append(document.createTextNode(" · "));
-    first = false;
-
-    const label = n + " " + t("count." + spec.key);
-    if (!spec.tab) {
-      // Findings have no view of their own to jump to; the page's own
-      // disclosure at its foot is not addressable by hash.
-      const span = document.createElement("span");
-      span.textContent = label;
-      if (n > 0) span.className = "count-bad";
-      els.counts.append(span);
-      continue;
-    }
-    const a = document.createElement("a");
-    a.href = "#";
-    a.textContent = label;
-    a.addEventListener("click", (ev) => {
-      ev.preventDefault();
-      gotoMap({ tab: spec.tab, iview: spec.iview });
-    });
-    els.counts.append(a);
-  }
+  els.counts.hidden = status.exists;
+  els.counts.textContent = status.exists ? "" : t("detail.nomap");
 }
 
 /**
@@ -1082,15 +1015,6 @@ async function renderIcon(id) {
   }
 }
 
-/** Ask the page for the two counts the artifact does not carry. */
-async function askCounts(id) {
-  const reply = await askMap("counts", 4000);
-  if (!reply || !reply.ok || id !== selectedId) return;
-  pageCounts.set(id, reply);
-  const status = await mapStatus(invoke, projects.find((p) => p.id === id).map_dir);
-  renderCounts(status);
-}
-
 /**
  * Say when a map was written by an older engine than the one installed.
  *
@@ -1123,8 +1047,9 @@ async function refreshFreshness(id) {
     freshness.set(id, f);
     if (id !== selectedId) return;
     if (!f.hasMap || !f.stale) return;
-    els.stale.textContent = t("detail.stale") + (f.newest ? " — " + f.newest : "");
-    els.stale.title = t("detail.staleWhy");
+    els.stale.textContent = t("detail.stale");
+    // The help bubble, not `title`: it also appears on keyboard focus.
+    els.stale.dataset.help = t("detail.staleWhy");
     els.stale.hidden = false;
     // The mark in the list, now that the answer is known.
     const option = [...els.list.options].find((o) => o.value === id);
@@ -1887,8 +1812,6 @@ window.addEventListener("message", (ev) => {
     clearTimeout(mapWatch);
     mapWatch = null;
   }
-  // First message from this page: it is up, so it can be asked things.
-  if (wasLoading && selectedId) askCounts(selectedId);
   if (data.tab) mapTab = data.tab;
   const note = contextNoteFor(data);
   els.contextNote.innerHTML = note || "";
@@ -2942,6 +2865,66 @@ document.getElementById("proj-traffic-detail").addEventListener("click", async (
 });
 
 // =====================================================================
+// What changed since the map was made
+//
+// The evidence behind the "map outdated" chip. Newest first and capped: a
+// repository that was reformatted has thousands of touched files, and the
+// reader needs the shape of the change, not an inventory. The total is
+// still reported, so a capped list says it is capped.
+// =====================================================================
+
+const changesBox = {
+  el: document.getElementById("changesbox"),
+  lead: document.getElementById("changes-lead"),
+  list: document.getElementById("changes-list"),
+  more: document.getElementById("changes-more"),
+  generate: document.getElementById("changes-generate"),
+};
+
+const CHANGES_LIMIT = 100;
+
+els.stale.addEventListener("click", async () => {
+  const id = selectedId;
+  if (!id) return;
+  try {
+    const c = await invoke("map_changes", { id, limit: CHANGES_LIMIT });
+    if (selectedId !== id) return;
+    changesBox.lead.textContent = fill(t("changes.lead"), { n: String(c.total) });
+    changesBox.list.replaceChildren();
+    for (const f of c.files) {
+      const li = document.createElement("li");
+      li.classList.add("traffic-path-open");
+      li.title = t("traffic.detail.openFile");
+      const name = document.createElement("span");
+      name.className = "ov-deps-name";
+      name.textContent = f.path;
+      const when = document.createElement("span");
+      when.className = "ov-deps-who";
+      const ago = agoText(f.afterSecs);
+      when.textContent = ago ? fill(t("changes.after"), { ago }) : "";
+      li.append(name, when);
+      li.addEventListener("click", () => {
+        invoke("open_in_editor", { id, path: f.path, line: null }).catch((err) => say(String(err)));
+      });
+      changesBox.list.append(li);
+    }
+    const rest = c.total - c.files.length;
+    changesBox.more.hidden = rest <= 0 && !c.truncated;
+    changesBox.more.textContent = c.truncated
+      ? t("changes.truncated")
+      : fill(t("changes.more"), { n: String(rest) });
+    changesBox.el.showModal();
+  } catch (e) {
+    say(String(e));
+  }
+});
+
+changesBox.generate.addEventListener("click", () => {
+  changesBox.el.close();
+  els.gen.click();
+});
+
+// =====================================================================
 // Asking the map a question
 //
 // The map is a cross-origin document: this window cannot read into it. The
@@ -3324,7 +3307,6 @@ async function useWorkspace(name) {
     selectedId = null;
     mapBase = null;
     freshness.clear();
-    pageCounts.clear();
     showPlaceholder(t("ph.none.title"), t("ph.none.body"));
     await refresh(list);
     // Re-listed because switching can *create*: the count in the title
