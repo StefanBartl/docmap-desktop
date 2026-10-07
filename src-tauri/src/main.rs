@@ -35,7 +35,7 @@ const ENGINE_PROBE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs
 
 use std::collections::HashMap;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
@@ -2243,8 +2243,6 @@ async fn set_telemetry(
 /// An empty `rel` is the root itself, which is what a folder search over the
 /// whole project asks for.
 pub(crate) fn resolve_inside(root: &Path, rel: &str) -> Result<PathBuf, String> {
-    use std::path::Component;
-
     if rel.contains('\0') {
         return Err("a path cannot contain a NUL".to_string());
     }
@@ -2255,12 +2253,83 @@ pub(crate) fn resolve_inside(root: &Path, rel: &str) -> Result<PathBuf, String> 
     {
         return Err(format!("{rel} is not a path inside the project"));
     }
+    #[cfg(windows)]
+    if leads_through_network_link(root, relative) {
+        return Err(format!("{rel} goes through a link to another machine"));
+    }
     let target = fs::canonicalize(root.join(relative))
         .map_err(|_| format!("{rel} is not in this project"))?;
     if !target.starts_with(root) {
         return Err(format!("{rel} resolves outside the project"));
     }
     Ok(target)
+}
+
+/// Is this a symlink or junction whose target is on another machine
+/// (`\\host\share`, `\\?\UNC\...`, a device namespace)?
+///
+/// Followed to the end of a chain of links, with a depth limit that counts as
+/// "yes": a loop is not a path anybody needs.
+#[cfg(windows)]
+fn network_link(link: &Path, depth: u8) -> bool {
+    use std::path::Prefix;
+    if depth == 0 {
+        return true;
+    }
+    let Ok(target) = fs::read_link(link) else {
+        return false;
+    };
+    if let Some(Component::Prefix(p)) = target.components().next() {
+        if matches!(
+            p.kind(),
+            Prefix::UNC(..) | Prefix::VerbatimUNC(..) | Prefix::DeviceNS(_)
+        ) {
+            return true;
+        }
+    }
+    let next = if target.is_absolute() {
+        target
+    } else {
+        link.parent().unwrap_or(link).join(target)
+    };
+    match fs::symlink_metadata(&next) {
+        Ok(m) if m.file_type().is_symlink() => network_link(&next, depth - 1),
+        _ => false,
+    }
+}
+
+/// Does any component of `relative`, walked from `root`, link to another
+/// machine?
+///
+/// The shape check refuses a UNC *string*; a symlink checked out inside the
+/// project that points at one passes it, and `canonicalize` then connects to
+/// the host before the containment check says no. So the components are
+/// inspected one by one — with `symlink_metadata`, which does not follow —
+/// before anything follows them.
+#[cfg(windows)]
+fn leads_through_network_link(root: &Path, relative: &Path) -> bool {
+    let mut walked = root.to_path_buf();
+    for part in relative.components() {
+        match part {
+            Component::CurDir => continue,
+            Component::ParentDir => {
+                walked.pop();
+                continue;
+            }
+            _ => walked.push(part),
+        }
+        match fs::symlink_metadata(&walked) {
+            Ok(m) if m.file_type().is_symlink() => {
+                if network_link(&walked, 8) {
+                    return true;
+                }
+            }
+            Ok(_) => {}
+            // Not there: `canonicalize` will say so.
+            Err(_) => return false,
+        }
+    }
+    false
 }
 
 /// A path as the desktop's own tools want it: the platform's separators and
@@ -2302,11 +2371,36 @@ fn native_str(path: &str) -> String {
 /// a map's own file list and a message the embedded page can post — all of it
 /// text from a repository somebody else wrote — so "open" must not mean "run".
 const INERT_EXTENSIONS: &[&str] = &[
-    "md", "markdown", "mdx", "txt", "rst", "adoc", "json", "jsonc", "toml", "yaml", "yml", "csv",
-    "tsv", "log", "ini", "cfg", "conf", "lock", "lua", "vim", "rs", "c", "h", "cc", "cpp", "cxx",
-    "hpp", "go", "java", "kt", "swift", "dart", "zig", "css", "scss", "less", "sql", "ex", "exs",
-    "erl", "hs", "ml", "scala", "clj", "el",
+    "md", "markdown", "mdx", "txt", "rst", "adoc", "json", "jsonc", "toml", "yaml", "yml", "log",
+    "ini", "cfg", "conf", "lock", "lua", "vim", "rs", "c", "h", "cc", "cpp", "cxx", "hpp", "go",
+    "java", "kt", "swift", "dart", "zig", "css", "scss", "less", "sql", "ex", "exs", "erl", "hs",
+    "ml", "scala", "clj", "el",
 ];
+
+/// Whether a file starts like something the system would execute: a shebang,
+/// or the magic number of an ELF, Mach-O, fat Mach-O or PE binary.
+#[cfg(unix)]
+fn looks_like_program(path: &Path) -> bool {
+    use std::io::Read;
+    let mut head = [0u8; 4];
+    let Ok(mut file) = fs::File::open(path) else {
+        // Unreadable and executable: not worth the benefit of the doubt.
+        return true;
+    };
+    let n = file.read(&mut head).unwrap_or(0);
+    let head = &head[..n];
+    head.starts_with(b"#!")
+        || head.starts_with(b"\x7fELF")
+        || head.starts_with(b"MZ")
+        || matches!(
+            head,
+            [0xCF, 0xFA, 0xED, 0xFE]
+                | [0xCE, 0xFA, 0xED, 0xFE]
+                | [0xFE, 0xED, 0xFA, 0xCE]
+                | [0xFE, 0xED, 0xFA, 0xCF]
+                | [0xCA, 0xFE, 0xBA, 0xBE]
+        )
+}
 
 /// Whether handing `path` to the desktop's file association is safe.
 fn is_inert_document(path: &Path) -> bool {
@@ -2319,8 +2413,12 @@ fn is_inert_document(path: &Path) -> bool {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        // Anything marked executable is a program, whatever it is called.
-        if meta.permissions().mode() & 0o111 != 0 {
+        // Marked executable *and* looks like a program: a script or a binary
+        // is a program whatever it is called. The bit alone is not evidence —
+        // FAT, exFAT and NTFS volumes, and some network shares, report every
+        // file as executable, and refusing all of them would make "open" show
+        // the file manager for every README on such a drive.
+        if meta.permissions().mode() & 0o111 != 0 && looks_like_program(path) {
             return false;
         }
     }
@@ -2607,7 +2705,7 @@ fn file_tree(app: tauri::AppHandle, id: String, sub: String) -> Result<filetree:
 /// following. `None` for most repositories, which is correct rather than a
 /// failure — see `icon.rs` on why nothing is shown instead of a
 /// placeholder.
-#[tauri::command]
+#[tauri::command(async)]
 fn project_icon(app: tauri::AppHandle, id: String) -> Result<Option<String>, String> {
     let ws = read_workspace(&app)?;
     let project = ws
@@ -3080,18 +3178,22 @@ mod tests {
     fn a_path_is_refused_on_its_shape_before_the_disk_is_touched() {
         let root = fs::canonicalize(std::env::temp_dir()).unwrap();
         // Absolute, drive-lettered and rooted forms all escape `join`.
+        // By the *message*: a refusal after the disk had been touched ends
+        // in `Err` too (the UNC form would only make the test slow while
+        // Windows tried to reach the host), and that is the bug.
+        let shape = |rel: &str| resolve_inside(&root, rel).unwrap_err();
         let absolute = root.to_string_lossy().to_string();
-        assert!(resolve_inside(&root, &absolute).is_err());
+        assert!(shape(&absolute).contains("not a path inside the project"));
         #[cfg(windows)]
         {
-            assert!(resolve_inside(&root, r"\\192.0.2.1\share\x.lua").is_err());
-            assert!(resolve_inside(&root, "//192.0.2.1/share/x.lua").is_err());
-            assert!(resolve_inside(&root, r"C:foo").is_err());
-            assert!(resolve_inside(&root, r"\foo").is_err());
+            assert!(shape(r"\\192.0.2.1\share\x.lua").contains("not a path inside the project"));
+            assert!(shape("//192.0.2.1/share/x.lua").contains("not a path inside the project"));
+            assert!(shape(r"C:foo").contains("not a path inside the project"));
+            assert!(shape(r"\foo").contains("not a path inside the project"));
         }
         #[cfg(unix)]
-        assert!(resolve_inside(&root, "/etc/passwd").is_err());
-        assert!(resolve_inside(&root, "a\0b").is_err());
+        assert!(shape("/etc/passwd").contains("not a path inside the project"));
+        assert!(shape("a\0b").contains("NUL"));
     }
 
     #[test]
@@ -3141,6 +3243,43 @@ mod tests {
         }
         assert!(!is_inert_document(&dir), "a folder is shown, not opened");
         assert!(!is_inert_document(&dir.join("missing.md")));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_execute_bit_alone_does_not_make_a_document_a_program() {
+        // A FAT or exFAT volume reports every file as 0755.
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join("docmap-inert-fat");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("README.md");
+        fs::write(&path, "# readme\n").unwrap();
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
+        assert!(is_inert_document(&path));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_link_to_another_machine_is_refused_before_it_is_followed() {
+        let root = fs::canonicalize(std::env::temp_dir()).unwrap();
+        let dir = root.join("docmap-network-link");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let dir = fs::canonicalize(&dir).unwrap();
+        // Creating a symlink needs a privilege on Windows; without it there
+        // is nothing to test here.
+        if std::os::windows::fs::symlink_file(r"\\192.0.2.1\share\x.md", dir.join("l.md")).is_err()
+        {
+            return;
+        }
+        let started = std::time::Instant::now();
+        let err = resolve_inside(&dir, "l.md").unwrap_err();
+        assert!(err.contains("link to another machine"), "{err}");
+        assert!(
+            started.elapsed().as_secs() < 3,
+            "it must not wait for the host"
+        );
     }
 
     #[cfg(unix)]

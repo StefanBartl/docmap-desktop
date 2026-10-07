@@ -203,3 +203,28 @@ test("the opaque panes sit above the map's context note", () => {
     assert.match(css.slice(start, css.indexOf("}", start)), /z-index:\s*2/);
   }
 });
+
+test("a result about a project is shown wherever that project is shown", () => {
+  const start = MAIN.indexOf("async function generateFor(");
+  const body = MAIN.slice(start, MAIN.indexOf("\n}\n", start));
+  assert.match(body, /const here = \(\) => selectedId === started \|\| selectedId === id;/);
+  // The cached verdict is about the map that was just replaced.
+  assert.match(body, /freshness\.delete\(p\.id\)/);
+});
+
+test("a jump inside the map does not arm the blank-pane watchdog", () => {
+  const start = MAIN.indexOf("function gotoMap(");
+  const body = MAIN.slice(start, MAIN.indexOf("\n}\n", start));
+  assert.doesNotMatch(body, /watchMapLoad\(/, "a fragment change loads no document");
+});
+
+test("dropping the selection tells the native menu", () => {
+  const start = MAIN.indexOf("function dropSelection(");
+  const body = MAIN.slice(start, MAIN.indexOf("\n}\n", start));
+  assert.match(body, /syncMenu\(\)/);
+});
+
+test("the Count-again button follows the project on screen", () => {
+  assert.match(MAIN, /statsUi\.refresh\.disabled = !!selectedId && statsPending\.has\(selectedId\)/);
+  assert.doesNotMatch(MAIN, /statsUi\.refresh\.disabled = (true|false)/);
+});

@@ -104,15 +104,26 @@ pub struct Results {
 /// lowercase is not exactly one character, keeps the two strings the same
 /// shape. Everything else that lowercases (`Ä` to `ä`) is still found.
 pub(crate) fn fold_chars(s: &str) -> String {
-    s.chars()
-        .map(|c| {
-            let mut lower = c.to_lowercase();
-            match (lower.next(), lower.next()) {
-                (Some(one), None) => one,
-                _ => c,
-            }
-        })
-        .collect()
+    // Pure ASCII is almost every source file, and `to_ascii_lowercase` is a
+    // byte loop the compiler vectorises; the general path below measured about
+    // six times slower on ordinary source, which is the whole text of every
+    // file searched.
+    if s.is_ascii() {
+        return s.to_ascii_lowercase();
+    }
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        if c.is_ascii() {
+            out.push(c.to_ascii_lowercase());
+            continue;
+        }
+        let mut lower = c.to_lowercase();
+        match (lower.next(), lower.next()) {
+            (Some(one), None) => out.push(one),
+            _ => out.push(c),
+        }
+    }
+    out
 }
 
 /// `s` folded for comparison — borrowed as it is when case matters.
@@ -652,15 +663,16 @@ mod tests {
     #[test]
     fn file_search_ranks_every_match_before_cutting_to_the_limit() {
         // Twenty files under `config/` match the word through their folder;
-        // the file actually called `config.lua` is elsewhere. With a limit of
-        // three it has to win whatever order the directory walk visits in.
+        // the file actually called `config.lua` is one level further down.
+        // The walk handles a directory's own files before it descends, so a
+        // walk that stops at the limit sees only decoys: this fails against
+        // the early break on every filesystem, whatever order it lists in.
         let root = tmp("files-rank");
-        fs::create_dir_all(root.join("config")).unwrap();
-        fs::create_dir_all(root.join("lua")).unwrap();
+        fs::create_dir_all(root.join("config/lua")).unwrap();
         for i in 0..20 {
             fs::write(root.join(format!("config/a{i}.txt")), "").unwrap();
         }
-        fs::write(root.join("lua/config.lua"), "").unwrap();
+        fs::write(root.join("config/lua/config.lua"), "").unwrap();
         let r = run(
             &root,
             &root,
@@ -672,9 +684,17 @@ mod tests {
         )
         .unwrap();
         assert_eq!(r.hits.len(), 3);
-        assert_eq!(r.hits[0].path, "lua/config.lua");
+        assert_eq!(r.hits[0].path, "config/lua/config.lua");
         assert!(r.truncated);
         assert_eq!(r.reason, Some("limit"));
+    }
+
+    #[test]
+    fn folding_ascii_and_non_ascii_text_keeps_the_shape() {
+        assert_eq!(fold_chars("Hello WORLD"), "hello world");
+        // One character in, one out, even where the lowercase is longer.
+        assert_eq!(fold_chars("\u{130}A").chars().count(), 2);
+        assert_eq!(fold_chars("ÄÖÜ"), "äöü");
     }
 
     #[test]
