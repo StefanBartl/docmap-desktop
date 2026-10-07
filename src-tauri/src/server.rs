@@ -130,7 +130,12 @@ fn safe_static_name(name: &str) -> Option<&str> {
 /// * **The resolved file stays inside the map directory.** A symlink that git
 ///   checked out as `docs/map/leak -> ~/.ssh/id_rsa` resolves outside and is
 ///   refused, and so is a junction or a link to a device.
-fn servable_file(map_dir: &Path, name: &str) -> Option<PathBuf> {
+/// * **The map directory is what it says it is.** It lies inside the project,
+///   so it is repository content too: `docs/map` checked out as a link to `..`
+///   would make "inside the map directory" mean "anywhere in the repository",
+///   `.env` included. No component between the project root and the map
+///   directory may be a link.
+fn servable_file(root: &Path, map_dir: &Path, name: &str) -> Option<PathBuf> {
     let mut parts = Path::new(name).components();
     if !matches!(
         (parts.next(), parts.next()),
@@ -140,6 +145,25 @@ fn servable_file(map_dir: &Path, name: &str) -> Option<PathBuf> {
     }
     if name.contains(':') || name.contains('\0') {
         return None;
+    }
+    if let Ok(rel) = map_dir.strip_prefix(root) {
+        let mut walked = std::fs::canonicalize(root).ok()?;
+        for part in rel.components() {
+            match part {
+                Component::Normal(n) => walked.push(n),
+                Component::CurDir => continue,
+                _ => return None,
+            }
+            // `symlink_metadata` does not follow, and reports a Windows
+            // junction as a link as well.
+            if std::fs::symlink_metadata(&walked)
+                .ok()?
+                .file_type()
+                .is_symlink()
+            {
+                return None;
+            }
+        }
     }
     let base = std::fs::canonicalize(map_dir).ok()?;
     let file = std::fs::canonicalize(base.join(name)).ok()?;
@@ -352,8 +376,8 @@ fn handle(cfg: &ServeConfig, stream: &mut TcpStream) {
     let Some(name) = safe_static_name(requested) else {
         return respond_json_error(stream, 400, "bad path");
     };
-    let body = servable_file(Path::new(&cfg.map_dir), name)
-        .and_then(|file| crate::safe_read::read_bytes(&file, crate::safe_read::MAP_JSON_MAX));
+    let body = servable_file(Path::new(&cfg.root), Path::new(&cfg.map_dir), name)
+        .and_then(|file| crate::safe_read::read_bytes(&file, crate::safe_read::MAP_SERVE_MAX));
     match body {
         Some(body) => respond(stream, 200, content_type(name), &body),
         None => respond_json_error(stream, 404, "not found"),
@@ -458,37 +482,58 @@ mod tests {
         dir
     }
 
+    /// A project root with `docs/map` under it.
+    fn project(name: &str) -> (std::path::PathBuf, std::path::PathBuf) {
+        let root = tmp(name);
+        let map = root.join("docs/map");
+        fs::create_dir_all(&map).unwrap();
+        (root, map)
+    }
+
     #[test]
     fn a_plain_file_in_the_map_directory_is_served() {
-        let dir = tmp("plain");
-        fs::write(dir.join("index.html"), "x").unwrap();
-        assert!(servable_file(&dir, "index.html").is_some());
-        assert!(servable_file(&dir, "missing.js").is_none());
+        let (root, map) = project("plain");
+        fs::write(map.join("index.html"), "x").unwrap();
+        assert!(servable_file(&root, &map, "index.html").is_some());
+        assert!(servable_file(&root, &map, "missing.js").is_none());
     }
 
     #[test]
     fn a_drive_prefix_or_a_stream_is_never_a_name() {
-        let dir = tmp("prefix");
-        fs::write(dir.join("a.txt"), "x").unwrap();
+        let (root, map) = project("prefix");
+        fs::write(map.join("a.txt"), "x").unwrap();
+        // A real NUL byte: a name with one is refused whatever else is true.
         for name in [
             "C:secret.txt",
             "a.txt:stream",
             "a.txt::$DATA",
-            "a\\0.txt",
+            "a\0.txt",
             "",
         ] {
-            assert!(servable_file(&dir, name).is_none(), "{name:?}");
+            assert!(servable_file(&root, &map, name).is_none(), "{name:?}");
         }
     }
 
     #[cfg(unix)]
     #[test]
     fn a_link_that_resolves_outside_the_map_directory_is_refused() {
-        let dir = tmp("link");
+        let (root, map) = project("link");
         let outside = tmp("link-outside");
         fs::write(outside.join("secret"), "s").unwrap();
-        std::os::unix::fs::symlink(outside.join("secret"), dir.join("leak")).unwrap();
-        assert!(servable_file(&dir, "leak").is_none());
+        std::os::unix::fs::symlink(outside.join("secret"), map.join("leak")).unwrap();
+        assert!(servable_file(&root, &map, "leak").is_none());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_map_directory_that_is_itself_a_link_is_not_served_from() {
+        // `docs/map -> ..` made "inside the map directory" mean "anywhere in
+        // the repository": a page could fetch `/.env`.
+        let root = tmp("maplink");
+        fs::create_dir_all(root.join("docs")).unwrap();
+        fs::write(root.join(".env"), "SECRET=1").unwrap();
+        std::os::unix::fs::symlink("..", root.join("docs/map")).unwrap();
+        assert!(servable_file(&root, &root.join("docs/map"), ".env").is_none());
     }
 
     #[test]

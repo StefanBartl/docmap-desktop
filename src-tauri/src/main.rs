@@ -2253,81 +2253,117 @@ pub(crate) fn resolve_inside(root: &Path, rel: &str) -> Result<PathBuf, String> 
     {
         return Err(format!("{rel} is not a path inside the project"));
     }
+    // Collapsed lexically, once, and *this* is the path that is examined and
+    // then opened. `Path::join` on a verbatim (`\\?\`) root drops `.` and `..`
+    // before the OS sees the path, and Win32 does the same to any other: an
+    // examination that walked the components as written (`missing/../l`)
+    // stopped at the first one that does not exist and never looked at `l`,
+    // which is what `canonicalize` then opened.
+    let mut clean = root.to_path_buf();
+    let mut depth = 0usize;
+    for part in relative.components() {
+        match part {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                if depth == 0 {
+                    return Err(format!("{rel} resolves outside the project"));
+                }
+                clean.pop();
+                depth -= 1;
+            }
+            Component::Normal(name) => {
+                clean.push(name);
+                depth += 1;
+            }
+            Component::Prefix(_) | Component::RootDir => {
+                return Err(format!("{rel} is not a path inside the project"));
+            }
+        }
+    }
     #[cfg(windows)]
-    if leads_through_network_link(root, relative) {
+    if links_to_network(&clean, root.components().count(), &mut 16) {
         return Err(format!("{rel} goes through a link to another machine"));
     }
-    let target = fs::canonicalize(root.join(relative))
-        .map_err(|_| format!("{rel} is not in this project"))?;
+    let target = fs::canonicalize(&clean).map_err(|_| format!("{rel} is not in this project"))?;
     if !target.starts_with(root) {
         return Err(format!("{rel} resolves outside the project"));
     }
     Ok(target)
 }
 
-/// Is this a symlink or junction whose target is on another machine
-/// (`\\host\share`, `\\?\UNC\...`, a device namespace)?
+/// Does `path` — walked from its start, component by component — go through a
+/// symlink or junction whose target is on another machine (`\\host\share`,
+/// `\\?\UNC\...`, a device namespace)?
 ///
-/// Followed to the end of a chain of links, with a depth limit that counts as
-/// "yes": a loop is not a path anybody needs.
+/// The shape check refuses a UNC *string*; a link checked out inside the
+/// project that points at one passes it, and `canonicalize` would connect to
+/// the host before the containment check said no. So every component is
+/// inspected with `symlink_metadata`, which does not follow, and only after
+/// everything before it has been shown not to be such a link — nothing is
+/// followed until it has been vetted.
+///
+/// When a component *is* a link, what remains of the path continues from the
+/// link's target, and that whole path is walked the same way (a link whose
+/// target passes through another link is the case a single look at the last
+/// component misses). `budget` is shared across the chain and running out
+/// counts as "yes": a loop is not a path anybody needs. The first `skip`
+/// components are not inspected — the canonical project root has no links.
 #[cfg(windows)]
-fn network_link(link: &Path, depth: u8) -> bool {
+fn links_to_network(path: &Path, skip: usize, budget: &mut u8) -> bool {
     use std::path::Prefix;
-    if depth == 0 {
-        return true;
-    }
-    let Ok(target) = fs::read_link(link) else {
-        return false;
-    };
-    if let Some(Component::Prefix(p)) = target.components().next() {
-        if matches!(
-            p.kind(),
-            Prefix::UNC(..) | Prefix::VerbatimUNC(..) | Prefix::DeviceNS(_)
-        ) {
-            return true;
-        }
-    }
-    let next = if target.is_absolute() {
-        target
-    } else {
-        link.parent().unwrap_or(link).join(target)
-    };
-    match fs::symlink_metadata(&next) {
-        Ok(m) if m.file_type().is_symlink() => network_link(&next, depth - 1),
-        _ => false,
-    }
-}
 
-/// Does any component of `relative`, walked from `root`, link to another
-/// machine?
-///
-/// The shape check refuses a UNC *string*; a symlink checked out inside the
-/// project that points at one passes it, and `canonicalize` then connects to
-/// the host before the containment check says no. So the components are
-/// inspected one by one — with `symlink_metadata`, which does not follow —
-/// before anything follows them.
-#[cfg(windows)]
-fn leads_through_network_link(root: &Path, relative: &Path) -> bool {
-    let mut walked = root.to_path_buf();
-    for part in relative.components() {
+    let parts: Vec<Component> = path.components().collect();
+    let mut walked = PathBuf::new();
+    for (i, part) in parts.iter().enumerate() {
         match part {
             Component::CurDir => continue,
             Component::ParentDir => {
                 walked.pop();
                 continue;
             }
-            _ => walked.push(part),
-        }
-        match fs::symlink_metadata(&walked) {
-            Ok(m) if m.file_type().is_symlink() => {
-                if network_link(&walked, 8) {
-                    return true;
-                }
+            // A drive or share prefix and the root are only built up, never
+            // statted on their own: `\\?\C:` is not a path `symlink_metadata`
+            // answers for, and an early "not there" here ended the walk before
+            // it reached a single real component.
+            Component::Prefix(_) | Component::RootDir => {
+                walked.push(part.as_os_str());
+                continue;
             }
-            Ok(_) => {}
-            // Not there: `canonicalize` will say so.
-            Err(_) => return false,
+            Component::Normal(_) => walked.push(part.as_os_str()),
         }
+        if i < skip {
+            continue;
+        }
+        // Not there: `canonicalize` will say so, and nothing past it can be
+        // reached.
+        let Ok(meta) = fs::symlink_metadata(&walked) else {
+            return false;
+        };
+        if !meta.file_type().is_symlink() {
+            continue;
+        }
+        if *budget == 0 {
+            return true;
+        }
+        *budget -= 1;
+        let Ok(target) = fs::read_link(&walked) else {
+            return false;
+        };
+        if let Some(Component::Prefix(p)) = target.components().next() {
+            if matches!(
+                p.kind(),
+                Prefix::UNC(..) | Prefix::VerbatimUNC(..) | Prefix::DeviceNS(_)
+            ) {
+                return true;
+            }
+        }
+        let base = if target.is_absolute() {
+            target
+        } else {
+            walked.parent().unwrap_or(&walked).join(target)
+        };
+        let rest: PathBuf = parts[i + 1..].iter().collect();
+        return links_to_network(&base.join(rest), 0, budget);
     }
     false
 }
@@ -3274,12 +3310,69 @@ mod tests {
             return;
         }
         let started = std::time::Instant::now();
-        let err = resolve_inside(&dir, "l.md").unwrap_err();
+        // As written, behind a component that does not exist, and behind `.`:
+        // all of them are the same path once collapsed, and all are refused.
+        for rel in ["l.md", "missing/../l.md", "./l.md", "a/../l.md"] {
+            let err = resolve_inside(&dir, rel).unwrap_err();
+            assert!(err.contains("link to another machine"), "{rel}: {err}");
+        }
+        assert!(
+            started.elapsed().as_secs() < 3,
+            "it must not wait for the host"
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_link_that_leads_through_another_link_to_another_machine_is_refused() {
+        // `l.png -> d\i.png` and `d -> \\host\share`: the second link is in the
+        // *middle* of the first one's target, where a look at the last
+        // component alone does not see it.
+        let root = fs::canonicalize(std::env::temp_dir()).unwrap();
+        let dir = root.join("docmap-network-chain");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let dir = fs::canonicalize(&dir).unwrap();
+        if std::os::windows::fs::symlink_dir(r"\\192.0.2.1\share", dir.join("d")).is_err() {
+            return;
+        }
+        if std::os::windows::fs::symlink_file(r"d\i.png", dir.join("l.png")).is_err() {
+            return;
+        }
+        let started = std::time::Instant::now();
+        let err = resolve_inside(&dir, "l.png").unwrap_err();
         assert!(err.contains("link to another machine"), "{err}");
         assert!(
             started.elapsed().as_secs() < 3,
             "it must not wait for the host"
         );
+    }
+
+    #[test]
+    fn dot_dot_is_collapsed_before_anything_is_opened() {
+        let root = fs::canonicalize(std::env::temp_dir()).unwrap();
+        let dir = root.join("docmap-collapse");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(dir.join("a")).unwrap();
+        fs::write(dir.join("a/f.txt"), "x").unwrap();
+        let dir = fs::canonicalize(&dir).unwrap();
+        // A component that does not exist before a `..` is fine: it is gone
+        // once collapsed.
+        assert_eq!(
+            resolve_inside(&dir, "nope/../a/f.txt").unwrap(),
+            dir.join("a/f.txt")
+        );
+        assert_eq!(
+            resolve_inside(&dir, "a/./f.txt").unwrap(),
+            dir.join("a/f.txt")
+        );
+        // Leaving the root is refused by what it says, not by a later check.
+        assert!(resolve_inside(&dir, "a/../..")
+            .unwrap_err()
+            .contains("outside"));
+        assert!(resolve_inside(&dir, "../x")
+            .unwrap_err()
+            .contains("outside"));
     }
 
     #[cfg(unix)]

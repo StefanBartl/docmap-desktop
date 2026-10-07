@@ -29,11 +29,17 @@ use std::path::Path;
 /// Bytes sniffed for a NUL before the rest of the file is read.
 const SNIFF: usize = 4096;
 
-/// Upper bound for a generated map's JSON, and for any file the map server
-/// hands out: far above any real map (the largest known is about 2 MB). Not
-/// higher, because parsing into `serde_json::Value` costs several times the
-/// file's size in memory — 32 MiB of JSON is a few hundred MiB resident.
+/// Upper bound for a generated map's JSON when it is *parsed*: far above any
+/// real map (the largest known is about 2 MB). Not higher, because parsing
+/// into `serde_json::Value` costs several times the file's size in memory —
+/// 32 MiB of JSON is a few hundred MiB resident.
 pub const MAP_JSON_MAX: u64 = 32 * 1024 * 1024;
+
+/// Upper bound for a file the map server hands out. Serving does not parse, so
+/// the memory argument above does not apply; but `index.html` embeds the whole
+/// JSON (about 1.3 times its size, plus roughly half a megabyte of page), so
+/// the page of a map whose JSON is accepted must be accepted too.
+pub const MAP_SERVE_MAX: u64 = 64 * 1024 * 1024;
 
 /// Read `path` as raw bytes if it is a regular file of at most `max` bytes.
 ///

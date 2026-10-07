@@ -413,7 +413,7 @@ path that does not start with the project root is refused. The check is on
 the path's *shape* first — a drive, a UNC path (`\\host\share\…`) or a leading
 separator is refused before the disk is touched, so a hostile map cannot make
 Windows contact a server of its choosing — and on the resolved location second.
-The same rule covers the search box's folder and the file tree.
+The same rule covers the search box's folder and the file tree. So do the project icon (every file it considers, including a web manifest's `icons`) and the local server behind the embedded map: a `docs/map` that is a symlink or junction, or a file in it that links out of it, is not served, because the page it holds is the repository's own and runs next to this server.
 
 Configure it in **Settings → Editor**: a command template with `{file}` and
 `{line}` substituted. The template is split into arguments *before*

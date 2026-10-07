@@ -117,7 +117,7 @@ fn largest_png(dir: &Path) -> Option<PathBuf> {
     let mut best: Option<(u64, PathBuf)> = None;
     for entry in fs::read_dir(dir).ok()?.flatten() {
         let p = entry.path();
-        if p.extension().and_then(|e| e.to_str()) != Some("png") {
+        if p.extension().and_then(|e| e.to_str()) != Some("png") || !is_plain_file(&entry) {
             continue;
         }
         let size = entry.metadata().ok()?.len();
@@ -128,6 +128,30 @@ fn largest_png(dir: &Path) -> Option<PathBuf> {
     best.map(|(_, p)| p)
 }
 
+/// `rel` inside `root` — resolved through [`crate::resolve_inside`], which
+/// refuses a shape that leaves the project and a link to another machine
+/// *before* anything is statted. Every probe below goes through this: `is_dir`,
+/// `is_file` and `metadata` all follow links, and on Windows a `favicon.ico`
+/// that is a link to `\\host\share` makes the machine contact that host just to
+/// answer "is it a file".
+fn inside(root: &Path, rel: &str) -> Option<PathBuf> {
+    crate::resolve_inside(root, rel).ok()
+}
+
+/// `dir/name`, with `.` meaning the root itself.
+fn join_rel(dir: &str, name: &str) -> String {
+    if dir == "." {
+        name.to_string()
+    } else {
+        format!("{dir}/{name}")
+    }
+}
+
+/// Is this directory entry a plain file — not a link to somewhere else?
+fn is_plain_file(entry: &fs::DirEntry) -> bool {
+    entry.file_type().map(|t| t.is_file()).unwrap_or(false)
+}
+
 /// Look for an icon under `root`. `None` is the common and correct answer.
 pub fn find(root: &Path) -> Option<PathBuf> {
     // Canonical, so what a manifest names can be checked against it.
@@ -135,16 +159,16 @@ pub fn find(root: &Path) -> Option<PathBuf> {
     let root = root.as_path();
     // 1 & 2 & 3: the web conventions, per static root.
     for dir in WEB_ROOTS {
-        let base = if *dir == "." {
-            root.to_path_buf()
-        } else {
-            root.join(dir)
+        let Some(base) = inside(root, if *dir == "." { "" } else { dir }) else {
+            continue;
         };
         if !base.is_dir() {
             continue;
         }
         for name in MANIFESTS {
-            let m = base.join(name);
+            let Some(m) = inside(root, &join_rel(dir, name)) else {
+                continue;
+            };
             if m.is_file() {
                 if let Some(icon) = from_manifest(root, &m) {
                     return Some(icon);
@@ -152,7 +176,9 @@ pub fn find(root: &Path) -> Option<PathBuf> {
             }
         }
         for name in FAVICONS {
-            let f = base.join(name);
+            let Some(f) = inside(root, &join_rel(dir, name)) else {
+                continue;
+            };
             if readable_file(&f) {
                 return Some(f);
             }
@@ -162,7 +188,9 @@ pub fn find(root: &Path) -> Option<PathBuf> {
     // 4: Android. `mipmap-*` is a family of density buckets; the largest
     // file across them is the highest-density copy of the same icon.
     for res in ["app/src/main/res", "src/main/res", "res"] {
-        let dir = root.join(res);
+        let Some(dir) = inside(root, res) else {
+            continue;
+        };
         if !dir.is_dir() {
             continue;
         }
@@ -174,7 +202,9 @@ pub fn find(root: &Path) -> Option<PathBuf> {
                     continue;
                 }
                 for icon in ["ic_launcher.png", "ic_launcher_round.png"] {
-                    let p = entry.path().join(icon);
+                    let Some(p) = inside(root, &format!("{res}/{name}/{icon}")) else {
+                        continue;
+                    };
                     if let Ok(meta) = fs::metadata(&p) {
                         if best.as_ref().is_none_or(|(b, _)| meta.len() > *b) {
                             best = Some((meta.len(), p));
@@ -195,7 +225,9 @@ pub fn find(root: &Path) -> Option<PathBuf> {
         "ios/Assets.xcassets",
         "Resources/Assets.xcassets",
     ] {
-        let dir = root.join(assets).join("AppIcon.appiconset");
+        let Some(dir) = inside(root, &format!("{assets}/AppIcon.appiconset")) else {
+            continue;
+        };
         if dir.is_dir() {
             if let Some(p) = largest_png(&dir) {
                 return Some(p);
@@ -365,6 +397,20 @@ mod tests {
             started.elapsed().as_secs() < 3,
             "it must not wait for the host"
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_favicon_that_is_a_link_out_of_the_project_is_not_the_icon() {
+        // Every probe resolves through the same check as the manifest entries,
+        // not only the manifest: a checked-out link must not become the icon
+        // of the project (or, on Windows, make the machine contact a host).
+        let outer = tmp("faviconlink");
+        let project = outer.join("project");
+        write(&outer.join("private.png"), b"not yours");
+        fs::create_dir_all(&project).unwrap();
+        std::os::unix::fs::symlink(outer.join("private.png"), project.join("favicon.png")).unwrap();
+        assert_eq!(find(&project), None);
     }
 
     #[test]
