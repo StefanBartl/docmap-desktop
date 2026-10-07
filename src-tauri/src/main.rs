@@ -18,6 +18,7 @@ mod icon;
 mod languages;
 mod menu;
 mod proc;
+mod safe_read;
 mod search;
 mod server;
 mod stats;
@@ -1014,7 +1015,11 @@ fn map_status(map_dir: String) -> MapStatus {
     let mut schema = None;
 
     if exists {
-        if let Ok(body) = fs::read_to_string(format!("{map_dir}/module_map.json")) {
+        if let Some(body) = safe_read::read_text(
+            &Path::new(&map_dir).join("module_map.json"),
+            safe_read::MAP_JSON_MAX,
+            false,
+        ) {
             if let Ok(v) = serde_json::from_str::<serde_json::Value>(&body) {
                 let counts = &v["meta"]["counts"];
                 modules = counts["module"].as_u64();
@@ -2221,6 +2226,145 @@ async fn set_telemetry(
     }
 }
 
+/// `rel` resolved inside `root`, or an error — checked **before** the
+/// filesystem is touched.
+///
+/// `root` must already be canonical. `Path::join` replaces the base when the
+/// right-hand side is absolute, so a `rel` such as `\\host\share\x` becomes
+/// that UNC path; `fs::canonicalize` then opens it, which on Windows makes the
+/// machine connect to that host with the user's credentials (an NTLM hash
+/// leak) and blocks for as long as the connection takes — and only after that
+/// did the old `starts_with(root)` check say no. A path that arrives from a
+/// map page, a search hit or a text box is therefore refused on its *shape*
+/// first: no drive or UNC prefix, no leading separator. `..` is allowed to
+/// pass here because the containment check below catches anything that really
+/// leaves the root, and `a/../b` inside it is a legitimate path.
+///
+/// An empty `rel` is the root itself, which is what a folder search over the
+/// whole project asks for.
+pub(crate) fn resolve_inside(root: &Path, rel: &str) -> Result<PathBuf, String> {
+    use std::path::Component;
+
+    if rel.contains('\0') {
+        return Err("a path cannot contain a NUL".to_string());
+    }
+    let relative = Path::new(rel);
+    if relative
+        .components()
+        .any(|c| matches!(c, Component::Prefix(_) | Component::RootDir))
+    {
+        return Err(format!("{rel} is not a path inside the project"));
+    }
+    let target = fs::canonicalize(root.join(relative))
+        .map_err(|_| format!("{rel} is not in this project"))?;
+    if !target.starts_with(root) {
+        return Err(format!("{rel} resolves outside the project"));
+    }
+    Ok(target)
+}
+
+/// A path as the desktop's own tools want it: the platform's separators and
+/// no `\\?\` verbatim prefix.
+///
+/// [`portable`] is for display and for the editor template's `{file}`;
+/// Explorer does not parse a forward-slash path — it opens the Documents
+/// folder instead, measured on Windows 11 — so what is handed to it is this.
+fn native_path(path: &Path) -> String {
+    let text = path.to_string_lossy();
+    #[cfg(windows)]
+    {
+        if let Some(rest) = text.strip_prefix(r"\\?\UNC\") {
+            return format!(r"\\{rest}");
+        }
+        text.strip_prefix(r"\\?\").unwrap_or(&text).to_string()
+    }
+    #[cfg(not(windows))]
+    {
+        text.into_owned()
+    }
+}
+
+/// A stored forward-slash path (a project root) in the platform's separators.
+fn native_str(path: &str) -> String {
+    if cfg!(windows) {
+        path.replace('/', "\\")
+    } else {
+        path.to_string()
+    }
+}
+
+/// Extensions whose "open" is to show the text, on every desktop this runs on.
+///
+/// A short list on purpose, and **not** the language table: `.js` is run by
+/// Windows Script Host, `.py`/`.rb`/`.pl` by an installed interpreter, `.ps1`,
+/// `.bat`, `.cmd`, `.sh`, `.command` by the shell, `.html`/`.svg` by a browser
+/// with `file://` rights. What is opened for the reader comes from search hits,
+/// a map's own file list and a message the embedded page can post — all of it
+/// text from a repository somebody else wrote — so "open" must not mean "run".
+const INERT_EXTENSIONS: &[&str] = &[
+    "md", "markdown", "mdx", "txt", "rst", "adoc", "json", "jsonc", "toml", "yaml", "yml", "csv",
+    "tsv", "log", "ini", "cfg", "conf", "lock", "lua", "vim", "rs", "c", "h", "cc", "cpp", "cxx",
+    "hpp", "go", "java", "kt", "swift", "dart", "zig", "css", "scss", "less", "sql", "ex", "exs",
+    "erl", "hs", "ml", "scala", "clj", "el",
+];
+
+/// Whether handing `path` to the desktop's file association is safe.
+fn is_inert_document(path: &Path) -> bool {
+    let Ok(meta) = fs::metadata(path) else {
+        return false;
+    };
+    if !meta.is_file() {
+        return false;
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        // Anything marked executable is a program, whatever it is called.
+        if meta.permissions().mode() & 0o111 != 0 {
+            return false;
+        }
+    }
+    path.extension()
+        .and_then(|e| e.to_str())
+        .map(|e| INERT_EXTENSIONS.contains(&e.to_ascii_lowercase().as_str()))
+        .unwrap_or(false)
+}
+
+/// Show `native` in the desktop's file manager instead of opening it.
+fn reveal_in_file_manager(native: &str) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    let mut cmd = {
+        use std::os::windows::process::CommandExt;
+        let mut c = std::process::Command::new("explorer");
+        // `raw_arg`: Explorer wants `/select,"<path>"` with the quotes around
+        // the path only; a whole-argument quote (what `arg` would add for a
+        // path with a space) makes it ignore the selection.
+        c.raw_arg(format!("/select,\"{native}\""));
+        c
+    };
+    #[cfg(target_os = "macos")]
+    let mut cmd = {
+        let mut c = std::process::Command::new("open");
+        c.arg("-R").arg(native);
+        c
+    };
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let mut cmd = {
+        // `xdg-open` has no "select": the folder it is in is the nearest thing.
+        let folder = Path::new(native)
+            .parent()
+            .map(|p| p.to_string_lossy().into_owned())
+            .unwrap_or_else(|| native.to_string());
+        let mut c = std::process::Command::new("xdg-open");
+        c.arg(folder);
+        c
+    };
+
+    cmd.spawn()
+        .map(|_| ())
+        .map_err(|e| format!("could not show {native}: {e}"))
+}
+
 /// Open a source file in an editor, at a line where one is known.
 ///
 /// The path arrives repo-relative from the map page, because that is what
@@ -2232,7 +2376,7 @@ async fn set_telemetry(
 /// from a document this app embeds but does not author — a map generated
 /// by an older engine, or one someone else produced — and `../../` in a
 /// path is the difference between opening a file and opening any file.
-#[tauri::command]
+#[tauri::command(async)]
 fn open_in_editor(
     app: tauri::AppHandle,
     id: String,
@@ -2248,18 +2392,25 @@ fn open_in_editor(
 
     let root = fs::canonicalize(&project.root)
         .map_err(|e| format!("cannot resolve {}: {e}", project.root))?;
-    let target = fs::canonicalize(root.join(&path))
-        .map_err(|_| format!("{path} is not a file in this project"))?;
-    if !target.starts_with(&root) {
-        return Err(format!("{path} resolves outside the project"));
+    if path.trim().is_empty() {
+        return Err("no file was named".to_string());
     }
+    let target = resolve_inside(&root, &path)?;
     let file = portable(&target);
 
     let template = match ws.editor.as_deref() {
         Some(t) if !t.trim().is_empty() => t.to_string(),
-        // No template configured: hand it to the desktop, which is what
-        // double-clicking the file would do.
-        _ => return open_externally(&file),
+        // No template configured: hand it to the desktop — but only a file
+        // whose "open" is to show it. An executable, a script or an archive
+        // is shown in the file manager instead of being run.
+        _ => {
+            let native = native_path(&target);
+            return if is_inert_document(&target) {
+                open_externally(&native)
+            } else {
+                reveal_in_file_manager(&native)
+            };
+        }
     };
 
     // Split before substituting, so a path with a space in it stays one
@@ -2472,7 +2623,7 @@ fn project_icon(app: tauri::AppHandle, id: String) -> Result<Option<String>, Str
 /// Cheap by construction — modification times, not a regeneration — so the
 /// answer is "something was touched since", never "the map is wrong". See
 /// `freshness.rs` on why the wording of the mark follows from that.
-#[tauri::command]
+#[tauri::command(async)]
 fn map_freshness(app: tauri::AppHandle, id: String) -> Result<freshness::Freshness, String> {
     let ws = read_workspace(&app)?;
     let project = ws
@@ -2486,7 +2637,7 @@ fn map_freshness(app: tauri::AppHandle, id: String) -> Result<freshness::Freshne
 /// The files modified after the project's map was written — what the
 /// "map outdated" mark is made of. At most `limit` of them, newest first,
 /// plus the true total. See `freshness::changed_since_map`.
-#[tauri::command]
+#[tauri::command(async)]
 fn map_changes(
     app: tauri::AppHandle,
     id: String,
@@ -2553,11 +2704,7 @@ async fn project_search(
 
     let root = fs::canonicalize(&project.root)
         .map_err(|e| format!("cannot resolve {}: {e}", project.root))?;
-    let scope = fs::canonicalize(root.join(sub.trim_matches('/')))
-        .map_err(|_| format!("{sub} is not a folder in this project"))?;
-    if !scope.starts_with(&root) {
-        return Err(format!("{sub} resolves outside the project"));
-    }
+    let scope = resolve_inside(&root, sub.trim_matches('/'))?;
     // The map directory, canonicalised the same way, so the comparison the
     // walk makes is between paths of one shape.
     let map_dir =
@@ -2571,7 +2718,7 @@ async fn project_search(
 }
 
 /// Search what the map shows — see `search::view`.
-#[tauri::command]
+#[tauri::command(async)]
 fn view_search(
     app: tauri::AppHandle,
     id: String,
@@ -2705,7 +2852,7 @@ fn reveal_project(app: tauri::AppHandle, id: String) -> Result<(), String> {
         .iter()
         .find(|p| p.id == id)
         .ok_or_else(|| format!("no such project: {id}"))?;
-    open_externally(&project.root)
+    open_externally(&native_str(&project.root))
 }
 
 /// Show the folder this app keeps its settings and workspaces in.
@@ -2927,6 +3074,101 @@ mod tests {
         assert_eq!(cmd.get_program(), "explorer");
         let args: Vec<&std::ffi::OsStr> = cmd.get_args().collect();
         assert_eq!(args, vec![std::ffi::OsStr::new(target)]);
+    }
+
+    #[test]
+    fn a_path_is_refused_on_its_shape_before_the_disk_is_touched() {
+        let root = fs::canonicalize(std::env::temp_dir()).unwrap();
+        // Absolute, drive-lettered and rooted forms all escape `join`.
+        let absolute = root.to_string_lossy().to_string();
+        assert!(resolve_inside(&root, &absolute).is_err());
+        #[cfg(windows)]
+        {
+            assert!(resolve_inside(&root, r"\\192.0.2.1\share\x.lua").is_err());
+            assert!(resolve_inside(&root, "//192.0.2.1/share/x.lua").is_err());
+            assert!(resolve_inside(&root, r"C:foo").is_err());
+            assert!(resolve_inside(&root, r"\foo").is_err());
+        }
+        #[cfg(unix)]
+        assert!(resolve_inside(&root, "/etc/passwd").is_err());
+        assert!(resolve_inside(&root, "a\0b").is_err());
+    }
+
+    #[test]
+    fn a_path_inside_the_root_resolves_and_one_that_leaves_it_does_not() {
+        let root = fs::canonicalize(std::env::temp_dir()).unwrap();
+        let dir = root.join("docmap-resolve-inside");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(dir.join("sub")).unwrap();
+        fs::write(dir.join("sub/a.txt"), "x").unwrap();
+        let dir = fs::canonicalize(&dir).unwrap();
+
+        assert_eq!(
+            resolve_inside(&dir, "sub/a.txt").unwrap(),
+            dir.join("sub/a.txt")
+        );
+        assert_eq!(
+            resolve_inside(&dir, "sub/../sub/a.txt").unwrap(),
+            dir.join("sub/a.txt")
+        );
+        assert_eq!(resolve_inside(&dir, "").unwrap(), dir);
+        assert!(resolve_inside(&dir, "..").is_err(), "the parent is outside");
+        assert!(resolve_inside(&dir, "nope.txt").is_err());
+    }
+
+    #[test]
+    fn only_documents_whose_open_is_to_show_them_go_to_the_desktop() {
+        let dir = std::env::temp_dir().join("docmap-inert");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        for (name, inert) in [
+            ("a.md", true),
+            ("a.TXT", true),
+            ("a.lua", true),
+            ("a.js", false),
+            ("a.bat", false),
+            ("a.ps1", false),
+            ("a.py", false),
+            ("a.html", false),
+            ("a.svg", false),
+            ("a.exe", false),
+            ("a.command", false),
+            ("noextension", false),
+        ] {
+            let path = dir.join(name);
+            fs::write(&path, "x").unwrap();
+            assert_eq!(is_inert_document(&path), inert, "{name}");
+        }
+        assert!(!is_inert_document(&dir), "a folder is shown, not opened");
+        assert!(!is_inert_document(&dir.join("missing.md")));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn an_executable_is_never_inert_whatever_it_is_called() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join("docmap-inert-exec");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("run.md");
+        fs::write(&path, "#!/bin/sh\n").unwrap();
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
+        assert!(!is_inert_document(&path));
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn what_explorer_is_given_has_backslashes_and_no_verbatim_prefix() {
+        assert_eq!(
+            native_path(Path::new(r"\\?\C:\repos\x\a.lua")),
+            r"C:\repos\x\a.lua"
+        );
+        assert_eq!(
+            native_path(Path::new(r"\\?\UNC\host\share\a.lua")),
+            r"\\host\share\a.lua"
+        );
+        assert_eq!(native_str("E:/repos/x"), r"E:\repos\x");
+        assert!(!native_str("E:/repos/x").contains('/'));
     }
 
     // The one thing this environment cannot verify by eye: whether the

@@ -22,15 +22,16 @@
 //! for a minute by a pattern. The walk is bounded instead: by results, by
 //! files and by time, and says so when it stopped early.
 
+use std::borrow::Cow;
 use std::fs;
-use std::io::Read;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::languages::{is_nested_checkout, SKIP_DIRS};
+use crate::languages::{is_map_dir, is_nested_checkout, SKIP_DIRS};
+use crate::safe_read;
 
 /// Stop reading after this many files, so an accidental scope of a whole
 /// drive's worth of source cannot freeze the window.
@@ -87,15 +88,39 @@ pub struct Results {
     pub truncated: bool,
     /// Why, for the caller to say: `"limit"`, `"files"` or `"time"`.
     pub reason: Option<&'static str>,
+    /// How many files had more matches than [`PER_FILE`] and were cut short.
+    /// Not `truncated`: the walk went on, but the per-file list is a prefix,
+    /// and a count that says "N matches" must not pass for the whole of it.
+    pub capped_files: usize,
 }
 
-/// Lowercase for a case-insensitive comparison. `to_lowercase` rather than
-/// ASCII-only: a German `Ä` must find `ä`.
-fn fold(s: &str, case_sensitive: bool) -> String {
+/// Lowercase for a case-insensitive comparison, **one character to one
+/// character**.
+///
+/// `str::to_lowercase` is not length-preserving: `İ` (U+0130) becomes two
+/// characters, so an offset found in the lowercased line pointed at the wrong
+/// place in the original — the highlight was shifted for every `İ` before the
+/// match. Mapping character by character, and keeping a character whose
+/// lowercase is not exactly one character, keeps the two strings the same
+/// shape. Everything else that lowercases (`Ä` to `ä`) is still found.
+pub(crate) fn fold_chars(s: &str) -> String {
+    s.chars()
+        .map(|c| {
+            let mut lower = c.to_lowercase();
+            match (lower.next(), lower.next()) {
+                (Some(one), None) => one,
+                _ => c,
+            }
+        })
+        .collect()
+}
+
+/// `s` folded for comparison — borrowed as it is when case matters.
+fn fold(s: &str, case_sensitive: bool) -> Cow<'_, str> {
     if case_sensitive {
-        s.to_string()
+        Cow::Borrowed(s)
     } else {
-        s.to_lowercase()
+        Cow::Owned(fold_chars(s))
     }
 }
 
@@ -126,19 +151,6 @@ fn snippet(line: &str, match_char: usize, match_len: usize) -> (String, u32) {
     (out, shown_at as u32)
 }
 
-fn read_text(path: &Path, size: u64) -> Option<String> {
-    if size > MAX_BYTES {
-        return None;
-    }
-    let mut bytes = Vec::new();
-    fs::File::open(path).ok()?.read_to_end(&mut bytes).ok()?;
-    // The test git uses for "binary".
-    if bytes[..bytes.len().min(4096)].contains(&0) {
-        return None;
-    }
-    Some(String::from_utf8_lossy(&bytes).into_owned())
-}
-
 /// Search `scope` (inside `root`) for `query`.
 ///
 /// `limit` bounds the number of hits. Results are sorted by path then line,
@@ -160,7 +172,7 @@ pub fn run(
         return Ok(Results::default());
     }
 
-    let needle = fold(query, case_sensitive);
+    let needle = fold(query, case_sensitive).into_owned();
     // For file names, every word has to be somewhere in the path: `lua init`
     // finds `lua/foo/init.lua`, which is how people type when they are
     // looking for a file.
@@ -199,11 +211,16 @@ pub fn run(
 
             if ft.is_dir() {
                 if !SKIP_DIRS.contains(&name.as_str())
-                    && path != map_dir
+                    && !is_map_dir(&path, map_dir)
                     && !is_nested_checkout(&path)
                 {
                     stack.push(path);
                 }
+                continue;
+            }
+            // A FIFO, socket or device is not a file to search, and opening
+            // a FIFO that has no writer blocks the thread for good.
+            if !ft.is_file() {
                 continue;
             }
 
@@ -227,21 +244,30 @@ pub fn run(
                     });
                 }
                 Mode::Text => {
-                    let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
-                    let Some(text) = read_text(&path, size) else {
+                    let Some(text) = safe_read::read_text(&path, MAX_BYTES, true) else {
                         continue;
                     };
                     out.files_searched += 1;
+                    // Folded once for the whole file, and the lines are only
+                    // looked at when the needle is in it at all: almost no
+                    // file contains it, and a string per line of every file
+                    // was nearly all the work.
+                    let folded = fold(&text, case_sensitive);
+                    if !folded.contains(needle.as_str()) {
+                        continue;
+                    }
                     let mut in_file = 0usize;
-                    for (i, line) in text.lines().enumerate() {
-                        let hay = fold(line, case_sensitive);
+                    // `fold_chars` keeps the shape of the text, so the two
+                    // split into the same lines and an offset in one is an
+                    // offset in the other.
+                    for (i, (line, hay)) in text.lines().zip(folded.lines()).enumerate() {
                         let Some(byte) = hay.find(needle.as_str()) else {
                             continue;
                         };
-                        // Byte offset in the folded line -> character offset.
-                        // Folding can change byte lengths, so this is the
-                        // folded line's own count, which is what `snippet`
-                        // is given a line of the same shape to cut.
+                        if in_file >= PER_FILE {
+                            out.capped_files += 1;
+                            break;
+                        }
                         let at = hay[..byte].chars().count();
                         let (shown, shown_at) = snippet(line, at, needle.chars().count());
                         out.hits.push(Hit {
@@ -251,14 +277,15 @@ pub fn run(
                             at: Some(shown_at),
                         });
                         in_file += 1;
-                        if in_file >= PER_FILE {
-                            break;
-                        }
                     }
                 }
             }
 
-            if out.hits.len() >= limit {
+            // Text hits are in walk order and cannot be improved by walking
+            // on, so the walk stops here. File names are ranked, and the best
+            // match can be anywhere in the tree: those are collected whole
+            // and cut after sorting (see below).
+            if mode == Mode::Text && out.hits.len() >= limit {
                 out.truncated = true;
                 out.reason = Some("limit");
                 break 'walk;
@@ -271,14 +298,20 @@ pub fn run(
         // beats `docs/notes/about-init-scripts.md` for the query `init`.
         let first = words.first().cloned().unwrap_or_default();
         out.files_searched = visited;
-        out.hits.sort_by(|a, b| {
-            let rank = |h: &Hit| {
-                let name = h.path.rsplit('/').next().unwrap_or(&h.path);
-                let in_name = fold(name, case_sensitive).contains(first.as_str());
-                (!in_name, h.path.len())
-            };
-            rank(a).cmp(&rank(b)).then_with(|| a.path.cmp(&b.path))
+        // The key is built once per hit, not once per comparison: folding
+        // allocates, and a sort compares each hit many times over.
+        out.hits.sort_by_cached_key(|h| {
+            let name = h.path.rsplit('/').next().unwrap_or(&h.path);
+            let in_name = fold(name, case_sensitive).contains(first.as_str());
+            (!in_name, h.path.len(), h.path.clone())
         });
+        if out.hits.len() > limit {
+            out.hits.truncate(limit);
+            out.truncated = true;
+            // A stop for time or file count says why it stopped; the limit is
+            // only the reason when nothing else was.
+            out.reason.get_or_insert("limit");
+        }
     } else {
         out.hits
             .sort_by(|a, b| a.path.cmp(&b.path).then_with(|| a.line.cmp(&b.line)));
@@ -324,8 +357,8 @@ fn first_match(v: &Value, needle: &str, skip: &[&str], field: &str) -> Option<St
             // The first *line* that matches, cut around the match: a body
             // is paragraphs, and a hit that shows the whole of one is not a
             // result list any more.
-            let line = s.lines().find(|l| l.to_lowercase().contains(needle))?;
-            let hay = line.to_lowercase();
+            let line = s.lines().find(|l| fold_chars(l).contains(needle))?;
+            let hay = fold_chars(line);
             let at = hay[..hay.find(needle)?].chars().count();
             let (shown, _) = snippet(line, at, needle.chars().count());
             Some(if field.is_empty() {
@@ -379,9 +412,11 @@ const ELEMENTS: &[(&str, &str)] = &[
 
 /// Search what the map shows. `map_dir` holds `module_map.json`.
 pub fn view(map_dir: &Path, query: &str, limit: usize) -> Result<ViewResults, String> {
-    let needle = query.trim().to_lowercase();
+    let needle = fold_chars(query.trim());
     let path = map_dir.join("module_map.json");
-    let Ok(raw) = fs::read_to_string(&path) else {
+    // Bounded and regular-file-only: the map lives in a repository somebody
+    // else wrote, and it is read on every pause in typing.
+    let Some(raw) = safe_read::read_text(&path, safe_read::MAP_JSON_MAX, false) else {
         return Ok(ViewResults::default());
     };
     let map: Value =
@@ -485,7 +520,7 @@ pub fn view(map_dir: &Path, query: &str, limit: usize) -> Result<ViewResults, St
         for f in files {
             let title = str_of(f, "title").unwrap_or_default();
             let p = str_of(f, "path").unwrap_or_default();
-            let hay = format!("{title} {p}").to_lowercase();
+            let hay = fold_chars(&format!("{title} {p}"));
             if !hay.contains(&needle) {
                 continue;
             }
@@ -611,6 +646,50 @@ mod tests {
         fs::write(root.join("big.txt"), "needle\n".repeat(100)).unwrap();
         let r = text(&root, "needle");
         assert_eq!(r.hits.len(), PER_FILE);
+        assert_eq!(r.capped_files, 1, "the cut is reported, not silent");
+    }
+
+    #[test]
+    fn file_search_ranks_every_match_before_cutting_to_the_limit() {
+        // Twenty files under `config/` match the word through their folder;
+        // the file actually called `config.lua` is elsewhere. With a limit of
+        // three it has to win whatever order the directory walk visits in.
+        let root = tmp("files-rank");
+        fs::create_dir_all(root.join("config")).unwrap();
+        fs::create_dir_all(root.join("lua")).unwrap();
+        for i in 0..20 {
+            fs::write(root.join(format!("config/a{i}.txt")), "").unwrap();
+        }
+        fs::write(root.join("lua/config.lua"), "").unwrap();
+        let r = run(
+            &root,
+            &root,
+            &root.join("docs/map"),
+            "config",
+            Mode::Files,
+            false,
+            3,
+        )
+        .unwrap();
+        assert_eq!(r.hits.len(), 3);
+        assert_eq!(r.hits[0].path, "lua/config.lua");
+        assert!(r.truncated);
+        assert_eq!(r.reason, Some("limit"));
+    }
+
+    #[test]
+    fn the_highlight_survives_a_character_that_lowercases_to_two() {
+        // U+0130 lowercases to two characters; folding the line used to push
+        // every offset after it to the right.
+        let root = tmp("fold-len");
+        fs::write(
+            root.join("a.txt"),
+            "\u{130}\u{130}\u{130}\u{130}\u{130} needle here\n",
+        )
+        .unwrap();
+        let r = text(&root, "needle");
+        assert_eq!(r.hits.len(), 1);
+        assert_eq!(r.hits[0].at, Some(6));
     }
 
     #[test]

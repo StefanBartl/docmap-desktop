@@ -26,12 +26,13 @@
 
 use std::collections::HashMap;
 use std::fs;
-use std::io::Read;
 use std::path::Path;
+use std::time::{Duration, Instant};
 
 use serde::Serialize;
 
-use crate::languages::{is_nested_checkout, SKIP_DIRS};
+use crate::languages::{is_map_dir, is_nested_checkout, SKIP_DIRS};
+use crate::safe_read;
 
 /// Same order of magnitude as the other walks, and for the same reason: a
 /// tree that cannot be bounded can hang the window.
@@ -41,6 +42,14 @@ const MAX_FILES: usize = 40_000;
 /// it is a generated bundle or a data dump, and one such file would dominate
 /// every line total while telling nobody anything about the project.
 const MAX_BYTES: u64 = 2 * 1024 * 1024;
+
+/// How long a count may run. There is no way to cancel it from the window, so
+/// the walk has to end by itself: a tree of twenty thousand 1.9 MB JSON files
+/// is about 38 GB of reads, and "Counting..." for minutes is not an answer.
+const BUDGET: Duration = Duration::from_secs(20);
+
+/// Total bytes read before the count stops and says it is a lower bound.
+const MAX_READ: u64 = 1024 * 1024 * 1024;
 
 /// What kind of thing a language is, for the totals.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
@@ -89,8 +98,10 @@ const MARKUP: Comments = Comments {
     line: &[],
     block: Some(("<!--", "-->")),
 };
+// `//` lines are not CSS, but SCSS, Sass and Less share this entry and use
+// them; in plain CSS such a line is invalid and does not occur.
 const CSS: Comments = Comments {
-    line: &[],
+    line: &["//"],
     block: Some(("/*", "*/")),
 };
 const HASKELL: Comments = Comments {
@@ -137,7 +148,6 @@ const ZIG: Comments = Comments {
     line: &["//"],
     block: None,
 };
-const XMLISH: Comments = MARKUP;
 
 fn lang_for(ext: &str) -> Option<Lang> {
     let code = |name, comments| {
@@ -209,11 +219,7 @@ fn lang_for(ext: &str) -> Option<Lang> {
         "yaml" | "yml" => data("YAML"),
         "toml" => data("TOML"),
         "ini" | "cfg" | "conf" => data("INI"),
-        "xml" | "svg" => Some(Lang {
-            name: "XML",
-            kind: Kind::Data,
-            comments: &XMLISH,
-        }),
+        "xml" | "svg" => data("XML"),
         "csv" | "tsv" => data("CSV"),
         _ => None,
     }
@@ -246,6 +252,9 @@ impl Lines {
 fn count_lines(text: &str, comments: &Comments) -> Lines {
     let mut out = Lines::default();
     let mut in_block = false;
+    // `trim` does not strip U+FEFF (it is not White_Space), so a BOM on the
+    // first line made a comment or an empty line count as code.
+    let text = text.strip_prefix('\u{FEFF}').unwrap_or(text);
 
     for raw in text.lines() {
         out.total += 1;
@@ -266,11 +275,11 @@ fn count_lines(text: &str, comments: &Comments) -> Lines {
         }
 
         if let Some((start, end)) = comments.block {
-            if line.starts_with(start) {
+            if let Some(after) = line.strip_prefix(start) {
                 out.comment += 1;
                 // A block that opens and closes on one line stays closed.
-                // `find` after the opener, so `/*/` is not mistaken for both.
-                let after = &line[start.len()..];
+                // Looked for after the opener, so `/*/` is not mistaken for
+                // both.
                 if !after.contains(end) {
                     in_block = true;
                 }
@@ -328,23 +337,9 @@ pub struct Stats {
     pub files: u64,
     pub bytes: u64,
     pub largest: Vec<Largest>,
-    /// The walk stopped at the file cap, so every number is a lower bound.
+    /// The walk stopped at a cap (files, bytes read or time), so every number
+    /// is a lower bound.
     pub truncated: bool,
-}
-
-/// Read a file as text, or `None` if it is binary or unreadable.
-///
-/// Binary is "has a NUL in the first 4 KiB", the same test git uses to decide
-/// whether to show a diff — wrong for UTF-16 text, which is a fair price for
-/// not needing an encoding detector to count lines.
-fn read_text(path: &Path) -> Option<String> {
-    let mut file = fs::File::open(path).ok()?;
-    let mut bytes = Vec::new();
-    file.read_to_end(&mut bytes).ok()?;
-    if bytes[..bytes.len().min(4096)].contains(&0) {
-        return None;
-    }
-    Some(String::from_utf8_lossy(&bytes).into_owned())
 }
 
 /// Count `root`. `map_dir` is skipped, for the reason every walk here skips it.
@@ -359,16 +354,24 @@ pub fn collect(root: &Path, map_dir: &Path) -> Result<Stats, String> {
     let mut bytes = 0u64;
     let mut largest: Vec<Largest> = Vec::new();
     let mut visited = 0usize;
+    let mut read_total = 0u64;
+    let started = Instant::now();
     let mut truncated = false;
     let mut stack = vec![root.to_path_buf()];
 
     while let Some(dir) = stack.pop() {
+        // Per directory as well as per file: a tree of empty directories
+        // never reaches the file cap.
+        if started.elapsed() > BUDGET {
+            truncated = true;
+            break;
+        }
         let entries = match fs::read_dir(&dir) {
             Ok(e) => e,
             Err(_) => continue,
         };
         for entry in entries.flatten() {
-            if visited >= MAX_FILES {
+            if visited >= MAX_FILES || read_total >= MAX_READ || started.elapsed() > BUDGET {
                 truncated = true;
                 break;
             }
@@ -385,7 +388,7 @@ pub fn collect(root: &Path, map_dir: &Path) -> Result<Stats, String> {
 
             if ft.is_dir() {
                 if !SKIP_DIRS.contains(&name.as_str())
-                    && path != map_dir
+                    && !is_map_dir(&path, map_dir)
                     && !is_nested_checkout(&path)
                 {
                     stack.push(path);
@@ -393,6 +396,11 @@ pub fn collect(root: &Path, map_dir: &Path) -> Result<Stats, String> {
                 continue;
             }
 
+            // Sockets, FIFOs and devices are not files to count, and
+            // opening a FIFO with no writer blocks forever.
+            if !ft.is_file() {
+                continue;
+            }
             visited += 1;
             files += 1;
             let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
@@ -411,7 +419,8 @@ pub fn collect(root: &Path, map_dir: &Path) -> Result<Stats, String> {
                 other.files += 1;
                 continue;
             }
-            let Some(text) = read_text(&path) else {
+            read_total += size;
+            let Some(text) = safe_read::read_text(&path, MAX_BYTES, true) else {
                 other.files += 1;
                 continue;
             };
@@ -532,6 +541,28 @@ mod tests {
         assert_eq!(s.other.files, 1, "the binary is counted, not measured");
         assert!(s.languages.iter().any(|l| l.name == "Lua"));
         assert_eq!(s.languages[0].name, "Markdown", "most lines first");
+    }
+
+    #[test]
+    fn a_byte_order_mark_does_not_turn_the_first_line_into_code() {
+        let n = count_lines("\u{FEFF}// header\nlet a = 1;\n", &C_LIKE);
+        assert_eq!((n.comment, n.code), (1, 1));
+        let blank = count_lines("\u{FEFF}\nlet a = 1;\n", &C_LIKE);
+        assert_eq!((blank.blank, blank.code), (1, 1));
+    }
+
+    #[test]
+    fn scss_and_less_line_comments_are_comments() {
+        let n = count_lines("// note\na { b: c; }\n", &CSS);
+        assert_eq!((n.comment, n.code), (1, 1));
+    }
+
+    #[test]
+    fn xml_comments_are_content_like_every_other_data_line() {
+        // Data has no comment syntax here, so the totals add up: every
+        // non-blank data line is content.
+        let n = count_lines("<!-- c -->\n<a/>\n", &NONE);
+        assert_eq!((n.comment, n.code), (0, 2));
     }
 
     #[test]

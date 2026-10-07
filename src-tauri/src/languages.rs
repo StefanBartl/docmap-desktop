@@ -244,6 +244,32 @@ pub(crate) fn is_nested_checkout(dir: &Path) -> bool {
     dir.join(".git").exists()
 }
 
+/// Is `path` the project's map directory?
+///
+/// Compared component by component and, where the filesystem ignores case
+/// (Windows, macOS), without regard to case: `Docs/Map` and `docs/map` are one
+/// directory there, and a plain `==` on two spellings of it let the generated
+/// map count as sources — which made every freshly generated map look stale
+/// against itself. No filesystem access, so it is cheap enough to ask for every
+/// directory a walk visits.
+pub(crate) fn is_map_dir(path: &Path, map_dir: &Path) -> bool {
+    if path == map_dir {
+        return true;
+    }
+    if !cfg!(any(windows, target_os = "macos")) {
+        return false;
+    }
+    let mut a = path.components();
+    let mut b = map_dir.components();
+    loop {
+        match (a.next(), b.next()) {
+            (None, None) => return true,
+            (Some(x), Some(y)) if x.as_os_str().eq_ignore_ascii_case(y.as_os_str()) => {}
+            _ => return false,
+        }
+    }
+}
+
 /// Count source files by language under `root`.
 ///
 /// `map_dir` is the project's generated-map directory, skipped wholesale for
@@ -304,7 +330,7 @@ pub fn scan(root: &Path, map_dir: Option<&Path>) -> Result<LanguageScan, String>
             if ft.is_dir() {
                 let path = entry.path();
                 if !SKIP_DIRS.contains(&name.as_str())
-                    && path != skip_map
+                    && !is_map_dir(&path, &skip_map)
                     && !is_nested_checkout(&path)
                 {
                     stack.push(path);
