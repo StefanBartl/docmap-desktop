@@ -34,7 +34,6 @@
 //! the question.
 
 use std::collections::HashMap;
-use std::fs;
 
 use serde::Serialize;
 
@@ -91,7 +90,11 @@ pub struct Deps {
 /// every schema bump. Unknown keys are ignored, which is the reading rule
 /// `HOSTING.md` asks for.
 fn facts_of(map_dir: &str) -> Option<MapFacts> {
-    let body = fs::read_to_string(format!("{map_dir}/module_map.json")).ok()?;
+    let body = crate::safe_read::read_text(
+        &std::path::Path::new(map_dir).join("module_map.json"),
+        crate::safe_read::MAP_JSON_MAX,
+        false,
+    )?;
     let v: serde_json::Value = serde_json::from_str(&body).ok()?;
     let nodes = v.get("nodes")?.as_array()?;
 
@@ -217,6 +220,7 @@ pub fn resolve(projects: &[(String, String)]) -> Deps {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
     use std::path::{Path, PathBuf};
 
     /// A map directory holding one artifact with the given nodes.

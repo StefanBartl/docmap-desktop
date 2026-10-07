@@ -226,14 +226,8 @@ struct GitStates {
 /// difference between browsing a project and browsing a disk.
 pub fn list(root: &Path, sub: &str) -> Result<Listing, String> {
     let root = fs::canonicalize(root).map_err(|e| format!("cannot resolve project root: {e}"))?;
-    let dir = if sub.is_empty() {
-        root.clone()
-    } else {
-        fs::canonicalize(root.join(sub)).map_err(|_| format!("no such directory: {sub}"))?
-    };
-    if !dir.starts_with(&root) {
-        return Err(format!("{sub} resolves outside the project"));
-    }
+    // Shape first, filesystem second: see `resolve_inside`.
+    let dir = crate::resolve_inside(&root, sub)?;
     if !dir.is_dir() {
         return Err(format!("{sub} is not a directory"));
     }

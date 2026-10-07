@@ -23,7 +23,7 @@ use std::time::{Duration, SystemTime};
 
 use serde::Serialize;
 
-use crate::languages::{is_nested_checkout, SKIP_DIRS};
+use crate::languages::{is_map_dir, is_nested_checkout, SKIP_DIRS};
 
 /// Same cap as the language scan, for the same reason: a walk that cannot be
 /// bounded is one that can hang the window on a pathological tree.
@@ -115,7 +115,7 @@ fn walk_sources(root: &Path, map_dir: &Path, mut visit: impl FnMut(&Path, System
                 // it would make every freshly generated map look stale
                 // against itself.
                 if !SKIP_DIRS.contains(&name.as_str())
-                    && path != map_dir
+                    && !is_map_dir(&path, map_dir)
                     && !is_nested_checkout(&path)
                 {
                     stack.push(path);
@@ -124,9 +124,12 @@ fn walk_sources(root: &Path, map_dir: &Path, mut visit: impl FnMut(&Path, System
             }
 
             visited += 1;
-            let path = entry.path();
-            if let Some(t) = mtime(&path) {
-                visit(&path, t);
+            // The time the listing already carried. `fs::metadata(path)`
+            // would open the file again — on Windows a CreateFile, a query
+            // and a Close per file, for every file of every project in the
+            // sidebar.
+            if let Some(t) = entry.metadata().ok().and_then(|m| m.modified().ok()) {
+                visit(&entry.path(), t);
             }
         }
 
@@ -185,7 +188,7 @@ pub fn changed_since_map(root: &Path, map_dir: &Path, limit: usize) -> Result<Ch
     let total = found.len();
     // Newest first: the question is "what did I do since", and the answer
     // the reader recognises is the last thing they touched.
-    found.sort_by(|a, b| b.0.cmp(&a.0));
+    found.sort_by_key(|f| std::cmp::Reverse(f.0));
     let files = found
         .into_iter()
         .take(limit)
@@ -243,10 +246,13 @@ pub fn check(root: &Path, map_dir: &Path) -> Result<Freshness, String> {
 
     let (stale, behind_secs) = match &newest {
         Some((t, _)) => match t.duration_since(map_time) {
-            Ok(d) => (true, Some(d.as_secs())),
-            // `duration_since` errors when the source is *older*, which is
-            // the healthy case.
-            Err(_) => (false, None),
+            // Strictly newer, as `changed_since_map` counts it: the chip says
+            // "outdated" and opens the list of what changed, and the two must
+            // agree. A zip or `git archive` checkout stamps every file with
+            // one time, the map's included.
+            Ok(d) if !d.is_zero() => (true, Some(d.as_secs())),
+            // Older, or the same instant: the healthy case.
+            _ => (false, None),
         },
         None => (false, None),
     };
@@ -254,7 +260,7 @@ pub fn check(root: &Path, map_dir: &Path) -> Result<Freshness, String> {
     Ok(Freshness {
         has_map: true,
         stale,
-        newest: newest.and_then(|(_, p)| p.strip_prefix(root).ok().map(|r| crate::portable(&r))),
+        newest: newest.and_then(|(_, p)| p.strip_prefix(root).ok().map(crate::portable)),
         behind_secs,
         truncated,
         generated_secs,
@@ -433,6 +439,38 @@ mod tests {
         let c = changed_since_map(&root, &map, 2).unwrap();
         assert_eq!(c.files.len(), 2);
         assert_eq!(c.total, 5);
+    }
+
+    #[test]
+    fn a_source_with_the_maps_own_timestamp_is_neither_stale_nor_listed() {
+        // Every file of a zip extraction carries one time, the map's too. The
+        // chip and the list it opens must agree about that.
+        let root = tmp("equal");
+        let map = root.join("docs/map");
+        touch(&map.join("module_map.json"), ago(HOUR));
+        touch(&root.join("src/a.lua"), ago(HOUR));
+        let f = check(&root, &map).unwrap();
+        assert!(!f.stale, "newest was {:?}", f.newest);
+        assert_eq!(f.behind_secs, None);
+        assert_eq!(changed_since_map(&root, &map, 10).unwrap().total, 0);
+    }
+
+    #[test]
+    fn the_map_directory_is_recognised_however_its_case_is_spelled() {
+        let root = tmp("mapcase");
+        let map = root.join("docs/map");
+        touch(&map.join("module_map.json"), ago(2 * HOUR));
+        touch(&map.join("index.html"), ago(HOUR));
+        // Same directory, different spelling: the walk must still skip it
+        // where the filesystem treats the two as one.
+        let respelled = root.join("DOCS/MAP");
+        let f = check(&root, &respelled).unwrap();
+        if cfg!(any(windows, target_os = "macos")) {
+            assert!(
+                !f.has_map || !f.stale,
+                "the map's own files counted as sources"
+            );
+        }
     }
 
     #[test]
