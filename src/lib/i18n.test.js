@@ -137,8 +137,9 @@ function setLocaleAndGet(code, key) {
 // ---------------------------------------------------------------------
 test("no showPlaceholder call passes a literal instead of a catalog key", () => {
   const src = readSource("../main.js");
-  const calls = [...src.matchAll(/showPlaceholder\(\s*([^,]+),/g)]
-    // The definition itself, whose parameter is named `title`.
+  // `showTaskPlaceholder` is the same call with the map brought to the front.
+  const calls = [...src.matchAll(/(?:showPlaceholder|showTaskPlaceholder)\(\s*([^,]+),/g)]
+    // The definitions themselves, whose parameter is named `title`.
     .filter((m) => !/^title\b/.test(m[1].trim()));
   assert.ok(calls.length >= 7, `expected the placeholder call sites, found ${calls.length}`);
   for (const m of calls) {

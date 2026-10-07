@@ -75,8 +75,8 @@ export function row(project, status, fresh, engineSchema) {
     mapSchema,
     schemaLag: lag,
     stale: fresh ? !!fresh.stale : null,
-    behindSecs: fresh ? (fresh.behind_secs ?? null) : null,
-    generatedSecs: fresh ? (fresh.generated_secs ?? null) : null,
+    behindSecs: fresh ? (fresh.behindSecs ?? null) : null,
+    generatedSecs: fresh ? (fresh.generatedSecs ?? null) : null,
     // The freshness walk hit its file cap, so "not stale" is only "not known
     // to be stale". Carried through so the row can say so rather than
     // asserting a verdict it does not have.

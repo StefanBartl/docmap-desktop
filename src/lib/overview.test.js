@@ -11,12 +11,14 @@ const CSS = readFileSync(here + "../style.css", "utf8");
 const MAIN = readFileSync(here + "../main.js", "utf8");
 
 // The fixtures are the shapes the two Rust commands actually return, named
-// the way serde writes them: `behind_secs`, not `behindSecs`. Getting that
+// the way serde writes them: `behindSecs`, not `behindSecs` (the Rust side
+// says `rename_all = "camelCase"`; the first version of this file had the
+// snake_case spelling and passed while production read `undefined`). Getting that
 // wrong is silent — every field reads `undefined` and every project looks
 // healthy — so the tests use the wire names deliberately.
 const P = (id, name) => ({ id, name });
 const mapped = (schema, extra = {}) => ({ exists: true, schema, modules: 9, files: 37, ...extra });
-const fresh = (o = {}) => ({ has_map: true, stale: false, truncated: false, ...o });
+const fresh = (o = {}) => ({ hasMap: true, stale: false, truncated: false, ...o });
 
 test("a project with no map outranks everything else", () => {
   const r = row(P("a", "alpha"), { exists: false }, null, 5);
@@ -53,7 +55,7 @@ test("stale ranks below behind-schema, which is the ordering the corpus argued f
   // newest file was a `.gitignore` touched in one sweep. So a project that
   // is only stale sorts below one that is behind the engine.
   const behind = row(P("a", "alpha"), mapped(2), fresh(), 5);
-  const stale = row(P("b", "bravo"), mapped(5), fresh({ stale: true, behind_secs: 999999 }), 5);
+  const stale = row(P("b", "bravo"), mapped(5), fresh({ stale: true, behindSecs: 999999 }), 5);
   assert.deepEqual(
     sortRows([stale, behind]).map((r) => r.id),
     ["a", "b"]
@@ -74,11 +76,11 @@ test("a truncated freshness walk is carried through, not flattened into a verdic
 });
 
 test("within a rank, furthest behind comes first, then the name", () => {
-  const a = row(P("a", "alpha"), mapped(5), fresh({ stale: true, behind_secs: 10 }), 5);
-  const b = row(P("b", "bravo"), mapped(5), fresh({ stale: true, behind_secs: 900 }), 5);
+  const a = row(P("a", "alpha"), mapped(5), fresh({ stale: true, behindSecs: 10 }), 5);
+  const b = row(P("b", "bravo"), mapped(5), fresh({ stale: true, behindSecs: 900 }), 5);
   assert.deepEqual(sortRows([a, b]).map((r) => r.id), ["b", "a"]);
 
-  const c = row(P("c", "charlie"), mapped(5), fresh({ stale: true, behind_secs: 10 }), 5);
+  const c = row(P("c", "charlie"), mapped(5), fresh({ stale: true, behindSecs: 10 }), 5);
   assert.deepEqual(sortRows([c, a]).map((r) => r.id), ["a", "c"]);
 });
 
@@ -92,7 +94,7 @@ test("the order is total and does not move between two renders of the same data"
   const rows = [
     row(P("d", "delta"), mapped(5), fresh(), 5),
     row(P("a", "alpha"), { exists: false }, null, 5),
-    row(P("c", "charlie"), mapped(5), fresh({ stale: true, behind_secs: 5 }), 5),
+    row(P("c", "charlie"), mapped(5), fresh({ stale: true, behindSecs: 5 }), 5),
     row(P("b", "bravo"), mapped(2), fresh(), 5),
   ];
   const once = sortRows(rows).map((r) => r.id);
@@ -105,7 +107,7 @@ test("the headline counts each project exactly once", () => {
   const rows = [
     row(P("a", "alpha"), { exists: false }, null, 5),
     row(P("b", "bravo"), mapped(2), fresh(), 5),
-    row(P("c", "charlie"), mapped(5), fresh({ stale: true, behind_secs: 5 }), 5),
+    row(P("c", "charlie"), mapped(5), fresh({ stale: true, behindSecs: 5 }), 5),
     row(P("d", "delta"), mapped(5), fresh(), 5),
     row(P("e", "echo"), null, null, 5),
   ];

@@ -329,7 +329,9 @@ anywhere in the window except inside the map (key events do not cross out of the
 embedded page). Skipped folders (`node_modules`, `target`, a nested checkout…) and
 the map directory are not searched; binary and very large files are passed over;
 a search stops after 300 results, a few seconds or forty thousand files and says
-which.
+which. A file with many matches shows only its first few (and says so). File-name
+search ranks every match in the tree before cutting to 300, so the file actually
+called `config.lua` beats the twenty files under `config/`.
 
 **Clicking a result** goes where the result lives. A text or file match opens in
 your editor at that line. A *View* match sends the map to it — the Index → Tree
@@ -344,7 +346,8 @@ is only a comment is a comment; code with a trailing comment is code. A Python
 docstring is code, because counting it as a comment would need to know the
 language better than a line counter does. Generated and vendored folders and the
 map are left out; very large and binary files are counted as files and not
-read. **Count again** refreshes it.
+read. **Count again** refreshes it. A count ends by itself after twenty seconds or
+a gigabyte of reading and says that its numbers are a lower bound.
 
 ## Files on disk
 
@@ -406,13 +409,25 @@ arrives repo-relative, which is what the artifact stores, and the message
 comes from a document this app embeds but does not author — a map generated
 by an older engine, or one somebody else produced. `../../` in a path is
 the difference between opening a file and opening any file, so a resolved
-path that does not start with the project root is refused.
+path that does not start with the project root is refused. The check is on
+the path's *shape* first — a drive, a UNC path (`\host\share\…`) or a leading
+separator is refused before the disk is touched, so a hostile map cannot make
+Windows contact a server of its choosing — and on the resolved location second.
+The same rule covers the search box's folder and the file tree.
 
 Configure it in **Settings → Editor**: a command template with `{file}` and
-`{line}` substituted. Leaving it empty is a real answer rather than an
-unset setting — it hands the file to the desktop, which is what
-double-clicking it would do. The template is split into arguments *before*
+`{line}` substituted. The template is split into arguments *before*
 substitution, so a path with a space in it stays one argument.
+
+**Leaving it empty hands the file to the desktop — for documents only.** What a
+search hit, a changed file or a map's own "open" points at is text from a
+repository somebody else wrote, and "open" on an executable or a script *runs*
+it. So with no editor command, only plain documents and source files whose
+open is to show them (`.md`, `.txt`, `.json`, `.toml`, `.yaml`, `.lua`, `.rs`,
+`.go`, `.css`, and similar) open through the desktop's association. Anything
+else — `.js`, `.py`, `.sh`, `.bat`, `.ps1`, `.html`, `.exe`, a file with no
+extension, anything marked executable — is **shown in the file manager**
+instead. Set an editor command to open every kind in the editor.
 
 ## Generate, Generate all, Generate the out-of-date ones
 

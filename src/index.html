@@ -28,7 +28,7 @@
              window has always looked; unpinned, the sidebar folds to a thin
              edge and opens while the pointer is on it. -->
         <button id="sb-pin" class="sb-pin" type="button" aria-pressed="true"
-                data-i18n-help="help.pin" aria-label="Pin sidebar">
+                aria-label="Pin sidebar">
           <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
             <path d="M9.5 1.5l5 5-1.4 1.4-.9-.4-2.6 2.6.3 2.6-1.2 1.2-2.9-2.9-4 4-.9-.9 4-4-2.9-2.9L3.2 6.1l2.6.3 2.6-2.6-.4-.9z"
                   fill="currentColor" />
@@ -84,7 +84,8 @@
         <img id="proj-icon" class="proj-icon" alt="" hidden />
         <!-- Only for a project with no map. With one, the counts are in the
              map's own header and a second copy here said the same thing
-             twice. -->
+             twice. (They used to be links into the views they name; the
+             header's own copies still are.) -->
         <p id="proj-counts" class="meta counts nomap" hidden></p>
         <p id="proj-langs" class="meta langs" hidden></p>
         <p id="proj-schema" class="meta stale" hidden></p>
@@ -130,7 +131,7 @@
            the disclosure semantics and the open/closed state come with the
            element instead of being reimplemented on a div. -->
       <details id="engine">
-        <summary data-i18n-help="help.engine">
+        <summary>
           <span class="engine-label" data-i18n="engine.label">Engine</span>
           <span id="engine-summary" class="engine-summary"></span>
         </summary>
@@ -180,8 +181,10 @@
              the map shows. Focusing it opens the panel below, where the
              scope is chosen; the box itself stays one line. -->
         <div id="finder" class="finder">
+          <!-- No `data-i18n-placeholder`: the placeholder depends on the mode
+               (text, file names, view) and `syncFinder` owns it. -->
           <input id="finder-input" type="search" autocomplete="off" spellcheck="false"
-                 data-i18n-placeholder="find.placeholder" placeholder="Search…"
+                 placeholder="Search text in files…"
                  aria-label="Search" aria-controls="finder-panel" />
           <div id="finder-panel" class="finder-panel" hidden>
             <div class="finder-row">
@@ -228,7 +231,7 @@
            data, per language. Same pane family as the file tree. -->
       <section id="stats" class="stats" hidden>
         <header class="stats-head">
-          <h2 id="stats-title" data-i18n="stats.title">Project statistics</h2>
+          <h2 id="stats-title">Project statistics</h2>
           <button id="stats-refresh" type="button" class="addbox-secondary" data-i18n="stats.refresh">Count again</button>
         </header>
         <p id="stats-state" class="stats-note"></p>
