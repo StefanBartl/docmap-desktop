@@ -32,7 +32,6 @@ import {
   hasNumbers,
   isStale,
   ageInDays,
-  sparklinePoints,
 } from "./lib/traffic.js";
 import {
   scanLanguages,
@@ -2856,75 +2855,29 @@ trafficUi.show.addEventListener("change", async () => {
 // ---------------------------------------------------------------------
 // The traffic detail dialog
 //
-// The whole digest for one project: a sparkline per series over the *whole*
-// stored span (github_stats.nvim keeps well past GitHub's own 14 days — that
-// is the reason this dialog exists rather than just a wider sidebar line),
-// referrers, and the top pages GitHub reported. Reached from the sidebar
-// line, on a project that has one.
+// The top pages GitHub reported for one project, and the span the stored
+// numbers cover (github_stats.nvim keeps well past GitHub's own 14 days).
+// Reached from the sidebar line, on a project that has one. Charts and the
+// referrer list used to be here and were dropped: the pages are what is
+// worth reading.
 //
-// Same reasoning as the dependency matrix for the chart: no charting
-// library, a hand-rolled `<svg>`. Same reasoning as the rest of this section
-// for the lists: a referrer or a page title is text from outside, so every
-// row is built with `textContent`, never `innerHTML`.
+// Same reasoning as the rest of this section for the list: a page title is
+// text from outside, so every row is built with `textContent`, never
+// `innerHTML`.
 // ---------------------------------------------------------------------
 
 const trafficBox = {
   el: document.getElementById("trafficbox"),
   span: document.getElementById("traffic-detail-span"),
-  viewsBlock: document.getElementById("traffic-spark-views-block"),
-  views: document.getElementById("traffic-spark-views"),
-  clonesBlock: document.getElementById("traffic-spark-clones-block"),
-  clones: document.getElementById("traffic-spark-clones"),
-  referrers: document.getElementById("traffic-referrers"),
-  referrersEmpty: document.getElementById("traffic-referrers-empty"),
   paths: document.getElementById("traffic-paths"),
   pathsEmpty: document.getElementById("traffic-paths-empty"),
 };
-
-const SVG_NS = "http://www.w3.org/2000/svg";
-
-/** One series' polyline, over its own peak. `false` (nothing drawn) when
-    there are fewer than two points to describe a line. */
-function buildSparkline(svg, daily) {
-  svg.replaceChildren();
-  const box = svg.viewBox.baseVal;
-  const points = sparklinePoints(daily, box.width, box.height);
-  if (!points.length) return false;
-  const poly = document.createElementNS(SVG_NS, "polyline");
-  poly.setAttribute("class", "traffic-spark-line");
-  poly.setAttribute("points", points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" "));
-  svg.append(poly);
-  return true;
-}
-
-/** A plain row: a name and its two counts. Never a link — a referrer is
-    whatever a website sent, never a place this app opens anything. */
-function renderTrafficReferrers(list) {
-  trafficBox.referrers.replaceChildren();
-  const rows = Array.isArray(list) ? list : [];
-  trafficBox.referrersEmpty.hidden = rows.length > 0;
-  const nf = new Intl.NumberFormat(locale);
-  for (const r of rows) {
-    const li = document.createElement("li");
-    const name = document.createElement("span");
-    name.className = "ov-deps-name";
-    name.textContent = r.referrer;
-    const who = document.createElement("span");
-    who.className = "ov-deps-who";
-    who.textContent = fill(t("traffic.detail.count"), {
-      count: nf.format(r.count ?? 0),
-      uniques: nf.format(r.uniques ?? 0),
-    });
-    li.append(name, who);
-    trafficBox.referrers.append(li);
-  }
-}
 
 /**
  * A top-page row — a link to the file, but only for the entries the Rust
  * side resolved (`project_path`): a raw GitHub path is untrusted text, and
  * `traffic_detail` already did the one check that decides whether this row
- * may jump anywhere. Everything else stays a plain row, same as a referrer.
+ * may jump anywhere. Everything else stays a plain row.
  */
 function renderTrafficPaths(list, id) {
   trafficBox.paths.replaceChildren();
@@ -2965,9 +2918,6 @@ function renderTrafficDetail(d, id) {
       })
     : "";
 
-  trafficBox.viewsBlock.hidden = !buildSparkline(trafficBox.views, d.daily?.views);
-  trafficBox.clonesBlock.hidden = !buildSparkline(trafficBox.clones, d.daily?.clones);
-  renderTrafficReferrers(d.referrers);
   renderTrafficPaths(d.paths, id);
 }
 
