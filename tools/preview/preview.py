@@ -57,7 +57,11 @@ def main() -> None:
     out = build()
     os.chdir(ROOT)
     handler = http.server.SimpleHTTPRequestHandler
-    with socketserver.TCPServer(("127.0.0.1", PORT), handler) as httpd:
+    # Threading: a browser opens speculative connections that send nothing,
+    # and a single-threaded server waits on the first one forever -- every
+    # later request, including the page itself, then hangs.
+    socketserver.ThreadingTCPServer.daemon_threads = True
+    with socketserver.ThreadingTCPServer(("127.0.0.1", PORT), handler) as httpd:
         rel = out.relative_to(ROOT).as_posix()
         print(f"http://localhost:{PORT}/{rel}")
         httpd.serve_forever()

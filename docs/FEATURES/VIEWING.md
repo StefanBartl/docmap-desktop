@@ -43,6 +43,42 @@ what lets the parts of it that expect one keep working.
 
 - **Module:** `src-tauri/src/server.rs`
 
+## The project bar
+
+A slim bar above the main pane, for a selected project: the **Map / Files /
+Statistics** switch on the left and the search box in the middle. It is the
+app's own because the page's header belongs to the generated document, which
+this window cannot touch. The workspace overview has no bar.
+
+- **Module:** `src/main.js`, `src/index.html`
+- **Usercmds:** View → Files on disk, View → Statistics
+- **Docs:** [USAGE.md](../USAGE.md#the-project-bar-search-and-statistics)
+
+## Search — text, file names, and what the map shows
+
+One box with a *scope*: a folder of the project (a `grep` for text, or a `find`
+for file names) or the **View**, which searches what the map shows by reading
+`module_map.json` — the page itself is a separate document this window cannot
+read into. Plain substring, no regular expressions; bounded by results, files
+and time, and it says which stopped it. The folder cannot leave the project.
+A text or file hit opens in the editor at its line; a map hit sends the map
+there.
+
+- **Module:** `src-tauri/src/search.rs`, `src/lib/finder.js`, `src/main.js`
+- **Usercmds:** `Ctrl+K`
+- **Docs:** [USAGE.md](../USAGE.md#the-project-bar-search-and-statistics)
+
+## Project statistics
+
+Files and lines per language, split into code, comments, documentation, data
+and blank — counted from the disk when asked, not from the map. A comment-only
+line is a comment; code with a trailing comment is code. Generated and vendored
+folders are skipped, binaries and very large files counted but not read.
+
+- **Module:** `src-tauri/src/stats.rs`, `src/lib/stats.js`
+- **Usercmds:** View → Statistics
+- **Docs:** [USAGE.md](../USAGE.md#the-project-bar-search-and-statistics)
+
 ## Files on disk
 
 A pane in the app rather than a tab in the map, and that fork was decided by

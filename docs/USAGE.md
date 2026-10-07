@@ -14,6 +14,7 @@ the code, not recalled.
 - [Adding a project](#adding-a-project)
 - [Workspaces](#workspaces)
 - [The window](#the-window)
+- [The project bar, search and statistics](#the-project-bar-search-and-statistics)
 - [Files on disk](#files-on-disk)
 - [Opening a file where an entity lives](#opening-a-file-where-an-entity-lives)
 - [Generate, Generate all, Generate the out-of-date ones](#generate-generate-all-generate-the-out-of-date-ones)
@@ -168,9 +169,11 @@ feature.
 
 | Part | What it is |
 |---|---|
-| **Sidebar** | The project picker, the per-project detail block, and the Engine panel. Toggled with **View → Sidebar** (`Ctrl+B`). |
+| **Sidebar** | The project picker, the per-project detail block, and the Engine and Neovim panels. Hidden with **View → Sidebar** (`Ctrl+B`). The pin in its corner (or **View → Auto-hide sidebar**) lets it fold to a thin edge and open as an overlay while the pointer is on it. |
+| **Project bar** | Above the main pane for a selected project: the **Map / Files / Statistics** switch and the search box — see below. |
 | **Main pane** | The generated map, embedded. Everything inside it is `documentation.nvim`'s surface, not this app's. With nothing selected it shows the whole workspace instead — see below. |
 | **Files pane** | The live file tree — see below. **View → Files on disk** (`Ctrl+Shift+F`). |
+| **Statistics pane** | What the project is made of, counted now. **View → Statistics**. |
 | **Status bar** | Spans the bottom, carrying the project path and the progress of anything long-running. |
 
 **Zoom** is in **View** (`Ctrl+plus`, `Ctrl+-`, `Ctrl+0`). The map is a
@@ -279,8 +282,10 @@ produced alphabetical order while claiming to sort by staleness. It takes a
 moment on a long list, and a sort control that appears to work and does not
 is worse than one that makes you wait.
 
-Under the picker is the detail block for the selected project: its counts,
-its languages, its staleness mark, and the right-click menu (see
+Under the picker is the detail block for the selected project: its
+languages, its **Map outdated** chip when the sources are newer than the map
+(click it for the files that changed; hover for what to do about it), its
+GitHub traffic, and the right-click menu (see
 [The menu bar](#the-menu-bar)). A project that ships an icon by one of the
 conventions other tools already use shows it there, in five places worth
 looking and no more: a `manifest.json`'s `icons` array (the W3C standard for
@@ -289,6 +294,57 @@ before `.ico`), an Android launcher icon, an iOS app icon set. **Nothing
 matches for most repositories** — a Neovim plugin has no icon and is not
 supposed to — and nothing is exactly what they get. An absent icon is a real
 answer, not a missing one, so nothing is invented to fill the space.
+
+## The project bar, search and statistics
+
+With a project selected, a slim bar sits above the main pane. It is this
+app's, not the map's: the page's own header belongs to the generated document,
+which this window cannot touch, so what the window adds sits on top of it. The
+workspace overview has no project to search and shows no bar.
+
+**Left: the view.** **Map**, **Files** and **Statistics** — which of the three
+fills the main pane. *Files* is the same pane **View → Files on disk** opens;
+the map keeps its page underneath, so coming back costs no reload.
+
+**Middle: search.** One box, three questions, chosen by its **scope**:
+
+| Scope | Asks | Answered by |
+|---|---|---|
+| **Folder**, *Text* | Which lines under this folder contain the words — a `grep`. | Walking the disk. |
+| **Folder**, *File names* | Which files have these words in their path — a `find`. | Walking the disk. |
+| **View** | What the map shows: names, paths, summaries, signatures, parameters, documentation, features. | `module_map.json` next to the page. |
+
+Focusing the box opens the panel below it. Its first row is the **scope**: the
+folder (the project root until you change it — type a path, or **Choose…**, which
+opens inside the project rather than wherever the system dialog last was) and a
+selector for *Folder* or *View*. A folder outside the project is refused, and so
+is `..`. Matching is a plain, case-insensitive substring (tick **Match case** to
+change that); there are no regular expressions, because a pattern can be made to
+run for a minute and the box promises something simpler. For file names every
+word has to be somewhere in the path, so `lua init` finds `lua/foo/init.lua`.
+
+Results appear as you type, after a short pause. **Enter** searches at once,
+**↓** moves into the list, **Esc** closes. `Ctrl+K` focuses the box from
+anywhere in the window except inside the map (key events do not cross out of the
+embedded page). Skipped folders (`node_modules`, `target`, a nested checkout…) and
+the map directory are not searched; binary and very large files are passed over;
+a search stops after 300 results, a few seconds or forty thousand files and says
+which.
+
+**Clicking a result** goes where the result lives. A text or file match opens in
+your editor at that line. A *View* match sends the map to it — the Index → Tree
+view with that module selected — and **Open file** on the row opens its source
+instead. Documentation pages have no place in the map and simply open.
+
+**Statistics** counts the project when asked — it opens every file, so it is not
+done for thirty projects at start-up. Files and lines per language, and the lines
+split into **code**, **comments**, **documentation** (Markdown, reStructuredText,
+plain text), **data and config** (JSON, YAML, TOML…) and **blank**. A line that
+is only a comment is a comment; code with a trailing comment is code. A Python
+docstring is code, because counting it as a comment would need to know the
+language better than a line counter does. Generated and vendored folders and the
+map are left out; very large and binary files are counted as files and not
+read. **Count again** refreshes it.
 
 ## Files on disk
 
@@ -399,8 +455,12 @@ it found.
 
 ## The staleness mark
 
-The selected project carries a mark when its sources have moved on since
-its map was built. That is what **Generate the out-of-date ones** acts on,
+The selected project carries a **Map outdated** chip when its sources have
+moved on since its map was built — one keyword rather than a sentence: either
+the map is behind or it is not. **Click it** for the files that changed since
+the map was made (newest first, capped, with the true total; click a row to open
+the file, or **Generate a new map** from the dialog). Hover for what to do about
+it. The mark is what **Generate the out-of-date ones** acts on,
 and it is why the mark is shown for the selected project rather than as a
 count on the picker: a number behind a click is a number nobody reads.
 
@@ -784,7 +844,9 @@ decide whether the next action works.
 | **View** | Theme · Language | |
 | | Zoom in / out / Actual size | `Ctrl+plus` `Ctrl+-` `Ctrl+0` |
 | | Files on disk | `Ctrl+Shift+F` |
+| | Statistics | |
 | | Sidebar | `Ctrl+B` |
+| | Auto-hide sidebar | |
 | **Help** | Usage · What the engine is · Open the settings folder | |
 | | Send feedback… | |
 | | About docmap | |

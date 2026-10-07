@@ -378,7 +378,7 @@ button:focus-visible {
    underneath for no reason the reader asked for. */
 .context-note {
   position: absolute;
-  top: 0;
+  top: var(--bar-h, 0px);
   left: 0;
   right: 0;
   z-index: 1;
@@ -1658,7 +1658,7 @@ button:focus-visible {
    section with its own overflow. */
 .files {
   position: absolute;
-  inset: 0;
+  inset: var(--bar-h, 0px) 0 0 0;
   display: flex;
   flex-direction: column;
   background: var(--bg);
@@ -1848,4 +1848,420 @@ button:focus-visible {
 .ws-act:hover {
   color: var(--ink);
   border-color: var(--line);
+}
+
+/* ----------------------------------------------------------- project bar
+
+   Above the map: the view switch on the left, the search box in the middle.
+   The height is a variable so everything that is positioned against the top
+   of the view (the file tree, the statistics, the context note) can step
+   below it, and so it is zero when there is no bar. */
+body.has-bar {
+  --bar-h: 42px;
+}
+
+#view {
+  padding-top: var(--bar-h, 0px);
+}
+
+.projbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--bar-h, 42px);
+  z-index: 25;
+  display: grid;
+  grid-template-columns: 1fr minmax(220px, 520px) 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 0 14px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+
+.projbar[hidden] {
+  display: none;
+}
+
+.viewtabs {
+  display: flex;
+  gap: 2px;
+}
+
+.viewtabs button {
+  padding: 4px 12px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.viewtabs button:hover {
+  color: var(--ink);
+}
+
+.viewtabs button.on {
+  border-color: var(--line);
+  background: var(--bg);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.finder {
+  position: relative;
+}
+
+.finder > input {
+  width: 100%;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+}
+
+.finder > input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+/* Opens under the box, centred on it and wider than it: results are lines of
+   code, and a panel as narrow as the box would clip all of them. */
+.finder-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(760px, 92vw);
+  padding: 10px 12px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.3);
+}
+
+.finder-panel[hidden] {
+  display: none;
+}
+
+/* `display` on the controls below outranks the UA's `[hidden]`, so a hidden
+   one stayed on screen -- the same trap as `.placeholder[hidden]`. */
+.finder-panel [hidden] {
+  display: none !important;
+}
+
+.finder-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.finder-row + .finder-row {
+  margin-top: 8px;
+}
+
+.finder-label {
+  flex: 0 0 auto;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.finder-path {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 11.5px;
+}
+
+.finder-path.bad {
+  border-color: var(--ink);
+}
+
+.finder-btn,
+.finder-select {
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+}
+
+.finder-seg {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.finder-seg button {
+  padding: 3px 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.finder-seg button + button {
+  border-left: 1px solid var(--line);
+}
+
+.finder-seg button.on {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.finder-case {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.finder-state {
+  margin: 8px 2px 4px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.finder-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: min(52vh, 440px);
+  overflow: auto;
+}
+
+.finder-hit {
+  display: block;
+  width: 100%;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.finder-hit:hover,
+.finder-hit:focus-visible {
+  background: var(--accent-soft);
+  outline: none;
+}
+
+.finder-hit .where {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.finder-hit .where .p {
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.finder-hit .what {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.finder-hit mark {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+  border-radius: 2px;
+}
+
+.finder-kind {
+  flex: 0 0 auto;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.finder-hit .open-file {
+  margin-left: auto;
+  color: var(--accent);
+  font-family: inherit;
+  font-size: 11px;
+}
+
+/* ---------------------------------------------------------- statistics */
+.stats {
+  position: absolute;
+  inset: var(--bar-h, 0px) 0 0 0;
+  overflow: auto;
+  padding: 18px 24px 28px;
+  background: var(--bg);
+}
+
+.stats[hidden] {
+  display: none;
+}
+
+.stats-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.stats h2 {
+  margin: 0 0 4px;
+  font-size: 17px;
+}
+
+.stats h3 {
+  margin: 22px 0 8px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.stats-note {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.stats-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.stat-tile {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+}
+
+.stat-tile .v {
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-tile .l {
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.stat-tile .s {
+  margin-top: 1px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.stats-bar {
+  display: flex;
+  height: 10px;
+  margin: 14px 0 6px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--line);
+}
+
+.stats-bar span {
+  display: block;
+  height: 100%;
+}
+
+/* The five kinds of line, in the colours the legend uses. Tints of the one
+   accent plus neutrals: this window has no other hue, and a rainbow for five
+   bars would be the only colour in it. */
+.seg-code { background: var(--accent); }
+.seg-comment { background: color-mix(in srgb, var(--accent) 45%, var(--bg)); }
+.seg-docs { background: color-mix(in srgb, var(--ink) 55%, var(--bg)); }
+.seg-data { background: color-mix(in srgb, var(--ink) 30%, var(--bg)); }
+.seg-blank { background: color-mix(in srgb, var(--ink) 12%, var(--bg)); }
+
+.stats-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.stats-legend i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 5px;
+  border-radius: 2px;
+}
+
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.stats-table th,
+.stats-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  font-weight: normal;
+}
+
+.stats-table th {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.stats-table .n {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-table .bar {
+  width: 22%;
+}
+
+.stats-table .meter {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--accent);
+}
+
+.stats-table .kind {
+  margin-left: 6px;
+  font-size: 10px;
+  color: var(--muted);
 }
