@@ -410,7 +410,7 @@ comes from a document this app embeds but does not author — a map generated
 by an older engine, or one somebody else produced. `../../` in a path is
 the difference between opening a file and opening any file, so a resolved
 path that does not start with the project root is refused. The check is on
-the path's *shape* first — a drive, a UNC path (`\host\share\…`) or a leading
+the path's *shape* first — a drive, a UNC path (`\\host\share\…`) or a leading
 separator is refused before the disk is touched, so a hostile map cannot make
 Windows contact a server of its choosing — and on the resolved location second.
 The same rule covers the search box's folder and the file tree.
