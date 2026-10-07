@@ -166,6 +166,26 @@ let nvim = { path: null, from_path: true, config_dir: null, config_dir_from_defa
 let projects = [];
 let selectedId = null;
 
+// What the map frame is showing, kept with the other view state because
+// `showPlaceholder` (far above where these used to be declared) has to reset
+// them: a message that takes the map's place means there is no map in the
+// frame, and everything that asks "is a map showing" reads `mapBase`.
+//
+// The frame's URL, without the theme. Kept so a theme change can rebuild it:
+// the page is a separate document at a separate origin, so the `data-theme`
+// this window stamps on itself never crosses -- which is why choosing dark
+// used to leave the map white. It reads `?theme=` instead.
+let mapBase = null;
+
+// The panel the page last reported through its one-way channel. A theme
+// change reloads the frame, and landing back on Tree after having been in
+// Notes would be the fix costing more than the bug.
+let mapTab = null;
+
+// The blank-pane watchdog's timer, and whether the page has proved it ran.
+let mapWatch = null;
+let mapLoaded = false;
+
 /** The last selection for the workspace now open, or `null`.
  *
  * Never throws: a browser with storage disabled is a working app that
@@ -197,10 +217,38 @@ function say(msg) {
   els.status.textContent = msg || "";
 }
 
+/**
+ * Make a list row act like a button: focusable, announced as one, and
+ * answering Enter and Space as well as a click. The rows that open a file were
+ * click-only `<li>`s, unreachable from the keyboard.
+ */
+function makeOpenable(li, handler) {
+  li.tabIndex = 0;
+  li.setAttribute("role", "button");
+  li.addEventListener("click", handler);
+  li.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter" || ev.key === " ") {
+      ev.preventDefault();
+      handler();
+    }
+  });
+}
+
 /** Show a message in the view area instead of a map. */
 function showPlaceholder(title, body) {
   els.frame.hidden = true;
   els.frame.removeAttribute("src");
+  // The message takes the map's place, so there is no map in the frame any
+  // more. Left set, `setPane("map")` un-hid an iframe with no page in it and
+  // hid the message, a theme switch loaded the old page into the hidden
+  // frame, and the blank-pane watchdog kept guarding a frame nobody meant to
+  // show.
+  mapBase = null;
+  mapTab = null;
+  if (mapWatch) {
+    clearTimeout(mapWatch);
+    mapWatch = null;
+  }
   // The overview answers the same empty screen. A message about one project
   // shown over a list of all of them is two subjects at once.
   els.overview.hidden = true;
@@ -212,6 +260,17 @@ function showPlaceholder(title, body) {
   // Overlays the iframe specifically; nothing to explain about a panel
   // that is not even on screen.
   els.contextNote.hidden = true;
+}
+
+/**
+ * A message about a *task* (generate, check): shown over the map, and
+ * brought to the front. The Files and Statistics panes are opaque overlays, so
+ * a message painted under one was never seen — the engine's report for
+ * "Check exactly" went to a placeholder nobody could look at.
+ */
+function showTaskPlaceholder(title, body) {
+  showPlaceholder(title, body);
+  if (selectedId && (filesOpen || statsOpen)) setPane("map");
 }
 
 // =====================================================================
@@ -388,8 +447,22 @@ document.addEventListener("mouseover", (ev) => {
 // Keyboard parity — the whole reason this is not a `title`.
 document.addEventListener("focusin", (ev) => {
   const el = ev.target.closest && ev.target.closest("[data-help]");
-  if (el) showHelp(el);
-  else hideHelp();
+  if (!el) return hideHelp();
+  if (helpTimer) {
+    clearTimeout(helpTimer);
+    helpTimer = null;
+  }
+  // A folded sidebar is still sliding in when this runs, and a bubble placed
+  // against the control's rectangle at that instant lands on the sidebar's
+  // own edge, over the control it describes. Wait for the slide (160 ms).
+  if (document.body.classList.contains("sb-auto") && els.sidebar.contains(el)) {
+    helpTimer = setTimeout(() => {
+      helpTimer = null;
+      if (document.activeElement === el) showHelp(el);
+    }, 200);
+  } else {
+    showHelp(el);
+  }
 });
 document.addEventListener("focusout", hideHelp);
 document.addEventListener("keydown", (ev) => {
@@ -1134,6 +1207,9 @@ async function select(id) {
   // The picker's overview row carries an empty value, and `""` is not a
   // project id. Normalised here rather than at the call site so every
   // `!selectedId` test in this file keeps meaning one thing.
+  // Re-selecting what is already selected (after a generation, say) is a
+  // reload, not a switch: the search and the folder being browsed stay.
+  const switched = (id || null) !== selectedId;
   selectedId = id || null;
   syncMenu();
   titleFor(projects.find((x) => x.id === id));
@@ -1152,8 +1228,8 @@ async function select(id) {
 
   const p = projects.find((x) => x.id === selectedId);
   await render();
-  resetFinder();
-  refreshPanes();
+  if (switched) resetFinder();
+  refreshPanes(!switched);
   if (!p) {
     // Going back to the overview has to take the previous project's map off
     // the screen with it. Without this the iframe stayed put and the
@@ -1288,11 +1364,28 @@ els.list.addEventListener("keydown", (ev) => {
 ///
 /// Extracted from the Delete-key handler when the menu grew an item for
 /// it: two callers, one behaviour.
+/**
+ * Nothing is selected any more: no project, no map, no pane over the overview,
+ * no search for a project that is gone.
+ *
+ * `selectedId = null` on its own left the Files or Statistics pane open (an
+ * opaque overlay) over the overview, with the project bar — and so the only
+ * tabs that could close it — hidden, and the removed project's rows still
+ * clickable.
+ */
+function dropSelection() {
+  selectedId = null;
+  mapBase = null;
+  mapTab = null;
+  closePanes();
+  resetFinder();
+}
+
 async function removeProject(id) {
   try {
     const list = await invoke("remove_project", { id });
     if (selectedId === id) {
-      selectedId = null;
+      dropSelection();
       showPlaceholder(t("ph.none.title"), t("ph.none.body"));
       syncMenu();
       titleFor(null);
@@ -1374,7 +1467,9 @@ function renderFacts(el, rows) {
     if (r.title) v.title = r.title;
 
     if (r.path) {
-      const shown = shortPath(r.path);
+      // User-chosen paths come back from the dialog with backslashes on
+      // Windows; normalised so the directory and file name can be told apart.
+      const shown = shortPath(String(r.path).replace(/\\/g, "/"));
       const cut = shown.lastIndexOf("/") + 1;
       const dir = document.createElement("span");
       dir.className = "p-dir";
@@ -1631,10 +1726,18 @@ async function generateFor(id, full = false) {
   const p = projects.find((x) => x.id === id);
   if (!p) return;
 
+  // Who the reader was looking at when this started. A generation takes
+  // minutes and nothing stops them choosing another project meanwhile; its
+  // result belongs on screen only if they are still where they began. (Not
+  // `id`: adding a project generates for one that is not selected yet and
+  // relies on the final `select(id)`.)
+  const started = selectedId;
+  const here = () => selectedId === started;
+
   // Replace the view while it runs: leaving the previous project's map on
   // screen during a rebuild is the same "wrong panel's data" problem the
   // generated page itself had to fix in its own fetch-backed panels.
-  showPlaceholder(
+  showTaskPlaceholder(
     t("ph.generating.title"),
     t("ph.generating.body").replace("{root}", escapeHtml(p.root))
   );
@@ -1656,21 +1759,25 @@ async function generateFor(id, full = false) {
           invalidate(p.map_dir);
           invalidateLanguages(p.root);
           await refresh();
-          await select(id);
-          if (log) appendLog(log, false);
+          if (here()) {
+            await select(id);
+            if (log) appendLog(log, false);
+          }
           say("Generated " + p.name);
         } else {
-          showPlaceholder(
-            t("ph.failed.title"),
-            t("ph.failed.body").replace("{code}", String(res.code))
-          );
-          appendLog(log || "(no output)", true);
-          // The one failure this app can explain better than the engine
-          // can. `--full` is offered unconditionally, so the missing tool
-          // is a normal outcome rather than a broken install, and saying
-          // so in the placeholder beats leaving it to be found in the log.
-          if (full && /lua-language-server/.test(log)) {
-            showPlaceholder(t("ph.failed.title"), t("gen.full.needsLuals"));
+          if (here()) {
+            showTaskPlaceholder(
+              t("ph.failed.title"),
+              t("ph.failed.body").replace("{code}", String(res.code))
+            );
+            appendLog(log || "(no output)", true);
+            // The one failure this app can explain better than the engine
+            // can. `--full` is offered unconditionally, so the missing tool
+            // is a normal outcome rather than a broken install, and saying
+            // so in the placeholder beats leaving it to be found in the log.
+            if (full && /lua-language-server/.test(log)) {
+              showTaskPlaceholder(t("ph.failed.title"), t("gen.full.needsLuals"));
+            }
           }
           say("Failed: " + p.name);
         }
@@ -1678,7 +1785,7 @@ async function generateFor(id, full = false) {
       { restoreDisabled: false }
     );
   } catch (e) {
-    showPlaceholder(t("ph.enginefail.title"), escapeHtml(String(e)));
+    if (here()) showTaskPlaceholder(t("ph.enginefail.title"), escapeHtml(String(e)));
     say(String(e));
   } finally {
     renderEngine();
@@ -1731,7 +1838,7 @@ async function generateAll(only) {
   let ok = 0;
 
   els.gen.disabled = true;
-  showPlaceholder(
+  showTaskPlaceholder(
     t("ph.genall.title"),
     t("ph.genall.body").replace("{n}", String(list.length))
   );
@@ -1805,7 +1912,11 @@ async function checkMap(id) {
   const p = projects.find((x) => x.id === id);
   if (!p) return;
 
-  showPlaceholder(
+  // See `generateFor`: the report is for whoever started the check.
+  const started = selectedId;
+  const here = () => selectedId === started;
+
+  showTaskPlaceholder(
     t("ph.check.title"),
     t("ph.check.body").replace("{root}", escapeHtml(p.root))
   );
@@ -1816,7 +1927,7 @@ async function checkMap(id) {
     res = await invoke("check_map", { root: p.root });
   } catch (e) {
     say(t("check.failed").replace("{error}", String(e)));
-    appendLog(String(e), true);
+    if (here()) appendLog(String(e), true);
     return;
   }
 
@@ -1825,7 +1936,7 @@ async function checkMap(id) {
   // reads one bit rather than sniffing the engine's prose for a sentence that
   // is free to be reworded — see `check_map` in `main.rs`.
   say(res.current ? t("check.current") : t("check.stale"));
-  appendLog(log || "(no output)", !res.current);
+  if (here()) appendLog(log || "(no output)", !res.current);
 }
 
 async function generateStale() {
@@ -1908,12 +2019,22 @@ function contextNoteFor(ctx) {
 window.addEventListener("message", (ev) => {
   const data = ev.data;
   if (!data || data.source !== "docmap") return;
+  // Only the map frame speaks for the map. A message from any other window
+  // (this one is reachable by every window with a reference to it) is not the
+  // page reporting, and certainly not a reader asking to open a file.
+  if (ev.source !== els.frame.contentWindow) return;
 
   // The page asking for something, rather than reporting where it is. Its
   // one request today is opening a file in an editor; the path is
   // repo-relative because that is what the artifact stores, and it is
   // resolved and bounds-checked in Rust rather than trusted here.
   if (data.kind === "open-file" && data.path && selectedId) {
+    // Something the reader just did in the map (a right-click menu item),
+    // not a page that loaded and asked on its own: a repository's own page
+    // runs the moment it is selected, and an open-file request with no click
+    // behind it is nothing the reader asked for.
+    const activation = navigator.userActivation;
+    if (activation && !activation.isActive) return;
     invoke("open_in_editor", {
       id: selectedId,
       path: data.path,
@@ -1924,7 +2045,6 @@ window.addEventListener("message", (ev) => {
 
   // The page ran. Whatever else this message says, it is the evidence the
   // blank-pane watchdog is waiting for.
-  const wasLoading = !mapLoaded;
   mapLoaded = true;
   if (mapWatch) {
     clearTimeout(mapWatch);
@@ -2344,12 +2464,19 @@ let sidebarPinned = true;
 let sidebarHovered = false;
 let peekTimer = null;
 
+/** The pin's words, in the current language — also run when it changes. */
+function syncPinLabels() {
+  els.sbPin.setAttribute("aria-pressed", String(sidebarPinned));
+  els.sbPin.dataset.help = t(sidebarPinned ? "help.pin.on" : "help.pin.off");
+  // One label for what the button *is*, with `aria-pressed` for its state; a
+  // label that named the action as well contradicted the pressed state.
+  els.sbPin.setAttribute("aria-label", t("pin.label"));
+}
+
 function applyPinned(pinned) {
   sidebarPinned = pinned;
   document.body.classList.toggle("sb-auto", !pinned);
-  els.sbPin.setAttribute("aria-pressed", String(pinned));
-  els.sbPin.dataset.help = t(pinned ? "help.pin.on" : "help.pin.off");
-  els.sbPin.setAttribute("aria-label", t(pinned ? "pin.on" : "pin.off"));
+  syncPinLabels();
   if (pinned) els.sidebar.classList.remove("peek");
   try {
     localStorage.setItem(PIN_KEY, pinned ? "1" : "0");
@@ -2384,12 +2511,28 @@ els.sidebar.addEventListener("mouseleave", () => {
   sidebarHovered = false;
   peek(false);
 });
-els.sidebar.addEventListener("focusin", () => peek(true));
+// Keyboard focus opens the sidebar. The focus a closing dialog hands back to
+// the button that opened it, and a mouse click, do not: the sidebar followed
+// them open and stayed open with the pointer elsewhere.
+els.sidebar.addEventListener("focusin", (ev) => {
+  const keyboard = ev.target.matches && ev.target.matches(":focus-visible");
+  peek(!!keyboard);
+});
 els.sidebar.addEventListener("focusout", () => peek(false));
-// Choosing from a dropdown is the end of the interaction: let go of focus so
-// the sidebar can fold again instead of waiting for a click elsewhere.
+// Whether the last thing done in the sidebar was a pointer or a key.
+let viaPointer = false;
+els.sidebar.addEventListener("pointerdown", () => {
+  viaPointer = true;
+});
+els.sidebar.addEventListener("keydown", () => {
+  viaPointer = false;
+});
+// Picking from a dropdown with the pointer is the end of the interaction: let
+// go of focus so the sidebar can fold again. Not for the keyboard — a closed
+// `<select>` fires `change` on every arrow key, and dropping focus after the
+// first one ended the walk through the list.
 els.sidebar.addEventListener("change", (ev) => {
-  if (!sidebarPinned && ev.target && ev.target.tagName === "SELECT") {
+  if (!sidebarPinned && viaPointer && ev.target && ev.target.tagName === "SELECT") {
     ev.target.blur();
     peek(false);
   }
@@ -2408,17 +2551,6 @@ els.sbPin.addEventListener("click", () => {
   }
   applyPinned(saved !== "0");
 }
-
-// The map frame's URL, without the theme. Kept so a theme change can
-// rebuild it: the page is a separate document at a separate origin, so the
-// `data-theme` this window stamps on itself never crosses -- which is why
-// choosing dark used to leave the map white. It reads `?theme=` instead.
-let mapBase = null;
-
-// The panel the page last reported through its one-way channel. A theme
-// change reloads the frame, and landing back on Tree after having been in
-// Notes would be the fix costing more than the bug.
-let mapTab = null;
 
 /** `base` with the theme, and the panel to land on, appended. */
 function mapUrl(base) {
@@ -2449,22 +2581,21 @@ function mapUrl(base) {
  * on load. That is proof it ran, where `onload` only proves the browser
  * fetched something.
  */
-let mapWatch = null;
-
 function watchMapLoad(url) {
   if (mapWatch) clearTimeout(mapWatch);
   mapLoaded = false;
   mapWatch = setTimeout(() => {
     mapWatch = null;
-    if (mapLoaded || els.frame.hidden) return;
+    // `mapBase` is "a map is meant to be showing"; the frame's own `hidden`
+    // is also set by the Files and Statistics panes, which disarmed the
+    // watchdog for a reader who opened one within 8 seconds.
+    if (mapLoaded || !mapBase) return;
     showPlaceholder(
       t("map.blank.title"),
       t("map.blank.body") + '<br><span class="detail">' + escapeHtml(url) + "</span>"
     );
   }, 8000);
 }
-
-let mapLoaded = false;
 
 /** Reload the map with the current theme, if one is showing. */
 function retheme() {
@@ -3027,7 +3158,7 @@ function renderTrafficPaths(list, id) {
     if (p.project_path) {
       li.classList.add("traffic-path-open");
       li.title = t("traffic.detail.openFile");
-      li.addEventListener("click", () => {
+      makeOpenable(li, () => {
         invoke("open_in_editor", { id, path: p.project_path, line: null }).catch((err) =>
           say(String(err))
         );
@@ -3094,7 +3225,7 @@ els.stale.addEventListener("click", async () => {
   try {
     const c = await invoke("map_changes", { id, limit: CHANGES_LIMIT });
     if (selectedId !== id) return;
-    changesBox.lead.textContent = fill(t("changes.lead"), { n: String(c.total) });
+    changesBox.lead.textContent = plural("changes.lead", c.total);
     changesBox.list.replaceChildren();
     for (const f of c.files) {
       const li = document.createElement("li");
@@ -3108,7 +3239,7 @@ els.stale.addEventListener("click", async () => {
       const ago = agoText(f.afterSecs);
       when.textContent = ago ? fill(t("changes.after"), { ago }) : "";
       li.append(name, when);
-      li.addEventListener("click", () => {
+      makeOpenable(li, () => {
         invoke("open_in_editor", { id, path: f.path, line: null }).catch((err) => say(String(err)));
       });
       changesBox.list.append(li);
@@ -3118,6 +3249,9 @@ els.stale.addEventListener("click", async () => {
     changesBox.more.textContent = c.truncated
       ? t("changes.truncated")
       : fill(t("changes.more"), { n: String(rest) });
+    // Generating needs an engine and a selection; with neither, the button
+    // would close the dialog and do nothing.
+    changesBox.generate.disabled = els.gen.disabled;
     changesBox.el.showModal();
   } catch (e) {
     say(String(e));
@@ -3149,6 +3283,7 @@ const pending = new Map();
 window.addEventListener("message", (ev) => {
   const d = ev.data;
   if (!d || d.source !== "docmap" || d.replyTo === undefined) return;
+  if (ev.source !== els.frame.contentWindow) return;
   const waiting = pending.get(d.replyTo);
   if (!waiting) return;
   pending.delete(d.replyTo);
@@ -3373,6 +3508,10 @@ async function renderFiles() {
  * @param {"map"|"files"|"stats"} name
  */
 function setPane(name) {
+  // The panes belong to a project; with none selected the overview is the
+  // view, and a pane opened over it (View menu items are enabled without a
+  // project) would be an empty overlay with no tabs to leave it by.
+  if (!selectedId) name = "map";
   filesOpen = name === "files";
   statsOpen = name === "stats";
   const overlay = filesOpen || statsOpen;
@@ -3392,6 +3531,15 @@ function setPane(name) {
   syncMenu();
 }
 
+/** Hide both panes without touching what the map frame shows. */
+function closePanes() {
+  filesOpen = false;
+  statsOpen = false;
+  document.getElementById("files").hidden = true;
+  document.getElementById("stats").hidden = true;
+  syncPaneTabs();
+}
+
 /** Show the filetree instead of the map, or the other way back. */
 function setFiles(on) {
   setPane(on ? "files" : "map");
@@ -3402,9 +3550,9 @@ function setStats(on) {
 }
 
 /** A pane that is open shows the project that is now selected. */
-function refreshPanes() {
+function refreshPanes(keepPath = false) {
   if (filesOpen) {
-    filesPath = "";
+    if (!keepPath) filesPath = "";
     renderFiles();
   }
   if (statsOpen) renderStats();
@@ -3435,6 +3583,8 @@ for (const b of paneTabs) b.addEventListener("click", () => setPane(b.dataset.pa
 
 /** Per project id, so switching back does not recount a tree. */
 const statsCache = new Map();
+/** Counts in flight, per project id. */
+const statsPending = new Map();
 
 const statsUi = {
   title: document.getElementById("stats-title"),
@@ -3466,11 +3616,22 @@ async function renderStats(force = false) {
   if (!s) {
     statsUi.body.hidden = true;
     statsUi.state.textContent = t("stats.counting");
+    statsUi.refresh.disabled = true;
+    // One count per project at a time: toggling the pane, switching away and
+    // back, or pressing "Count again" while it runs would each start another
+    // full walk of the same tree, with no way to cancel any of them.
+    let call = statsPending.get(id);
+    if (!call) {
+      call = invoke("project_stats", { id }).finally(() => statsPending.delete(id));
+      statsPending.set(id, call);
+    }
     try {
-      s = await invoke("project_stats", { id });
+      s = await call;
     } catch (e) {
       if (id === selectedId) statsUi.state.textContent = String(e);
       return;
+    } finally {
+      statsUi.refresh.disabled = false;
     }
     statsCache.set(id, s);
   }
@@ -3550,7 +3711,7 @@ async function renderStats(force = false) {
         node("span", "ov-deps-name", f.path),
         node("span", "ov-deps-who", fill(t("stats.lines"), { n: nf.format(f.lines) }))
       );
-      li.addEventListener("click", () => {
+      makeOpenable(li, () => {
         invoke("open_in_editor", { id, path: f.path, line: null }).catch((err) => say(String(err)));
       });
       return li;
@@ -3710,6 +3871,9 @@ function renderFolderHits(res, query) {
       ? fill(t("find.count.files"), { n: nf.format(hits.length) })
       : fill(t("find.count.text"), { n: nf.format(hits.length), files: nf.format(files) });
   if (res.truncated) line += " " + t(truncatedKey(res.reason));
+  // The per-file cap is silent otherwise: "N matches" would pass for all of
+  // them.
+  if (res.cappedFiles > 0) line += " " + t("find.cut.perfile");
   setFinderState(line);
 
   const len = Array.from(query).length;
@@ -3777,18 +3941,21 @@ function renderViewHits(res) {
     label.textContent = h.label;
     where.append(kind, label);
     if (h.file) {
-      const open = document.createElement("span");
+      // A sibling button, not a span inside the row's button: a control
+      // nested in a control is not reachable from the keyboard. The row's own
+      // action is the map; this one is the file.
+      const open = document.createElement("button");
+      open.type = "button";
       open.className = "open-file";
       open.textContent = t("find.openFile");
       open.title = h.file;
-      open.addEventListener("click", (ev) => {
-        // The row's own action is the map; this one is the file.
-        ev.stopPropagation();
+      li.classList.add("finder-hit-row");
+      open.addEventListener("click", () => {
         invoke("open_in_editor", { id: selectedId, path: h.file, line: h.line ?? null }).catch((e) =>
           say(String(e))
         );
       });
-      where.append(open);
+      li.append(open);
     }
     const what = document.createElement("span");
     what.className = "what";
@@ -3812,7 +3979,28 @@ function renderViewHits(res) {
   }
 }
 
+/** One search at a time: a pause longer than the debounce while typing used
+    to start a second full walk of the tree for an answer nobody would see. */
+let finderBusy = false;
+let finderDirty = false;
+
 async function runFinder() {
+  if (finderBusy) {
+    finderDirty = true;
+    return;
+  }
+  finderBusy = true;
+  try {
+    do {
+      finderDirty = false;
+      await runFinderOnce();
+    } while (finderDirty);
+  } finally {
+    finderBusy = false;
+  }
+}
+
+async function runFinderOnce() {
   const id = selectedId;
   const query = finder.input.value.trim();
   const seq = ++finderSeq;
@@ -3872,6 +4060,8 @@ finder.input.addEventListener("input", () => {
   openFinder();
   scheduleFinder();
 });
+// The native clear button of a search box fires `search`, not `input`.
+finder.input.addEventListener("search", scheduleFinder);
 finder.input.addEventListener("keydown", (ev) => {
   if (ev.key === "Enter") {
     ev.preventDefault();
@@ -3884,9 +4074,20 @@ finder.input.addEventListener("keydown", (ev) => {
       first.focus();
     }
   } else if (ev.key === "Escape") {
+    // Without this a search box also clears itself on Escape, natively,
+    // leaving the results of a query that is no longer there.
+    ev.preventDefault();
     closeFinder();
     finder.input.blur();
   }
+});
+
+// Escape from anywhere in the panel (the folder, the scope, the toggles) puts
+// it away, not only from the box.
+finder.root.addEventListener("keydown", (ev) => {
+  if (ev.key !== "Escape" || ev.target === finder.input || finder.panel.hidden) return;
+  closeFinder();
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
 });
 
 // Arrow keys walk the result list; Escape goes back to the box.
@@ -3900,8 +4101,6 @@ finder.results.addEventListener("keydown", (ev) => {
   } else if (ev.key === "ArrowUp") {
     ev.preventDefault();
     (i === 0 ? finder.input : hits[i - 1]).focus();
-  } else if (ev.key === "Escape") {
-    finder.input.focus();
   }
 });
 
@@ -3965,6 +4164,13 @@ finder.caseBox.addEventListener("change", () => {
 // `click`, so it closes before whatever was clicked reacts.
 document.addEventListener("mousedown", (ev) => {
   if (!finder.panel.hidden && !finder.root.contains(ev.target)) closeFinder();
+});
+
+// A click inside the map never reaches this document (it is a cross-origin
+// frame), but the window loses focus to it: that is the signal. The folder
+// dialog also takes focus, which is why only the frame counts.
+window.addEventListener("blur", () => {
+  if (!finder.panel.hidden && document.activeElement === els.frame) closeFinder();
 });
 
 // Ctrl+K from anywhere in this window. Not from inside the map: key events do
@@ -4109,8 +4315,7 @@ async function useWorkspace(name) {
     // Nothing from the old workspace may survive the switch: a selection
     // pointing at a project this workspace does not contain would leave the
     // sidebar naming one thing and the map showing another.
-    selectedId = null;
-    mapBase = null;
+    dropSelection();
     freshness.clear();
     statsCache.clear();
     showPlaceholder(t("ph.none.title"), t("ph.none.body"));
@@ -4245,11 +4450,10 @@ const MENU_ACTIONS = {
   "menu.project.generate_stale": () => generateStale(),
   "menu.project.check": () => selectedId && checkMap(selectedId),
   "menu.project.generate_full": () => selectedId && generateFor(selectedId, true),
-  "menu.project.regenerate": async () => {
-    if (!selectedId) return;
-    await generateFor(selectedId);
-    await select(selectedId);
-  },
+  // `generateFor` already reloads the map on success; the extra `select()`
+  // that used to follow it ran after a *failure* too, and put the old map
+  // back over the failure message.
+  "menu.project.regenerate": () => selectedId && generateFor(selectedId),
   "menu.view.theme.system": () => chooseTheme("system"),
   "menu.view.theme.light": () => chooseTheme("light"),
   "menu.view.theme.dark": () => chooseTheme("dark"),
@@ -4341,6 +4545,15 @@ function chooseLocale(code) {
   }
   document.getElementById("lang").value = locale;
   applyLocale();
+  // Everything built in script is not covered by the markup walk above: put
+  // the new language on it too, last, so the finder's mode-specific
+  // placeholder and the statistics heading win over the generic ones.
+  syncPinLabels();
+  syncFinder();
+  renderEngine();
+  renderNvim();
+  if (statsOpen) renderStats();
+  void render();
   syncMenu();
 }
 

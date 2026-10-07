@@ -98,3 +98,108 @@ test("a hidden control inside the search panel is actually hidden", () => {
   assert.match(css, /\.finder-panel \[hidden\]\s*\{\s*display:\s*none\s*!important/);
   assert.match(css, /#sidebar\[hidden\]\s*\{\s*display:\s*none/);
 });
+
+test("every i18n attribute in the markup names a catalog key", () => {
+  // `data-i18n`, `-help`, `-aria` and `-placeholder` are applied by walking the
+  // markup, so a key that does not exist is a control with no label or a
+  // tooltip that never appears — silently, in both languages.
+  const catalog = new Set(keys());
+  const used = [
+    ...HTML.matchAll(/data-i18n(?:-help|-aria|-placeholder)?="([a-zA-Z0-9_.]+)"/g),
+  ].map((m) => m[1]);
+  assert.ok(used.length > 100, `expected the whole markup, found ${used.length} attributes`);
+  const missing = [...new Set(used)].filter((k) => !catalog.has(k));
+  assert.deepEqual(missing, [], `the markup names keys the catalog lacks: ${missing}`);
+});
+
+test("no English catalog key is dead", () => {
+  // The locale specs compare each locale with the English catalog, not with the
+  // code, so a key nobody asks for survives forever. A key counts as used when
+  // its name appears as a quoted string in the app's own sources or markup, or
+  // belongs to a family built at run time.
+  const sources = [
+    MAIN,
+    HTML,
+    read("./deps.js"),
+    read("./languages.js"),
+    read("./overview.js"),
+    read("./traffic.js"),
+    read("./finder.js"),
+    read("./stats.js"),
+  ].join("\n");
+  const RUNTIME = [
+    "menu.", // the Rust menu builder asks for these by id
+    "traffic.via.",
+    "stats.tile.",
+    "stats.kind.",
+    "find.kind.",
+    "count.",
+    "sort.",
+    "scope.lang.",
+    "grammars.diag.",
+    "ph.",
+  ];
+  const dead = keys().filter((k) => {
+    if (RUNTIME.some((p) => k.startsWith(p))) return false;
+    // `.one` is the singular of a plural pair, chosen by `plural()`.
+    const base = k.replace(/\.one$/, "");
+    return !sources.includes(`"${base}"`) && !sources.includes(`"${k}"`);
+  });
+  assert.deepEqual(dead, [], `catalog keys nothing asks for: ${dead}`);
+});
+
+test("a message that takes the map's place says there is no map any more", () => {
+  const start = MAIN.indexOf("function showPlaceholder(");
+  const body = MAIN.slice(start, MAIN.indexOf("\n}\n", start));
+  assert.match(body, /mapBase = null/, "showPlaceholder must reset mapBase");
+  assert.match(body, /mapTab = null/);
+  // Declared before the function that writes it, or the first call is a
+  // temporal-dead-zone error.
+  assert.ok(MAIN.indexOf("let mapBase = null") < start, "mapBase must be declared above showPlaceholder");
+});
+
+test("removing a project or switching workspace leaves no pane over the overview", () => {
+  for (const fn of ["async function removeProject(", "async function useWorkspace("]) {
+    const start = MAIN.indexOf(fn);
+    assert.ok(start > 0, `${fn} should exist`);
+    const body = MAIN.slice(start, MAIN.indexOf("\n}\n", start));
+    assert.match(body, /dropSelection\(\)/, `${fn} must go through dropSelection`);
+  }
+  const drop = MAIN.slice(MAIN.indexOf("function dropSelection("), MAIN.indexOf("async function removeProject("));
+  assert.match(drop, /closePanes\(\)/);
+  assert.match(drop, /resetFinder\(\)/);
+});
+
+test("only the map frame can speak for the map", () => {
+  // Both listeners: the page reporting and the page answering.
+  const listeners = MAIN.match(/window\.addEventListener\("message"[\s\S]*?\n\}\);/g) || [];
+  assert.ok(listeners.length >= 2, `expected the message listeners, found ${listeners.length}`);
+  for (const l of listeners) {
+    if (!l.includes('"docmap"')) continue;
+    assert.match(l, /ev\.source !== els\.frame\.contentWindow/, "a docmap message must come from the frame");
+  }
+});
+
+test("a request to open a file needs a click behind it", () => {
+  assert.match(MAIN, /navigator\.userActivation/);
+  const start = MAIN.indexOf('data.kind === "open-file"');
+  assert.ok(MAIN.slice(start, start + 900).includes("activation.isActive"));
+});
+
+test("task messages are brought in front of the Files and Statistics panes", () => {
+  for (const fn of ["async function generateFor(", "async function generateAll(", "async function checkMap("]) {
+    const start = MAIN.indexOf(fn);
+    const body = MAIN.slice(start, MAIN.indexOf("\n}\n", start));
+    assert.doesNotMatch(body, /[^k]showPlaceholder\(/, `${fn} must use showTaskPlaceholder`);
+    assert.match(body, /showTaskPlaceholder\(/);
+  }
+});
+
+test("the opaque panes sit above the map's context note", () => {
+  const css = read("../style.css");
+  for (const sel of [".files", ".stats"]) {
+    const start = css.indexOf(`\n${sel} {`);
+    assert.ok(start > 0, `${sel} should exist`);
+    assert.match(css.slice(start, css.indexOf("}", start)), /z-index:\s*2/);
+  }
+});

@@ -116,6 +116,12 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  /* Scrolls on its own. The shell never scrolls, and the Engine panel is now
+     rows and one chip per language: at the minimum window height (600) the
+     last of it, and the whole Neovim panel, were cut off and unreachable. */
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
   background: var(--panel);
   border-right: 1px solid var(--line);
 }
@@ -132,10 +138,6 @@ body {
    the sidebar did nothing visible for as long as it existed. */
 #sidebar[hidden] {
   display: none;
-}
-
-body.sb-hidden {
-  --sb-w: 0px;
 }
 
 .sb-pin {
@@ -185,6 +187,13 @@ body.sb-auto #sidebar.peek {
 }
 
 /* The grip: a short bar and a chevron on the visible edge. */
+/* After the auto-hide rule, so a hidden sidebar owns no column at all (both
+   rules have the same specificity and the later one wins). */
+body.sb-hidden,
+body.sb-auto.sb-hidden {
+  --sb-w: 0px;
+}
+
 body.sb-auto #sidebar::after {
   content: "›";
   position: absolute;
@@ -1239,7 +1248,8 @@ button:focus-visible {
 }
 
 /* Narrow on purpose: it is a modifier of the control beside it, not a peer.
-   Hidden entirely below two projects, where there is nothing to order. */
+   Hidden below two projects, where there is nothing to order, and while one
+   project is selected, where there is nothing to order either. */
 .proj-sort {
   flex: 0 0 auto;
   max-width: 42%;
@@ -1342,6 +1352,11 @@ button:focus-visible {
    no hover state, which is the tell that it is not clickable. */
 .traffic-path-open {
   cursor: pointer;
+}
+.traffic-path-open:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 .traffic-path-open:hover .ov-deps-name,
 .traffic-path-open:focus-visible .ov-deps-name {
@@ -1637,6 +1652,7 @@ button:focus-visible {
    section with its own overflow. */
 .files {
   position: absolute;
+  z-index: 2;
   inset: var(--bar-h, 0px) 0 0 0;
   display: flex;
   flex-direction: column;
@@ -1889,12 +1905,17 @@ body.has-bar {
   font-weight: 600;
 }
 
+/* Static, so the panel's containing block is the project bar rather than the
+   box: the panel is anchored to the bar's right edge and sized to what is
+   left of the window beside the sidebar. Centred on the box and sized
+   against the viewport, it ran off the right edge below about 1120px. */
 .finder {
-  position: relative;
+  position: static;
 }
 
 .finder > input {
   width: 100%;
+  position: relative;
   padding: 5px 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1914,9 +1935,8 @@ body.has-bar {
 .finder-panel {
   position: absolute;
   top: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(760px, 92vw);
+  right: 14px;
+  width: min(760px, calc(100% - 28px));
   padding: 10px 12px 12px;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -2088,16 +2108,38 @@ body.has-bar {
   color: var(--muted);
 }
 
-.finder-hit .open-file {
-  margin-left: auto;
+.finder-hit-row {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.finder-hit-row > .finder-hit {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.finder-hit-row > .open-file {
+  flex: 0 0 auto;
+  align-self: center;
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
   color: var(--accent);
-  font-family: inherit;
   font-size: 11px;
+  cursor: pointer;
+}
+
+.finder-hit-row > .open-file:hover,
+.finder-hit-row > .open-file:focus-visible {
+  background: var(--accent-soft);
 }
 
 /* ---------------------------------------------------------- statistics */
 .stats {
   position: absolute;
+  z-index: 2;
   inset: var(--bar-h, 0px) 0 0 0;
   overflow: auto;
   padding: 18px 24px 28px;
