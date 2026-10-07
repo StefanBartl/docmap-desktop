@@ -18,7 +18,9 @@ mod icon;
 mod languages;
 mod menu;
 mod proc;
+mod search;
 mod server;
+mod stats;
 mod telemetry;
 mod traffic;
 
@@ -2485,7 +2487,11 @@ fn map_freshness(app: tauri::AppHandle, id: String) -> Result<freshness::Freshne
 /// "map outdated" mark is made of. At most `limit` of them, newest first,
 /// plus the true total. See `freshness::changed_since_map`.
 #[tauri::command]
-fn map_changes(app: tauri::AppHandle, id: String, limit: usize) -> Result<freshness::Changes, String> {
+fn map_changes(
+    app: tauri::AppHandle,
+    id: String,
+    limit: usize,
+) -> Result<freshness::Changes, String> {
     let ws = read_workspace(&app)?;
     let project = ws
         .projects
@@ -2497,6 +2503,87 @@ fn map_changes(app: tauri::AppHandle, id: String, limit: usize) -> Result<freshn
         Path::new(&project.map_dir),
         limit.min(500),
     )
+}
+
+/// What the project is made of: files and lines per language, and how the
+/// lines split into code, comments, documentation and data. Walks and reads
+/// every file, so it is asked for, never shown by default. See `stats.rs`.
+#[tauri::command]
+async fn project_stats(app: tauri::AppHandle, id: String) -> Result<stats::Stats, String> {
+    let ws = read_workspace(&app)?;
+    let project = ws
+        .projects
+        .iter()
+        .find(|p| p.id == id)
+        .ok_or_else(|| format!("no such project: {id}"))?
+        .clone();
+    // Off the main thread: opening forty thousand files is not something the
+    // window should wait for in place.
+    tauri::async_runtime::spawn_blocking(move || {
+        stats::collect(Path::new(&project.root), Path::new(&project.map_dir))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// A folder search: text in files (`mode` `"text"`) or file names (`"files"`).
+///
+/// `sub` is the folder to search, relative to the project root; empty is the
+/// whole project. It is resolved and checked to stay inside the root, the
+/// same rule `open_in_editor` applies to the file it opens: a search is a
+/// read of the disk, and a path that came from a text box is not trusted to
+/// stay where it started.
+#[tauri::command]
+async fn project_search(
+    app: tauri::AppHandle,
+    id: String,
+    sub: String,
+    query: String,
+    mode: String,
+    case_sensitive: bool,
+) -> Result<search::Results, String> {
+    let ws = read_workspace(&app)?;
+    let project = ws
+        .projects
+        .iter()
+        .find(|p| p.id == id)
+        .ok_or_else(|| format!("no such project: {id}"))?
+        .clone();
+    let mode = search::Mode::parse(&mode).ok_or_else(|| format!("unknown search mode: {mode}"))?;
+
+    let root = fs::canonicalize(&project.root)
+        .map_err(|e| format!("cannot resolve {}: {e}", project.root))?;
+    let scope = fs::canonicalize(root.join(sub.trim_matches('/')))
+        .map_err(|_| format!("{sub} is not a folder in this project"))?;
+    if !scope.starts_with(&root) {
+        return Err(format!("{sub} resolves outside the project"));
+    }
+    // The map directory, canonicalised the same way, so the comparison the
+    // walk makes is between paths of one shape.
+    let map_dir =
+        fs::canonicalize(&project.map_dir).unwrap_or_else(|_| PathBuf::from(&project.map_dir));
+
+    tauri::async_runtime::spawn_blocking(move || {
+        search::run(&root, &scope, &map_dir, &query, mode, case_sensitive, 300)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Search what the map shows — see `search::view`.
+#[tauri::command]
+fn view_search(
+    app: tauri::AppHandle,
+    id: String,
+    query: String,
+) -> Result<search::ViewResults, String> {
+    let ws = read_workspace(&app)?;
+    let project = ws
+        .projects
+        .iter()
+        .find(|p| p.id == id)
+        .ok_or_else(|| format!("no such project: {id}"))?;
+    search::view(Path::new(&project.map_dir), &query, 200)
 }
 
 /// Which projects in this workspace depend on which others.
@@ -2795,6 +2882,9 @@ fn main() {
             about_info,
             map_freshness,
             map_changes,
+            project_stats,
+            project_search,
+            view_search,
             project_icon,
             open_in_editor,
             file_tree,
