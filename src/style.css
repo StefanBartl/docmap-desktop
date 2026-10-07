@@ -1151,23 +1151,6 @@ button:focus-visible {
 .trafficbox h3:first-of-type {
   margin-top: 10px;
 }
-.traffic-spark-block {
-  margin-bottom: 4px;
-}
-.traffic-spark {
-  display: block;
-  width: 100%;
-  height: 70px;
-}
-.traffic-spark-line {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 2;
-  /* The viewBox is stretched to the dialog's own width by `width: 100%`
-     above (`preserveAspectRatio="none"`); without this the stroke would
-     stretch with it instead of staying a constant 2px. */
-  vector-effect: non-scaling-stroke;
-}
 /* A top-page row that resolved to a real file in the project — the only
    ones `open_in_editor` will accept. Anything else stays plain text with
    no hover state, which is the tell that it is not clickable. */

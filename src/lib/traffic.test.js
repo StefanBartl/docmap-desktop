@@ -14,7 +14,6 @@ import {
   hasNumbers,
   compareTraffic,
   githubUrl,
-  sparklinePoints,
 } from "./traffic.js";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
@@ -256,54 +255,20 @@ test("a row without a figure keeps the layout it always had", () => {
   assert.doesNotMatch(base, /traffic/, "the base row must not know about traffic");
 });
 
-// ------------------------------------------------------------- sparkline
-
-test("a sparkline needs at least two points to describe a line", () => {
-  assert.deepEqual(sparklinePoints([], 100, 50), []);
-  assert.deepEqual(sparklinePoints([["2026-09-01", 5, 2]], 100, 50), []);
-  assert.deepEqual(sparklinePoints(undefined, 100, 50), []);
-});
-
-test("a sparkline is scaled to its own peak, oldest point first", () => {
-  const daily = [
-    ["2026-09-01", 0, 0],
-    ["2026-09-02", 10, 5],
-    ["2026-09-03", 5, 3],
-  ];
-  const points = sparklinePoints(daily, 100, 50);
-  assert.equal(points.length, 3);
-  assert.deepEqual(points[0], { x: 0, y: 50 }, "0 sits on the baseline");
-  assert.deepEqual(points[1], { x: 50, y: 0 }, "the peak sits at the top");
-  assert.deepEqual(points[2], { x: 100, y: 25 }, "half the peak sits halfway up");
-});
-
-test("a flat series (peak 0) is drawn along the baseline, not hidden", () => {
-  const daily = [
-    ["2026-09-01", 0, 0],
-    ["2026-09-02", 0, 0],
-  ];
-  const points = sparklinePoints(daily, 100, 50);
-  assert.deepEqual(points, [
-    { x: 0, y: 50 },
-    { x: 100, y: 50 },
-  ]);
-});
-
 // --------------------------------------------------------- detail dialog
 
 test("the detail dialog's elements main.js reaches for exist in the markup", () => {
   const ids = [...new Set([...MAIN.matchAll(/getElementById\("(traffic(?:box|-[a-z-]*))"\)/g)].map((m) => m[1]))];
-  assert.ok(ids.length >= 8, `expected the dialog's elements, found ${ids.length}`);
+  assert.ok(ids.length >= 4, `expected the dialog's elements, found ${ids.length}`);
   const missing = ids.filter((id) => !HTML.includes(`id="${id}"`));
   assert.deepEqual(missing, [], `main.js reads ids the markup does not define: ${missing}`);
 });
 
-test("a referrer or a page title reaches the dialog only through textContent", () => {
-  // Same guard as the section-wide one, scoped to the two functions that
-  // build the dialog's rows — a website's referrer and a repository's own
-  // path title are both text from outside, same as every other string in
-  // this section.
-  for (const fn of ["renderTrafficReferrers", "renderTrafficPaths"]) {
+test("a page title reaches the dialog only through textContent", () => {
+  // Same guard as the section-wide one, scoped to the function that builds
+  // the dialog's rows — a repository's own path title is text from outside,
+  // same as every other string in this section.
+  for (const fn of ["renderTrafficPaths"]) {
     const start = MAIN.indexOf(`function ${fn}(`);
     assert.ok(start > 0, `${fn} should exist`);
     const body = MAIN.slice(start, MAIN.indexOf("\n}\n", start));
@@ -340,10 +305,6 @@ test("the detail dialog's keys exist in both shipped locales, translated", async
     "traffic.detail.open",
     "traffic.detail.title",
     "traffic.detail.span",
-    "traffic.detail.views",
-    "traffic.detail.clones",
-    "traffic.detail.referrers",
-    "traffic.detail.referrers.empty",
     "traffic.detail.paths",
     "traffic.detail.paths.empty",
     "traffic.detail.count",
