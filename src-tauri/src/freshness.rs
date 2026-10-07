@@ -19,7 +19,7 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 use serde::Serialize;
 
@@ -70,36 +70,15 @@ fn mtime(path: &Path) -> Option<SystemTime> {
     fs::metadata(path).ok()?.modified().ok()
 }
 
-/// Compare the newest source under `root` against the map in `map_dir`.
-pub fn check(root: &Path, map_dir: &Path) -> Result<Freshness, String> {
-    if !root.is_dir() {
-        return Err(format!("{} is not a directory", root.display()));
-    }
-
-    // `module_map.json` rather than `index.html`: both are written by the
-    // same run, and the JSON is the one a byte-deterministic `--check`
-    // compares — so if the two ever disagree, this reads the one that
-    // decides.
-    let map_time = match mtime(&map_dir.join("module_map.json")) {
-        Some(t) => t,
-        None => {
-            return Ok(Freshness {
-                has_map: false,
-                ..Default::default()
-            })
-        }
-    };
-
-    // Saturating rather than erroring: a file dated in the future (a bad
-    // clock, a restored archive) is not a reason to refuse an answer about
-    // every other project, and "written 0 seconds ago" is the harmless
-    // reading of it.
-    let generated_secs = SystemTime::now()
-        .duration_since(map_time)
-        .map(|d| d.as_secs())
-        .ok();
-
-    let mut newest: Option<(SystemTime, PathBuf)> = None;
+/// Visit every source file under `root` the way [`check`] means "source":
+/// not the map directory, not [`SKIP_DIRS`], not a nested checkout, never a
+/// symlink. `visit` gets the path and its modification time; a file with no
+/// readable time is not visited, because nothing can be said about it.
+///
+/// Returns whether the walk hit [`MAX_FILES`]. Iterative rather than
+/// recursive, for the reason the language walk gives: a symlink cycle must
+/// cost a skipped entry, not a stack overflow.
+fn walk_sources(root: &Path, map_dir: &Path, mut visit: impl FnMut(&Path, SystemTime)) -> bool {
     let mut visited = 0usize;
     let mut truncated = false;
     let mut stack = vec![root.to_path_buf()];
@@ -147,9 +126,7 @@ pub fn check(root: &Path, map_dir: &Path) -> Result<Freshness, String> {
             visited += 1;
             let path = entry.path();
             if let Some(t) = mtime(&path) {
-                if newest.as_ref().is_none_or(|(best, _)| t > *best) {
-                    newest = Some((t, path));
-                }
+                visit(&path, t);
             }
         }
 
@@ -157,6 +134,112 @@ pub fn check(root: &Path, map_dir: &Path) -> Result<Freshness, String> {
             break;
         }
     }
+    truncated
+}
+
+/// One file that changed after the map was made.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Changed {
+    /// Repository-relative, forward slashes.
+    pub path: String,
+    /// Seconds between the map and this file's last change.
+    pub after_secs: u64,
+}
+
+/// What [`changed_since_map`] found.
+#[derive(Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct Changes {
+    /// Newest first, at most `limit`.
+    pub files: Vec<Changed>,
+    /// How many files changed in all — can exceed `files.len()`.
+    pub total: usize,
+    /// The walk stopped at [`MAX_FILES`], so `total` is a lower bound.
+    pub truncated: bool,
+}
+
+/// The files modified after the map was written: the evidence behind a
+/// "map outdated" mark, for somebody who wants to see what it is made of.
+///
+/// Same approximation as [`check`] and the same wording duty: these are files
+/// *touched* since, not files whose content the map would reflect
+/// differently.
+pub fn changed_since_map(root: &Path, map_dir: &Path, limit: usize) -> Result<Changes, String> {
+    if !root.is_dir() {
+        return Err(format!("{} is not a directory", root.display()));
+    }
+    let Some(map_time) = mtime(&map_dir.join("module_map.json")) else {
+        return Ok(Changes::default());
+    };
+
+    let mut found: Vec<(Duration, PathBuf)> = Vec::new();
+    let truncated = walk_sources(root, map_dir, |path, t| {
+        if let Ok(after) = t.duration_since(map_time) {
+            if !after.is_zero() {
+                found.push((after, path.to_path_buf()));
+            }
+        }
+    });
+
+    let total = found.len();
+    // Newest first: the question is "what did I do since", and the answer
+    // the reader recognises is the last thing they touched.
+    found.sort_by(|a, b| b.0.cmp(&a.0));
+    let files = found
+        .into_iter()
+        .take(limit)
+        .filter_map(|(after, p)| {
+            let rel = p.strip_prefix(root).ok()?;
+            Some(Changed {
+                path: crate::portable(rel),
+                after_secs: after.as_secs(),
+            })
+        })
+        .collect();
+
+    Ok(Changes {
+        files,
+        total,
+        truncated,
+    })
+}
+
+/// Compare the newest source under `root` against the map in `map_dir`.
+pub fn check(root: &Path, map_dir: &Path) -> Result<Freshness, String> {
+    if !root.is_dir() {
+        return Err(format!("{} is not a directory", root.display()));
+    }
+
+    // `module_map.json` rather than `index.html`: both are written by the
+    // same run, and the JSON is the one a byte-deterministic `--check`
+    // compares — so if the two ever disagree, this reads the one that
+    // decides.
+    let map_time = match mtime(&map_dir.join("module_map.json")) {
+        Some(t) => t,
+        None => {
+            return Ok(Freshness {
+                has_map: false,
+                ..Default::default()
+            })
+        }
+    };
+
+    // Saturating rather than erroring: a file dated in the future (a bad
+    // clock, a restored archive) is not a reason to refuse an answer about
+    // every other project, and "written 0 seconds ago" is the harmless
+    // reading of it.
+    let generated_secs = SystemTime::now()
+        .duration_since(map_time)
+        .map(|d| d.as_secs())
+        .ok();
+
+    let mut newest: Option<(SystemTime, PathBuf)> = None;
+    let truncated = walk_sources(root, map_dir, |path, t| {
+        if newest.as_ref().is_none_or(|(best, _)| t > *best) {
+            newest = Some((t, path.to_path_buf()));
+        }
+    });
 
     let (stale, behind_secs) = match &newest {
         Some((t, _)) => match t.duration_since(map_time) {
@@ -321,5 +404,43 @@ mod tests {
         touch(&root.join("sub/b.lua"), ago(HOUR));
         let f = check(&root, &map).unwrap();
         assert!(!f.stale, "newest was {:?}", f.newest);
+    }
+
+    #[test]
+    fn changes_lists_what_was_touched_after_the_map_newest_first() {
+        let root = tmp("changes");
+        let map = root.join("docs/map");
+        touch(&map.join("module_map.json"), ago(3 * HOUR));
+        touch(&root.join("old.lua"), ago(4 * HOUR));
+        touch(&root.join("a.lua"), ago(2 * HOUR));
+        touch(&root.join("src/b.lua"), ago(HOUR));
+        touch(&root.join("node_modules/x.js"), ago(HOUR));
+        let c = changed_since_map(&root, &map, 10).unwrap();
+        let names: Vec<&str> = c.files.iter().map(|f| f.path.as_str()).collect();
+        assert_eq!(names, vec!["src/b.lua", "a.lua"]);
+        assert_eq!(c.total, 2);
+        assert!(!c.truncated);
+    }
+
+    #[test]
+    fn changes_reports_the_total_beyond_the_limit() {
+        let root = tmp("changes-limit");
+        let map = root.join("docs/map");
+        touch(&map.join("module_map.json"), ago(3 * HOUR));
+        for i in 0..5 {
+            touch(&root.join(format!("f{i}.lua")), ago(HOUR));
+        }
+        let c = changed_since_map(&root, &map, 2).unwrap();
+        assert_eq!(c.files.len(), 2);
+        assert_eq!(c.total, 5);
+    }
+
+    #[test]
+    fn changes_without_a_map_is_empty_rather_than_everything() {
+        let root = tmp("changes-nomap");
+        touch(&root.join("a.lua"), ago(HOUR));
+        let c = changed_since_map(&root, &root.join("docs/map"), 10).unwrap();
+        assert!(c.files.is_empty());
+        assert_eq!(c.total, 0);
     }
 }
