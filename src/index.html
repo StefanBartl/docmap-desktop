@@ -15,6 +15,7 @@
     -->
     <aside id="sidebar">
       <header>
+        <div class="brand">
         <h1>docmap</h1>
         <!-- One line, not two, and not translated. The name and the motto
              are the product's own words; a translated subtitle beside an
@@ -22,6 +23,17 @@
              languages. The text itself is a placeholder until the motto is
              chosen -- see ROADMAP.md. -->
         <p class="tagline">know your project</p>
+        </div>
+        <!-- Docked or auto-hiding. Pinned is the default and is how the
+             window has always looked; unpinned, the sidebar folds to a thin
+             edge and opens while the pointer is on it. -->
+        <button id="sb-pin" class="sb-pin" type="button" aria-pressed="true"
+                data-i18n-help="help.pin" aria-label="Pin sidebar">
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+            <path d="M9.5 1.5l5 5-1.4 1.4-.9-.4-2.6 2.6.3 2.6-1.2 1.2-2.9-2.9-4 4-.9-.9 4-4-2.9-2.9L3.2 6.1l2.6.3 2.6-2.6-.4-.9z"
+                  fill="currentColor" />
+          </svg>
+        </button>
       </header>
 
       <div class="actions">
@@ -122,7 +134,9 @@
           <span class="engine-label" data-i18n="engine.label">Engine</span>
           <span id="engine-summary" class="engine-summary"></span>
         </summary>
-        <p id="engine-state" class="engine-state"></p>
+        <!-- Facts as rows (binary, grammars, what it reads), not one long
+             sentence: each has its own label, and a path reads as a path. -->
+        <div id="engine-state" class="facts"></div>
         <!-- The diagnosis behind the verdict: which grammar file is missing
              from which directory. Its own element rather than a third line
              in `#engine-state`, because it carries markup (a path and a file
@@ -143,7 +157,7 @@
           <span class="engine-label" data-i18n="nvim.label">Neovim</span>
           <span id="nvim-summary" class="engine-summary"></span>
         </summary>
-        <p id="nvim-state" class="engine-state"></p>
+        <div id="nvim-state" class="facts"></div>
       </details>
 
 
@@ -556,7 +570,7 @@
           this app runs it, it does not replace it. Where it is on PATH there is
           nothing to do here, ever.
         </p>
-        <p id="prefs-engine-state" class="prefs-state"></p>
+        <div id="prefs-engine-state" class="prefs-state facts"></div>
         <!-- The same diagnosis the sidebar shows, repeated here because this
              is where the button that fixes it lives. Filled from one place
              so the two cannot disagree. -->
@@ -637,7 +651,7 @@
           Only needed to import plugin specs from a Neovim config. Most
           machines resolve both of these on their own.
         </p>
-        <p id="prefs-nvim-state" class="prefs-state"></p>
+        <div id="prefs-nvim-state" class="prefs-state facts"></div>
         <div class="prefs-buttons">
           <button id="pick-nvim" data-i18n-help="help.nvimLocate" type="button" data-i18n="nvim.locate">Locate nvim…</button>
           <button id="pick-nvim-config" data-i18n-help="help.nvimConfig" type="button" data-i18n="nvim.locateConfig">Locate config…</button>
