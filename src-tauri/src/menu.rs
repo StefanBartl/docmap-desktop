@@ -55,6 +55,8 @@ pub struct ViewState {
     /// The main pane is showing the filetree rather than the map.
     pub files: bool,
     pub sidebar: bool,
+    /// The sidebar is in auto-hide mode (not pinned).
+    pub sidebar_auto: bool,
 }
 
 #[derive(Deserialize)]
@@ -178,6 +180,7 @@ const GROUPS: &[Group] = &[
             Node::Separator,
             check("menu.view.files", Some("CmdOrCtrl+Shift+F")),
             check("menu.view.sidebar", Some("CmdOrCtrl+B")),
+            check("menu.view.sidebar_auto", None),
         ],
     },
     Group {
@@ -206,6 +209,7 @@ fn is_checked(id: &str, state: &ViewState) -> bool {
         "menu.view.theme.dark" => state.theme == "dark",
         "menu.view.files" => state.files,
         "menu.view.sidebar" => state.sidebar,
+        "menu.view.sidebar_auto" => state.sidebar_auto,
         _ => false,
     }
 }
@@ -391,6 +395,7 @@ mod tests {
             ],
             files: false,
             sidebar: true,
+            sidebar_auto: false,
         }
     }
 

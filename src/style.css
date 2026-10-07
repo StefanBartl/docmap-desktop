@@ -97,7 +97,7 @@ body {
 
 body {
   display: grid;
-  grid-template-columns: 260px 1fr;
+  grid-template-columns: var(--sb-w, 260px) 1fr;
   /* Two rows now: the shell, and a status bar under both columns. `1fr`
      then `auto` so the bar is exactly as tall as its one line and the
      panes take the rest. */
@@ -121,7 +121,84 @@ body {
 }
 
 #sidebar header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
   padding: 16px 16px 8px;
+}
+
+/* `display: flex` above outranks the UA's `[hidden]`, which is why hiding
+   the sidebar did nothing visible for as long as it existed. */
+#sidebar[hidden] {
+  display: none;
+}
+
+body.sb-hidden {
+  --sb-w: 0px;
+}
+
+.sb-pin {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.sb-pin:hover {
+  color: var(--ink);
+  background: var(--accent-soft);
+}
+
+/* Pinned: the pin points down into the panel. Unpinned: tilted, the way a
+   pin lies when it is not holding anything. */
+.sb-pin[aria-pressed="false"] svg {
+  transform: rotate(45deg);
+}
+
+/* Auto-hide. The column shrinks to a grip; the sidebar keeps its full width,
+   overflows its cell and is pulled left until only its right edge shows.
+   Overflow rather than a second layout: nothing inside has to know. */
+body.sb-auto {
+  --sb-w: 14px;
+}
+
+body.sb-auto #sidebar {
+  width: 260px;
+  justify-self: start;
+  position: relative;
+  z-index: 40;
+  transform: translateX(calc(14px - 260px));
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+body.sb-auto #sidebar.peek {
+  transform: none;
+  box-shadow: 6px 0 22px rgb(0 0 0 / 0.28);
+}
+
+/* The grip: a short bar and a chevron on the visible edge. */
+body.sb-auto #sidebar::after {
+  content: "›";
+  position: absolute;
+  top: 50%;
+  right: 2px;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+body.sb-auto #sidebar.peek::after {
+  display: none;
 }
 
 #sidebar h1 {
@@ -268,6 +345,10 @@ button:focus-visible {
 /* ---------------------------------------------------------------- view */
 
 #view {
+  /* Placed, not auto-flowed: with the sidebar out of its cell (hidden, or
+     overlaying in auto-hide mode) the auto-placement would put the view in
+     the narrow first column. */
+  grid-column: 2;
   position: relative;
   min-width: 0;
   min-height: 0;
@@ -630,6 +711,89 @@ button:focus-visible {
 
 .engine-state.missing {
   color: var(--ink);
+}
+
+/* Facts: label / value rows, for the Engine and Neovim panels. A label is
+   quiet, a path shows its directory dimmed and its file name strong, a tag
+   is a pill and a language is a chip -- which is the colouring one long
+   string could not carry. */
+.facts {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 11.5px;
+}
+
+.fact {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.fact-k {
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.fact-v {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 3px 6px;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.p-dir {
+  color: var(--muted);
+}
+
+.p-base {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.fact-text {
+  font-family: inherit;
+  color: var(--muted);
+}
+
+.fact.missing .fact-text {
+  color: var(--ink);
+}
+
+.fact-tag {
+  padding: 0 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.fact-tag.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.chip {
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10.5px;
+  line-height: 1.55;
+}
+
+/* A backend whose grammar is not loaded: still listed, visibly lesser. */
+.chip.dim {
+  background: transparent;
+  border: 1px dashed var(--line);
+  color: var(--muted);
 }
 
 .engine-actions {
@@ -1437,7 +1601,11 @@ button:focus-visible {
 }
 
 #sidebar > details {
-  padding: 2px 0;
+  /* Vertical only. This used to be `padding: 2px 0`, which silently
+     overrode the 16px side padding of `#engine, #nvim` and left the labels
+     flush against the sidebar's edge. */
+  padding-top: 8px;
+  padding-bottom: 6px;
 }
 
 .proj-detail {

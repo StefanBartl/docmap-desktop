@@ -77,6 +77,7 @@ const { open, save } = window.__TAURI__.dialog;
 
 const els = {
   sidebar: document.getElementById("sidebar"),
+  sbPin: document.getElementById("sb-pin"),
   list: document.getElementById("projects"),
   sort: document.getElementById("proj-sort"),
   detail: document.getElementById("proj-detail"),
@@ -1317,43 +1318,125 @@ function renderGrammarDiagnosis() {
   }
 }
 
-function renderEngine() {
-  const e = els.engineState;
-  const s = els.engineSummary;
-  if (!engine.path) {
-    e.className = "engine-state missing";
-    e.textContent =
-      "Not found. This is documentation.nvim's standalone binary — put it on PATH, or Locate… it.";
-    s.textContent = engineVerdict(engine, engineLangs);
-  } else {
-    e.className = "engine-state";
-    e.textContent =
-      shortPath(engine.path) +
-      (engine.bundled ? " (bundled)" : engine.from_path ? " (found on PATH)" : "") +
-      (engine.grammars
-        ? " · grammars: " + shortPath(engine.grammars)
-        : " · no grammars — module tree only, no per-function data");
-    // Fidelity, not the path: with the engine on PATH the path never
-    // changes and is not worth a line, while "will this run produce
-    // per-function data" is the one thing that differs run to run.
-    //
-    // Asked of the engine rather than inferred from the grammars directory
-    // -- see `engineVerdict` for the failure that inference had: a
-    // directory holding one grammar out of four read "ready".
-    s.textContent = engineVerdict(engine, engineLangs);
+/**
+ * Draw facts as label / value rows.
+ *
+ * The engine and Neovim panels used to be one string — a path, a tag in
+ * brackets, a middle dot, another path, a newline and a language list —
+ * which read as a sausage and could not be coloured. Rows can: the label is
+ * quiet, a path shows its directory dimmed and its file name strong, a tag
+ * is a pill, a language is a chip.
+ *
+ * Everything is set with `textContent`: a path and a language name are the
+ * user's content, never this program's markup.
+ *
+ * @param {HTMLElement|null} el
+ * @param {{label: string, path?: string, text?: string, tag?: {text: string, on?: boolean},
+ *          chips?: {text: string, title?: string, dim?: boolean}[],
+ *          missing?: boolean, title?: string}[]} rows
+ */
+function renderFacts(el, rows) {
+  if (!el) return;
+  el.replaceChildren();
+  for (const r of rows) {
+    const row = document.createElement("div");
+    row.className = "fact" + (r.missing ? " missing" : "");
 
-    // Which languages, on the line below the path. Inside the panel, which
-    // is collapsed by default -- the summary above still carries the
-    // verdict that decides whether generation works at all, and this is the
-    // detail behind it, not a second headline.
-    if (engineLangs) {
-      e.textContent += "\nreads: " + engineLanguageText(engineLangs);
+    const k = document.createElement("span");
+    k.className = "fact-k";
+    k.textContent = r.label;
+
+    const v = document.createElement("span");
+    v.className = "fact-v";
+    if (r.title) v.title = r.title;
+
+    if (r.path) {
+      const shown = shortPath(r.path);
+      const cut = shown.lastIndexOf("/") + 1;
+      const dir = document.createElement("span");
+      dir.className = "p-dir";
+      dir.textContent = shown.slice(0, cut);
+      const base = document.createElement("span");
+      base.className = "p-base";
+      base.textContent = shown.slice(cut);
+      v.append(dir, base);
     }
+    if (r.text) {
+      const txt = document.createElement("span");
+      txt.className = "fact-text";
+      txt.textContent = r.text;
+      v.append(txt);
+    }
+    if (r.tag) {
+      const tag = document.createElement("span");
+      tag.className = "fact-tag" + (r.tag.on ? " on" : "");
+      tag.textContent = r.tag.text;
+      v.append(tag);
+    }
+    for (const c of r.chips || []) {
+      const chip = document.createElement("span");
+      chip.className = "chip" + (c.dim ? " dim" : "");
+      chip.textContent = c.text;
+      if (c.title) chip.title = c.title;
+      v.append(chip);
+    }
+    row.append(k, v);
+    el.append(row);
   }
+}
+
+/** The rows of the Engine panel (and Settings' copy of it). */
+function engineFacts() {
+  if (!engine.path) {
+    return [{ label: t("facts.binary"), text: t("facts.engine.missing"), missing: true }];
+  }
+  const rows = [
+    {
+      label: t("facts.binary"),
+      path: engine.path,
+      tag: {
+        text: engine.bundled ? t("facts.tag.bundled") : engine.from_path ? t("facts.tag.path") : t("facts.tag.chosen"),
+        on: engine.bundled,
+      },
+      title: engine.path,
+    },
+    engine.grammars
+      ? { label: t("facts.grammars"), path: engine.grammars, title: engine.grammars }
+      : { label: t("facts.grammars"), text: t("facts.grammars.none"), missing: true },
+  ];
+  const known = engineLangs?.languages ?? null;
+  if (known && known.length) {
+    rows.push({
+      label: t("facts.reads"),
+      // `grammar_loaded === false` is the only degraded state: `null` means
+      // the backend needs no parser, which is full fidelity.
+      chips: known.map((b) => ({
+        text: b.name,
+        dim: b.grammar_loaded === false,
+        title: b.grammar_loaded === false ? t("facts.chip.nogrammar") : "",
+      })),
+    });
+  } else if (engineLangs) {
+    // Probed and answered, but with no list: an engine older than the field.
+    rows.push({ label: t("facts.reads"), text: engineLanguageText(engineLangs), missing: true });
+  }
+  return rows;
+}
+
+function renderEngine() {
+  const s = els.engineSummary;
+  const rows = engineFacts();
+  renderFacts(els.engineState, rows);
+  renderFacts(document.getElementById("prefs-engine-state"), rows);
+  // Fidelity, not the path: with the engine on PATH the path never changes
+  // and is not worth a line, while "will this run produce per-function data"
+  // is the one thing that differs run to run.
+  //
+  // Asked of the engine rather than inferred from the grammars directory --
+  // see `engineVerdict` for the failure that inference had: a directory
+  // holding one grammar out of four read "ready".
+  s.textContent = engineVerdict(engine, engineLangs);
   s.className = "engine-summary" + (engine.path ? "" : " missing");
-  e.title = engine.path
-    ? engine.path + (engine.grammars ? "\ngrammars: " + engine.grammars : "")
-    : "";
 
   // Escalate, never collapse. A missing engine is the one state worth
   // opening the panel for on its own; forcing it *shut* when things are
@@ -1445,30 +1528,42 @@ els.pickGrammars.addEventListener("click", async () => {
 
 // -------------------------------------------------------------- neovim
 
-function renderNvim() {
-  const e = els.nvimState;
-  const s = els.nvimSummary;
-  if (!nvim.path || !nvim.config_dir) {
-    e.className = "engine-state missing";
-    e.textContent = !nvim.path
-      ? "nvim not found. Put it on PATH, or Locate… it."
-      : "No Neovim config directory found. Locate… it.";
-    s.textContent = "not found";
-  } else {
-    e.className = "engine-state";
-    e.textContent =
-      shortPath(nvim.path) +
-      (nvim.from_path ? " (found on PATH)" : "") +
-      " · config: " +
-      shortPath(nvim.config_dir) +
-      (nvim.config_dir_from_default ? " (default location)" : "");
-    s.textContent = "ready";
+function nvimFacts() {
+  if (!nvim.path) {
+    return [{ label: t("facts.binary"), text: t("facts.nvim.missing"), missing: true }];
   }
-  s.className = "engine-summary" + (nvim.path && nvim.config_dir ? "" : " missing");
-  e.title = [nvim.path, nvim.config_dir].filter(Boolean).join("\n");
+  const rows = [
+    {
+      label: t("facts.binary"),
+      path: nvim.path,
+      tag: nvim.from_path ? { text: t("facts.tag.path") } : { text: t("facts.tag.chosen") },
+      title: nvim.path,
+    },
+  ];
+  rows.push(
+    nvim.config_dir
+      ? {
+          label: t("facts.config"),
+          path: nvim.config_dir,
+          tag: nvim.config_dir_from_default ? { text: t("facts.tag.default") } : { text: t("facts.tag.chosen") },
+          title: nvim.config_dir,
+        }
+      : { label: t("facts.config"), text: t("facts.nvim.noConfig"), missing: true }
+  );
+  return rows;
+}
+
+function renderNvim() {
+  const s = els.nvimSummary;
+  const ok = !!(nvim.path && nvim.config_dir);
+  const rows = nvimFacts();
+  renderFacts(els.nvimState, rows);
+  renderFacts(document.getElementById("prefs-nvim-state"), rows);
+  s.textContent = ok ? "ready" : "not found";
+  s.className = "engine-summary" + (ok ? "" : " missing");
 
   // Same escalate-never-collapse rule as the engine panel.
-  if (!nvim.path || !nvim.config_dir) {
+  if (!ok) {
     els.nvim.open = true;
   }
 }
@@ -2199,11 +2294,96 @@ async function applyZoom(factor) {
 function applySidebar(shown) {
   sidebarShown = shown;
   els.sidebar.hidden = !shown;
+  // The grid needs to know too: a hidden sidebar still owned its column.
+  document.body.classList.toggle("sb-hidden", !shown);
   try {
     localStorage.setItem(SIDEBAR_KEY, shown ? "1" : "0");
   } catch (e) {
     void e;
   }
+}
+
+// ---------------------------------------------------------------------
+// Pinned or auto-hiding sidebar
+//
+// Pinned is how the window has always looked. Unpinned, the sidebar folds
+// to a thin edge and opens as an overlay while the pointer is on it, so the
+// map gets the whole width and the controls are one hover away.
+//
+// Opening is by hover *and* by focus: a keyboard user tabbing into the
+// folded sidebar must see where they are. Closing waits a moment, and never
+// happens while a `<select>` in the sidebar has focus -- its dropdown list
+// is drawn by the platform outside this page, and moving onto it looks like
+// leaving the sidebar.
+// ---------------------------------------------------------------------
+const PIN_KEY = "docmap.sidebarPinned";
+let sidebarPinned = true;
+let sidebarHovered = false;
+let peekTimer = null;
+
+function applyPinned(pinned) {
+  sidebarPinned = pinned;
+  document.body.classList.toggle("sb-auto", !pinned);
+  els.sbPin.setAttribute("aria-pressed", String(pinned));
+  els.sbPin.dataset.help = t(pinned ? "help.pin.on" : "help.pin.off");
+  els.sbPin.setAttribute("aria-label", t(pinned ? "pin.on" : "pin.off"));
+  if (pinned) els.sidebar.classList.remove("peek");
+  try {
+    localStorage.setItem(PIN_KEY, pinned ? "1" : "0");
+  } catch (e) {
+    void e;
+  }
+}
+
+function peek(on) {
+  if (peekTimer) {
+    clearTimeout(peekTimer);
+    peekTimer = null;
+  }
+  if (sidebarPinned) return;
+  if (on) {
+    els.sidebar.classList.add("peek");
+    return;
+  }
+  peekTimer = setTimeout(() => {
+    peekTimer = null;
+    const a = document.activeElement;
+    const holding = a && a.tagName === "SELECT" && els.sidebar.contains(a);
+    if (!sidebarHovered && !holding) els.sidebar.classList.remove("peek");
+  }, 350);
+}
+
+els.sidebar.addEventListener("mouseenter", () => {
+  sidebarHovered = true;
+  peek(true);
+});
+els.sidebar.addEventListener("mouseleave", () => {
+  sidebarHovered = false;
+  peek(false);
+});
+els.sidebar.addEventListener("focusin", () => peek(true));
+els.sidebar.addEventListener("focusout", () => peek(false));
+// Choosing from a dropdown is the end of the interaction: let go of focus so
+// the sidebar can fold again instead of waiting for a click elsewhere.
+els.sidebar.addEventListener("change", (ev) => {
+  if (!sidebarPinned && ev.target && ev.target.tagName === "SELECT") {
+    ev.target.blur();
+    peek(false);
+  }
+});
+els.sbPin.addEventListener("click", () => {
+  applyPinned(!sidebarPinned);
+  syncMenu();
+});
+
+{
+  let saved = "1";
+  try {
+    saved = localStorage.getItem(PIN_KEY) ?? "1";
+  } catch (e) {
+    void e;
+  }
+  applyPinned(saved !== "0");
 }
 
 // The map frame's URL, without the theme. Kept so a theme change can
@@ -2282,6 +2462,7 @@ function viewState() {
     locales: LOCALES.map((l) => ({ code: l.code, label: l.label })),
     files: filesOpen,
     sidebar: sidebarShown,
+    sidebarAuto: !sidebarPinned,
   };
 }
 
@@ -3464,6 +3645,10 @@ const MENU_ACTIONS = {
     applySidebar(!sidebarShown);
     syncMenu();
   },
+  "menu.view.sidebar_auto": () => {
+    applyPinned(!sidebarPinned);
+    syncMenu();
+  },
   "menu.help.feedback": () => openFeedback(),
   "menu.help.settings_folder": async () => {
     try {
@@ -3780,8 +3965,6 @@ function openPrefs() {
   if (sortBox) sortBox.value = sortBy;
   document.getElementById("prefs-dashboard").checked = !wsSkipped();
 
-  document.getElementById("prefs-engine-state").textContent =
-    els.engineState.textContent;
   // Read on open rather than kept in sync: it is a text field nothing else
   // writes.
   invoke("editor_command", { set: null })
@@ -3789,8 +3972,6 @@ function openPrefs() {
       document.getElementById("editor-cmd").value = cmd || "";
     })
     .catch((e) => void e);
-  document.getElementById("prefs-nvim-state").textContent =
-    els.nvimState.textContent;
   // Asked when the dialog opens rather than kept live: reading it walks a
   // directory, and nothing changes it while the dialog is shut.
   renderTelemetry();
