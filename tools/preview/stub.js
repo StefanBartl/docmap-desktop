@@ -250,6 +250,48 @@ const R = {
       newest: fr.newest ?? null, behindSecs: fr.behind_secs ?? null, generatedSecs: 100000,
     };
   },
+  project_stats: () => ({
+    languages: [
+      { name: "Lua", kind: "code", files: 142, lines: { total: 21840, code: 15210, comment: 4820, blank: 1810 }, bytes: 840000 },
+      { name: "Markdown", kind: "docs", files: 38, lines: { total: 6100, code: 4900, comment: 0, blank: 1200 }, bytes: 210000 },
+      { name: "JavaScript", kind: "code", files: 12, lines: { total: 1900, code: 1500, comment: 250, blank: 150 }, bytes: 70000 },
+      { name: "JSON", kind: "data", files: 9, lines: { total: 640, code: 640, comment: 0, blank: 0 }, bytes: 22000 },
+      { name: "Rust", kind: "code", files: 6, lines: { total: 520, code: 400, comment: 60, blank: 60 }, bytes: 18000 },
+    ],
+    code: { files: 160, lines: { total: 24260, code: 17110, comment: 5130, blank: 2020 } },
+    docs: { files: 38, lines: { total: 6100, code: 4900, comment: 0, blank: 1200 } },
+    data: { files: 9, lines: { total: 640, code: 640, comment: 0, blank: 0 } },
+    other: { files: 14, lines: { total: 0, code: 0, comment: 0, blank: 0 } },
+    files: 221,
+    bytes: 1160000,
+    largest: [
+      { path: "lua/lib/nvim/cross/fs/init.lua", lines: 1210 },
+      { path: "lua/lib/nvim/ui/kit.lua", lines: 980 },
+      { path: "lua/lib/nvim/window.lua", lines: 760 },
+    ],
+    truncated: false,
+  }),
+  project_search: (a) => ({
+    hits: a.mode === "files"
+      ? [
+          { path: "lua/lib/nvim/init.lua", line: null, text: null, at: null },
+          { path: "lua/lib/nvim/window/init.lua", line: null, text: null, at: null },
+        ]
+      : [
+          { path: "lua/lib/nvim/window.lua", line: 42, text: "local function open_window(opts) -- " + a.query, at: 3 },
+          { path: "lua/lib/nvim/window.lua", line: 97, text: "return " + a.query + "(buf)", at: 7 },
+          { path: "docs/USAGE.md", line: 12, text: "Use " + a.query + " to open it", at: 4 },
+        ],
+    filesSearched: 211, truncated: false, reason: null,
+  }),
+  view_search: (a) => ({
+    available: true, truncated: false,
+    hits: [
+      { kind: "file", label: "window.lua", detail: "path: lua/lib/nvim/window.lua", node: "lua/lib/nvim/window.lua", file: "lua/lib/nvim/window.lua", line: null },
+      { kind: "function", label: "M.open", detail: "summary: Opens a floating " + a.query, node: "lua/lib/nvim/window.lua", file: "lua/lib/nvim/window.lua", line: 42 },
+      { kind: "doc", label: "Using it", detail: "docs/USAGE.md", node: null, file: "docs/USAGE.md", line: null },
+    ],
+  }),
   map_changes: (a) => ({
     files: [
       { path: "lua/lib/nvim/cross/fs/init.lua", afterSecs: 600 },

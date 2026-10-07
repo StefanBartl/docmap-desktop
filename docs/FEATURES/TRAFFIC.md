@@ -21,6 +21,11 @@ error), a machine without the plugin shows nothing, and a repository the plugin
 does not track says exactly that. "Uniques" is the sum of the daily uniques, not
 distinct visitors, and is never called visitors.
 
+**The details dialog** (*Traffic details…*) lists the pages GitHub reported as most
+looked at, with the span the stored numbers cover. It once also drew a chart per
+series and a referrer list; both were dropped — the pages are what is worth reading.
+A page that is a file in the project opens in the editor.
+
 - **Module:** `src-tauri/src/traffic.rs`, `src/lib/traffic.js`, `src/main.js`
 - **Config:** `traffic_dir`, `traffic_asked_dir` in `workspace.json`; per project `traffic_hidden`
 - **Docs:** [USAGE.md](../USAGE.md#github-traffic)

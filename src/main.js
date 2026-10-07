@@ -23,6 +23,20 @@ import { lastKey, migrateLastKey } from "./lib/last-selection.js";
 import { mapStatus, invalidate } from "./lib/status-cache.js";
 import { row as overviewRow, sortRows, summarize, RANK } from "./lib/overview.js";
 import { usedBy, summarizeDeps } from "./lib/deps.js";
+import {
+  scopeToSub,
+  scopeDisplay,
+  splitMatch,
+  mapTarget,
+  truncatedKey,
+  fileCount,
+} from "./lib/finder.js";
+import {
+  headline as statsHeadline,
+  composition as statsComposition,
+  languageRows as statsLanguageRows,
+  formatBytes,
+} from "./lib/stats.js";
 import { t, setLocale, initialLocale, LOCALES, keys } from "./lib/i18n.js";
 import {
   trend as trendOf,
@@ -227,6 +241,10 @@ function applyLocale() {
   document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => {
     const text = t(el.dataset.i18nPlaceholder);
     if (text) el.placeholder = text;
+  });
+  document.querySelectorAll("[data-i18n-aria]").forEach((el) => {
+    const text = t(el.dataset.i18nAria);
+    if (text) el.setAttribute("aria-label", text);
   });
   // Help bubbles read `data-help`, so the catalog is projected onto it.
   document.querySelectorAll("[data-i18n-help]").forEach((el) => {
@@ -542,6 +560,9 @@ async function render() {
   // was still wrong, because the option was being added and then overruled
   // one line later.
   els.list.value = selectedId ?? "";
+  // The project bar (views and search) belongs to a selected project.
+  document.body.classList.toggle("has-bar", !!selectedId);
+  document.getElementById("projbar").hidden = !selectedId;
   renderDetail();
   renderOverview();
 
@@ -1131,6 +1152,8 @@ async function select(id) {
 
   const p = projects.find((x) => x.id === selectedId);
   await render();
+  resetFinder();
+  refreshPanes();
   if (!p) {
     // Going back to the overview has to take the previous project's map off
     // the screen with it. Without this the iframe stayed put and the
@@ -2461,6 +2484,7 @@ function viewState() {
     // translates a language name.
     locales: LOCALES.map((l) => ({ code: l.code, label: l.label })),
     files: filesOpen,
+    stats: statsOpen,
     sidebar: sidebarShown,
     sidebarAuto: !sidebarPinned,
   };
@@ -3194,6 +3218,7 @@ async function exportCurrentView() {
 // =====================================================================
 
 let filesOpen = false;
+let statsOpen = false;
 let filesPath = "";
 
 function formatSize(n) {
@@ -3339,22 +3364,621 @@ async function renderFiles() {
   });
 }
 
-/** Show the filetree instead of the map, or the other way back. */
-function setFiles(on) {
-  filesOpen = on;
-  document.getElementById("files").hidden = !on;
+/**
+ * Which of the three views fills the main pane: the map, the file tree or
+ * the statistics. The latter two are overlays on the map (the frame keeps its
+ * page, so coming back costs no reload), which is why they are one function:
+ * showing one hides the other and the frame stays put underneath.
+ *
+ * @param {"map"|"files"|"stats"} name
+ */
+function setPane(name) {
+  filesOpen = name === "files";
+  statsOpen = name === "stats";
+  const overlay = filesOpen || statsOpen;
+  document.getElementById("files").hidden = !filesOpen;
+  document.getElementById("stats").hidden = !statsOpen;
   // The map keeps its src: coming back should not cost a reload of a
   // two-megabyte page that has not changed.
-  els.frame.hidden = on || !mapBase;
-  els.placeholder.hidden = on || !!mapBase || (!selectedId && projects.length > 0);
-  els.overview.hidden = on || !!mapBase || !!selectedId || projects.length === 0;
-  if (on) {
+  els.frame.hidden = overlay || !mapBase;
+  els.placeholder.hidden = overlay || !!mapBase || (!selectedId && projects.length > 0);
+  els.overview.hidden = overlay || !!mapBase || !!selectedId || projects.length === 0;
+  if (filesOpen) {
     filesPath = "";
     renderFiles();
   }
+  if (statsOpen) renderStats();
+  syncPaneTabs();
   syncMenu();
 }
 
+/** Show the filetree instead of the map, or the other way back. */
+function setFiles(on) {
+  setPane(on ? "files" : "map");
+}
+
+function setStats(on) {
+  setPane(on ? "stats" : "map");
+}
+
+/** A pane that is open shows the project that is now selected. */
+function refreshPanes() {
+  if (filesOpen) {
+    filesPath = "";
+    renderFiles();
+  }
+  if (statsOpen) renderStats();
+  syncPaneTabs();
+}
+
+const paneTabs = [...document.querySelectorAll(".viewtabs button")];
+
+function syncPaneTabs() {
+  const now = statsOpen ? "stats" : filesOpen ? "files" : "map";
+  for (const b of paneTabs) {
+    const on = b.dataset.pane === now;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-selected", String(on));
+  }
+}
+
+for (const b of paneTabs) b.addEventListener("click", () => setPane(b.dataset.pane));
+
+// =====================================================================
+// Project statistics
+//
+// What the project is made of, counted when asked for — it opens every
+// file, which is not something to do for thirty projects at start-up. The
+// numbers come from the disk, not from the map: the map describes modules,
+// and "how much of this is documentation" is a question about files.
+// =====================================================================
+
+/** Per project id, so switching back does not recount a tree. */
+const statsCache = new Map();
+
+const statsUi = {
+  title: document.getElementById("stats-title"),
+  state: document.getElementById("stats-state"),
+  body: document.getElementById("stats-body"),
+  tiles: document.getElementById("stats-tiles"),
+  bar: document.getElementById("stats-bar"),
+  legend: document.getElementById("stats-legend"),
+  rows: document.getElementById("stats-rows"),
+  largest: document.getElementById("stats-largest"),
+  foot: document.getElementById("stats-foot"),
+  refresh: document.getElementById("stats-refresh"),
+};
+
+function node(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined && text !== null) e.textContent = text;
+  return e;
+}
+
+async function renderStats(force = false) {
+  const id = selectedId;
+  if (!statsOpen || !id) return;
+  const p = projects.find((x) => x.id === id);
+  statsUi.title.textContent = p ? fill(t("stats.titleFor"), { name: p.name }) : t("stats.title");
+
+  let s = force ? null : statsCache.get(id);
+  if (!s) {
+    statsUi.body.hidden = true;
+    statsUi.state.textContent = t("stats.counting");
+    try {
+      s = await invoke("project_stats", { id });
+    } catch (e) {
+      if (id === selectedId) statsUi.state.textContent = String(e);
+      return;
+    }
+    statsCache.set(id, s);
+  }
+  // The count can finish after the reader moved on or left the pane.
+  if (id !== selectedId || !statsOpen) return;
+
+  const nf = new Intl.NumberFormat(locale);
+  const h = statsHeadline(s);
+  statsUi.state.textContent = t("stats.note");
+
+  const tile = (value, label, sub) => {
+    const el = node("div", "stat-tile");
+    el.append(node("div", "v", nf.format(value)), node("div", "l", label));
+    if (sub) el.append(node("div", "s", sub));
+    return el;
+  };
+  statsUi.tiles.replaceChildren(
+    tile(h.files, t("stats.tile.files"), formatBytes(s.bytes)),
+    tile(h.lines, t("stats.tile.lines")),
+    tile(h.code, t("stats.tile.code"), fill(t("stats.sub.files"), { n: nf.format(h.codeFiles) })),
+    tile(
+      h.comment,
+      t("stats.tile.comments"),
+      fill(t("stats.sub.ratio"), { p: nf.format(h.commentRatio) })
+    ),
+    tile(h.docs, t("stats.tile.docs"), fill(t("stats.sub.files"), { n: nf.format(h.docsFiles) })),
+    tile(h.data, t("stats.tile.data"), fill(t("stats.sub.files"), { n: nf.format(h.dataFiles) })),
+    tile(h.blank, t("stats.tile.blank"))
+  );
+
+  const parts = statsComposition(s);
+  statsUi.bar.replaceChildren(
+    ...parts.map((part) => {
+      const seg = node("span", "seg-" + part.key);
+      seg.style.width = part.percent + "%";
+      seg.title = `${t("stats.tile." + legendKey(part.key))}: ${nf.format(part.lines)}`;
+      return seg;
+    })
+  );
+  statsUi.legend.replaceChildren(
+    ...parts.map((part) => {
+      const li = node("li");
+      const dot = node("i", "seg-" + part.key);
+      li.append(dot, `${t("stats.tile." + legendKey(part.key))} ${nf.format(part.percent)} %`);
+      return li;
+    })
+  );
+
+  statsUi.rows.replaceChildren(
+    ...statsLanguageRows(s).map((l) => {
+      const tr = node("tr");
+      const name = node("td", null, l.name);
+      name.append(node("span", "kind", t("stats.kind." + l.kind)));
+      const meter = node("span", "meter");
+      meter.style.width = Math.max(l.width, 1) + "%";
+      meter.title = nf.format(l.share) + " %";
+      const barCell = node("td", "bar");
+      barCell.append(meter);
+      tr.append(
+        name,
+        node("td", "n", nf.format(l.files)),
+        node("td", "n", nf.format(l.lines.total)),
+        node("td", "n", nf.format(l.lines.code)),
+        node("td", "n", l.kind === "code" ? nf.format(l.lines.comment) : "–"),
+        node("td", "n", nf.format(l.lines.blank)),
+        barCell
+      );
+      return tr;
+    })
+  );
+
+  statsUi.largest.replaceChildren(
+    ...s.largest.map((f) => {
+      const li = node("li", "traffic-path-open");
+      li.title = t("traffic.detail.openFile");
+      li.append(
+        node("span", "ov-deps-name", f.path),
+        node("span", "ov-deps-who", fill(t("stats.lines"), { n: nf.format(f.lines) }))
+      );
+      li.addEventListener("click", () => {
+        invoke("open_in_editor", { id, path: f.path, line: null }).catch((err) => say(String(err)));
+      });
+      return li;
+    })
+  );
+
+  const bits = [];
+  if (h.other) bits.push(fill(t("stats.foot.other"), { n: nf.format(h.other) }));
+  if (s.truncated) bits.push(t("stats.foot.truncated"));
+  statsUi.foot.textContent = bits.join(" ");
+  statsUi.body.hidden = false;
+}
+
+function legendKey(key) {
+  return { code: "code", comment: "comments", docs: "docs", data: "data", blank: "blank" }[key];
+}
+
+statsUi.refresh.addEventListener("click", () => {
+  statsCache.delete(selectedId);
+  renderStats(true);
+});
+
+
+// =====================================================================
+// Search
+//
+// One box, three questions — text in files (a grep), file names (a find),
+// and what the map shows. Which one is the *scope*: a folder of the project,
+// or the view. The folder search is answered by the backend walking the disk;
+// the view search by reading the map's own data, because the page itself is a
+// separate document this window cannot read into.
+//
+// Opening a result goes where the result lives: a file match opens in the
+// editor at its line, a map match sends the map there.
+// =====================================================================
+
+const FINDER_KEY = "docmap.finder";
+
+const finder = {
+  root: document.getElementById("finder"),
+  input: document.getElementById("finder-input"),
+  panel: document.getElementById("finder-panel"),
+  path: document.getElementById("finder-path"),
+  pick: document.getElementById("finder-pick"),
+  scope: document.getElementById("finder-scope"),
+  modes: document.getElementById("finder-modes"),
+  modeText: document.getElementById("finder-mode-text"),
+  modeFiles: document.getElementById("finder-mode-files"),
+  caseBox: document.getElementById("finder-case"),
+  state: document.getElementById("finder-state"),
+  results: document.getElementById("finder-results"),
+};
+
+/** Folder to search, relative to the project root. */
+let finderSub = "";
+let finderMode = "text";
+let finderTimer = null;
+let finderSeq = 0;
+
+try {
+  const saved = JSON.parse(localStorage.getItem(FINDER_KEY) || "{}");
+  if (saved.mode === "files") finderMode = "files";
+  if (saved.scope === "view") finder.scope.value = "view";
+  finder.caseBox.checked = !!saved.matchCase;
+} catch (e) {
+  void e;
+}
+
+function saveFinder() {
+  try {
+    localStorage.setItem(
+      FINDER_KEY,
+      JSON.stringify({
+        mode: finderMode,
+        scope: finder.scope.value,
+        matchCase: finder.caseBox.checked,
+      })
+    );
+  } catch (e) {
+    void e;
+  }
+}
+
+function finderProject() {
+  return projects.find((p) => p.id === selectedId) || null;
+}
+
+function openFinder() {
+  finder.panel.hidden = false;
+}
+
+function closeFinder() {
+  finder.panel.hidden = true;
+}
+
+/** A different project means a different folder, and last project's results
+    would be the wrong project's files. */
+function resetFinder() {
+  finderSeq++;
+  clearTimeout(finderTimer);
+  finderSub = "";
+  finder.input.value = "";
+  finder.results.replaceChildren();
+  finder.state.textContent = "";
+  closeFinder();
+  syncFinder();
+}
+
+/** Bring every control in line with the state variables. */
+function syncFinder() {
+  const view = finder.scope.value === "view";
+  const p = finderProject();
+  // Folder-only controls are meaningless for the view scope: it has no
+  // folder, and "text or file names" does not apply to a map's data.
+  finder.path.parentElement.querySelectorAll(".finder-label, .finder-path, .finder-btn").forEach((el) => {
+    el.hidden = view;
+  });
+  // Neither a mode nor a case rule applies to the view: it is searched by
+  // name and by words, in the map's own data.
+  finder.modes.hidden = view;
+  finder.modeText.classList.toggle("on", finderMode === "text");
+  finder.modeText.setAttribute("aria-pressed", String(finderMode === "text"));
+  finder.modeFiles.classList.toggle("on", finderMode === "files");
+  finder.modeFiles.setAttribute("aria-pressed", String(finderMode === "files"));
+  finder.path.classList.remove("bad");
+  if (p) finder.path.value = scopeDisplay(p.root, finderSub);
+  finder.input.placeholder = t(
+    view ? "find.placeholder.view" : finderMode === "files" ? "find.placeholder.files" : "find.placeholder"
+  );
+}
+
+function setFinderState(text) {
+  finder.state.textContent = text || "";
+}
+
+/** A result row: a button, so it is a tab stop and answers Enter. */
+function hitButton() {
+  const li = document.createElement("li");
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "finder-hit";
+  li.append(b);
+  return { li, b };
+}
+
+function renderFolderHits(res, query) {
+  const nf = new Intl.NumberFormat(locale);
+  finder.results.replaceChildren();
+  const hits = res.hits || [];
+  if (!hits.length) {
+    setFinderState(t(res.truncated ? truncatedKey(res.reason) : "find.none"));
+    return;
+  }
+  const files = fileCount(hits);
+  let line =
+    finderMode === "files"
+      ? fill(t("find.count.files"), { n: nf.format(hits.length) })
+      : fill(t("find.count.text"), { n: nf.format(hits.length), files: nf.format(files) });
+  if (res.truncated) line += " " + t(truncatedKey(res.reason));
+  setFinderState(line);
+
+  const len = Array.from(query).length;
+  for (const h of hits) {
+    const { li, b } = hitButton();
+    const where = document.createElement("span");
+    where.className = "where";
+    const p = document.createElement("span");
+    p.className = "p";
+    p.textContent = h.path;
+    where.append(p);
+    if (h.line) {
+      const n = document.createElement("span");
+      n.textContent = ":" + h.line;
+      where.append(n);
+    }
+    b.append(where);
+    if (h.text) {
+      const what = document.createElement("span");
+      what.className = "what";
+      const parts = splitMatch(h.text, h.at, len);
+      what.append(parts.before);
+      if (parts.match) {
+        const m = document.createElement("mark");
+        m.textContent = parts.match;
+        what.append(m);
+      }
+      what.append(parts.after);
+      b.append(what);
+    }
+    b.addEventListener("click", () => {
+      invoke("open_in_editor", { id: selectedId, path: h.path, line: h.line ?? null }).catch((e) =>
+        say(String(e))
+      );
+    });
+    finder.results.append(li);
+  }
+}
+
+function renderViewHits(res) {
+  const nf = new Intl.NumberFormat(locale);
+  finder.results.replaceChildren();
+  if (!res.available) {
+    setFinderState(t("find.view.nomap"));
+    return;
+  }
+  const hits = res.hits || [];
+  if (!hits.length) {
+    setFinderState(t("find.none"));
+    return;
+  }
+  setFinderState(
+    fill(t("find.count.view"), { n: nf.format(hits.length) }) + (res.truncated ? " " + t("find.cut.limit") : "")
+  );
+
+  for (const h of hits) {
+    const { li, b } = hitButton();
+    const where = document.createElement("span");
+    where.className = "where";
+    const kind = document.createElement("span");
+    kind.className = "finder-kind";
+    kind.textContent = t("find.kind." + h.kind) || h.kind;
+    const label = document.createElement("span");
+    label.className = "p";
+    label.textContent = h.label;
+    where.append(kind, label);
+    if (h.file) {
+      const open = document.createElement("span");
+      open.className = "open-file";
+      open.textContent = t("find.openFile");
+      open.title = h.file;
+      open.addEventListener("click", (ev) => {
+        // The row's own action is the map; this one is the file.
+        ev.stopPropagation();
+        invoke("open_in_editor", { id: selectedId, path: h.file, line: h.line ?? null }).catch((e) =>
+          say(String(e))
+        );
+      });
+      where.append(open);
+    }
+    const what = document.createElement("span");
+    what.className = "what";
+    what.textContent = h.detail;
+    b.append(where, what);
+
+    b.addEventListener("click", () => {
+      const target = mapTarget(h);
+      if (target) {
+        // The map has to be what is showing for it to go anywhere.
+        if (filesOpen || statsOpen) setPane("map");
+        gotoMap(target);
+        closeFinder();
+      } else if (h.file) {
+        invoke("open_in_editor", { id: selectedId, path: h.file, line: h.line ?? null }).catch((e) =>
+          say(String(e))
+        );
+      }
+    });
+    finder.results.append(li);
+  }
+}
+
+async function runFinder() {
+  const id = selectedId;
+  const query = finder.input.value.trim();
+  const seq = ++finderSeq;
+  if (!id || !query) {
+    finder.results.replaceChildren();
+    setFinderState("");
+    return;
+  }
+  setFinderState(t("find.searching"));
+  try {
+    if (finder.scope.value === "view") {
+      const res = await invoke("view_search", { id, query });
+      if (seq === finderSeq) renderViewHits(res);
+    } else {
+      const res = await invoke("project_search", {
+        id,
+        sub: finderSub,
+        query,
+        mode: finderMode,
+        caseSensitive: finder.caseBox.checked,
+      });
+      if (seq === finderSeq) renderFolderHits(res, query);
+    }
+  } catch (e) {
+    // A stale answer to a question nobody is asking any more stays quiet.
+    if (seq === finderSeq) {
+      finder.results.replaceChildren();
+      setFinderState(String(e));
+    }
+  }
+}
+
+/** Run after a pause in typing, so each keystroke is not a walk of the tree. */
+function scheduleFinder() {
+  clearTimeout(finderTimer);
+  finderTimer = setTimeout(runFinder, 260);
+}
+
+/** Take whatever is in the scope box as the folder, or say why it is not one. */
+function applyScopeText() {
+  const p = finderProject();
+  if (!p) return;
+  const r = scopeToSub(p.root, finder.path.value);
+  if (r.error) {
+    finder.path.classList.add("bad");
+    setFinderState(t(r.error === "outside" ? "find.scope.outside" : "find.scope.dotdot"));
+    return;
+  }
+  finderSub = r.sub;
+  syncFinder();
+  if (finder.input.value.trim()) runFinder();
+}
+
+finder.input.addEventListener("focus", openFinder);
+finder.input.addEventListener("click", openFinder);
+finder.input.addEventListener("input", () => {
+  openFinder();
+  scheduleFinder();
+});
+finder.input.addEventListener("keydown", (ev) => {
+  if (ev.key === "Enter") {
+    ev.preventDefault();
+    clearTimeout(finderTimer);
+    runFinder();
+  } else if (ev.key === "ArrowDown") {
+    const first = finder.results.querySelector(".finder-hit");
+    if (first) {
+      ev.preventDefault();
+      first.focus();
+    }
+  } else if (ev.key === "Escape") {
+    closeFinder();
+    finder.input.blur();
+  }
+});
+
+// Arrow keys walk the result list; Escape goes back to the box.
+finder.results.addEventListener("keydown", (ev) => {
+  const hits = [...finder.results.querySelectorAll(".finder-hit")];
+  const i = hits.indexOf(document.activeElement);
+  if (i < 0) return;
+  if (ev.key === "ArrowDown") {
+    ev.preventDefault();
+    (hits[i + 1] || hits[i]).focus();
+  } else if (ev.key === "ArrowUp") {
+    ev.preventDefault();
+    (i === 0 ? finder.input : hits[i - 1]).focus();
+  } else if (ev.key === "Escape") {
+    finder.input.focus();
+  }
+});
+
+finder.path.addEventListener("change", applyScopeText);
+finder.path.addEventListener("keydown", (ev) => {
+  if (ev.key === "Enter") {
+    ev.preventDefault();
+    applyScopeText();
+  }
+});
+
+finder.pick.addEventListener("click", async () => {
+  const p = finderProject();
+  if (!p) return;
+  try {
+    // Starts in the project, not wherever the OS last was: a scope outside
+    // it is refused anyway, so the dialog opens where the answer is.
+    const dir = await open({
+      directory: true,
+      multiple: false,
+      defaultPath: scopeDisplay(p.root, finderSub),
+      title: t("find.pick.title"),
+    });
+    if (!dir) return;
+    finder.path.value = dir;
+    applyScopeText();
+  } catch (e) {
+    say(String(e));
+  }
+});
+
+finder.scope.addEventListener("change", () => {
+  syncFinder();
+  saveFinder();
+  if (finder.input.value.trim()) runFinder();
+  else {
+    finder.results.replaceChildren();
+    setFinderState("");
+  }
+});
+
+for (const [btn, mode] of [
+  [finder.modeText, "text"],
+  [finder.modeFiles, "files"],
+]) {
+  btn.addEventListener("click", () => {
+    finderMode = mode;
+    syncFinder();
+    saveFinder();
+    if (finder.input.value.trim()) runFinder();
+    finder.input.focus();
+  });
+}
+
+finder.caseBox.addEventListener("change", () => {
+  saveFinder();
+  if (finder.input.value.trim()) runFinder();
+});
+
+// Clicking anywhere else puts the panel away. `mousedown` rather than
+// `click`, so it closes before whatever was clicked reacts.
+document.addEventListener("mousedown", (ev) => {
+  if (!finder.panel.hidden && !finder.root.contains(ev.target)) closeFinder();
+});
+
+// Ctrl+K from anywhere in this window. Not from inside the map: key events do
+// not cross out of a cross-origin frame, so there it simply does not fire.
+document.addEventListener("keydown", (ev) => {
+  if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey && !ev.altKey && ev.key.toLowerCase() === "k") {
+    if (!selectedId) return;
+    ev.preventDefault();
+    finder.input.focus();
+    finder.input.select();
+  }
+});
+
+syncFinder();
 
 // =====================================================================
 // Workspaces
@@ -3488,6 +4112,7 @@ async function useWorkspace(name) {
     selectedId = null;
     mapBase = null;
     freshness.clear();
+    statsCache.clear();
     showPlaceholder(t("ph.none.title"), t("ph.none.body"));
     await refresh(list);
     // Re-listed because switching can *create*: the count in the title
@@ -3641,6 +4266,7 @@ const MENU_ACTIONS = {
     syncMenu();
   },
   "menu.view.files": () => setFiles(!filesOpen),
+  "menu.view.stats": () => setStats(!statsOpen),
   "menu.view.sidebar": () => {
     applySidebar(!sidebarShown);
     syncMenu();

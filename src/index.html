@@ -164,6 +164,49 @@
     </aside>
 
     <main id="view">
+      <!-- The project bar: which view of the project, and a search box that
+           works on it. Above the map rather than inside it -- the page's own
+           header belongs to the generated document, which this window cannot
+           touch, so what the window adds sits on top of it. Only for a
+           selected project; the workspace overview has no project to search. -->
+      <div id="projbar" class="projbar" hidden>
+        <div class="viewtabs" role="tablist" data-i18n-aria="pane.label" aria-label="View">
+          <button type="button" role="tab" class="on" data-pane="map" data-i18n="pane.map">Map</button>
+          <button type="button" role="tab" data-pane="files" data-i18n="pane.files">Files</button>
+          <button type="button" role="tab" data-pane="stats" data-i18n="pane.stats">Statistics</button>
+        </div>
+
+        <!-- One box for three questions: text in files, file names, and what
+             the map shows. Focusing it opens the panel below, where the
+             scope is chosen; the box itself stays one line. -->
+        <div id="finder" class="finder">
+          <input id="finder-input" type="search" autocomplete="off" spellcheck="false"
+                 data-i18n-placeholder="find.placeholder" placeholder="Search…"
+                 aria-label="Search" aria-controls="finder-panel" />
+          <div id="finder-panel" class="finder-panel" hidden>
+            <div class="finder-row">
+              <label class="finder-label" for="finder-path" data-i18n="find.scope">Scope</label>
+              <input id="finder-path" class="finder-path" type="text" autocomplete="off" spellcheck="false" />
+              <button id="finder-pick" type="button" class="finder-btn" data-i18n="find.pick">Choose…</button>
+              <select id="finder-scope" class="finder-select" aria-label="Scope">
+                <option value="folder" data-i18n="find.scope.folder">Folder</option>
+                <option value="view" data-i18n="find.scope.view">View (what the map shows)</option>
+              </select>
+            </div>
+            <div id="finder-modes" class="finder-row finder-modes">
+              <div class="finder-seg" role="group">
+                <button id="finder-mode-text" type="button" class="on" aria-pressed="true" data-i18n="find.mode.text">Text</button>
+                <button id="finder-mode-files" type="button" aria-pressed="false" data-i18n="find.mode.files">File names</button>
+              </div>
+              <label class="finder-case"><input id="finder-case" type="checkbox" /> <span data-i18n="find.case">Match case</span></label>
+            </div>
+            <p id="finder-state" class="finder-state"></p>
+            <ul id="finder-results" class="finder-results"></ul>
+          </div>
+        </div>
+        <div></div>
+      </div>
+
       <!-- The map is loaded in here. An iframe rather than a second window:
            switching projects should replace what is on screen, not spawn
            something to manage. -->
@@ -178,6 +221,40 @@
       <section id="files" class="files" hidden>
         <nav id="files-crumb" class="files-crumb" aria-label="Folder"></nav>
         <ul id="files-list" class="files-list"></ul>
+      </section>
+
+      <!-- What the project is made of, counted now from the files on disk
+           (not from the map): how much code, comment, documentation and
+           data, per language. Same pane family as the file tree. -->
+      <section id="stats" class="stats" hidden>
+        <header class="stats-head">
+          <h2 id="stats-title" data-i18n="stats.title">Project statistics</h2>
+          <button id="stats-refresh" type="button" class="addbox-secondary" data-i18n="stats.refresh">Count again</button>
+        </header>
+        <p id="stats-state" class="stats-note"></p>
+        <div id="stats-body" class="stats-body" hidden>
+          <div id="stats-tiles" class="stats-tiles"></div>
+          <div id="stats-bar" class="stats-bar" role="img"></div>
+          <ul id="stats-legend" class="stats-legend"></ul>
+          <h3 data-i18n="stats.languages">Languages</h3>
+          <table class="stats-table">
+            <thead>
+              <tr>
+                <th data-i18n="stats.col.language">Language</th>
+                <th class="n" data-i18n="stats.col.files">Files</th>
+                <th class="n" data-i18n="stats.col.lines">Lines</th>
+                <th class="n" data-i18n="stats.col.code">Code</th>
+                <th class="n" data-i18n="stats.col.comments">Comments</th>
+                <th class="n" data-i18n="stats.col.blank">Blank</th>
+                <th class="bar"></th>
+              </tr>
+            </thead>
+            <tbody id="stats-rows"></tbody>
+          </table>
+          <h3 data-i18n="stats.largest">Longest source files</h3>
+          <ul id="stats-largest" class="ov-deps-list"></ul>
+          <p id="stats-foot" class="stats-note"></p>
+        </div>
       </section>
 
       <!-- The page posts which panel it is showing (postMessage — an

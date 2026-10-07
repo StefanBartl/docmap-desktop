@@ -54,6 +54,8 @@ pub struct ViewState {
     pub locales: Vec<Locale>,
     /// The main pane is showing the filetree rather than the map.
     pub files: bool,
+    /// The main pane is showing the project statistics.
+    pub stats: bool,
     pub sidebar: bool,
     /// The sidebar is in auto-hide mode (not pinned).
     pub sidebar_auto: bool,
@@ -179,6 +181,7 @@ const GROUPS: &[Group] = &[
             item("menu.view.zoom_reset", Some("CmdOrCtrl+0"), false),
             Node::Separator,
             check("menu.view.files", Some("CmdOrCtrl+Shift+F")),
+            check("menu.view.stats", None),
             check("menu.view.sidebar", Some("CmdOrCtrl+B")),
             check("menu.view.sidebar_auto", None),
         ],
@@ -208,6 +211,7 @@ fn is_checked(id: &str, state: &ViewState) -> bool {
         "menu.view.theme.light" => state.theme == "light",
         "menu.view.theme.dark" => state.theme == "dark",
         "menu.view.files" => state.files,
+        "menu.view.stats" => state.stats,
         "menu.view.sidebar" => state.sidebar,
         "menu.view.sidebar_auto" => state.sidebar_auto,
         _ => false,
@@ -394,6 +398,7 @@ mod tests {
                 },
             ],
             files: false,
+            stats: false,
             sidebar: true,
             sidebar_auto: false,
         }

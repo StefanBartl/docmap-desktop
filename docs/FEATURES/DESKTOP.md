@@ -14,13 +14,26 @@ Project items are greyed when nothing is selected.
 - **Module:** `src-tauri/src/menu.rs`
 - **Usercmds:** the full table in [USAGE.md](../USAGE.md#the-menu-bar)
 
+## An auto-hiding sidebar
+
+The sidebar can be **pinned** (the default) or fold to a thin edge and open as
+an overlay while the pointer is on it, so the map gets the whole width and the
+controls are one hover away. Toggled with the pin in its corner or **View →
+Auto-hide sidebar**; remembered per machine. It also opens on keyboard focus,
+and does not close while a dropdown inside it is in use. `Ctrl+B` still hides it
+altogether.
+
+- **Module:** `src/main.js`, `src/style.css`
+- **Usercmds:** the pin, View → Auto-hide sidebar, View → Sidebar (`Ctrl+B`)
+- **Docs:** [USAGE.md](../USAGE.md#the-window)
+
 ## Keyboard shortcuts
 
 `Ctrl+N` add project · `Ctrl+Shift+O` open map in browser · `Ctrl+E` export ·
 `Delete` remove from workspace · `Ctrl+Shift+W` workspaces · `Ctrl+,`
 settings · `Ctrl+G` generate · `Ctrl+Shift+G` generate all · `F5` regenerate
 and reload · `Ctrl+plus`/`Ctrl+-`/`Ctrl+0` zoom · `Ctrl+Shift+F` files on
-disk · `Ctrl+B` sidebar.
+disk · `Ctrl+B` sidebar · `Ctrl+K` search.
 
 - **Module:** `src-tauri/src/menu.rs`
 - **Docs:** [USAGE.md](../USAGE.md#the-menu-bar)
