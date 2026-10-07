@@ -1080,7 +1080,11 @@ function gotoMap(state) {
   mapTab = null;
   const url = mapUrl(mapBase).split("#")[0] + "#" + parts.join("&");
   els.frame.src = url;
-  watchMapLoad(url);
+  // No watchdog here. This changes the fragment of the page that is already
+  // loaded: a same-document navigation, so nothing loads and the page posts
+  // only when its tab or view *changes* — a jump within the tab it is on says
+  // nothing, and a watchdog armed for it fired 8 seconds later on a map that
+  // was working. The one `select()` armed for the load still guards that.
 }
 
 /**
@@ -1379,6 +1383,9 @@ function dropSelection() {
   mapTab = null;
   closePanes();
   resetFinder();
+  // The View menu's checks and the project items follow the selection and the
+  // panes; both just changed.
+  syncMenu();
 }
 
 async function removeProject(id) {
@@ -1387,7 +1394,6 @@ async function removeProject(id) {
     if (selectedId === id) {
       dropSelection();
       showPlaceholder(t("ph.none.title"), t("ph.none.body"));
-      syncMenu();
       titleFor(null);
     }
     await refresh(list);
@@ -1728,11 +1734,12 @@ async function generateFor(id, full = false) {
 
   // Who the reader was looking at when this started. A generation takes
   // minutes and nothing stops them choosing another project meanwhile; its
-  // result belongs on screen only if they are still where they began. (Not
-  // `id`: adding a project generates for one that is not selected yet and
-  // relies on the final `select(id)`.)
+  // result belongs on screen if they are still where they began, or if they
+  // have gone to the project that was generated — that is the one the result
+  // is about. (Adding a project generates for one that is not selected yet,
+  // which is why `started` is compared as well as `id`.)
   const started = selectedId;
-  const here = () => selectedId === started;
+  const here = () => selectedId === started || selectedId === id;
 
   // Replace the view while it runs: leaving the previous project's map on
   // screen during a rebuild is the same "wrong panel's data" problem the
@@ -1758,6 +1765,10 @@ async function generateFor(id, full = false) {
         if (res.ok) {
           invalidate(p.map_dir);
           invalidateLanguages(p.root);
+          // The cached "stale" verdict is about the map that was just
+          // replaced. `select()` re-measures it for whoever is looking at this
+          // project; for a reader who went elsewhere, nothing else would.
+          freshness.delete(p.id);
           await refresh();
           if (here()) {
             await select(id);
@@ -3606,6 +3617,12 @@ function node(tag, cls, text) {
   return e;
 }
 
+/** The button belongs to the project on screen: disabled only while *its*
+    count is running, not while some other project's is. */
+function syncStatsRefresh() {
+  statsUi.refresh.disabled = !!selectedId && statsPending.has(selectedId);
+}
+
 async function renderStats(force = false) {
   const id = selectedId;
   if (!statsOpen || !id) return;
@@ -3616,7 +3633,6 @@ async function renderStats(force = false) {
   if (!s) {
     statsUi.body.hidden = true;
     statsUi.state.textContent = t("stats.counting");
-    statsUi.refresh.disabled = true;
     // One count per project at a time: toggling the pane, switching away and
     // back, or pressing "Count again" while it runs would each start another
     // full walk of the same tree, with no way to cancel any of them.
@@ -3625,16 +3641,18 @@ async function renderStats(force = false) {
       call = invoke("project_stats", { id }).finally(() => statsPending.delete(id));
       statsPending.set(id, call);
     }
+    syncStatsRefresh();
     try {
       s = await call;
     } catch (e) {
       if (id === selectedId) statsUi.state.textContent = String(e);
       return;
     } finally {
-      statsUi.refresh.disabled = false;
+      syncStatsRefresh();
     }
     statsCache.set(id, s);
   }
+  syncStatsRefresh();
   // The count can finish after the reader moved on or left the pane.
   if (id !== selectedId || !statsOpen) return;
 

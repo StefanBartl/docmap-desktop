@@ -553,16 +553,24 @@ mod tests {
 
     #[test]
     fn scss_and_less_line_comments_are_comments() {
-        let n = count_lines("// note\na { b: c; }\n", &CSS);
-        assert_eq!((n.comment, n.code), (1, 1));
+        for ext in ["css", "scss", "sass", "less"] {
+            let l = lang_for(ext).unwrap();
+            let n = count_lines("// note\na { b: c; }\n", l.comments);
+            assert_eq!((n.comment, n.code), (1, 1), "{ext}");
+        }
     }
 
     #[test]
-    fn xml_comments_are_content_like_every_other_data_line() {
+    fn xml_and_svg_comments_are_content_like_every_other_data_line() {
         // Data has no comment syntax here, so the totals add up: every
-        // non-blank data line is content.
-        let n = count_lines("<!-- c -->\n<a/>\n", &NONE);
-        assert_eq!((n.comment, n.code), (0, 2));
+        // non-blank data line is content. Through the extension mapping, so
+        // reverting the mapping to a markup comment style fails this.
+        for ext in ["xml", "svg"] {
+            let l = lang_for(ext).unwrap();
+            assert_eq!(l.kind, Kind::Data, "{ext}");
+            let n = count_lines("<!-- c -->\n<a/>\n", l.comments);
+            assert_eq!((n.comment, n.code), (0, 2), "{ext}");
+        }
     }
 
     #[test]

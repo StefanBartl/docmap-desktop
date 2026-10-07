@@ -44,7 +44,7 @@
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream};
-use std::path::PathBuf;
+use std::path::{Component, Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -116,6 +116,34 @@ fn safe_static_name(name: &str) -> Option<&str> {
         return None;
     }
     Some(name)
+}
+
+/// The file a request names inside the map directory, or `None`.
+///
+/// What is served is the *repository's* `docs/map`, and the page in it runs in
+/// a frame the same origin as this server, so whatever this reads it can hand
+/// to that page's script. The name is already a bare filename
+/// ([`safe_static_name`]); this adds what a name cannot say:
+///
+/// * **One plain component.** On Windows `C:secret.txt` has a drive prefix and
+///   `Path::join` replaces the base with it; `a:stream` names an NTFS stream.
+/// * **The resolved file stays inside the map directory.** A symlink that git
+///   checked out as `docs/map/leak -> ~/.ssh/id_rsa` resolves outside and is
+///   refused, and so is a junction or a link to a device.
+fn servable_file(map_dir: &Path, name: &str) -> Option<PathBuf> {
+    let mut parts = Path::new(name).components();
+    if !matches!(
+        (parts.next(), parts.next()),
+        (Some(Component::Normal(_)), None)
+    ) {
+        return None;
+    }
+    if name.contains(':') || name.contains('\0') {
+        return None;
+    }
+    let base = std::fs::canonicalize(map_dir).ok()?;
+    let file = std::fs::canonicalize(base.join(name)).ok()?;
+    file.starts_with(&base).then_some(file)
 }
 
 fn content_type(name: &str) -> &'static str {
@@ -324,10 +352,11 @@ fn handle(cfg: &ServeConfig, stream: &mut TcpStream) {
     let Some(name) = safe_static_name(requested) else {
         return respond_json_error(stream, 400, "bad path");
     };
-    let file = PathBuf::from(&cfg.map_dir).join(name);
-    match std::fs::read(&file) {
-        Ok(body) => respond(stream, 200, content_type(name), &body),
-        Err(_) => respond_json_error(stream, 404, "not found"),
+    let body = servable_file(Path::new(&cfg.map_dir), name)
+        .and_then(|file| crate::safe_read::read_bytes(&file, crate::safe_read::MAP_JSON_MAX));
+    match body {
+        Some(body) => respond(stream, 200, content_type(name), &body),
+        None => respond_json_error(stream, 404, "not found"),
     }
 }
 
@@ -413,7 +442,8 @@ pub fn url(port: u16) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::safe_sha;
+    use super::{safe_sha, servable_file};
+    use std::fs;
 
     // The one function here worth a real test even in a crate with no
     // CI: it is the whole security property standing between a request
@@ -421,6 +451,46 @@ mod tests {
     // `safe_sha`'s doc comment says exactly why that kind of function does
     // not get tested unless something actually exercises it — this is
     // that something, for the Rust half.
+    fn tmp(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("docmap-serve-{name}"));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn a_plain_file_in_the_map_directory_is_served() {
+        let dir = tmp("plain");
+        fs::write(dir.join("index.html"), "x").unwrap();
+        assert!(servable_file(&dir, "index.html").is_some());
+        assert!(servable_file(&dir, "missing.js").is_none());
+    }
+
+    #[test]
+    fn a_drive_prefix_or_a_stream_is_never_a_name() {
+        let dir = tmp("prefix");
+        fs::write(dir.join("a.txt"), "x").unwrap();
+        for name in [
+            "C:secret.txt",
+            "a.txt:stream",
+            "a.txt::$DATA",
+            "a\\0.txt",
+            "",
+        ] {
+            assert!(servable_file(&dir, name).is_none(), "{name:?}");
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_link_that_resolves_outside_the_map_directory_is_refused() {
+        let dir = tmp("link");
+        let outside = tmp("link-outside");
+        fs::write(outside.join("secret"), "s").unwrap();
+        std::os::unix::fs::symlink(outside.join("secret"), dir.join("leak")).unwrap();
+        assert!(servable_file(&dir, "leak").is_none());
+    }
+
     #[test]
     fn accepts_real_shas() {
         assert!(safe_sha("abc1234"));

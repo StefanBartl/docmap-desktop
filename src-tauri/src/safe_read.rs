@@ -29,9 +29,33 @@ use std::path::Path;
 /// Bytes sniffed for a NUL before the rest of the file is read.
 const SNIFF: usize = 4096;
 
-/// Upper bound for a generated map's JSON: far above any real map (the
-/// largest known is about 2 MB) and far below what could hurt.
-pub const MAP_JSON_MAX: u64 = 64 * 1024 * 1024;
+/// Upper bound for a generated map's JSON, and for any file the map server
+/// hands out: far above any real map (the largest known is about 2 MB). Not
+/// higher, because parsing into `serde_json::Value` costs several times the
+/// file's size in memory — 32 MiB of JSON is a few hundred MiB resident.
+pub const MAP_JSON_MAX: u64 = 32 * 1024 * 1024;
+
+/// Read `path` as raw bytes if it is a regular file of at most `max` bytes.
+///
+/// For what is served rather than parsed (a map's images and scripts), so no
+/// text decoding and no binary sniffing — only the checks that keep a hostile
+/// repository from making this read forever or allocate without end.
+pub fn read_bytes(path: &Path, max: u64) -> Option<Vec<u8>> {
+    let meta = fs::metadata(path).ok()?;
+    if !meta.is_file() || meta.len() > max {
+        return None;
+    }
+    let mut bytes = Vec::with_capacity((meta.len() as usize).min(1 << 20));
+    fs::File::open(path)
+        .ok()?
+        .take(max + 1)
+        .read_to_end(&mut bytes)
+        .ok()?;
+    if bytes.len() as u64 > max {
+        return None;
+    }
+    Some(bytes)
+}
 
 /// Read `path` as text if it is a regular file of at most `max` bytes.
 ///
@@ -105,6 +129,27 @@ mod tests {
         fs::write(dir.join("a.bin"), b"ab\0cd").unwrap();
         assert_eq!(read_text(&dir.join("a.bin"), 100, true), None);
         assert!(read_text(&dir.join("a.bin"), 100, false).is_some());
+    }
+
+    #[test]
+    fn raw_bytes_are_bounded_the_same_way() {
+        let dir = tmp("bytes");
+        fs::write(dir.join("a.bin"), [0u8, 1, 2, 3]).unwrap();
+        assert_eq!(read_bytes(&dir.join("a.bin"), 4), Some(vec![0, 1, 2, 3]));
+        assert_eq!(read_bytes(&dir.join("a.bin"), 3), None, "over the cap");
+        assert_eq!(read_bytes(&dir, 100), None, "a directory is not a file");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_link_to_a_regular_file_is_followed_and_a_link_to_a_directory_is_not() {
+        let dir = tmp("links");
+        fs::write(dir.join("real.txt"), "x").unwrap();
+        fs::create_dir_all(dir.join("sub")).unwrap();
+        std::os::unix::fs::symlink(dir.join("real.txt"), dir.join("link.txt")).unwrap();
+        std::os::unix::fs::symlink(dir.join("sub"), dir.join("dirlink")).unwrap();
+        assert!(read_text(&dir.join("link.txt"), 100, true).is_some());
+        assert_eq!(read_text(&dir.join("dirlink"), 100, true), None);
     }
 
     #[test]

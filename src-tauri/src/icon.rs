@@ -29,6 +29,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::safe_read;
+
 /// Directories a web project keeps its static files in, root first.
 ///
 /// Not a search of the whole tree: an icon is a top-level fact about a
@@ -57,14 +59,26 @@ fn readable_file(p: &Path) -> bool {
 /// Largest rather than first: the array is ordered by nothing in
 /// particular, and a 16px entry is a favicon while a 512px one is the icon
 /// the project means when it says icon.
-fn from_manifest(manifest: &Path) -> Option<PathBuf> {
-    let body = fs::read_to_string(manifest).ok()?;
+///
+/// `root` is the canonical project root and `manifest` a file under it. Every
+/// `src` is **untrusted text from the repository**: `Path::join` replaces its
+/// base when the right-hand side is absolute, so a `src` of `\\host\share\a.png`
+/// made Windows contact that host just to ask whether the file exists, and a
+/// `C:\...` or `../..` one probed (and then showed, through the asset
+/// protocol) any file on disk. It is therefore resolved with
+/// [`crate::resolve_inside`], which refuses such shapes before touching the
+/// disk and requires the result to stay inside the project.
+fn from_manifest(root: &Path, manifest: &Path) -> Option<PathBuf> {
+    let body = safe_read::read_text(manifest, 1 << 20, false)?;
     let v: serde_json::Value = serde_json::from_str(&body).ok()?;
     let icons = v.get("icons")?.as_array()?;
+    let dir_rel = manifest.parent()?.strip_prefix(root).ok()?.to_path_buf();
 
     let mut best: Option<(u64, PathBuf)> = None;
     for icon in icons {
-        let src = icon.get("src")?.as_str()?;
+        let Some(src) = icon.get("src").and_then(|s| s.as_str()) else {
+            continue;
+        };
         // `sizes` is "48x48" or "48x48 96x96" or "any"; take the first
         // number it offers and treat "any" (an SVG) as larger than any
         // raster, because it is.
@@ -83,8 +97,10 @@ fn from_manifest(manifest: &Path) -> Option<PathBuf> {
         // `/` means the *web* root — which is the manifest's directory here,
         // not the filesystem root. Reading it as absolute would send this
         // looking in `C:/`.
-        let rel = src.trim_start_matches('/');
-        let path = manifest.parent()?.join(rel);
+        let rel = src.trim_start_matches(['/', '\\']);
+        let Ok(path) = crate::resolve_inside(root, &dir_rel.join(rel).to_string_lossy()) else {
+            continue;
+        };
         if readable_file(&path) && best.as_ref().is_none_or(|(b, _)| px > *b) {
             best = Some((px, path));
         }
@@ -114,6 +130,9 @@ fn largest_png(dir: &Path) -> Option<PathBuf> {
 
 /// Look for an icon under `root`. `None` is the common and correct answer.
 pub fn find(root: &Path) -> Option<PathBuf> {
+    // Canonical, so what a manifest names can be checked against it.
+    let root = fs::canonicalize(root).ok()?;
+    let root = root.as_path();
     // 1 & 2 & 3: the web conventions, per static root.
     for dir in WEB_ROOTS {
         let base = if *dir == "." {
@@ -127,7 +146,7 @@ pub fn find(root: &Path) -> Option<PathBuf> {
         for name in MANIFESTS {
             let m = base.join(name);
             if m.is_file() {
-                if let Some(icon) = from_manifest(&m) {
+                if let Some(icon) = from_manifest(root, &m) {
                     return Some(icon);
                 }
             }
@@ -199,6 +218,12 @@ mod tests {
         d
     }
 
+    /// `find` answers with canonical paths (it checks manifest entries against
+    /// the canonical root), so what it is compared with is canonical too.
+    fn canon(p: PathBuf) -> PathBuf {
+        fs::canonicalize(p).unwrap()
+    }
+
     fn write(path: &Path, bytes: &[u8]) {
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         fs::File::create(path).unwrap().write_all(bytes).unwrap();
@@ -218,7 +243,7 @@ mod tests {
         let root = tmp("favicon");
         write(&root.join("public/favicon.png"), b"png-bytes");
         write(&root.join("public/favicon.svg"), b"<svg/>");
-        assert_eq!(find(&root).unwrap(), root.join("public/favicon.svg"));
+        assert_eq!(find(&root).unwrap(), canon(root.join("public/favicon.svg")));
     }
 
     #[test]
@@ -232,7 +257,10 @@ mod tests {
             &root.join("public/manifest.json"),
             br#"{"icons":[{"src":"logo-512.png","sizes":"512x512"}]}"#,
         );
-        assert_eq!(find(&root).unwrap(), root.join("public/logo-512.png"));
+        assert_eq!(
+            find(&root).unwrap(),
+            canon(root.join("public/logo-512.png"))
+        );
     }
 
     #[test]
@@ -245,7 +273,7 @@ mod tests {
             br#"{"icons":[{"src":"icon-16.png","sizes":"16x16"},
                           {"src":"icon-512.png","sizes":"512x512"}]}"#,
         );
-        assert_eq!(find(&root).unwrap(), root.join("icon-512.png"));
+        assert_eq!(find(&root).unwrap(), canon(root.join("icon-512.png")));
     }
 
     #[test]
@@ -259,7 +287,7 @@ mod tests {
             &root.join("public/manifest.json"),
             br#"{"icons":[{"src":"/icon.png","sizes":"192x192"}]}"#,
         );
-        assert_eq!(find(&root).unwrap(), root.join("public/icon.png"));
+        assert_eq!(find(&root).unwrap(), canon(root.join("public/icon.png")));
     }
 
     #[test]
@@ -272,7 +300,7 @@ mod tests {
             &root.join("manifest.json"),
             br#"{"icons":[{"src":"generated/icon.png","sizes":"512x512"}]}"#,
         );
-        assert_eq!(find(&root).unwrap(), root.join("favicon.ico"));
+        assert_eq!(find(&root).unwrap(), canon(root.join("favicon.ico")));
     }
 
     #[test]
@@ -288,7 +316,7 @@ mod tests {
         );
         assert_eq!(
             find(&root).unwrap(),
-            root.join("app/src/main/res/mipmap-xxxhdpi/ic_launcher.png")
+            canon(root.join("app/src/main/res/mipmap-xxxhdpi/ic_launcher.png"))
         );
     }
 
@@ -299,5 +327,54 @@ mod tests {
         let root = tmp("empty");
         write(&root.join("favicon.ico"), b"");
         assert_eq!(find(&root), None);
+    }
+
+    #[test]
+    fn a_manifest_src_that_leaves_the_project_is_never_returned() {
+        // The manifest is the repository's own text. `..` and an absolute path
+        // used to be joined as they were, so a project could name a file
+        // anywhere on the machine as its icon, and the window then loaded it.
+        let outer = tmp("escape");
+        let project = outer.join("project");
+        write(&outer.join("secret.png"), b"not yours");
+        let absolute = outer.join("secret.png").to_string_lossy().to_string();
+        for src in ["../secret.png", r"..\secret.png", absolute.as_str()] {
+            write(
+                &project.join("manifest.json"),
+                serde_json::json!({"icons": [{"src": src, "sizes": "512x512"}]})
+                    .to_string()
+                    .as_bytes(),
+            );
+            assert_eq!(find(&project), None, "{src}");
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_manifest_src_naming_another_machine_is_refused_without_contacting_it() {
+        let project = tmp("unc");
+        write(
+            &project.join("manifest.json"),
+            serde_json::json!({"icons": [{"src": r"\\192.0.2.1\share\i.png", "sizes": "512x512"}]})
+                .to_string()
+                .as_bytes(),
+        );
+        let started = std::time::Instant::now();
+        assert_eq!(find(&project), None);
+        assert!(
+            started.elapsed().as_secs() < 3,
+            "it must not wait for the host"
+        );
+    }
+
+    #[test]
+    fn an_entry_without_a_src_does_not_end_the_search() {
+        let root = tmp("nosrc");
+        write(&root.join("icon-512.png"), b"l");
+        write(
+            &root.join("manifest.json"),
+            br#"{"icons":[{"sizes":"16x16"},{"src":"icon-512.png","sizes":"512x512"}]}"#,
+        );
+        assert_eq!(find(&root).unwrap(), canon(root.join("icon-512.png")));
     }
 }
