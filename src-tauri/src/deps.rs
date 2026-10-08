@@ -89,12 +89,8 @@ pub struct Deps {
 /// declaration of 26 fields nobody reads -- and one more thing to revisit on
 /// every schema bump. Unknown keys are ignored, which is the reading rule
 /// `HOSTING.md` asks for.
-fn facts_of(map_dir: &str) -> Option<MapFacts> {
-    let body = crate::safe_read::read_text(
-        &std::path::Path::new(map_dir).join("module_map.json"),
-        crate::safe_read::MAP_JSON_MAX,
-        false,
-    )?;
+fn facts_of(map_json: &std::path::Path) -> Option<MapFacts> {
+    let body = crate::safe_read::read_text(map_json, crate::safe_read::MAP_JSON_MAX, false)?;
     let v: serde_json::Value = serde_json::from_str(&body).ok()?;
     let nodes = v.get("nodes")?.as_array()?;
 
@@ -117,16 +113,17 @@ fn facts_of(map_dir: &str) -> Option<MapFacts> {
 
 /// Resolve every project's external requires against every other's modules.
 ///
-/// `projects` is `(id, map_dir)`. Ids rather than names, because two
-/// workspaces may hold two checkouts of one repository and the id is what
-/// the rest of the app joins on.
-pub fn resolve(projects: &[(String, String)]) -> Deps {
+/// `projects` is `(id, module_map.json)`; `None` is a project that has no map
+/// file it may read (see `crate::map_file`) and is listed as unread. Ids rather
+/// than names, because two workspaces may hold two checkouts of one repository
+/// and the id is what the rest of the app joins on.
+pub fn resolve(projects: &[(String, Option<std::path::PathBuf>)]) -> Deps {
     let mut owner: HashMap<String, String> = HashMap::new();
     let mut facts: Vec<(String, MapFacts)> = Vec::new();
     let mut unread = Vec::new();
 
-    for (id, map_dir) in projects {
-        match facts_of(map_dir) {
+    for (id, map_json) in projects {
+        match map_json.as_deref().and_then(facts_of) {
             Some(f) => {
                 for m in &f.declares {
                     // First claim wins, and the measurement says there is
@@ -233,8 +230,9 @@ mod tests {
         dir
     }
 
-    fn p(id: &str, dir: &Path) -> (String, String) {
-        (id.to_string(), dir.to_string_lossy().to_string())
+    /// A project whose map directory is `dir`.
+    fn p(id: &str, dir: &Path) -> (String, Option<PathBuf>) {
+        (id.to_string(), Some(dir.join("module_map.json")))
     }
 
     #[test]
@@ -309,9 +307,15 @@ mod tests {
         let real = map_with("named-real", serde_json::json!([{ "module": "real.init" }]));
         let d = resolve(&[
             p("real", &real),
-            ("ghost".into(), "Z:/nowhere/docs/map".into()),
+            (
+                "ghost".into(),
+                Some("Z:/nowhere/docs/map/module_map.json".into()),
+            ),
+            // No map file it may read: listed, not read from wherever the
+            // process happens to be.
+            ("linked".into(), None),
         ]);
-        assert_eq!(d.unread, vec!["ghost"]);
+        assert_eq!(d.unread, vec!["ghost", "linked"]);
     }
 
     #[test]
@@ -330,7 +334,7 @@ mod tests {
         )
         .unwrap();
 
-        let d = resolve(&[("t".into(), dir.to_string_lossy().to_string())]);
+        let d = resolve(&[p("t", &dir)]);
         assert!(
             d.unread.is_empty(),
             "a readable map with unknown keys is read"

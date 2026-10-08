@@ -172,11 +172,11 @@ pub fn changed_since_map(root: &Path, map_dir: &Path, limit: usize) -> Result<Ch
     if !root.is_dir() {
         return Err(format!("{} is not a directory", root.display()));
     }
-    // A linked map directory is read as no map: see `map_dir_is_plain`.
-    if !crate::map_dir_is_plain(root, map_dir) {
+    // A linked map directory or map file is read as no map: see `map_file`.
+    let Some(map_json) = crate::map_file(root, map_dir, "module_map.json") else {
         return Ok(Changes::default());
-    }
-    let Some(map_time) = mtime(&map_dir.join("module_map.json")) else {
+    };
+    let Some(map_time) = mtime(&map_json) else {
         return Ok(Changes::default());
     };
 
@@ -217,20 +217,15 @@ pub fn check(root: &Path, map_dir: &Path) -> Result<Freshness, String> {
     if !root.is_dir() {
         return Err(format!("{} is not a directory", root.display()));
     }
-    // `docs/map` is repository content; checked out as a link it would be
-    // statted wherever it points (a share, for every project in the sidebar).
-    if !crate::map_dir_is_plain(root, map_dir) {
-        return Ok(Freshness {
-            has_map: false,
-            ..Default::default()
-        });
-    }
-
+    // `docs/map` and the files in it are repository content; checked out as a
+    // link either would be statted wherever it points (a share, for every
+    // project in the sidebar). See `map_file`.
+    //
     // `module_map.json` rather than `index.html`: both are written by the
     // same run, and the JSON is the one a byte-deterministic `--check`
     // compares — so if the two ever disagree, this reads the one that
     // decides.
-    let map_time = match mtime(&map_dir.join("module_map.json")) {
+    let map_time = match crate::map_file(root, map_dir, "module_map.json").and_then(|f| mtime(&f)) {
         Some(t) => t,
         None => {
             return Ok(Freshness {
@@ -352,6 +347,53 @@ mod tests {
         let f = check(&root, &root.join("docs/map")).unwrap();
         assert!(!f.has_map);
         assert_eq!(f.generated_secs, None);
+    }
+
+    /// `docs/map` checked out as a link is repository content pointing
+    /// somewhere else: it is read as no map, by both entry points. The control
+    /// is the same tree with a plain directory in its place.
+    #[test]
+    fn a_linked_map_directory_is_read_as_no_map() {
+        use crate::testutil::dir_link;
+        let root = tmp("linked-map");
+        touch(&root.join("real/module_map.json"), ago(2 * HOUR));
+        touch(&root.join("src/a.lua"), ago(HOUR));
+        let plain = root.join("real");
+        assert!(check(&root, &plain).unwrap().has_map, "the control");
+        assert_eq!(changed_since_map(&root, &plain, 10).unwrap().total, 1);
+
+        fs::create_dir_all(root.join("docs")).unwrap();
+        let linked = root.join("docs").join("map");
+        assert!(dir_link(&linked, &root.join("real")));
+        let f = check(&root, &linked).unwrap();
+        assert!(!f.has_map);
+        assert_eq!(f.generated_secs, None);
+        let c = changed_since_map(&root, &linked, 10).unwrap();
+        assert_eq!((c.total, c.files.len()), (0, 0));
+    }
+
+    /// The file can be the link when the directory is not.
+    #[cfg(windows)]
+    #[test]
+    fn a_map_file_that_links_to_another_machine_is_not_statted() {
+        use crate::testutil::file_link;
+        let root = tmp("linked-map-file");
+        fs::create_dir_all(root.join("docs/map")).unwrap();
+        if !file_link(
+            &root.join("docs").join("map").join("module_map.json"),
+            Path::new(r"\\198.51.100.151\share\module_map.json"),
+        ) {
+            eprintln!("SKIP: no privilege to create symlinks");
+            return;
+        }
+        let started = std::time::Instant::now();
+        let map = root.join("docs/map");
+        assert!(!check(&root, &map).unwrap().has_map);
+        assert_eq!(changed_since_map(&root, &map, 10).unwrap().total, 0);
+        assert!(
+            started.elapsed().as_secs() < 3,
+            "it must not wait for a host"
+        );
     }
 
     #[test]

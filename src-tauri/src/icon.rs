@@ -121,24 +121,73 @@ fn from_manifest(root: &Path, manifest: &Path, dir_rel: &str) -> Option<PathBuf>
 /// Each candidate is resolved like every other probe — a link that stays in
 /// the project is followed, one that leaves it (or reaches another machine)
 /// is not — and the size is the resolved file's, not the link's.
-fn largest_png(root: &Path, rel_dir: &str, dir: &Path) -> Option<PathBuf> {
+///
+/// Bounded: the directory is repository content, and resolving a link costs a
+/// walk and a `canonicalize` (tens of milliseconds for a chain of links). At
+/// most [`MAX_ENTRIES`] files are looked at and `links` of them may be links.
+fn largest_png(root: &Path, rel_dir: &str, dir: &Path, links: &mut usize) -> Option<PathBuf> {
     let mut best: Option<(u64, PathBuf)> = None;
-    for entry in fs::read_dir(dir).ok()?.flatten() {
+    let pngs = fs::read_dir(dir)
+        .ok()?
+        .flatten()
+        .filter(|e| {
+            Path::new(&e.file_name())
+                .extension()
+                .and_then(|x| x.to_str())
+                == Some("png")
+        })
+        .take(MAX_ENTRIES);
+    for entry in pngs {
         let name = entry.file_name().to_string_lossy().to_string();
-        if Path::new(&name).extension().and_then(|e| e.to_str()) != Some("png") {
-            continue;
-        }
-        let Some(p) = inside(root, &format!("{rel_dir}/{name}")) else {
+        let Some((size, p)) = probe(
+            root,
+            &format!("{rel_dir}/{name}"),
+            Some(&dir.join(&name)),
+            links,
+        ) else {
             continue;
         };
-        let Ok(meta) = fs::metadata(&p) else {
-            continue;
-        };
-        if meta.is_file() && best.as_ref().is_none_or(|(b, _)| meta.len() > *b) {
-            best = Some((meta.len(), p));
+        if best.as_ref().is_none_or(|(b, _)| size > *b) {
+            best = Some((size, p));
         }
     }
     best.map(|(_, p)| p)
+}
+
+/// How many directory entries one probe looks at, and how many links it
+/// resolves along the way, in a directory that is repository content.
+const MAX_ENTRIES: usize = 256;
+const MAX_LINKS: usize = 32;
+
+/// `rel` under `root` as an icon candidate: its size and where to read it.
+///
+/// `plain` is the same file spelled through directories already resolved and
+/// known to be real ones. If it is a regular file it is taken as it is - a path
+/// of plain components cannot lead anywhere else, and one `lstat` replaces the
+/// walk and the `canonicalize`. Only a link goes through [`inside`], and only
+/// while `links` lasts.
+fn probe(
+    root: &Path,
+    rel: &str,
+    plain: Option<&Path>,
+    links: &mut usize,
+) -> Option<(u64, PathBuf)> {
+    if let Some(p) = plain {
+        let meta = fs::symlink_metadata(p).ok()?;
+        if meta.is_file() {
+            return Some((meta.len(), p.to_path_buf()));
+        }
+        if !meta.file_type().is_symlink() {
+            return None;
+        }
+    }
+    if *links == 0 {
+        return None;
+    }
+    *links -= 1;
+    let p = inside(root, rel)?;
+    let meta = fs::metadata(&p).ok()?;
+    meta.is_file().then_some((meta.len(), p))
 }
 
 /// `rel` inside `root` — resolved through [`crate::resolve_inside`], which
@@ -165,6 +214,8 @@ pub fn find(root: &Path) -> Option<PathBuf> {
     // Canonical, so what a manifest names can be checked against it.
     let root = fs::canonicalize(root).ok()?;
     let root = root.as_path();
+    // Links the directory scans below may resolve, in all: see `probe`.
+    let mut links = MAX_LINKS;
     // 1 & 2 & 3: the web conventions, per static root.
     for dir in WEB_ROOTS {
         let Some(base) = inside(root, if *dir == "." { "" } else { dir }) else {
@@ -204,19 +255,30 @@ pub fn find(root: &Path) -> Option<PathBuf> {
         }
         let mut best: Option<(u64, PathBuf)> = None;
         if let Ok(entries) = fs::read_dir(&dir) {
-            for entry in entries.flatten() {
+            let buckets = entries
+                .flatten()
+                .filter(|e| {
+                    let name = e.file_name().to_string_lossy().to_string();
+                    name.starts_with("mipmap") || name.starts_with("drawable")
+                })
+                .take(MAX_ENTRIES);
+            for entry in buckets {
                 let name = entry.file_name().to_string_lossy().to_string();
-                if !name.starts_with("mipmap") && !name.starts_with("drawable") {
-                    continue;
-                }
+                // A bucket that is a real directory has plain contents; one
+                // that is a link is resolved file by file, like any link.
+                let real_dir = entry.file_type().is_ok_and(|t| t.is_dir());
                 for icon in ["ic_launcher.png", "ic_launcher_round.png"] {
-                    let Some(p) = inside(root, &format!("{res}/{name}/{icon}")) else {
+                    let plain = dir.join(&name).join(icon);
+                    let Some((size, p)) = probe(
+                        root,
+                        &format!("{res}/{name}/{icon}"),
+                        real_dir.then_some(plain.as_path()),
+                        &mut links,
+                    ) else {
                         continue;
                     };
-                    if let Ok(meta) = fs::metadata(&p) {
-                        if best.as_ref().is_none_or(|(b, _)| meta.len() > *b) {
-                            best = Some((meta.len(), p));
-                        }
+                    if best.as_ref().is_none_or(|(b, _)| size > *b) {
+                        best = Some((size, p));
                     }
                 }
             }
@@ -238,7 +300,7 @@ pub fn find(root: &Path) -> Option<PathBuf> {
             continue;
         };
         if dir.is_dir() {
-            if let Some(p) = largest_png(root, &rel_dir, &dir) {
+            if let Some(p) = largest_png(root, &rel_dir, &dir, &mut links) {
                 return Some(p);
             }
         }
@@ -460,6 +522,62 @@ mod tests {
         assert_eq!(
             find(&project).unwrap(),
             canon(project.join("shared/Icon-1024.png"))
+        );
+    }
+
+    #[test]
+    fn a_plain_file_costs_no_link_and_a_link_costs_one() {
+        let root = canon(tmp("probe"));
+        write(&root.join("d/a.png"), b"abc");
+        let plain = root.join("d/a.png");
+        // A regular file is taken as it is, even with no links left.
+        let mut links = 0;
+        let (size, p) = probe(&root, "d/a.png", Some(&plain), &mut links).unwrap();
+        assert_eq!((size, links, p), (3, 0, plain.clone()));
+
+        if !crate::testutil::file_link(&root.join("d/l.png"), &plain) {
+            eprintln!("SKIP: no privilege to create symlinks");
+            return;
+        }
+        let link = root.join("d/l.png");
+        assert!(probe(&root, "d/l.png", Some(&link), &mut links).is_none());
+        let mut one = 1;
+        let (size, p) = probe(&root, "d/l.png", Some(&link), &mut one).unwrap();
+        assert_eq!((size, one, p), (3, 0, plain));
+    }
+
+    #[test]
+    fn an_icon_set_link_that_leaves_the_project_is_ignored_on_every_platform() {
+        let outer = tmp("iosleave");
+        let project = outer.join("project");
+        let set = project.join("Assets.xcassets/AppIcon.appiconset");
+        write(&set.join("Icon-60.png"), b"s");
+        write(&outer.join("private.png"), b"outside-and-much-larger-bytes");
+        if !crate::testutil::file_link(&set.join("Leak.png"), &outer.join("private.png")) {
+            eprintln!("SKIP: no privilege to create symlinks");
+            return;
+        }
+        assert_eq!(find(&project).unwrap(), canon(set.join("Icon-60.png")));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn an_icon_set_link_to_another_machine_is_not_followed() {
+        let project = tmp("iosunc");
+        let set = project.join("Assets.xcassets/AppIcon.appiconset");
+        write(&set.join("Icon-60.png"), b"s");
+        if !crate::testutil::file_link(
+            &set.join("Leak.png"),
+            Path::new(r"\\198.51.100.181\share\Leak.png"),
+        ) {
+            eprintln!("SKIP: no privilege to create symlinks");
+            return;
+        }
+        let started = std::time::Instant::now();
+        assert_eq!(find(&project).unwrap(), canon(set.join("Icon-60.png")));
+        assert!(
+            started.elapsed().as_secs() < 3,
+            "it must not wait for a host"
         );
     }
 
