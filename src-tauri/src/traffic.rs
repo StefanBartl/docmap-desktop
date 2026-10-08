@@ -1702,6 +1702,31 @@ mod tests {
         }
     }
 
+    /// The one input that tells `resolve_inside` from `canonicalize` plus
+    /// `starts_with`: the latter connects to the share before it can say no.
+    #[cfg(windows)]
+    #[test]
+    fn a_top_page_that_links_to_another_machine_is_unresolved_without_waiting() {
+        let root = crate::testutil::fresh_dir("docmap-traffic-resolve-unc");
+        fs::create_dir_all(root.join("docs")).unwrap();
+        if !crate::testutil::file_link(
+            &root.join("docs").join("l.md"),
+            Path::new(r"\\198.51.100.171\share\l.md"),
+        ) {
+            eprintln!("SKIP: no privilege to create symlinks");
+            return;
+        }
+        let started = std::time::Instant::now();
+        assert_eq!(
+            resolve_page_path("/owner/alpha/blob/main/docs/l.md", "owner/alpha", &root),
+            None
+        );
+        assert!(
+            started.elapsed().as_secs() < 3,
+            "it must not wait for a host"
+        );
+    }
+
     #[test]
     fn a_top_page_with_no_repo_to_match_against_is_unresolved() {
         let root = tmp("resolve-no-repo");

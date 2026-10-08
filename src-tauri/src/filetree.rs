@@ -131,7 +131,8 @@ fn git_states(root: &Path, dir: &Path) -> GitStates {
         dir_ignored: false,
     };
 
-    if !root.join(".git").exists() {
+    // Looked at, not followed: see `languages::is_nested_checkout`.
+    if std::fs::symlink_metadata(root.join(".git")).is_err() {
         return out;
     }
 

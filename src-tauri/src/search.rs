@@ -421,13 +421,14 @@ const ELEMENTS: &[(&str, &str)] = &[
     ("plugins", "plugin"),
 ];
 
-/// Search what the map shows. `map_dir` holds `module_map.json`.
-pub fn view(map_dir: &Path, query: &str, limit: usize) -> Result<ViewResults, String> {
+/// Search what the map shows. `map_json` is the map's `module_map.json`, as
+/// `crate::map_file` resolved it: this does not look for it, so a link the
+/// caller refused is never reached from here.
+pub fn view(map_json: &Path, query: &str, limit: usize) -> Result<ViewResults, String> {
     let needle = fold_chars(query.trim());
-    let path = map_dir.join("module_map.json");
     // Bounded and regular-file-only: the map lives in a repository somebody
     // else wrote, and it is read on every pause in typing.
-    let Some(raw) = safe_read::read_text(&path, safe_read::MAP_JSON_MAX, false) else {
+    let Some(raw) = safe_read::read_text(map_json, safe_read::MAP_JSON_MAX, false) else {
         return Ok(ViewResults::default());
     };
     let map: Value =
@@ -818,7 +819,7 @@ mod tests {
         });
         fs::write(dir.join("module_map.json"), map.to_string()).unwrap();
 
-        let by_name = view(&dir, "FAVORITES", 50).unwrap();
+        let by_name = view(&dir.join("module_map.json"), "FAVORITES", 50).unwrap();
         assert!(by_name.available);
         assert_eq!(by_name.hits[0].kind, "file");
         assert_eq!(
@@ -826,22 +827,28 @@ mod tests {
             Some("lua/core/favorites.lua")
         );
 
-        let by_param = view(&dir, "command line", 50).unwrap();
+        let by_param = view(&dir.join("module_map.json"), "command line", 50).unwrap();
         assert_eq!(by_param.hits.len(), 1);
         assert_eq!(by_param.hits[0].kind, "function");
         assert_eq!(by_param.hits[0].label, "M.toggle");
         assert_eq!(by_param.hits[0].line, Some(10));
 
         assert!(
-            view(&dir, "secret", 50).unwrap().hits.is_empty(),
+            view(&dir.join("module_map.json"), "secret", 50)
+                .unwrap()
+                .hits
+                .is_empty(),
             "code snippets are not what the page shows"
         );
         assert!(
-            view(&dir, "not searched", 50).unwrap().hits.is_empty(),
+            view(&dir.join("module_map.json"), "not searched", 50)
+                .unwrap()
+                .hits
+                .is_empty(),
             "structure is not content"
         );
 
-        let doc = view(&dir, "using", 50).unwrap();
+        let doc = view(&dir.join("module_map.json"), "using", 50).unwrap();
         assert_eq!(doc.hits[0].kind, "doc");
         assert_eq!(doc.hits[0].file.as_deref(), Some("docs/USAGE.md"));
     }
@@ -849,7 +856,7 @@ mod tests {
     #[test]
     fn view_search_without_a_map_is_unavailable_not_an_error() {
         let dir = tmp("view-none");
-        let r = view(&dir, "x", 10).unwrap();
+        let r = view(&dir.join("module_map.json"), "x", 10).unwrap();
         assert!(!r.available);
         assert!(r.hits.is_empty());
     }

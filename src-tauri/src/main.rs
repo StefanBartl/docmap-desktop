@@ -23,6 +23,8 @@ mod search;
 mod server;
 mod stats;
 mod telemetry;
+#[cfg(test)]
+mod testutil;
 mod traffic;
 
 /// How long a button waits for a headless Neovim that loads the user's whole
@@ -189,6 +191,36 @@ struct ProjectFlags {
     repo_url: Option<String>,
     branch: Option<String>,
     full: bool,
+}
+
+/// Refuse to run the engine on a project whose output directory is a link.
+///
+/// The engine writes `index.html`, `module_map.json` and `overview.md` into
+/// that directory (and `--check` reads the committed ones from it), following
+/// whatever the directory is. With `docs/map` checked out as a link, "no map
+/// yet" - which is what the rest of this program now says about it - would
+/// send an automatic *Generate* through the link into a directory, or to a
+/// share, of the repository's choosing. The directory is the project's
+/// `out_dir`, or `docs/map` when none is set.
+///
+/// What a `.docmap.json` in the repository says about `out_dir` is the
+/// engine's to read, and so is refusing to write through a link there.
+fn refuse_linked_output(root: &str, flags: &ProjectFlags) -> Result<(), String> {
+    let root = Path::new(root);
+    let rel = flags
+        .out_dir
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("docs/map");
+    if map_dir_is_plain(root, &root.join(rel)) {
+        Ok(())
+    } else {
+        Err(format!(
+            "{rel} is a link, so the map is neither written to nor read from where it leads. \
+             Replace it with a plain directory."
+        ))
+    }
 }
 
 fn project_flags(app: &tauri::AppHandle, root: &str) -> ProjectFlags {
@@ -402,6 +434,22 @@ fn workspace_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(dir.join("workspace.json"))
 }
 
+/// Write a file so that a reader sees the old content or the new one, never
+/// half of it.
+///
+/// `fs::write` truncates first. A command on another thread that read the
+/// workspace in that moment saw an empty or partial list and failed on it -
+/// or, where it treats a failed read as "nothing known", acted on that.
+fn write_atomic(path: &Path, body: impl AsRef<[u8]>) -> std::io::Result<()> {
+    let mut tmp = path.as_os_str().to_owned();
+    tmp.push(".tmp");
+    let tmp = PathBuf::from(tmp);
+    fs::write(&tmp, body)?;
+    fs::rename(&tmp, path).inspect_err(|_| {
+        let _ = fs::remove_file(&tmp);
+    })
+}
+
 /// The settings file, without the project list attached.
 fn read_settings(app: &tauri::AppHandle) -> Result<Workspace, String> {
     let path = workspace_path(app)?;
@@ -444,7 +492,7 @@ fn read_workspace(app: &tauri::AppHandle) -> Result<Workspace, String> {
         // active name so the next read finds it where it now belongs.
         let body = serde_json::to_string_pretty(&ws.projects)
             .map_err(|e| format!("cannot serialise: {e}"))?;
-        fs::write(&path, body).map_err(|e| format!("cannot write {}: {e}", path.display()))?;
+        write_atomic(&path, body).map_err(|e| format!("cannot write {}: {e}", path.display()))?;
     }
 
     ws.active = Some(name);
@@ -463,7 +511,7 @@ fn write_workspace(app: &tauri::AppHandle, ws: &Workspace) -> Result<(), String>
     let list_path = workspace_projects_path(app, &name)?;
     let list =
         serde_json::to_string_pretty(&ws.projects).map_err(|e| format!("cannot serialise: {e}"))?;
-    fs::write(&list_path, list)
+    write_atomic(&list_path, list)
         .map_err(|e| format!("cannot write {}: {e}", list_path.display()))?;
 
     // The settings, with the list left out — it would be a stale second
@@ -484,7 +532,7 @@ fn write_workspace(app: &tauri::AppHandle, ws: &Workspace) -> Result<(), String>
     let path = workspace_path(app)?;
     let body =
         serde_json::to_string_pretty(&settings).map_err(|e| format!("cannot serialise: {e}"))?;
-    fs::write(&path, body).map_err(|e| format!("cannot write {}: {e}", path.display()))
+    write_atomic(&path, body).map_err(|e| format!("cannot write {}: {e}", path.display()))
 }
 
 /// Guards every workspace.json read-modify-write cycle. Two commands that
@@ -623,19 +671,38 @@ fn list_subdirs(root: &Path) -> Result<Vec<(String, String, bool)>, String> {
     let entries = fs::read_dir(root).map_err(|e| format!("cannot read {}: {e}", root.display()))?;
     for entry in entries {
         let entry = entry.map_err(|e| format!("cannot read {}: {e}", root.display()))?;
-        let path = entry.path();
-        if !path.is_dir() {
-            continue;
-        }
         let name = entry.file_name().to_string_lossy().to_string();
         if name.starts_with('.') {
+            continue;
+        }
+        // The folder picked is somebody's repository, so its entries are
+        // repository content. `file_type` does not follow a link; `is_dir` and
+        // `canonicalize` below do, and a link to `\\host\share` made them
+        // connect there (a 20 second stall of the window and an NTLM
+        // negotiation) before the dialog had shown anything. A link is
+        // followed only where it provably stays on this machine - a folder of
+        // plugins with a junction to another drive is still a folder of plugins.
+        let Ok(file_type) = entry.file_type() else {
+            continue;
+        };
+        let path = entry.path();
+        if file_type.is_symlink() {
+            if !link_stays_local(root, &path) {
+                continue;
+            }
+        } else if !file_type.is_dir() {
+            continue;
+        }
+        if !path.is_dir() {
             continue;
         }
         let canonical = match fs::canonicalize(&path) {
             Ok(c) => portable(&c),
             Err(_) => continue,
         };
-        out.push((name, canonical, path.join(".git").exists()));
+        // Looked at, not followed: see `languages::is_nested_checkout`.
+        let is_git = fs::symlink_metadata(path.join(".git")).is_ok();
+        out.push((name, canonical, is_git));
     }
     out.sort_by(|a, b| a.0.to_lowercase().cmp(&b.0.to_lowercase()));
     Ok(out)
@@ -647,11 +714,25 @@ fn list_subdirs(root: &Path) -> Result<Vec<(String, String, bool)>, String> {
 /// Read-only, so the dialog can call it the moment a folder is picked and
 /// decide what to show next, the same way `list_github_repos` is opt-in but
 /// free of side effects.
-#[tauri::command]
+///
+/// `async` so that a slow disk (a share, a folder of thousands of entries)
+/// stalls a worker and not the window.
+#[tauri::command(async)]
 fn inspect_folder(app: tauri::AppHandle, root: String) -> Result<FolderScan, String> {
     let root_path = Path::new(&root);
     if !root_path.is_dir() {
         return Err(format!("{root} is not a directory"));
+    }
+
+    // Looked at, not followed: see `languages::is_nested_checkout`.
+    let is_git = fs::symlink_metadata(root_path.join(".git")).is_ok();
+    // A repository is added as itself and the dialog never shows its
+    // subdirectories, so they are not listed.
+    if is_git {
+        return Ok(FolderScan {
+            is_git,
+            subrepos: Vec::new(),
+        });
     }
 
     let existing_ids: std::collections::HashSet<String> = read_workspace(&app)?
@@ -670,10 +751,7 @@ fn inspect_folder(app: tauri::AppHandle, root: String) -> Result<FolderScan, Str
         })
         .collect();
 
-    Ok(FolderScan {
-        is_git: root_path.join(".git").exists(),
-        subrepos,
-    })
+    Ok(FolderScan { is_git, subrepos })
 }
 
 /// Add every one of the given directories, the same way `add_project` adds
@@ -1005,33 +1083,35 @@ struct MapStatus {
 /// artifact with a stated contract (`meta.counts`), the HTML is a rendering
 /// of it. Reading the rendering to recover the data it was rendered from is
 /// the kind of shortcut that breaks the first time the page changes.
-#[tauri::command]
+#[tauri::command(async)]
 fn map_status(app: tauri::AppHandle, map_dir: String) -> MapStatus {
     let index = format!("{map_dir}/index.html");
-    // The map directory is repository content: see `map_dir_is_plain`. Looked
-    // up by its path because the page asks by directory; a directory that
-    // belongs to no project (a folder being previewed) has no root to check.
-    let plain = read_workspace(&app)
+    // The map directory and the files in it are repository content: see
+    // `map_file`. Looked up by its path because the page asks by directory;
+    // every caller passes the directory of a listed project, so one that
+    // matches none (a spelling that has since changed) has nothing to check
+    // against and reads as no map - never as one to read unchecked.
+    let project = read_workspace(&app)
         .ok()
-        .and_then(|ws| {
-            ws.projects
-                .iter()
-                .find(|p| p.map_dir == map_dir)
-                .map(|p| map_dir_is_plain(Path::new(&p.root), Path::new(&p.map_dir)))
-        })
-        .unwrap_or(true);
-    let exists = plain && Path::new(&index).is_file();
+        .and_then(|ws| ws.projects.into_iter().find(|p| p.map_dir == map_dir));
+    let (index_file, json_file) = match &project {
+        Some(p) => {
+            let (root, dir) = (Path::new(&p.root), Path::new(&p.map_dir));
+            (
+                map_file(root, dir, "index.html"),
+                map_file(root, dir, "module_map.json"),
+            )
+        }
+        None => (None, None),
+    };
+    let exists = index_file.is_some_and(|f| f.is_file());
     let mut modules = None;
     let mut files = None;
     let mut namespaces = None;
     let mut schema = None;
 
-    if exists {
-        if let Some(body) = safe_read::read_text(
-            &Path::new(&map_dir).join("module_map.json"),
-            safe_read::MAP_JSON_MAX,
-            false,
-        ) {
+    if let Some(json_file) = json_file.filter(|_| exists) {
+        if let Some(body) = safe_read::read_text(&json_file, safe_read::MAP_JSON_MAX, false) {
             if let Ok(v) = serde_json::from_str::<serde_json::Value>(&body) {
                 let counts = &v["meta"]["counts"];
                 modules = counts["module"].as_u64();
@@ -1084,7 +1164,7 @@ async fn list_github_repos() -> github::RepoList {
 ///
 /// `map_dir` is optional because the caller does not always have one: a
 /// folder being previewed is not a `Project` yet.
-#[tauri::command]
+#[tauri::command(async)]
 fn scan_languages(
     root: String,
     map_dir: Option<String>,
@@ -1737,6 +1817,7 @@ async fn generate(
     // into the blocking task: both need `app`, and the flags are a workspace
     // read rather than a process launch, so it costs nothing to do first.
     let flags = project_flags(&app, &root);
+    refuse_linked_output(&root, &flags)?;
     // The project's own `full` is a *default*, not a ceiling: **Generate
     // full** passes `true` and must stay able to, while plain **Generate**
     // on a project that asked for enrichment gets it without being asked
@@ -1835,6 +1916,7 @@ async fn check_map(app: tauri::AppHandle, root: String) -> Result<CheckResult, S
     // something the committed artifact may legitimately not contain. That
     // asymmetry predates these flags and is unchanged by them.
     let flags = project_flags(&app, &root);
+    refuse_linked_output(&root, &flags)?;
     let info = engine_info(app)?;
     let engine = info.path.ok_or_else(|| {
         "No docmap engine configured. It is documentation.nvim's standalone binary —          put it on PATH, or point at it in the sidebar."
@@ -2258,6 +2340,11 @@ pub(crate) fn resolve_inside(root: &Path, rel: &str) -> Result<PathBuf, String> 
     if rel.contains('\0') {
         return Err("a path cannot contain a NUL".to_string());
     }
+    // No path the OS accepts is longer, and `rel` can come out of a repository's
+    // manifest at up to a megabyte.
+    if rel.len() > MAX_REL_LEN {
+        return Err("that path is too long".to_string());
+    }
     let relative = Path::new(rel);
     if relative
         .components()
@@ -2271,7 +2358,12 @@ pub(crate) fn resolve_inside(root: &Path, rel: &str) -> Result<PathBuf, String> 
     // examination that walked the components as written (`missing/../l`)
     // stopped at the first one that does not exist and never looked at `l`,
     // which is what `canonicalize` then opened.
-    let mut clean = root.to_path_buf();
+    //
+    // Built relative to nothing and joined to the root once: `push` onto a
+    // verbatim (`\\?\`) path rebuilds the whole buffer, so pushing each name
+    // onto the root made the loop quadratic - a manifest `src` of half a
+    // million `a/` kept a thread busy for over an hour.
+    let mut collapsed = PathBuf::new();
     let mut depth = 0usize;
     for part in relative.components() {
         match part {
@@ -2280,7 +2372,7 @@ pub(crate) fn resolve_inside(root: &Path, rel: &str) -> Result<PathBuf, String> 
                 if depth == 0 {
                     return Err(format!("{rel} resolves outside the project"));
                 }
-                clean.pop();
+                collapsed.pop();
                 depth -= 1;
             }
             Component::Normal(name) => {
@@ -2291,7 +2383,7 @@ pub(crate) fn resolve_inside(root: &Path, rel: &str) -> Result<PathBuf, String> 
                 if reparsed_by_push(name) {
                     return Err(format!("{rel} is not a path inside the project"));
                 }
-                clean.push(name);
+                collapsed.push(name);
                 depth += 1;
             }
             Component::Prefix(_) | Component::RootDir => {
@@ -2299,6 +2391,11 @@ pub(crate) fn resolve_inside(root: &Path, rel: &str) -> Result<PathBuf, String> 
             }
         }
     }
+    let clean = if depth == 0 {
+        root.to_path_buf()
+    } else {
+        root.join(&collapsed)
+    };
     // Whatever else went wrong above, nothing past this point looks at a path
     // that is not under the root.
     if !clean.starts_with(root) {
@@ -2349,7 +2446,13 @@ fn reparsed_by_push(name: &std::ffi::OsStr) -> bool {
 /// A map directory that is not under the root (`../maps`, set by the user in
 /// Project settings) is not repository content and is left alone; `..` in it is
 /// walked as the OS does, and only the part inside the root is inspected.
-/// Nothing there yet is fine: there is nothing to read.
+///
+/// A component that is not there yet is fine - there is nothing to read - but
+/// the walk goes on past it, because a later `..` can lead back to one that is
+/// (`dist/../docs/map`). Any other failure to look is a no.
+///
+/// This vets the *directory*. A file inside it can be a link as well: read it
+/// through [`map_file`].
 pub(crate) fn map_dir_is_plain(root: &Path, map_dir: &Path) -> bool {
     let Ok(rel) = map_dir.strip_prefix(root) else {
         return true;
@@ -2363,6 +2466,16 @@ pub(crate) fn map_dir_is_plain(root: &Path, map_dir: &Path) -> bool {
             Component::Normal(name) => {
                 if reparsed_by_push(name) {
                     return false;
+                }
+                // Win32 drops a trailing dot or space before the file system
+                // sees the name, so `map.` is `map` - which the verbatim path
+                // walked here would report as missing.
+                #[cfg(windows)]
+                {
+                    let s = name.to_string_lossy();
+                    if s.ends_with('.') || s.ends_with(' ') {
+                        return false;
+                    }
                 }
                 walked.push(name);
             }
@@ -2379,10 +2492,69 @@ pub(crate) fn map_dir_is_plain(root: &Path, map_dir: &Path) -> bool {
         match fs::symlink_metadata(&walked) {
             Ok(meta) if meta.file_type().is_symlink() => return false,
             Ok(_) => {}
-            Err(_) => return true,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(_) => return false,
         }
     }
     true
+}
+
+/// Where to read `name` - a file directly in the map directory - or `None`
+/// when it must not be read: the directory is not plain, or the file is not
+/// there, or it is a link that leaves the project or leads to another machine.
+///
+/// [`map_dir_is_plain`] covers the directory; a repository can just as well
+/// commit `docs/map/module_map.json` as a link to `\\host\share\x`, and the
+/// first `stat`, `is_file` or `canonicalize` of it would connect to that host
+/// (a stall of 20 seconds and an NTLM negotiation) before any check on the
+/// *result* could say no. Under the project root the file is therefore
+/// resolved with [`resolve_inside`], which walks its links without following
+/// them; a link that stays in the project still works. A map directory outside
+/// the root is the user's own choice and is taken as it is.
+pub(crate) fn map_file(root: &Path, map_dir: &Path, name: &str) -> Option<PathBuf> {
+    if !map_dir_is_plain(root, map_dir) {
+        return None;
+    }
+    let Ok(rel) = map_dir.strip_prefix(root) else {
+        return Some(map_dir.join(name));
+    };
+    // A `..` that climbs out of the root puts the directory outside it.
+    let mut depth = 0usize;
+    for part in rel.components() {
+        match part {
+            Component::Normal(_) => depth += 1,
+            Component::ParentDir if depth == 0 => return Some(map_dir.join(name)),
+            Component::ParentDir => depth -= 1,
+            _ => {}
+        }
+    }
+    let mut rel_file = portable(rel);
+    if !rel_file.is_empty() {
+        rel_file.push('/');
+    }
+    rel_file.push_str(name);
+    resolve_inside(&fs::canonicalize(root).ok()?, &rel_file).ok()
+}
+
+/// The longest relative path [`resolve_inside`] looks at.
+const MAX_REL_LEN: usize = 32 * 1024;
+
+/// Does the link at `path` - an entry below `root`, which is not inspected -
+/// stay on this machine? Always so off Windows, where a link cannot name a
+/// share.
+fn link_stays_local(root: &Path, path: &Path) -> bool {
+    #[cfg(windows)]
+    {
+        matches!(
+            links_to_network(path, root.components().count(), &mut 16),
+            LinkWalk::Local
+        )
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = (root, path);
+        true
+    }
 }
 
 /// What a walk along a path found out about the links on it.
@@ -2772,7 +2944,7 @@ fn switch_workspace(app: tauri::AppHandle, name: String) -> Result<Vec<Project>,
     let path = workspace_path(&app)?;
     let body =
         serde_json::to_string_pretty(&settings).map_err(|e| format!("cannot serialise: {e}"))?;
-    fs::write(&path, body).map_err(|e| format!("cannot write {}: {e}", path.display()))?;
+    write_atomic(&path, body).map_err(|e| format!("cannot write {}: {e}", path.display()))?;
 
     // A workspace that has never been written yet is an empty one, and an
     // empty file now is what makes it appear in the list.
@@ -2808,7 +2980,7 @@ fn rename_workspace(app: tauri::AppHandle, from: String, to: String) -> Result<(
     let path = workspace_path(&app)?;
     let body =
         serde_json::to_string_pretty(&settings).map_err(|e| format!("cannot serialise: {e}"))?;
-    fs::write(&path, body).map_err(|e| format!("cannot write {}: {e}", path.display()))
+    write_atomic(&path, body).map_err(|e| format!("cannot write {}: {e}", path.display()))
 }
 
 /// Delete a workspace.
@@ -2839,7 +3011,7 @@ fn delete_workspace(app: tauri::AppHandle, name: String) -> Result<Vec<Workspace
     let settings_path = workspace_path(&app)?;
     let body =
         serde_json::to_string_pretty(&settings).map_err(|e| format!("cannot serialise: {e}"))?;
-    fs::write(&settings_path, body)
+    write_atomic(&settings_path, body)
         .map_err(|e| format!("cannot write {}: {e}", settings_path.display()))?;
 
     list_workspaces(app)
@@ -2850,7 +3022,7 @@ fn delete_workspace(app: tauri::AppHandle, name: String) -> Result<Vec<Workspace
 /// One level per call: a repository is tens of thousands of files and a
 /// reader opens perhaps a dozen directories. See `filetree.rs` on why this
 /// is read live here rather than collected into the artifact.
-#[tauri::command]
+#[tauri::command(async)]
 fn file_tree(app: tauri::AppHandle, id: String, sub: String) -> Result<filetree::Listing, String> {
     let ws = read_workspace(&app)?;
     let project = ws
@@ -2992,10 +3164,15 @@ fn view_search(
         .iter()
         .find(|p| p.id == id)
         .ok_or_else(|| format!("no such project: {id}"))?;
-    if !map_dir_is_plain(Path::new(&project.root), Path::new(&project.map_dir)) {
+    // The map file itself, not just its directory: see `map_file`.
+    let Some(map_json) = map_file(
+        Path::new(&project.root),
+        Path::new(&project.map_dir),
+        "module_map.json",
+    ) else {
         return Ok(search::ViewResults::default());
-    }
-    search::view(Path::new(&project.map_dir), &query, 200)
+    };
+    search::view(&map_json, &query, 200)
 }
 
 /// Which projects in this workspace depend on which others.
@@ -3010,23 +3187,18 @@ fn view_search(
 /// workspace whose engine is not configured at all — the artifact really is
 /// the extension point, and this is the first consumer of it that is not the
 /// engine itself.
-#[tauri::command]
+#[tauri::command(async)]
 fn workspace_deps(app: tauri::AppHandle) -> Result<deps::Deps, String> {
     let ws = read_workspace(&app)?;
-    let list: Vec<(String, String)> = ws
+    let list: Vec<(String, Option<PathBuf>)> = ws
         .projects
         .iter()
         .map(|p| {
-            // A linked map directory is read as no map at all (the project is
-            // then listed as unread rather than silently missing).
-            let plain = map_dir_is_plain(Path::new(&p.root), Path::new(&p.map_dir));
+            // `None` - a linked map directory or file, or no map - is listed as
+            // unread rather than silently missing: see `map_file`.
             (
                 p.id.clone(),
-                if plain {
-                    p.map_dir.clone()
-                } else {
-                    String::new()
-                },
+                map_file(Path::new(&p.root), Path::new(&p.map_dir), "module_map.json"),
             )
         })
         .collect();
@@ -3466,32 +3638,7 @@ mod tests {
         );
     }
 
-    /// A directory link: a symlink on Unix, a junction on Windows (which needs
-    /// no privilege). `false` when it could not be made.
-    fn dir_link(link: &Path, target: &Path) -> bool {
-        #[cfg(unix)]
-        {
-            std::os::unix::fs::symlink(target, link).is_ok()
-        }
-        #[cfg(windows)]
-        {
-            std::process::Command::new("cmd")
-                .args(["/C", "mklink", "/J"])
-                .arg(link)
-                .arg(target)
-                .output()
-                .map(|o| o.status.success())
-                .unwrap_or(false)
-        }
-    }
-
-    fn fresh_dir(name: &str) -> PathBuf {
-        let root = fs::canonicalize(std::env::temp_dir()).unwrap();
-        let dir = root.join(name);
-        let _ = fs::remove_dir_all(&dir);
-        fs::create_dir_all(&dir).unwrap();
-        fs::canonicalize(&dir).unwrap()
-    }
+    use crate::testutil::{dir_link, file_link, fresh_dir};
 
     #[test]
     fn a_map_directory_that_is_a_link_is_not_plain() {
@@ -3505,29 +3652,249 @@ mod tests {
         fs::create_dir_all(root.join("docs/map")).unwrap();
         assert!(map_dir_is_plain(&root, &root.join("docs/map")));
         fs::remove_dir_all(root.join("docs/map")).unwrap();
-        if !dir_link(&root.join("docs/map"), &root.join("real")) {
-            eprintln!("SKIP: could not create a directory link");
-            return;
-        }
+        assert!(dir_link(&root.join("docs").join("map"), &root.join("real")));
         assert!(!map_dir_is_plain(&root, &root.join("docs/map")));
         // The link may be higher up, too.
-        fs::remove_dir_all(root.join("docs")).ok();
-        let _ = fs::remove_file(root.join("docs"));
-        if dir_link(&root.join("docs"), &root.join("real")) {
-            assert!(!map_dir_is_plain(&root, &root.join("docs/map")));
-        }
+        fs::remove_dir_all(root.join("docs")).unwrap();
+        assert!(dir_link(&root.join("docs"), &root.join("real")));
+        assert!(!map_dir_is_plain(&root, &root.join("docs/map")));
     }
 
     #[test]
     fn a_map_directory_outside_the_project_is_the_users_own_choice() {
         let outer = fresh_dir("docmap-outside-map");
         let project = outer.join("proj");
+        fs::create_dir_all(project.join("docs")).unwrap();
+        fs::create_dir_all(outer.join("maps")).unwrap();
+        // Built the way the Map directory field stores it: root and map
+        // directory as `portable` strings with the `..` kept, not as joined
+        // `Path`s (joining onto a `\\?\` path drops the `..` and the case
+        // below would then never reach the code that handles it).
+        let root_str = portable(&project);
+        let root = PathBuf::from(&root_str);
+        let dir = |tail: &str| PathBuf::from(format!("{root_str}/{tail}"));
+        assert!(map_dir_is_plain(&root, &dir("../maps")));
+        assert!(map_dir_is_plain(&root, &dir("../elsewhere/maps")));
+        // Even one that is a link: that link is the user's own.
+        assert!(dir_link(&outer.join("linked"), &outer.join("maps")));
+        assert!(map_dir_is_plain(&root, &dir("../linked")));
+
+        // Back into the project by way of `..` it is the project's directory
+        // again, and a link there is repository content.
+        assert!(dir_link(
+            &project.join("docs").join("map"),
+            &outer.join("maps")
+        ));
+        assert!(!map_dir_is_plain(&root, &dir("../proj/docs/map")));
+        // A component that is not there does not end the walk: a later `..`
+        // leads back to one that is.
+        assert!(!map_dir_is_plain(&root, &dir("dist/../docs/map")));
+        assert!(!map_dir_is_plain(&root, &dir("docs/real/../map")));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_map_directory_spelled_so_win32_reads_it_differently_is_refused() {
+        let root = fresh_dir("docmap-spelling");
+        fs::create_dir_all(root.join("docs")).unwrap();
+        fs::create_dir_all(root.join("real")).unwrap();
+        assert!(dir_link(&root.join("docs").join("map"), &root.join("real")));
+        let root_str = portable(&root);
+        let root = PathBuf::from(&root_str);
+        let dir = |tail: &str| PathBuf::from(format!("{root_str}/{tail}"));
+        assert!(!map_dir_is_plain(&root, &dir("docs/map")), "the control");
+        // Win32 drops the trailing dot before the file system sees the name.
+        assert!(!map_dir_is_plain(&root, &dir("docs/map.")));
+        // A drive-like component is not a name.
+        assert!(!map_dir_is_plain(&root, &dir("docs/C:x")));
+    }
+
+    #[test]
+    fn a_map_file_is_read_where_it_is_unless_it_is_a_link_that_leaves() {
+        let root = fresh_dir("docmap-map-file");
+        let map = root.join("docs").join("map");
+        fs::create_dir_all(&map).unwrap();
+        fs::write(map.join("module_map.json"), "{}").unwrap();
+        assert_eq!(
+            map_file(&root, &map, "module_map.json").unwrap(),
+            map.join("module_map.json")
+        );
+        assert!(map_file(&root, &map, "index.html").is_none(), "not there");
+
+        // The directory a junction makes is not plain, and so nothing in it.
+        let linked = root.join("docs2");
+        fs::create_dir_all(&linked).unwrap();
+        assert!(dir_link(&linked.join("map"), &map));
+        assert!(map_file(&root, &linked.join("map"), "module_map.json").is_none());
+
+        // A link to a file elsewhere in the project still works; one that
+        // leaves the project does not.
+        let outside = root.with_file_name("docmap-map-file-outside.json");
+        fs::write(&outside, "{}").unwrap();
+        fs::write(root.join("inside.json"), "{}").unwrap();
+        if !file_link(&map.join("in.json"), &root.join("inside.json")) {
+            eprintln!("SKIP: no privilege to create symlinks");
+            return;
+        }
+        assert!(file_link(&map.join("out.json"), &outside));
+        assert_eq!(
+            map_file(&root, &map, "in.json").unwrap(),
+            root.join("inside.json")
+        );
+        assert!(map_file(&root, &map, "out.json").is_none());
+    }
+
+    #[test]
+    fn a_map_directory_outside_the_project_is_read_as_it_is() {
+        let outer = fresh_dir("docmap-map-file-outside");
+        let project = outer.join("proj");
         fs::create_dir_all(&project).unwrap();
         fs::create_dir_all(outer.join("maps")).unwrap();
-        // `../maps`, as the Map directory field keeps it: `..` is walked the
-        // way the OS does, and only what is inside the root is inspected.
-        assert!(map_dir_is_plain(&project, &project.join("../maps")));
-        assert!(map_dir_is_plain(&project, &outer.join("elsewhere/maps")));
+        fs::write(outer.join("maps").join("module_map.json"), "{}").unwrap();
+        let root_str = portable(&project);
+        let root = PathBuf::from(&root_str);
+        let map = PathBuf::from(format!("{root_str}/../maps"));
+        assert_eq!(
+            map_file(&root, &map, "module_map.json").unwrap(),
+            map.join("module_map.json")
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_map_file_that_links_to_another_machine_is_not_followed() {
+        // Each name its own host: Windows remembers a host that did not
+        // answer, so a second look at the same one returns at once and proves
+        // nothing.
+        let root = fresh_dir("docmap-map-file-unc");
+        let map = root.join("docs").join("map");
+        fs::create_dir_all(&map).unwrap();
+        let names = [
+            ("module_map.json", "198.51.100.131"),
+            ("index.html", "198.51.100.132"),
+            ("leak", "198.51.100.133"),
+        ];
+        for (name, host) in names {
+            let target = format!(r"\\{host}\share\{name}");
+            if !file_link(&map.join(name), Path::new(&target)) {
+                eprintln!("SKIP: no privilege to create symlinks");
+                return;
+            }
+        }
+        let started = std::time::Instant::now();
+        for (name, _) in names {
+            assert!(map_file(&root, &map, name).is_none(), "{name}");
+        }
+        assert!(
+            started.elapsed().as_secs() < 3,
+            "it must not wait for a host"
+        );
+    }
+
+    #[test]
+    fn a_path_of_thousands_of_components_is_answered_at_once() {
+        let dir = fresh_dir("docmap-long-rel");
+        let started = std::time::Instant::now();
+        // 30 000 bytes, within the bound: pushed onto a `\\?\` root one name
+        // at a time this took seconds, and a megabyte of it over an hour.
+        assert!(resolve_inside(&dir, &"a/".repeat(15_000)).is_err());
+        let err = resolve_inside(&dir, &"a/".repeat(MAX_REL_LEN)).unwrap_err();
+        assert!(err.contains("too long"), "{err}");
+        assert!(
+            started.elapsed().as_secs() < 2,
+            "took {:?}",
+            started.elapsed()
+        );
+    }
+
+    #[test]
+    fn the_engine_is_not_run_on_a_project_whose_output_is_a_link() {
+        let root = fresh_dir("docmap-refuse");
+        fs::create_dir_all(root.join("docs")).unwrap();
+        fs::create_dir_all(root.join("real")).unwrap();
+        let root_str = portable(&root);
+        let flags = ProjectFlags::default();
+        assert!(
+            refuse_linked_output(&root_str, &flags).is_ok(),
+            "no map yet is fine"
+        );
+        assert!(dir_link(&root.join("docs").join("map"), &root.join("real")));
+        let err = refuse_linked_output(&root_str, &flags).unwrap_err();
+        assert!(err.contains("docs/map is a link"), "{err}");
+        // The project's own choice of directory is the one that is checked.
+        let own = ProjectFlags {
+            out_dir: Some("out".into()),
+            ..Default::default()
+        };
+        assert!(refuse_linked_output(&root_str, &own).is_ok());
+        // And one outside the project is the user's.
+        let outside = ProjectFlags {
+            out_dir: Some("../maps".into()),
+            ..Default::default()
+        };
+        assert!(refuse_linked_output(&root_str, &outside).is_ok());
+    }
+
+    #[test]
+    fn a_file_is_replaced_whole_and_leaves_no_temporary_behind() {
+        let dir = fresh_dir("docmap-atomic");
+        let path = dir.join("workspace.json");
+        write_atomic(&path, "one").unwrap();
+        write_atomic(&path, "two").unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), "two");
+        let names: Vec<_> = fs::read_dir(&dir)
+            .unwrap()
+            .flatten()
+            .map(|e| e.file_name().to_string_lossy().to_string())
+            .collect();
+        assert_eq!(names, ["workspace.json"]);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_folder_listing_does_not_follow_a_link_to_another_machine() {
+        let root = fresh_dir("docmap-subdirs-unc");
+        fs::create_dir_all(root.join("real").join("sub")).unwrap();
+        // A `.git` that is a link: looked at, not followed. Distinct hosts, as
+        // above.
+        if std::os::windows::fs::symlink_dir(r"\\198.51.100.141\share", root.join("vendor"))
+            .is_err()
+            || std::os::windows::fs::symlink_dir(
+                r"\\198.51.100.142\share",
+                root.join("real").join("sub").join(".git"),
+            )
+            .is_err()
+        {
+            eprintln!("SKIP: no privilege to create symlinks");
+            return;
+        }
+        let started = std::time::Instant::now();
+        let found = list_subdirs(&root).unwrap();
+        let names: Vec<_> = found.iter().map(|f| f.0.as_str()).collect();
+        assert_eq!(names, ["real"], "the link to a share is not a folder");
+        assert!(!found[0].2, "real/ has no .git of its own");
+        // One level down the walks ask the same question of every directory.
+        assert!(crate::languages::is_nested_checkout(
+            &root.join("real").join("sub")
+        ));
+        assert!(
+            started.elapsed().as_secs() < 3,
+            "it must not wait for a host"
+        );
+    }
+
+    #[test]
+    fn a_link_to_a_folder_on_this_machine_is_still_listed() {
+        // A folder of plugins with a junction to another drive is still a
+        // folder of plugins.
+        let root = fresh_dir("docmap-subdirs-local");
+        let elsewhere = fresh_dir("docmap-subdirs-local-target");
+        fs::create_dir_all(elsewhere.join(".git")).unwrap();
+        fs::create_dir_all(root.join("plain")).unwrap();
+        assert!(dir_link(&root.join("linked"), &elsewhere));
+        let found = list_subdirs(&root).unwrap();
+        let names: Vec<_> = found.iter().map(|f| (f.0.as_str(), f.2)).collect();
+        assert_eq!(names, [("linked", true), ("plain", false)]);
     }
 
     #[cfg(windows)]

@@ -240,8 +240,15 @@ fn language_for(ext: &str) -> Option<(&'static str, Option<&'static str>, Option
 ///
 /// The root being scanned is never subjected to this -- the walk starts
 /// inside it -- so a normal repository is not skipped by its own `.git`.
+///
+/// **Looked at, never followed.** This runs for every directory of every walk
+/// on a tree somebody else wrote, and `exists()` follows a link: a `.git`
+/// delivered as a link to `\\host\share` (git itself never checks one out, an
+/// archive can carry it) made every walk connect to that host. An entry named
+/// `.git` of any kind - file, directory, link, dangling link - marks the
+/// directory, and a hostile one merely gets it skipped.
 pub(crate) fn is_nested_checkout(dir: &Path) -> bool {
-    dir.join(".git").exists()
+    std::fs::symlink_metadata(dir.join(".git")).is_ok()
 }
 
 /// Is `path` the project's map directory?

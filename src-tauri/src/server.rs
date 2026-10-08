@@ -134,6 +134,8 @@ fn safe_static_name(name: &str) -> Option<&str> {
 ///   [`crate::map_dir_is_plain`]: `docs/map` checked out as a link to `..`
 ///   would make "inside the map directory" mean "anywhere in the repository",
 ///   `.env` included.
+/// * **The file is looked at before it is opened** — see [`crate::map_file`]:
+///   a link to another machine is refused without being followed.
 fn servable_file(root: &Path, map_dir: &Path, name: &str) -> Option<PathBuf> {
     let mut parts = Path::new(name).components();
     if !matches!(
@@ -145,11 +147,12 @@ fn servable_file(root: &Path, map_dir: &Path, name: &str) -> Option<PathBuf> {
     if name.contains(':') || name.contains('\0') {
         return None;
     }
-    if !crate::map_dir_is_plain(root, map_dir) {
-        return None;
-    }
+    // The directory and the file both: `docs/map/leak` can be a link to a
+    // share as well, and `canonicalize` would connect to it before the
+    // `starts_with` below could say no. `map_file` walks it without following.
+    let candidate = crate::map_file(root, map_dir, name)?;
     let base = std::fs::canonicalize(map_dir).ok()?;
-    let file = std::fs::canonicalize(base.join(name)).ok()?;
+    let file = std::fs::canonicalize(candidate).ok()?;
     file.starts_with(&base).then_some(file)
 }
 
@@ -526,19 +529,51 @@ mod tests {
         let root = tmp("junction");
         fs::create_dir_all(root.join("docs")).unwrap();
         fs::write(root.join(".env"), "SECRET=1").unwrap();
-        // Joined component by component: `mklink` reads a `/` as a switch.
-        let made = std::process::Command::new("cmd")
-            .args(["/C", "mklink", "/J"])
-            .arg(root.join("docs").join("map"))
-            .arg(&root)
-            .output()
-            .map(|o| o.status.success())
-            .unwrap_or(false);
-        if !made {
-            eprintln!("SKIP: could not create a junction");
+        assert!(crate::testutil::dir_link(
+            &root.join("docs").join("map"),
+            &root
+        ));
+        assert!(servable_file(&root, &root.join("docs").join("map"), ".env").is_none());
+    }
+
+    #[test]
+    fn a_file_that_links_out_of_the_map_directory_is_not_served() {
+        let root = crate::testutil::fresh_dir("docmap-serve-filelink");
+        let map = root.join("docs").join("map");
+        fs::create_dir_all(&map).unwrap();
+        fs::write(map.join("index.html"), "x").unwrap();
+        fs::write(root.join(".env"), "SECRET=1").unwrap();
+        assert!(servable_file(&root, &map, "index.html").is_some());
+        if !crate::testutil::file_link(&map.join("leak"), &root.join(".env")) {
+            eprintln!("SKIP: no privilege to create symlinks");
             return;
         }
-        assert!(servable_file(&root, &root.join("docs").join("map"), ".env").is_none());
+        // It stays inside the project but leaves the map directory.
+        assert!(servable_file(&root, &map, "leak").is_none());
+    }
+
+    /// The file is looked at before it is opened: a link to a share must not
+    /// make the server connect there just to find out it leaves the map
+    /// directory.
+    #[cfg(windows)]
+    #[test]
+    fn a_file_that_links_to_another_machine_is_refused_without_waiting() {
+        let root = crate::testutil::fresh_dir("docmap-serve-unc");
+        let map = root.join("docs").join("map");
+        fs::create_dir_all(&map).unwrap();
+        if !crate::testutil::file_link(
+            &map.join("leak"),
+            std::path::Path::new(r"\\198.51.100.161\share\leak"),
+        ) {
+            eprintln!("SKIP: no privilege to create symlinks");
+            return;
+        }
+        let started = std::time::Instant::now();
+        assert!(servable_file(&root, &map, "leak").is_none());
+        assert!(
+            started.elapsed().as_secs() < 3,
+            "it must not wait for a host"
+        );
     }
 
     #[cfg(unix)]
