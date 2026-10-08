@@ -99,6 +99,10 @@ fn walk_sources(root: &Path, map_dir: &Path, mut visit: impl FnMut(&Path, System
             // `file_type` rather than `metadata`: it does not follow
             // symlinks, which is what keeps a symlink back up the tree from
             // being a cycle.
+            // Win32 reads `x.` as `x`: see `languages::win32_rewrites_name`.
+            if crate::languages::win32_rewrites_name(&entry.file_name()) {
+                continue;
+            }
             let ft = match entry.file_type() {
                 Ok(t) => t,
                 Err(_) => continue,
@@ -379,9 +383,10 @@ mod tests {
         use crate::testutil::file_link;
         let root = tmp("linked-map-file");
         fs::create_dir_all(root.join("docs/map")).unwrap();
+        let target = format!(r"\\{}\share\module_map.json", crate::testutil::unc_host());
         if !file_link(
             &root.join("docs").join("map").join("module_map.json"),
-            Path::new(r"\\198.51.100.151\share\module_map.json"),
+            Path::new(&target),
         ) {
             eprintln!("SKIP: no privilege to create symlinks");
             return;

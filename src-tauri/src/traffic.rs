@@ -1709,10 +1709,8 @@ mod tests {
     fn a_top_page_that_links_to_another_machine_is_unresolved_without_waiting() {
         let root = crate::testutil::fresh_dir("docmap-traffic-resolve-unc");
         fs::create_dir_all(root.join("docs")).unwrap();
-        if !crate::testutil::file_link(
-            &root.join("docs").join("l.md"),
-            Path::new(r"\\198.51.100.171\share\l.md"),
-        ) {
+        let target = format!(r"\\{}\share\l.md", crate::testutil::unc_host());
+        if !crate::testutil::file_link(&root.join("docs").join("l.md"), Path::new(&target)) {
             eprintln!("SKIP: no privilege to create symlinks");
             return;
         }

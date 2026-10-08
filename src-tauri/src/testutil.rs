@@ -39,6 +39,25 @@ pub fn file_link(link: &Path, target: &Path) -> bool {
     }
 }
 
+/// A documentation-range address (RFC 5737) that no test of this run used
+/// before, and that no run of the last minute is likely to have used.
+///
+/// Windows remembers an unreachable host for a while: a second look at the
+/// same address returns at once. A test that only asserts "this did not take
+/// long" would then pass with the guard removed on every re-run, after the
+/// first, red, one.
+pub fn unc_host() -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    let millis = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+    // 7 is coprime to 250, so the calls of one run never repeat.
+    let n = (millis + NEXT.fetch_add(1, Ordering::Relaxed) * 7) % 250 + 1;
+    format!("203.0.113.{n}")
+}
+
 /// An empty directory under the temp directory, canonical (on Windows that is
 /// the `\\?\` form), emptied first if an earlier run left it behind.
 pub fn fresh_dir(name: &str) -> PathBuf {

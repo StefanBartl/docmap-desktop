@@ -375,6 +375,10 @@ pub fn collect(root: &Path, map_dir: &Path) -> Result<Stats, String> {
                 truncated = true;
                 break;
             }
+            // Win32 reads `x.` as `x`: see `languages::win32_rewrites_name`.
+            if crate::languages::win32_rewrites_name(&entry.file_name()) {
+                continue;
+            }
             let ft = match entry.file_type() {
                 Ok(t) => t,
                 Err(_) => continue,

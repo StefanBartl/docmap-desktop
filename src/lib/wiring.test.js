@@ -228,3 +228,57 @@ test("the Count-again button follows the project on screen", () => {
   assert.match(MAIN, /statsUi\.refresh\.disabled = !!selectedId && statsPending\.has\(selectedId\)/);
   assert.doesNotMatch(MAIN, /statsUi\.refresh\.disabled = (true|false)/);
 });
+
+// ---- repository links: the guards are joined to the commands by call sites ----
+//
+// A guard that is not called is a guard that is not there, and the Rust tests
+// exercise the helpers, not the commands (those take a live AppHandle).
+function rustFn(name) {
+  const start = RUST.search(new RegExp(`\\n(?:async )?fn ${name}\\b`));
+  assert.ok(start >= 0, `no fn ${name} in main.rs`);
+  return RUST.slice(start, RUST.indexOf("\n}\n", start));
+}
+
+function jsFn(name) {
+  const start = MAIN.indexOf(name);
+  assert.ok(start >= 0, `no ${name} in main.js`);
+  return MAIN.slice(start, MAIN.indexOf("\n}\n", start));
+}
+
+test("the engine is not started on a project whose output is a link", () => {
+  for (const name of ["generate", "check_map"]) {
+    const body = rustFn(name);
+    const guard = body.indexOf("refuse_linked_output(&root, &flags)?;");
+    assert.ok(guard >= 0, `${name} does not refuse a linked output`);
+    assert.ok(guard < body.indexOf("engine_info("), `${name}: the guard comes after the engine is looked up`);
+    assert.ok(guard < body.indexOf("spawn_blocking"), `${name}: the guard comes after the engine is started`);
+  }
+});
+
+test("the readers of the map read it through map_file", () => {
+  for (const name of ["map_status", "view_search", "workspace_deps"]) {
+    assert.match(rustFn(name), /map_file\(/, `${name} reads the map without map_file`);
+  }
+  const status = rustFn("map_status");
+  assert.doesNotMatch(status, /Path::new\(&index\)/);
+  assert.doesNotMatch(status, /join\("module_map\.json"\)/);
+});
+
+test("the commands that walk a repository's directories run off the main thread", () => {
+  for (const name of ["map_status", "workspace_deps", "inspect_folder", "file_tree", "scan_languages"]) {
+    const at = RUST.search(new RegExp(`\\bfn ${name}\\b`));
+    assert.ok(at >= 0, name);
+    assert.match(RUST.slice(Math.max(0, at - 120), at), /#\[tauri::command\(async\)\]/, `${name} is a sync command`);
+  }
+});
+
+test("an answer for a project the reader has left is dropped", () => {
+  // Commands run concurrently now, so answers arrive in the order they finish.
+  const detail = jsFn("async function renderDetail(");
+  assert.ok((detail.match(/if \(p\.id !== selectedId\) return;/g) ?? []).length >= 2, "renderDetail draws a stale answer");
+  const selectBody = jsFn("async function select(");
+  assert.ok((selectBody.match(/if \(selectedId !== id\) return;/g) ?? []).length >= 3, "select draws a stale answer");
+  const files = jsFn("async function renderFiles(");
+  assert.match(files, /const mine = \+\+filesSeq;/);
+  assert.ok((files.match(/mine !== filesSeq/g) ?? []).length >= 2, "renderFiles draws a stale listing");
+});

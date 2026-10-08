@@ -132,7 +132,7 @@ fn git_states(root: &Path, dir: &Path) -> GitStates {
     };
 
     // Looked at, not followed: see `languages::is_nested_checkout`.
-    if std::fs::symlink_metadata(root.join(".git")).is_err() {
+    if !crate::languages::has_git_entry(root) {
         return out;
     }
 
@@ -242,6 +242,10 @@ pub fn list(root: &Path, sub: &str) -> Result<Listing, String> {
         .map_err(|e| format!("cannot read {sub}: {e}"))?
         .flatten()
     {
+        // Win32 reads `x.` as `x`: see `languages::win32_rewrites_name`.
+        if crate::languages::win32_rewrites_name(&entry.file_name()) {
+            continue;
+        }
         let ft = match entry.file_type() {
             Ok(t) => t,
             Err(_) => continue,

@@ -213,15 +213,36 @@ fn refuse_linked_output(root: &str, flags: &ProjectFlags) -> Result<(), String> 
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .unwrap_or("docs/map");
-    if map_dir_is_plain(root, &root.join(rel)) {
-        Ok(())
-    } else {
-        Err(format!(
+    let dir = root.join(rel);
+    if !map_dir_is_plain(root, &dir) {
+        return Err(format!(
             "{rel} is a link, so the map is neither written to nor read from where it leads. \
              Replace it with a plain directory."
-        ))
+        ));
     }
+    // The files the engine writes are just as much the repository's: a link
+    // that leaves the project (or reaches another machine) is refused, one that
+    // stays inside it is not - `map_file` is the one that tells them apart.
+    for name in OUTPUT_FILES {
+        let is_link =
+            fs::symlink_metadata(dir.join(name)).is_ok_and(|m| m.file_type().is_symlink());
+        if is_link && map_file(root, &dir, name).is_none() {
+            return Err(format!(
+                "{rel}/{name} is a link out of the project (or to another machine), so the map is \
+                 neither written to nor read from where it leads. Replace it with a plain file."
+            ));
+        }
+    }
+    Ok(())
 }
+
+/// The files the engine writes into the output directory.
+const OUTPUT_FILES: [&str; 4] = [
+    "index.html",
+    "module_map.json",
+    "overview.md",
+    "coverage.svg",
+];
 
 fn project_flags(app: &tauri::AppHandle, root: &str) -> ProjectFlags {
     let normalised = root.replace('\\', "/");
@@ -672,7 +693,7 @@ fn list_subdirs(root: &Path) -> Result<Vec<(String, String, bool)>, String> {
     for entry in entries {
         let entry = entry.map_err(|e| format!("cannot read {}: {e}", root.display()))?;
         let name = entry.file_name().to_string_lossy().to_string();
-        if name.starts_with('.') {
+        if name.starts_with('.') || languages::win32_rewrites_name(&entry.file_name()) {
             continue;
         }
         // The folder picked is somebody's repository, so its entries are
@@ -701,7 +722,7 @@ fn list_subdirs(root: &Path) -> Result<Vec<(String, String, bool)>, String> {
             Err(_) => continue,
         };
         // Looked at, not followed: see `languages::is_nested_checkout`.
-        let is_git = fs::symlink_metadata(path.join(".git")).is_ok();
+        let is_git = languages::has_git_entry(&path);
         out.push((name, canonical, is_git));
     }
     out.sort_by(|a, b| a.0.to_lowercase().cmp(&b.0.to_lowercase()));
@@ -725,7 +746,7 @@ fn inspect_folder(app: tauri::AppHandle, root: String) -> Result<FolderScan, Str
     }
 
     // Looked at, not followed: see `languages::is_nested_checkout`.
-    let is_git = fs::symlink_metadata(root_path.join(".git")).is_ok();
+    let is_git = languages::has_git_entry(root_path);
     // A repository is added as itself and the dialog never shows its
     // subdirectories, so they are not listed.
     if is_git {
@@ -2385,6 +2406,12 @@ pub(crate) fn resolve_inside(root: &Path, rel: &str) -> Result<PathBuf, String> 
                 }
                 collapsed.push(name);
                 depth += 1;
+                // Looking at each prefix of an existing path costs a walk of
+                // the whole prefix, so a path of thousands of real levels is
+                // quadratic work in the kernel. No project has one.
+                if depth > MAX_REL_COMPONENTS {
+                    return Err("that path is too long".to_string());
+                }
             }
             Component::Prefix(_) | Component::RootDir => {
                 return Err(format!("{rel} is not a path inside the project"));
@@ -2518,26 +2545,35 @@ pub(crate) fn map_file(root: &Path, map_dir: &Path, name: &str) -> Option<PathBu
     let Ok(rel) = map_dir.strip_prefix(root) else {
         return Some(map_dir.join(name));
     };
-    // A `..` that climbs out of the root puts the directory outside it.
-    let mut depth = 0usize;
+    // Collapsed the way `map_dir_is_plain` walks it, on the canonical root: a
+    // `..` that climbs out puts the directory outside the project, but one that
+    // comes back in (`../<project>/docs/map`) is still the project's own.
+    let canon_root = fs::canonicalize(root).ok()?;
+    let mut walked = canon_root.clone();
     for part in rel.components() {
         match part {
-            Component::Normal(_) => depth += 1,
-            Component::ParentDir if depth == 0 => return Some(map_dir.join(name)),
-            Component::ParentDir => depth -= 1,
+            Component::Normal(n) => walked.push(n),
+            Component::ParentDir => {
+                walked.pop();
+            }
             _ => {}
         }
     }
-    let mut rel_file = portable(rel);
+    let Ok(inside) = walked.strip_prefix(&canon_root) else {
+        return Some(map_dir.join(name));
+    };
+    let mut rel_file = portable(inside);
     if !rel_file.is_empty() {
         rel_file.push('/');
     }
     rel_file.push_str(name);
-    resolve_inside(&fs::canonicalize(root).ok()?, &rel_file).ok()
+    resolve_inside(&canon_root, &rel_file).ok()
 }
 
-/// The longest relative path [`resolve_inside`] looks at.
+/// The longest relative path [`resolve_inside`] looks at, in bytes and in
+/// components.
 const MAX_REL_LEN: usize = 32 * 1024;
+const MAX_REL_COMPONENTS: usize = 256;
 
 /// Does the link at `path` - an entry below `root`, which is not inspected -
 /// stay on this machine? Always so off Windows, where a link cannot name a
@@ -2652,6 +2688,18 @@ fn links_to_network(path: &Path, skip: usize, budget: &mut u8) -> LinkWalk {
             if !local {
                 return LinkWalk::Network;
             }
+            // `C:x` names a drive and is relative to that drive's current
+            // directory, which is the process's, not the link's.
+            if !target.has_root() {
+                return LinkWalk::Unusable;
+            }
+        } else if target.has_root() {
+            // A root and no drive (`\foo`, or a raw NT path such as
+            // `\Device\Mup\host\share\x` written into the reparse data by a
+            // tool that does not go through the Win32 API): where it leads
+            // depends on the kernel, not on this walk, and the redirector is
+            // reachable by that spelling. Not local unless it provably is.
+            return LinkWalk::Unusable;
         }
         let base = if target.is_absolute() {
             target
@@ -3620,8 +3668,8 @@ mod tests {
         let dir = fs::canonicalize(&dir).unwrap();
         // Creating a symlink needs a privilege on Windows; without it there
         // is nothing to test here.
-        if std::os::windows::fs::symlink_file(r"\\192.0.2.1\share\x.md", dir.join("l.md")).is_err()
-        {
+        let target = format!(r"\\{}\share\x.md", crate::testutil::unc_host());
+        if std::os::windows::fs::symlink_file(&target, dir.join("l.md")).is_err() {
             eprintln!("SKIP: no privilege to create symlinks");
             return;
         }
@@ -3763,18 +3811,18 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn a_map_file_that_links_to_another_machine_is_not_followed() {
-        // Each name its own host: Windows remembers a host that did not
-        // answer, so a second look at the same one returns at once and proves
-        // nothing.
+        // Each name its own host, and a new one every run: Windows remembers a
+        // host that did not answer, so a second look at the same one returns at
+        // once and proves nothing.
         let root = fresh_dir("docmap-map-file-unc");
         let map = root.join("docs").join("map");
         fs::create_dir_all(&map).unwrap();
         let names = [
-            ("module_map.json", "198.51.100.131"),
-            ("index.html", "198.51.100.132"),
-            ("leak", "198.51.100.133"),
+            ("module_map.json", crate::testutil::unc_host()),
+            ("index.html", crate::testutil::unc_host()),
+            ("leak", crate::testutil::unc_host()),
         ];
-        for (name, host) in names {
+        for (name, host) in &names {
             let target = format!(r"\\{host}\share\{name}");
             if !file_link(&map.join(name), Path::new(&target)) {
                 eprintln!("SKIP: no privilege to create symlinks");
@@ -3782,8 +3830,8 @@ mod tests {
             }
         }
         let started = std::time::Instant::now();
-        for (name, _) in names {
-            assert!(map_file(&root, &map, name).is_none(), "{name}");
+        for (name, host) in &names {
+            assert!(map_file(&root, &map, name).is_none(), "{name} at {host}");
         }
         assert!(
             started.elapsed().as_secs() < 3,
@@ -3795,16 +3843,103 @@ mod tests {
     fn a_path_of_thousands_of_components_is_answered_at_once() {
         let dir = fresh_dir("docmap-long-rel");
         let started = std::time::Instant::now();
-        // 30 000 bytes, within the bound: pushed onto a `\\?\` root one name
-        // at a time this took seconds, and a megabyte of it over an hour.
-        assert!(resolve_inside(&dir, &"a/".repeat(15_000)).is_err());
-        let err = resolve_inside(&dir, &"a/".repeat(MAX_REL_LEN)).unwrap_err();
-        assert!(err.contains("too long"), "{err}");
+        // Too many components, and too many bytes: both refused before any
+        // component is looked at (each prefix of an existing path costs a walk
+        // of the whole prefix, and a manifest `src` can be a megabyte).
+        for rel in [
+            "a/".repeat(MAX_REL_COMPONENTS + 1),
+            "a/".repeat(15_000),
+            "a/".repeat(MAX_REL_LEN),
+        ] {
+            let err = resolve_inside(&dir, &rel).unwrap_err();
+            assert!(err.contains("too long"), "{} bytes: {err}", rel.len());
+        }
+        // At the limit it is an ordinary missing path.
+        let err = resolve_inside(&dir, &"a/".repeat(MAX_REL_COMPONENTS)).unwrap_err();
+        assert!(err.contains("not in this project"), "{err}");
+        // Many components that cancel out are many cheap steps, not depth.
+        assert_eq!(resolve_inside(&dir, &"a/../".repeat(6_000)).unwrap(), dir);
         assert!(
-            started.elapsed().as_secs() < 2,
+            started.elapsed().as_millis() < 500,
             "took {:?}",
             started.elapsed()
         );
+    }
+
+    #[test]
+    fn a_map_directory_that_comes_back_into_the_project_is_still_the_projects() {
+        // `../<project>/docs/map`: the `..` climbs out and the name comes
+        // back, which is the project's own directory - and a link in it is
+        // repository content like in any other spelling.
+        let outer = fresh_dir("docmap-reenter");
+        let project = outer.join("proj");
+        let map = project.join("docs").join("map");
+        fs::create_dir_all(&map).unwrap();
+        let outside = outer.join("secret.json");
+        fs::write(&outside, "{}").unwrap();
+        fs::write(map.join("module_map.json"), "{}").unwrap();
+        let root_str = portable(&project);
+        let root = PathBuf::from(&root_str);
+        let reentry = PathBuf::from(format!("{root_str}/../proj/docs/map"));
+        let plain = PathBuf::from(format!("{root_str}/docs/map"));
+        assert!(map_file(&root, &reentry, "module_map.json").is_some());
+        fs::remove_file(map.join("module_map.json")).unwrap();
+        if !file_link(&map.join("module_map.json"), &outside) {
+            eprintln!("SKIP: no privilege to create symlinks");
+            return;
+        }
+        assert!(map_file(&root, &plain, "module_map.json").is_none());
+        assert!(map_file(&root, &reentry, "module_map.json").is_none());
+    }
+
+    #[test]
+    fn a_linked_output_file_that_leaves_the_project_is_refused_too() {
+        let root = fresh_dir("docmap-refuse-file");
+        let map = root.join("docs").join("map");
+        fs::create_dir_all(&map).unwrap();
+        fs::write(root.join("inside.json"), "{}").unwrap();
+        let outside = root.with_file_name("docmap-refuse-file-outside.json");
+        fs::write(&outside, "{}").unwrap();
+        let root_str = portable(&root);
+        let flags = ProjectFlags::default();
+        assert!(refuse_linked_output(&root_str, &flags).is_ok());
+        if !file_link(&map.join("module_map.json"), &root.join("inside.json")) {
+            eprintln!("SKIP: no privilege to create symlinks");
+            return;
+        }
+        assert!(
+            refuse_linked_output(&root_str, &flags).is_ok(),
+            "a link that stays inside the project is fine"
+        );
+        assert!(file_link(&map.join("index.html"), &outside));
+        let err = refuse_linked_output(&root_str, &flags).unwrap_err();
+        assert!(err.contains("docs/map/index.html is a link"), "{err}");
+        // A link whose target is not there would be created by the engine.
+        fs::remove_file(map.join("index.html")).unwrap();
+        assert!(file_link(
+            &map.join("overview.md"),
+            &root.join("not-there.md")
+        ));
+        let err = refuse_linked_output(&root_str, &flags).unwrap_err();
+        assert!(err.contains("docs/map/overview.md is a link"), "{err}");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_link_target_with_a_root_and_no_drive_is_not_followed() {
+        // `\Device\Mup\<host>\...` is how the kernel's own redirector is
+        // spelled; written raw into the reparse data (an archive or image
+        // restore can) it is not relative to anything. Through the Win32 API
+        // it is stored relative to the link's drive, which is the same shape
+        // as far as `read_link` can tell: rooted, no prefix.
+        let dir = fresh_dir("docmap-rooted-target");
+        let target = format!(r"\Device\Mup\{}\share\x", crate::testutil::unc_host());
+        if std::os::windows::fs::symlink_file(&target, dir.join("g")).is_err() {
+            eprintln!("SKIP: no privilege to create symlinks");
+            return;
+        }
+        let err = resolve_inside(&dir, "g").unwrap_err();
+        assert!(err.contains("cannot be followed safely"), "{err}");
     }
 
     #[test]
@@ -3837,10 +3972,20 @@ mod tests {
 
     #[test]
     fn a_file_is_replaced_whole_and_leaves_no_temporary_behind() {
+        use std::io::Read;
         let dir = fresh_dir("docmap-atomic");
         let path = dir.join("workspace.json");
-        write_atomic(&path, "one").unwrap();
+        write_atomic(&path, "one-one-one").unwrap();
+        // A reader that has the file open when it is replaced keeps the old
+        // file whole: the replacement is a new file swapped in, not the old one
+        // truncated and written again (which is what `fs::write` does, and what
+        // lets a concurrent read see half a list).
+        let mut held = fs::File::open(&path).unwrap();
         write_atomic(&path, "two").unwrap();
+        let mut old = String::new();
+        held.read_to_string(&mut old).unwrap();
+        assert_eq!(old, "one-one-one");
+        drop(held);
         assert_eq!(fs::read_to_string(&path).unwrap(), "two");
         let names: Vec<_> = fs::read_dir(&dir)
             .unwrap()
@@ -3855,24 +4000,26 @@ mod tests {
     fn a_folder_listing_does_not_follow_a_link_to_another_machine() {
         let root = fresh_dir("docmap-subdirs-unc");
         fs::create_dir_all(root.join("real").join("sub")).unwrap();
-        // A `.git` that is a link: looked at, not followed. Distinct hosts, as
-        // above.
-        if std::os::windows::fs::symlink_dir(r"\\198.51.100.141\share", root.join("vendor"))
-            .is_err()
-            || std::os::windows::fs::symlink_dir(
-                r"\\198.51.100.142\share",
-                root.join("real").join("sub").join(".git"),
-            )
-            .is_err()
-        {
-            eprintln!("SKIP: no privilege to create symlinks");
-            return;
+        // A link as an entry, and a `.git` that is a link both in the listed
+        // folder and one level down: looked at, not followed. A host each, and
+        // new ones every run, as above.
+        let share = || format!(r"\\{}\share", crate::testutil::unc_host());
+        let links = [
+            root.join("vendor"),
+            root.join("real").join(".git"),
+            root.join("real").join("sub").join(".git"),
+        ];
+        for link in &links {
+            if std::os::windows::fs::symlink_dir(share(), link).is_err() {
+                eprintln!("SKIP: no privilege to create symlinks");
+                return;
+            }
         }
         let started = std::time::Instant::now();
         let found = list_subdirs(&root).unwrap();
         let names: Vec<_> = found.iter().map(|f| f.0.as_str()).collect();
         assert_eq!(names, ["real"], "the link to a share is not a folder");
-        assert!(!found[0].2, "real/ has no .git of its own");
+        assert!(found[0].2, "real/ has a .git entry, a link or not");
         // One level down the walks ask the same question of every directory.
         assert!(crate::languages::is_nested_checkout(
             &root.join("real").join("sub")
@@ -3881,6 +4028,62 @@ mod tests {
             started.elapsed().as_secs() < 3,
             "it must not wait for a host"
         );
+    }
+
+    #[test]
+    fn a_git_entry_counts_whatever_it_is_and_is_never_followed() {
+        // No host and no privilege needed: a link whose target is gone is
+        // enough to tell a look from a follow (`exists()` says no).
+        let root = fresh_dir("docmap-git-entry");
+        let gone = root.join("gone");
+        fs::create_dir_all(&gone).unwrap();
+        fs::create_dir_all(root.join("dangling")).unwrap();
+        fs::create_dir_all(root.join("dir").join(".git")).unwrap();
+        fs::create_dir_all(root.join("file")).unwrap();
+        fs::write(root.join("file").join(".git"), "gitdir: ../x").unwrap();
+        fs::create_dir_all(root.join("none")).unwrap();
+        assert!(dir_link(&root.join("dangling").join(".git"), &gone));
+        fs::remove_dir_all(&gone).unwrap();
+
+        let found = list_subdirs(&root).unwrap();
+        let seen: Vec<_> = found.iter().map(|f| (f.0.as_str(), f.2)).collect();
+        assert_eq!(
+            seen,
+            [
+                ("dangling", true),
+                ("dir", true),
+                ("file", true),
+                ("none", false)
+            ]
+        );
+        assert!(crate::languages::is_nested_checkout(&root.join("dangling")));
+        assert!(!crate::languages::is_nested_checkout(&root.join("none")));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_name_win32_rewrites_is_neither_listed_nor_entered() {
+        // `evil.` is a real directory (made through the verbatim root, which
+        // keeps its dot) beside a junction `evil`. Opened by a path without
+        // the verbatim prefix - which is what a stored project root is -
+        // Win32 reads `evil.` as `evil`, and everything done to the entry
+        // goes through the junction.
+        let root = fresh_dir("docmap-rewritten-name");
+        let elsewhere = fresh_dir("docmap-rewritten-name-target");
+        fs::create_dir_all(root.join("evil.")).unwrap();
+        fs::create_dir_all(root.join("plain")).unwrap();
+        assert!(dir_link(&root.join("evil"), &elsewhere));
+        let stored = PathBuf::from(portable(&root));
+
+        let found = list_subdirs(&stored).unwrap();
+        let names: Vec<_> = found.iter().map(|f| f.0.as_str()).collect();
+        assert_eq!(
+            names,
+            ["evil", "plain"],
+            "only the junction by its own name"
+        );
+        assert!(crate::languages::is_nested_checkout(&stored.join("evil.")));
+        assert!(!crate::languages::is_nested_checkout(&stored.join("plain")));
     }
 
     #[test]
