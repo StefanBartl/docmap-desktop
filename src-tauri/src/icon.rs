@@ -60,7 +60,11 @@ fn readable_file(p: &Path) -> bool {
 /// particular, and a 16px entry is a favicon while a 512px one is the icon
 /// the project means when it says icon.
 ///
-/// `root` is the canonical project root and `manifest` a file under it. Every
+/// `root` is the canonical project root, `manifest` the (resolved) file to read
+/// and `dir_rel` the directory the manifest is *found* in, relative to the root.
+/// A relative `src` is looked up against where the manifest is found — a
+/// browser resolves it against the manifest's own URL — not against where a
+/// symlinked manifest happens to point. Every
 /// `src` is **untrusted text from the repository**: `Path::join` replaces its
 /// base when the right-hand side is absolute, so a `src` of `\\host\share\a.png`
 /// made Windows contact that host just to ask whether the file exists, and a
@@ -68,11 +72,11 @@ fn readable_file(p: &Path) -> bool {
 /// protocol) any file on disk. It is therefore resolved with
 /// [`crate::resolve_inside`], which refuses such shapes before touching the
 /// disk and requires the result to stay inside the project.
-fn from_manifest(root: &Path, manifest: &Path) -> Option<PathBuf> {
+fn from_manifest(root: &Path, manifest: &Path, dir_rel: &str) -> Option<PathBuf> {
     let body = safe_read::read_text(manifest, 1 << 20, false)?;
     let v: serde_json::Value = serde_json::from_str(&body).ok()?;
     let icons = v.get("icons")?.as_array()?;
-    let dir_rel = manifest.parent()?.strip_prefix(root).ok()?.to_path_buf();
+    let dir_rel = Path::new(dir_rel);
 
     let mut best: Option<(u64, PathBuf)> = None;
     for icon in icons {
@@ -113,16 +117,25 @@ fn from_manifest(root: &Path, manifest: &Path) -> Option<PathBuf> {
 /// For icon sets that encode the size in the filename in a dozen different
 /// ways (`ic_launcher.png` in `mipmap-xxxhdpi/`, `Icon-App-60x60@3x.png`),
 /// bytes are the one comparison that needs no parser.
-fn largest_png(dir: &Path) -> Option<PathBuf> {
+///
+/// Each candidate is resolved like every other probe — a link that stays in
+/// the project is followed, one that leaves it (or reaches another machine)
+/// is not — and the size is the resolved file's, not the link's.
+fn largest_png(root: &Path, rel_dir: &str, dir: &Path) -> Option<PathBuf> {
     let mut best: Option<(u64, PathBuf)> = None;
     for entry in fs::read_dir(dir).ok()?.flatten() {
-        let p = entry.path();
-        if p.extension().and_then(|e| e.to_str()) != Some("png") || !is_plain_file(&entry) {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if Path::new(&name).extension().and_then(|e| e.to_str()) != Some("png") {
             continue;
         }
-        let size = entry.metadata().ok()?.len();
-        if best.as_ref().is_none_or(|(b, _)| size > *b) {
-            best = Some((size, p));
+        let Some(p) = inside(root, &format!("{rel_dir}/{name}")) else {
+            continue;
+        };
+        let Ok(meta) = fs::metadata(&p) else {
+            continue;
+        };
+        if meta.is_file() && best.as_ref().is_none_or(|(b, _)| meta.len() > *b) {
+            best = Some((meta.len(), p));
         }
     }
     best.map(|(_, p)| p)
@@ -147,11 +160,6 @@ fn join_rel(dir: &str, name: &str) -> String {
     }
 }
 
-/// Is this directory entry a plain file — not a link to somewhere else?
-fn is_plain_file(entry: &fs::DirEntry) -> bool {
-    entry.file_type().map(|t| t.is_file()).unwrap_or(false)
-}
-
 /// Look for an icon under `root`. `None` is the common and correct answer.
 pub fn find(root: &Path) -> Option<PathBuf> {
     // Canonical, so what a manifest names can be checked against it.
@@ -170,7 +178,7 @@ pub fn find(root: &Path) -> Option<PathBuf> {
                 continue;
             };
             if m.is_file() {
-                if let Some(icon) = from_manifest(root, &m) {
+                if let Some(icon) = from_manifest(root, &m, if *dir == "." { "" } else { dir }) {
                     return Some(icon);
                 }
             }
@@ -225,11 +233,12 @@ pub fn find(root: &Path) -> Option<PathBuf> {
         "ios/Assets.xcassets",
         "Resources/Assets.xcassets",
     ] {
-        let Some(dir) = inside(root, &format!("{assets}/AppIcon.appiconset")) else {
+        let rel_dir = format!("{assets}/AppIcon.appiconset");
+        let Some(dir) = inside(root, &rel_dir) else {
             continue;
         };
         if dir.is_dir() {
-            if let Some(p) = largest_png(&dir) {
+            if let Some(p) = largest_png(root, &rel_dir, &dir) {
                 return Some(p);
             }
         }
@@ -411,6 +420,47 @@ mod tests {
         fs::create_dir_all(&project).unwrap();
         std::os::unix::fs::symlink(outer.join("private.png"), project.join("favicon.png")).unwrap();
         assert_eq!(find(&project), None);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_symlinked_manifest_resolves_its_src_where_it_is_found() {
+        // public/manifest.json is a link to config/manifest.json; its relative
+        // `src` means public/logo.png, as a browser reads it.
+        let root = tmp("manifestlink");
+        write(&root.join("public/logo.png"), b"big");
+        write(
+            &root.join("config/manifest.json"),
+            br#"{"icons":[{"src":"logo.png","sizes":"512x512"}]}"#,
+        );
+        std::os::unix::fs::symlink(
+            root.join("config/manifest.json"),
+            root.join("public/manifest.json"),
+        )
+        .unwrap();
+        assert_eq!(find(&root).unwrap(), canon(root.join("public/logo.png")));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn an_ios_icon_that_links_inside_the_project_is_found_and_one_that_leaves_is_not() {
+        let outer = tmp("iosicon");
+        let project = outer.join("project");
+        let set = project.join("Assets.xcassets/AppIcon.appiconset");
+        write(&project.join("shared/Icon-1024.png"), b"inside-and-larger");
+        write(&outer.join("private.png"), b"outside-and-even-larger-bytes");
+        write(&set.join("Icon-60.png"), b"s");
+        std::os::unix::fs::symlink(
+            project.join("shared/Icon-1024.png"),
+            set.join("Icon-1024.png"),
+        )
+        .unwrap();
+        std::os::unix::fs::symlink(outer.join("private.png"), set.join("Leak.png")).unwrap();
+        // The in-project link wins on size; the one that leaves is ignored.
+        assert_eq!(
+            find(&project).unwrap(),
+            canon(project.join("shared/Icon-1024.png"))
+        );
     }
 
     #[test]

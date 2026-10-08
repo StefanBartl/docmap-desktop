@@ -130,11 +130,10 @@ fn safe_static_name(name: &str) -> Option<&str> {
 /// * **The resolved file stays inside the map directory.** A symlink that git
 ///   checked out as `docs/map/leak -> ~/.ssh/id_rsa` resolves outside and is
 ///   refused, and so is a junction or a link to a device.
-/// * **The map directory is what it says it is.** It lies inside the project,
-///   so it is repository content too: `docs/map` checked out as a link to `..`
+/// * **The map directory is what it says it is** — see
+///   [`crate::map_dir_is_plain`]: `docs/map` checked out as a link to `..`
 ///   would make "inside the map directory" mean "anywhere in the repository",
-///   `.env` included. No component between the project root and the map
-///   directory may be a link.
+///   `.env` included.
 fn servable_file(root: &Path, map_dir: &Path, name: &str) -> Option<PathBuf> {
     let mut parts = Path::new(name).components();
     if !matches!(
@@ -146,24 +145,8 @@ fn servable_file(root: &Path, map_dir: &Path, name: &str) -> Option<PathBuf> {
     if name.contains(':') || name.contains('\0') {
         return None;
     }
-    if let Ok(rel) = map_dir.strip_prefix(root) {
-        let mut walked = std::fs::canonicalize(root).ok()?;
-        for part in rel.components() {
-            match part {
-                Component::Normal(n) => walked.push(n),
-                Component::CurDir => continue,
-                _ => return None,
-            }
-            // `symlink_metadata` does not follow, and reports a Windows
-            // junction as a link as well.
-            if std::fs::symlink_metadata(&walked)
-                .ok()?
-                .file_type()
-                .is_symlink()
-            {
-                return None;
-            }
-        }
+    if !crate::map_dir_is_plain(root, map_dir) {
+        return None;
     }
     let base = std::fs::canonicalize(map_dir).ok()?;
     let file = std::fs::canonicalize(base.join(name)).ok()?;
@@ -522,6 +505,40 @@ mod tests {
         fs::write(outside.join("secret"), "s").unwrap();
         std::os::unix::fs::symlink(outside.join("secret"), map.join("leak")).unwrap();
         assert!(servable_file(&root, &map, "leak").is_none());
+    }
+
+    #[test]
+    fn a_map_directory_outside_the_project_is_still_served() {
+        // `../maps`, as the Map directory field keeps it.
+        let outer = tmp("outside");
+        let proj = outer.join("proj");
+        fs::create_dir_all(&proj).unwrap();
+        fs::create_dir_all(outer.join("maps")).unwrap();
+        fs::write(outer.join("maps/index.html"), "x").unwrap();
+        assert!(servable_file(&proj, &proj.join("../maps"), "index.html").is_some());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_junction_as_the_map_directory_is_not_served_from() {
+        // A junction needs no privilege, unlike a symlink: this runs wherever
+        // the tests do.
+        let root = tmp("junction");
+        fs::create_dir_all(root.join("docs")).unwrap();
+        fs::write(root.join(".env"), "SECRET=1").unwrap();
+        // Joined component by component: `mklink` reads a `/` as a switch.
+        let made = std::process::Command::new("cmd")
+            .args(["/C", "mklink", "/J"])
+            .arg(root.join("docs").join("map"))
+            .arg(&root)
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false);
+        if !made {
+            eprintln!("SKIP: could not create a junction");
+            return;
+        }
+        assert!(servable_file(&root, &root.join("docs").join("map"), ".env").is_none());
     }
 
     #[cfg(unix)]

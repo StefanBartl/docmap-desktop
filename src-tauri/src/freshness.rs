@@ -172,6 +172,10 @@ pub fn changed_since_map(root: &Path, map_dir: &Path, limit: usize) -> Result<Ch
     if !root.is_dir() {
         return Err(format!("{} is not a directory", root.display()));
     }
+    // A linked map directory is read as no map: see `map_dir_is_plain`.
+    if !crate::map_dir_is_plain(root, map_dir) {
+        return Ok(Changes::default());
+    }
     let Some(map_time) = mtime(&map_dir.join("module_map.json")) else {
         return Ok(Changes::default());
     };
@@ -212,6 +216,14 @@ pub fn changed_since_map(root: &Path, map_dir: &Path, limit: usize) -> Result<Ch
 pub fn check(root: &Path, map_dir: &Path) -> Result<Freshness, String> {
     if !root.is_dir() {
         return Err(format!("{} is not a directory", root.display()));
+    }
+    // `docs/map` is repository content; checked out as a link it would be
+    // statted wherever it points (a share, for every project in the sidebar).
+    if !crate::map_dir_is_plain(root, map_dir) {
+        return Ok(Freshness {
+            has_map: false,
+            ..Default::default()
+        });
     }
 
     // `module_map.json` rather than `index.html`: both are written by the

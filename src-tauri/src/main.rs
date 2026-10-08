@@ -1006,9 +1006,21 @@ struct MapStatus {
 /// of it. Reading the rendering to recover the data it was rendered from is
 /// the kind of shortcut that breaks the first time the page changes.
 #[tauri::command]
-fn map_status(map_dir: String) -> MapStatus {
+fn map_status(app: tauri::AppHandle, map_dir: String) -> MapStatus {
     let index = format!("{map_dir}/index.html");
-    let exists = Path::new(&index).is_file();
+    // The map directory is repository content: see `map_dir_is_plain`. Looked
+    // up by its path because the page asks by directory; a directory that
+    // belongs to no project (a folder being previewed) has no root to check.
+    let plain = read_workspace(&app)
+        .ok()
+        .and_then(|ws| {
+            ws.projects
+                .iter()
+                .find(|p| p.map_dir == map_dir)
+                .map(|p| map_dir_is_plain(Path::new(&p.root), Path::new(&p.map_dir)))
+        })
+        .unwrap_or(true);
+    let exists = plain && Path::new(&index).is_file();
     let mut modules = None;
     let mut files = None;
     let mut namespaces = None;
@@ -2272,6 +2284,13 @@ pub(crate) fn resolve_inside(root: &Path, rel: &str) -> Result<PathBuf, String> 
                 depth -= 1;
             }
             Component::Normal(name) => {
+                // `push` re-parses its argument: `C:l.png` has a drive prefix,
+                // so it *replaces* everything pushed so far, and what is then
+                // examined is a drive-relative path against the process's
+                // current directory, not a path under the root.
+                if reparsed_by_push(name) {
+                    return Err(format!("{rel} is not a path inside the project"));
+                }
                 clean.push(name);
                 depth += 1;
             }
@@ -2280,9 +2299,25 @@ pub(crate) fn resolve_inside(root: &Path, rel: &str) -> Result<PathBuf, String> 
             }
         }
     }
+    // Whatever else went wrong above, nothing past this point looks at a path
+    // that is not under the root.
+    if !clean.starts_with(root) {
+        return Err(format!("{rel} resolves outside the project"));
+    }
     #[cfg(windows)]
-    if links_to_network(&clean, root.components().count(), &mut 16) {
-        return Err(format!("{rel} goes through a link to another machine"));
+    match links_to_network(&clean, root.components().count(), &mut 16) {
+        LinkWalk::Local => {}
+        LinkWalk::Network => return Err(format!("{rel} goes through a link to another machine")),
+        LinkWalk::TooDeep => {
+            return Err(format!(
+                "{rel} goes through too many links (or a link loop)"
+            ))
+        }
+        LinkWalk::Unusable => {
+            return Err(format!(
+                "{rel} goes through a link that cannot be followed safely"
+            ))
+        }
     }
     let target = fs::canonicalize(&clean).map_err(|_| format!("{rel} is not in this project"))?;
     if !target.starts_with(root) {
@@ -2291,9 +2326,82 @@ pub(crate) fn resolve_inside(root: &Path, rel: &str) -> Result<PathBuf, String> 
     Ok(target)
 }
 
+/// Would `PathBuf::push(name)` treat this one component as more than a name?
+///
+/// On Windows `C:x` is a drive-relative path and replaces the buffer; `a:b` is
+/// also an NTFS stream spelling, and no file name contains a colon there. On
+/// other systems a component is always just a name.
+fn reparsed_by_push(name: &std::ffi::OsStr) -> bool {
+    (cfg!(windows) && name.to_string_lossy().contains(':'))
+        || Path::new(name).components().next() != Some(Component::Normal(name))
+}
+
+/// Is the map directory a plain directory on the way from the project root?
+///
+/// `docs/map` lies inside the project, so it is repository content: checked
+/// out as a link it makes every reader of "the map" read somewhere else — a
+/// share (`map_freshness` stats it for every project at start-up), the
+/// repository root (`.env` next to a served `index.html`), a home directory.
+/// No component between the root and the map directory may be a link, and none
+/// is followed to find out (`symlink_metadata` does not, and reports a Windows
+/// junction as a link too).
+///
+/// A map directory that is not under the root (`../maps`, set by the user in
+/// Project settings) is not repository content and is left alone; `..` in it is
+/// walked as the OS does, and only the part inside the root is inspected.
+/// Nothing there yet is fine: there is nothing to read.
+pub(crate) fn map_dir_is_plain(root: &Path, map_dir: &Path) -> bool {
+    let Ok(rel) = map_dir.strip_prefix(root) else {
+        return true;
+    };
+    let Ok(canon_root) = fs::canonicalize(root) else {
+        return false;
+    };
+    let mut walked = canon_root.clone();
+    for part in rel.components() {
+        match part {
+            Component::Normal(name) => {
+                if reparsed_by_push(name) {
+                    return false;
+                }
+                walked.push(name);
+            }
+            Component::CurDir => continue,
+            Component::ParentDir => {
+                walked.pop();
+                continue;
+            }
+            _ => return false,
+        }
+        if !walked.starts_with(&canon_root) {
+            continue;
+        }
+        match fs::symlink_metadata(&walked) {
+            Ok(meta) if meta.file_type().is_symlink() => return false,
+            Ok(_) => {}
+            Err(_) => return true,
+        }
+    }
+    true
+}
+
+/// What a walk along a path found out about the links on it.
+#[cfg(windows)]
+#[derive(Debug, PartialEq, Eq)]
+enum LinkWalk {
+    /// No link on the path leads off this machine.
+    Local,
+    /// A link leads to another machine (a share, a device namespace).
+    Network,
+    /// More links than any real path has, or a loop.
+    TooDeep,
+    /// A link whose target could not be read, or a component `push` would
+    /// misread: not followed, because nothing can be said about it.
+    Unusable,
+}
+
 /// Does `path` — walked from its start, component by component — go through a
-/// symlink or junction whose target is on another machine (`\\host\share`,
-/// `\\?\UNC\...`, a device namespace)?
+/// symlink or junction whose target is on another machine?
 ///
 /// The shape check refuses a UNC *string*; a link checked out inside the
 /// project that points at one passes it, and `canonicalize` would connect to
@@ -2302,14 +2410,20 @@ pub(crate) fn resolve_inside(root: &Path, rel: &str) -> Result<PathBuf, String> 
 /// everything before it has been shown not to be such a link — nothing is
 /// followed until it has been vetted.
 ///
+/// **A link target is local only if it provably is.** `read_link` hands back
+/// every NT-style target as a verbatim path — `\\.\GLOBALROOT\Device\Mup\host`
+/// reads as `\\?\GLOBALROOT\...` and `\\.\pipe\x` as `\\?\pipe\x` — so a list of
+/// the *remote* spellings (UNC, device namespace) misses the ones that reach a
+/// share through the kernel's own redirector. A drive (`C:`, `\\?\C:`) or a
+/// volume mount point (`\\?\Volume{...}`) is local; any other prefix is not.
+///
 /// When a component *is* a link, what remains of the path continues from the
 /// link's target, and that whole path is walked the same way (a link whose
 /// target passes through another link is the case a single look at the last
-/// component misses). `budget` is shared across the chain and running out
-/// counts as "yes": a loop is not a path anybody needs. The first `skip`
+/// component misses). `budget` is shared across the chain. The first `skip`
 /// components are not inspected — the canonical project root has no links.
 #[cfg(windows)]
-fn links_to_network(path: &Path, skip: usize, budget: &mut u8) -> bool {
+fn links_to_network(path: &Path, skip: usize, budget: &mut u8) -> LinkWalk {
     use std::path::Prefix;
 
     let parts: Vec<Component> = path.components().collect();
@@ -2329,7 +2443,12 @@ fn links_to_network(path: &Path, skip: usize, budget: &mut u8) -> bool {
                 walked.push(part.as_os_str());
                 continue;
             }
-            Component::Normal(_) => walked.push(part.as_os_str()),
+            Component::Normal(name) => {
+                if reparsed_by_push(name) {
+                    return LinkWalk::Unusable;
+                }
+                walked.push(name);
+            }
         }
         if i < skip {
             continue;
@@ -2337,24 +2456,29 @@ fn links_to_network(path: &Path, skip: usize, budget: &mut u8) -> bool {
         // Not there: `canonicalize` will say so, and nothing past it can be
         // reached.
         let Ok(meta) = fs::symlink_metadata(&walked) else {
-            return false;
+            return LinkWalk::Local;
         };
         if !meta.file_type().is_symlink() {
             continue;
         }
         if *budget == 0 {
-            return true;
+            return LinkWalk::TooDeep;
         }
         *budget -= 1;
         let Ok(target) = fs::read_link(&walked) else {
-            return false;
+            return LinkWalk::Unusable;
         };
         if let Some(Component::Prefix(p)) = target.components().next() {
-            if matches!(
-                p.kind(),
-                Prefix::UNC(..) | Prefix::VerbatimUNC(..) | Prefix::DeviceNS(_)
-            ) {
-                return true;
+            let local = match p.kind() {
+                Prefix::Disk(_) | Prefix::VerbatimDisk(_) => true,
+                Prefix::Verbatim(name) => name
+                    .to_string_lossy()
+                    .to_ascii_lowercase()
+                    .starts_with("volume{"),
+                _ => false,
+            };
+            if !local {
+                return LinkWalk::Network;
             }
         }
         let base = if target.is_absolute() {
@@ -2365,7 +2489,7 @@ fn links_to_network(path: &Path, skip: usize, budget: &mut u8) -> bool {
         let rest: PathBuf = parts[i + 1..].iter().collect();
         return links_to_network(&base.join(rest), 0, budget);
     }
-    false
+    LinkWalk::Local
 }
 
 /// A path as the desktop's own tools want it: the platform's separators and
@@ -2841,8 +2965,12 @@ async fn project_search(
     let scope = resolve_inside(&root, sub.trim_matches('/'))?;
     // The map directory, canonicalised the same way, so the comparison the
     // walk makes is between paths of one shape.
-    let map_dir =
-        fs::canonicalize(&project.map_dir).unwrap_or_else(|_| PathBuf::from(&project.map_dir));
+    // Not even canonicalised when it is a link: that would follow it.
+    let map_dir = if map_dir_is_plain(Path::new(&project.root), Path::new(&project.map_dir)) {
+        fs::canonicalize(&project.map_dir).unwrap_or_else(|_| PathBuf::from(&project.map_dir))
+    } else {
+        PathBuf::new()
+    };
 
     tauri::async_runtime::spawn_blocking(move || {
         search::run(&root, &scope, &map_dir, &query, mode, case_sensitive, 300)
@@ -2864,6 +2992,9 @@ fn view_search(
         .iter()
         .find(|p| p.id == id)
         .ok_or_else(|| format!("no such project: {id}"))?;
+    if !map_dir_is_plain(Path::new(&project.root), Path::new(&project.map_dir)) {
+        return Ok(search::ViewResults::default());
+    }
     search::view(Path::new(&project.map_dir), &query, 200)
 }
 
@@ -2885,7 +3016,19 @@ fn workspace_deps(app: tauri::AppHandle) -> Result<deps::Deps, String> {
     let list: Vec<(String, String)> = ws
         .projects
         .iter()
-        .map(|p| (p.id.clone(), p.map_dir.clone()))
+        .map(|p| {
+            // A linked map directory is read as no map at all (the project is
+            // then listed as unread rather than silently missing).
+            let plain = map_dir_is_plain(Path::new(&p.root), Path::new(&p.map_dir));
+            (
+                p.id.clone(),
+                if plain {
+                    p.map_dir.clone()
+                } else {
+                    String::new()
+                },
+            )
+        })
         .collect();
     Ok(deps::resolve(&list))
 }
@@ -3307,6 +3450,7 @@ mod tests {
         // is nothing to test here.
         if std::os::windows::fs::symlink_file(r"\\192.0.2.1\share\x.md", dir.join("l.md")).is_err()
         {
+            eprintln!("SKIP: no privilege to create symlinks");
             return;
         }
         let started = std::time::Instant::now();
@@ -3320,6 +3464,149 @@ mod tests {
             started.elapsed().as_secs() < 3,
             "it must not wait for the host"
         );
+    }
+
+    /// A directory link: a symlink on Unix, a junction on Windows (which needs
+    /// no privilege). `false` when it could not be made.
+    fn dir_link(link: &Path, target: &Path) -> bool {
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(target, link).is_ok()
+        }
+        #[cfg(windows)]
+        {
+            std::process::Command::new("cmd")
+                .args(["/C", "mklink", "/J"])
+                .arg(link)
+                .arg(target)
+                .output()
+                .map(|o| o.status.success())
+                .unwrap_or(false)
+        }
+    }
+
+    fn fresh_dir(name: &str) -> PathBuf {
+        let root = fs::canonicalize(std::env::temp_dir()).unwrap();
+        let dir = root.join(name);
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        fs::canonicalize(&dir).unwrap()
+    }
+
+    #[test]
+    fn a_map_directory_that_is_a_link_is_not_plain() {
+        let root = fresh_dir("docmap-plain-map");
+        fs::create_dir_all(root.join("docs")).unwrap();
+        fs::create_dir_all(root.join("real")).unwrap();
+        assert!(
+            map_dir_is_plain(&root, &root.join("docs/map")),
+            "not there yet is fine"
+        );
+        fs::create_dir_all(root.join("docs/map")).unwrap();
+        assert!(map_dir_is_plain(&root, &root.join("docs/map")));
+        fs::remove_dir_all(root.join("docs/map")).unwrap();
+        if !dir_link(&root.join("docs/map"), &root.join("real")) {
+            eprintln!("SKIP: could not create a directory link");
+            return;
+        }
+        assert!(!map_dir_is_plain(&root, &root.join("docs/map")));
+        // The link may be higher up, too.
+        fs::remove_dir_all(root.join("docs")).ok();
+        let _ = fs::remove_file(root.join("docs"));
+        if dir_link(&root.join("docs"), &root.join("real")) {
+            assert!(!map_dir_is_plain(&root, &root.join("docs/map")));
+        }
+    }
+
+    #[test]
+    fn a_map_directory_outside_the_project_is_the_users_own_choice() {
+        let outer = fresh_dir("docmap-outside-map");
+        let project = outer.join("proj");
+        fs::create_dir_all(&project).unwrap();
+        fs::create_dir_all(outer.join("maps")).unwrap();
+        // `../maps`, as the Map directory field keeps it: `..` is walked the
+        // way the OS does, and only what is inside the root is inspected.
+        assert!(map_dir_is_plain(&project, &project.join("../maps")));
+        assert!(map_dir_is_plain(&project, &outer.join("elsewhere/maps")));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_component_that_would_replace_the_path_is_refused_on_its_shape() {
+        // `x/C:f.txt` used to reach `push("C:f.txt")`, which replaces the whole
+        // buffer, and the link walk then looked at nothing.
+        let dir = fresh_dir("docmap-colon");
+        let shape = |rel: &str| resolve_inside(&dir, rel).unwrap_err();
+        for rel in [
+            "x/C:f.txt",
+            "./C:f.txt",
+            "a/../C:f.txt",
+            "docs/c:",
+            "a/C:..",
+            "a.txt:stream",
+        ] {
+            assert!(
+                shape(rel).contains("not a path inside the project"),
+                "{rel}"
+            );
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_link_to_the_kernels_unc_redirector_is_refused_whatever_it_is_spelled() {
+        // `read_link` returns these as verbatim paths, so they are not UNC or
+        // device-namespace prefixes to Rust: they have to be refused for not
+        // being a drive.
+        let dir = fresh_dir("docmap-nt-namespace");
+        let targets = [
+            r"\\?\GLOBALROOT\Device\Mup",
+            r"\\.\GLOBALROOT\Device\Mup",
+            r"\\?\Global\UNC\h.invalid\share",
+            r"\\.\pipe\x",
+        ];
+        for (i, target) in targets.iter().enumerate() {
+            if std::os::windows::fs::symlink_dir(target, dir.join(format!("g{i}"))).is_err() {
+                eprintln!("SKIP: no privilege to create symlinks");
+                return;
+            }
+        }
+        let started = std::time::Instant::now();
+        for (i, target) in targets.iter().enumerate() {
+            let err = resolve_inside(&dir, &format!("g{i}/x")).unwrap_err();
+            assert!(err.contains("link to another machine"), "{target}: {err}");
+        }
+        assert!(
+            started.elapsed().as_secs() < 3,
+            "it must not wait for a host"
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_link_loop_and_a_local_link_are_told_apart_from_a_remote_one() {
+        let dir = fresh_dir("docmap-loop");
+        fs::create_dir_all(dir.join("real")).unwrap();
+        fs::write(dir.join("real/f.txt"), "x").unwrap();
+        // A junction to a directory inside the project resolves.
+        if !dir_link(&dir.join("d"), &dir.join("real")) {
+            eprintln!("SKIP: could not create a directory link");
+            return;
+        }
+        assert_eq!(
+            resolve_inside(&dir, "d/f.txt").unwrap(),
+            dir.join("real/f.txt")
+        );
+        // A loop is refused, and not blamed on another machine.
+        if std::os::windows::fs::symlink_dir("b", dir.join("a")).is_err()
+            || std::os::windows::fs::symlink_dir("a", dir.join("b")).is_err()
+        {
+            eprintln!("SKIP: no privilege to create symlinks");
+            return;
+        }
+        let err = resolve_inside(&dir, "a/x").unwrap_err();
+        assert!(err.contains("too many links"), "{err}");
+        assert!(!err.contains("another machine"), "{err}");
     }
 
     #[cfg(windows)]
