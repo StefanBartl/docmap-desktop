@@ -72,7 +72,20 @@ fn readable_file(p: &Path) -> bool {
 /// protocol) any file on disk. It is therefore resolved with
 /// [`crate::resolve_inside`], which refuses such shapes before touching the
 /// disk and requires the result to stay inside the project.
-fn from_manifest(root: &Path, manifest: &Path, dir_rel: &str) -> Option<PathBuf> {
+///
+/// `entries` is what is left of the budget of `src` values to resolve in all
+/// the manifests of this `find`: a manifest can hold some seventy thousand of
+/// them, `find` looks at up to twenty-one manifests, and each costs a walk and
+/// a `canonicalize`. A real manifest lists a handful of icons.
+fn from_manifest(
+    root: &Path,
+    manifest: &Path,
+    dir_rel: &str,
+    entries: &mut usize,
+) -> Option<PathBuf> {
+    if *entries == 0 {
+        return None;
+    }
     let body = safe_read::read_text(manifest, 1 << 20, false)?;
     let v: serde_json::Value = serde_json::from_str(&body).ok()?;
     let icons = v.get("icons")?.as_array()?;
@@ -83,6 +96,10 @@ fn from_manifest(root: &Path, manifest: &Path, dir_rel: &str) -> Option<PathBuf>
         let Some(src) = icon.get("src").and_then(|s| s.as_str()) else {
             continue;
         };
+        if *entries == 0 {
+            break;
+        }
+        *entries -= 1;
         // `sizes` is "48x48" or "48x48 96x96" or "any"; take the first
         // number it offers and treat "any" (an SVG) as larger than any
         // raster, because it is.
@@ -216,6 +233,8 @@ pub fn find(root: &Path) -> Option<PathBuf> {
     let root = root.as_path();
     // Links the directory scans below may resolve, in all: see `probe`.
     let mut links = MAX_LINKS;
+    // Manifest `src` values to resolve, in all the manifests: see `from_manifest`.
+    let mut manifest_entries = MAX_ENTRIES;
     // 1 & 2 & 3: the web conventions, per static root.
     for dir in WEB_ROOTS {
         let Some(base) = inside(root, if *dir == "." { "" } else { dir }) else {
@@ -229,7 +248,8 @@ pub fn find(root: &Path) -> Option<PathBuf> {
                 continue;
             };
             if m.is_file() {
-                if let Some(icon) = from_manifest(root, &m, if *dir == "." { "" } else { dir }) {
+                let dir_rel = if *dir == "." { "" } else { dir };
+                if let Some(icon) = from_manifest(root, &m, dir_rel, &mut manifest_entries) {
                     return Some(icon);
                 }
             }
@@ -547,6 +567,58 @@ mod tests {
     }
 
     #[test]
+    fn links_in_an_icon_set_are_resolved_within_a_budget() {
+        let root = canon(tmp("linkbudget"));
+        let rel = "Assets.xcassets/AppIcon.appiconset";
+        write(&root.join(rel).join("plain.png"), b"p");
+        write(&root.join("big.png"), b"the-linked-one-is-larger");
+        if !crate::testutil::file_link(&root.join(rel).join("l0.png"), &root.join("big.png")) {
+            eprintln!("SKIP: no privilege to create symlinks");
+            return;
+        }
+        for i in 1..(MAX_LINKS + 8) {
+            assert!(crate::testutil::file_link(
+                &root.join(rel).join(format!("l{i}.png")),
+                &root.join("big.png")
+            ));
+        }
+        let mut links = MAX_LINKS;
+        let found = largest_png(&root, rel, &root.join(rel), &mut links).unwrap();
+        // More links than the budget: it is spent, not exceeded, and the call
+        // still answers (with the linked file, the larger of what it saw).
+        assert_eq!(links, 0);
+        assert_eq!(found, root.join("big.png"));
+        // With nothing left, only plain files are considered.
+        let mut none = 0;
+        let found = largest_png(&root, rel, &root.join(rel), &mut none).unwrap();
+        assert_eq!(found, root.join(rel).join("plain.png"));
+    }
+
+    #[test]
+    fn a_manifest_is_read_for_a_limited_number_of_icons_in_all() {
+        let root = tmp("manifestcap");
+        write(&root.join("logo.png"), b"png");
+        let missing =
+            (0..MAX_ENTRIES).map(|i| serde_json::json!({"src": format!("missing{i}.png")}));
+        let at = |first: bool| {
+            let mut icons: Vec<_> = missing.clone().collect();
+            let logo = serde_json::json!({"src": "logo.png", "sizes": "512x512"});
+            if first {
+                icons.insert(0, logo);
+            } else {
+                icons.push(logo);
+            }
+            serde_json::json!({ "icons": icons }).to_string()
+        };
+        write(&root.join("manifest.json"), at(false).as_bytes());
+        // The 257th entry is past what is looked at: no icon, and no time
+        // spent on the other twenty manifests a repository could name.
+        assert_eq!(find(&root), None);
+        write(&root.join("manifest.json"), at(true).as_bytes());
+        assert_eq!(find(&root).unwrap(), canon(root.join("logo.png")));
+    }
+
+    #[test]
     fn an_icon_set_link_that_leaves_the_project_is_ignored_on_every_platform() {
         let outer = tmp("iosleave");
         let project = outer.join("project");
@@ -566,10 +638,8 @@ mod tests {
         let project = tmp("iosunc");
         let set = project.join("Assets.xcassets/AppIcon.appiconset");
         write(&set.join("Icon-60.png"), b"s");
-        if !crate::testutil::file_link(
-            &set.join("Leak.png"),
-            Path::new(r"\\198.51.100.181\share\Leak.png"),
-        ) {
+        let target = format!(r"\\{}\share\Leak.png", crate::testutil::unc_host());
+        if !crate::testutil::file_link(&set.join("Leak.png"), Path::new(&target)) {
             eprintln!("SKIP: no privilege to create symlinks");
             return;
         }

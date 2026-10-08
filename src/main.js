@@ -1012,6 +1012,9 @@ async function renderDetail() {
   if (!p) return;
 
   const status = await mapStatus(invoke, p.map_dir);
+  // Commands answer in the order they finish, not the order they were asked:
+  // by now another project may be the one on screen.
+  if (p.id !== selectedId) return;
   renderIcon(p.id);
   renderCounts(status);
 
@@ -1027,6 +1030,7 @@ async function renderDetail() {
   callsSupport = "unknown";
   scanLanguages(invoke, p.root, p.map_dir)
     .then((scan) => {
+      if (p.id !== selectedId) return;
       // Set before the early return below: a project whose badge is empty
       // (no language clears the threshold) still has a Calls panel, and the
       // note over it is exactly as true.
@@ -1248,6 +1252,9 @@ async function select(id) {
   }
 
   const status = await mapStatus(invoke, p.map_dir);
+  // The same as in `renderDetail`: a slower answer for the project the reader
+  // has since left must not put its map (or its placeholder) on screen.
+  if (selectedId !== id) return;
   if (!status.exists) {
     // What is in this tree, on the one screen whose entire subject is that
     // there is nothing to show yet. Appended rather than replacing the
@@ -1259,6 +1266,7 @@ async function select(id) {
     } catch (e) {
       void e;
     }
+    if (selectedId !== id) return;
 
     showPlaceholder(
       t("ph.nomap.title"),
@@ -1285,6 +1293,7 @@ async function select(id) {
   } catch (e) {
     say(String(e));
   }
+  if (selectedId !== id) return;
   mapBase = served ?? convertFileSrc(status.index_path);
   mapTab = null;
   const url = mapUrl(mapBase);
@@ -3374,7 +3383,15 @@ function formatSize(n) {
   return (n / (1024 * 1024)).toFixed(1) + " MB";
 }
 
+/// Which `renderFiles` call is the latest. The listing runs off the main thread
+/// and `git status` inside it takes anywhere from milliseconds to seconds, so
+/// answers arrive in the order they finish: only the newest one may draw, and
+/// not after the pane was closed. Bumped before the early return, so a call
+/// that finds nothing to show retires whatever is still on its way as well.
+let filesSeq = 0;
+
 async function renderFiles() {
+  const mine = ++filesSeq;
   if (!filesOpen || !selectedId) return;
   const crumb = document.getElementById("files-crumb");
   const list = document.getElementById("files-list");
@@ -3383,6 +3400,7 @@ async function renderFiles() {
   try {
     listing = await invoke("file_tree", { id: selectedId, sub: filesPath });
   } catch (e) {
+    if (mine !== filesSeq || !filesOpen) return;
     list.innerHTML = "";
     crumb.textContent = "";
     const li = document.createElement("li");
@@ -3391,6 +3409,7 @@ async function renderFiles() {
     list.append(li);
     return;
   }
+  if (mine !== filesSeq || !filesOpen) return;
 
   // Breadcrumb: the project name, then every segment of the current path.
   crumb.innerHTML = "";

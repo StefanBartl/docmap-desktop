@@ -561,10 +561,8 @@ mod tests {
         let root = crate::testutil::fresh_dir("docmap-serve-unc");
         let map = root.join("docs").join("map");
         fs::create_dir_all(&map).unwrap();
-        if !crate::testutil::file_link(
-            &map.join("leak"),
-            std::path::Path::new(r"\\198.51.100.161\share\leak"),
-        ) {
+        let target = format!(r"\\{}\share\leak", crate::testutil::unc_host());
+        if !crate::testutil::file_link(&map.join("leak"), std::path::Path::new(&target)) {
             eprintln!("SKIP: no privilege to create symlinks");
             return;
         }

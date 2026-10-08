@@ -247,8 +247,36 @@ fn language_for(ext: &str) -> Option<(&'static str, Option<&'static str>, Option
 /// archive can carry it) made every walk connect to that host. An entry named
 /// `.git` of any kind - file, directory, link, dangling link - marks the
 /// directory, and a hostile one merely gets it skipped.
+///
+/// A directory whose own name Win32 would rewrite (`evil.` is opened as `evil`,
+/// which may be a sibling link) counts as nested too, so no walk goes in.
 pub(crate) fn is_nested_checkout(dir: &Path) -> bool {
+    dir.file_name().is_some_and(win32_rewrites_name) || has_git_entry(dir)
+}
+
+/// Is there an entry named `.git` in `dir` - of any kind, and not followed?
+/// The one probe the folder picker, the file tree and every walk share.
+pub(crate) fn has_git_entry(dir: &Path) -> bool {
     std::fs::symlink_metadata(dir.join(".git")).is_ok()
+}
+
+/// Would Win32 open this name as a different one? It drops a trailing dot or
+/// space before the file system sees the name, so a real directory `evil.` next
+/// to a link `evil` is opened *through* the link - past every check made on
+/// the entry's own type. No tool a person uses makes such a name, git refuses
+/// to check one out, and a walk that skips it loses nothing. Nothing else
+/// rewrites names.
+pub(crate) fn win32_rewrites_name(name: &std::ffi::OsStr) -> bool {
+    #[cfg(windows)]
+    {
+        let s = name.to_string_lossy();
+        s.ends_with('.') || s.ends_with(' ')
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = name;
+        false
+    }
 }
 
 /// Is `path` the project's map directory?
@@ -324,6 +352,10 @@ pub fn scan(root: &Path, map_dir: Option<&Path>) -> Result<LanguageScan, String>
 
             // `file_type` rather than `metadata`: it does not follow symlinks,
             // which is what makes the cycle guarantee above true.
+            // Win32 reads `x.` as `x`: see `languages::win32_rewrites_name`.
+            if crate::languages::win32_rewrites_name(&entry.file_name()) {
+                continue;
+            }
             let ft = match entry.file_type() {
                 Ok(t) => t,
                 Err(_) => continue,
