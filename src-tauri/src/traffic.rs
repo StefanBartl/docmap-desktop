@@ -894,9 +894,10 @@ pub fn detail(repo: Option<&str>, hidden: bool, sources: &Sources) -> Option<Dig
 /// A "top pages" entry's GitHub path (`/owner/repo/blob/<ref>/<file>`)
 /// resolved to a path relative to the project root — `None` if it cannot be
 /// trusted to stay inside the project. The frontend hands the result straight
-/// to `open_in_editor`, which repeats the same canonicalize-then-contain
-/// check on its own; this one exists so a badge is offered only when that
-/// later check would actually succeed, not to replace it.
+/// to `open_in_editor`, which repeats the same check on its own
+/// (`crate::resolve_inside`, which this calls too); this one exists so a badge
+/// is offered only when that later check would actually succeed, not to
+/// replace it.
 ///
 /// The `<ref>` component is assumed to carry no `/` of its own — a branch
 /// name that does leaves the entry unresolved rather than guessed at, which
@@ -926,10 +927,12 @@ pub fn resolve_page_path(
         return None;
     }
     let root = fs::canonicalize(project_root).ok()?;
-    let target = fs::canonicalize(root.join(file_path)).ok()?;
-    if !target.starts_with(&root) {
-        return None;
-    }
+    // The same guard `open_in_editor` applies, not a copy of part of it: the
+    // path is a repository's own, and a link committed there can lead to
+    // another machine, which `canonicalize` would contact before any
+    // containment check said no. This runs for every top page when the traffic
+    // panel opens.
+    crate::resolve_inside(&root, file_path).ok()?;
     Some(file_path.to_string())
 }
 
