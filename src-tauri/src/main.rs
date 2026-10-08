@@ -696,6 +696,13 @@ struct FolderScan {
 /// symlink two directories down should not blank out the other thirty-one.
 fn list_subdirs(root: &Path) -> Result<Vec<(String, String, bool)>, String> {
     let mut out = Vec::new();
+    // Verbatim, so that every path built from it below is looked at literally:
+    // on the typed folder Win32 rewrites a name (`evil.` is `evil`, `NUL` is a
+    // device) before the file system sees it, and a link's target that names
+    // one was looked at as something other than what the kernel then follows.
+    let root =
+        fs::canonicalize(root).map_err(|e| format!("cannot read {}: {e}", root.display()))?;
+    let root = root.as_path();
     let entries = fs::read_dir(root).map_err(|e| format!("cannot read {}: {e}", root.display()))?;
     for entry in entries {
         let entry = entry.map_err(|e| format!("cannot read {}: {e}", root.display()))?;
@@ -2481,6 +2488,16 @@ pub(crate) fn resolve_inside_budgeted(
     if !target.starts_with(root) {
         return Err(format!("{rel} resolves outside the project"));
     }
+    // What is handed on is the result, and a link can have led it through a
+    // name Win32 reads as another (`a/l -> evil./f`): the check on `rel` does not
+    // see that one. The root is the user's own and is left out of it.
+    if target.strip_prefix(root).is_ok_and(|inside| {
+        inside
+            .components()
+            .any(|c| matches!(c, Component::Normal(n) if crate::languages::win32_rewrites_name(n)))
+    }) {
+        return Err(format!("{rel} is not a path inside the project"));
+    }
     Ok(target)
 }
 
@@ -2607,7 +2624,16 @@ const MAX_REL_COMPONENTS: usize = 256;
 
 /// What one [`resolve_inside`] may spend on its link walk: components looked
 /// at, over the whole chain of links. A real path needs a few dozen.
-const WALK_STEPS: u32 = 1024;
+///
+/// A step is not a constant cost: each look makes the kernel walk the whole
+/// prefix, so what the budget bounds is about N^2/2 component lookups. 512
+/// keeps the worst case under a second.
+const WALK_STEPS: u32 = 512;
+/// The same for one entry of the folder picker.
+const PICKER_WALK_STEPS: u32 = 256;
+// The longest relative path must fit in it with room for the links on the way.
+const _: () = assert!(WALK_STEPS as usize >= MAX_REL_COMPONENTS + 64);
+const _: () = assert!(PICKER_WALK_STEPS <= WALK_STEPS);
 
 /// Does the link at `path` - an entry below `root`, which is not inspected -
 /// stay on this machine? Always so off Windows, where a link cannot name a
@@ -2615,13 +2641,9 @@ const WALK_STEPS: u32 = 1024;
 fn link_stays_local(root: &Path, path: &Path) -> bool {
     #[cfg(windows)]
     {
+        let mut steps = PICKER_WALK_STEPS;
         matches!(
-            links_to_network(
-                path,
-                root.components().count(),
-                &mut 16,
-                &mut WALK_STEPS.min(256)
-            ),
+            links_to_network(path, root.components().count(), &mut 16, &mut steps),
             LinkWalk::Local
         )
     }
@@ -2700,6 +2722,13 @@ fn links_to_network(path: &Path, skip: usize, budget: &mut u8, steps: &mut u32) 
         if i < skip {
             continue;
         }
+        // A name Win32 reads as another one (`evil.` as `evil`): where it leads
+        // depends on whoever opens the path, not on this walk. A name that
+        // reaches here beyond the root comes from the path asked for or from a
+        // link's target; both are the repository's.
+        if matches!(part, Component::Normal(n) if crate::languages::win32_rewrites_name(n)) {
+            return LinkWalk::Unusable;
+        }
         // Each look costs the kernel a walk of the whole prefix, so a path of
         // thousands of real levels - or a link to one - is quadratic work.
         if *steps == 0 {
@@ -2746,16 +2775,27 @@ fn links_to_network(path: &Path, skip: usize, budget: &mut u8, steps: &mut u32) 
             // reachable by that spelling. Not local unless it provably is.
             return LinkWalk::Unusable;
         }
-        // A relative target continues from the link's directory, and everything
-        // up to it has just been looked at and is plain: it is not looked at
-        // again (each hop restarted from the drive, which made a chain of
-        // links at the bottom of a deep tree cost the depth once per hop).
-        // An absolute one can lead anywhere and is walked from its start.
+        // A relative target continues from the link's directory, and what it
+        // shares with that directory has just been looked at and is plain: it
+        // is not looked at again (each hop restarted from the drive, which made
+        // a chain of links at the bottom of a deep tree cost the depth once per
+        // hop). An absolute one can lead anywhere and is walked from its start.
+        //
+        // What is shared is counted, not assumed to be the whole directory:
+        // `join` onto a verbatim path folds a `..` away, so `a\l -> ..\x` gives
+        // `root\x`, no longer than `root\a`, and `x` - never looked at - would
+        // sit inside a prefix counted as vetted.
         let (base, vetted) = if target.is_absolute() {
             (target, 0)
         } else {
             let parent = walked.parent().unwrap_or(&walked);
-            (parent.join(target), parent.components().count())
+            let base = parent.join(target);
+            let shared = parent
+                .components()
+                .zip(base.components())
+                .take_while(|(a, b)| a == b)
+                .count();
+            (base, shared)
         };
         let rest: PathBuf = parts[i + 1..].iter().collect();
         return links_to_network(&base.join(rest), vetted, budget, steps);
@@ -4053,6 +4093,102 @@ mod tests {
         }
         let resolved = resolve_inside(&dir, &format!("{deep}x1")).unwrap();
         assert_eq!(resolved, bottom.join("f.png"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_link_target_that_climbs_with_dot_dot_is_still_looked_at() {
+        // `join` onto a verbatim path folds a `..` away, so `a\l -> ..\x`
+        // continues as `root\x`: no longer than `root\a`, and `x` - a link to a
+        // share - sat inside a prefix counted as already looked at.
+        let dir = fresh_dir("docmap-dotdot-target");
+        fs::create_dir_all(dir.join("a").join("b")).unwrap();
+        fs::create_dir_all(dir.join("public")).unwrap();
+        let share = format!(r"\\{}\share", crate::testutil::unc_host());
+        if std::os::windows::fs::symlink_dir(&share, dir.join("x")).is_err() {
+            eprintln!("SKIP: no privilege to create symlinks");
+            return;
+        }
+        for (link, target) in [
+            ("a/l", r"..\x"),
+            ("a/b/l", r"..\..\x"),
+            ("public/favicon.ico", r"..\x"),
+            ("a/m", r".."),
+        ] {
+            assert!(std::os::windows::fs::symlink_dir(target, dir.join(link)).is_ok());
+        }
+        let started = std::time::Instant::now();
+        // `a/m/x` goes through a link to the parent and then a name.
+        for rel in ["a/l", "a/b/l", "public/favicon.ico", "a/m/x"] {
+            let err = resolve_inside(&dir, rel).unwrap_err();
+            assert!(err.contains("link to another machine"), "{rel}: {err}");
+        }
+        assert!(
+            started.elapsed().as_secs() < 3,
+            "it must not wait for a host"
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_link_whose_target_names_a_rewritten_name_is_not_followed() {
+        // `a/evil.` is a real directory (made through the verbatim root), `a/evil`
+        // beside it a link to a share, and `a/l -> evil.\f.txt` names the first.
+        // The walk looked at `evil.` literally; whoever is handed the result
+        // without its prefix opens `evil`.
+        let dir = fresh_dir("docmap-rewritten-target");
+        fs::create_dir_all(dir.join("a").join("evil.")).unwrap();
+        fs::write(dir.join("a").join("evil.").join("f.txt"), "x").unwrap();
+        let share = format!(r"\\{}\share", crate::testutil::unc_host());
+        if std::os::windows::fs::symlink_dir(&share, dir.join("a").join("evil")).is_err()
+            || std::os::windows::fs::symlink_file(r"evil.\f.txt", dir.join("a").join("l")).is_err()
+        {
+            eprintln!("SKIP: no privilege to create symlinks");
+            return;
+        }
+        let started = std::time::Instant::now();
+        let err = resolve_inside(&dir, "a/l").unwrap_err();
+        assert!(err.contains("cannot be followed safely"), "{err}");
+        assert!(
+            started.elapsed().as_secs() < 3,
+            "it must not wait for a host"
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn the_folder_picker_does_not_follow_a_link_that_names_a_rewritten_name() {
+        // The picked folder is typed, so Win32 would have read `evil.` as
+        // `evil` while the kernel follows the link's target literally.
+        let root = fresh_dir("docmap-picker-rewritten");
+        fs::create_dir_all(root.join("loc.")).unwrap();
+        fs::create_dir_all(root.join("plain")).unwrap();
+        let share = format!(r"\\{}\share", crate::testutil::unc_host());
+        let share2 = format!(r"\\{}\share", crate::testutil::unc_host());
+        // `NUL` is a device to Win32 whatever directory it is in: a link of
+        // that name is only a link to a path that is looked at literally.
+        if std::os::windows::fs::symlink_dir(&share, root.join("evil.")).is_err()
+            || std::os::windows::fs::symlink_dir("evil.", root.join("sub")).is_err()
+            || std::os::windows::fs::symlink_dir("loc.", root.join("sub2")).is_err()
+            || std::os::windows::fs::symlink_dir(&share2, root.join("NUL")).is_err()
+            || std::os::windows::fs::symlink_dir("NUL", root.join("sub3")).is_err()
+        {
+            eprintln!("SKIP: no privilege to create symlinks");
+            return;
+        }
+        let stored = PathBuf::from(portable(&root));
+        let started = std::time::Instant::now();
+        let found = list_subdirs(&stored).unwrap();
+        let names: Vec<_> = found.iter().map(|f| f.0.as_str()).collect();
+        assert_eq!(
+            names,
+            ["plain"],
+            "neither link, nor the folders of those names"
+        );
+        assert!(
+            started.elapsed().as_secs() < 3,
+            "it must not wait for a host"
+        );
     }
 
     #[cfg(windows)]

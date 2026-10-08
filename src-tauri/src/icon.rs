@@ -50,8 +50,19 @@ const FAVICONS: &[&str] = &[
     "favicon.ico",
 ];
 
+/// The largest file taken for an icon. The webview asks the asset protocol for
+/// it, and that reads the whole file into one buffer: a favicon of tens of
+/// gigabytes (an archive expands zeros to that for a few megabytes) exhausts
+/// the memory of the whole program. Real icons are well under a megabyte; an
+/// unoptimised 1024-pixel PNG or a large logo is a few. Too big is skipped, and
+/// the next candidate is looked at.
+const MAX_ICON_BYTES: u64 = 8 << 20;
+
 fn readable_file(p: &Path) -> bool {
-    p.is_file() && fs::metadata(p).map(|m| m.len() > 0).unwrap_or(false)
+    p.is_file()
+        && fs::metadata(p)
+            .map(|m| m.len() > 0 && m.len() <= MAX_ICON_BYTES)
+            .unwrap_or(false)
 }
 
 /// The largest icon a web app manifest declares, resolved against it.
@@ -82,7 +93,9 @@ fn from_manifest(root: &Path, manifest: &Path, dir_rel: &str, b: &mut Budget) ->
         return None;
     }
     let body = safe_read::read_text(manifest, b.manifest_bytes.min(1 << 20), false)?;
-    b.manifest_bytes -= body.len() as u64;
+    // `body` is decoded: every invalid byte became three (U+FFFD), so it can be
+    // longer than the budget it was read within.
+    b.manifest_bytes = b.manifest_bytes.saturating_sub(body.len() as u64);
     let v: serde_json::Value = serde_json::from_str(&body).ok()?;
     let icons = v.get("icons")?.as_array()?;
     let dir_rel = Path::new(dir_rel);
@@ -180,7 +193,7 @@ const MAX_LINKS: usize = 32;
 /// An ordinary project needs a few hundred; each look costs the kernel a walk
 /// of the whole prefix, so a hostile tree can make the same few thousand cost
 /// minutes.
-const FIND_WALK_STEPS: u32 = 4096;
+const FIND_WALK_STEPS: u32 = 1024;
 /// Bytes of manifest read and parsed, in all the manifests of one `find`.
 const MAX_MANIFEST_BYTES: u64 = 2 << 20;
 
@@ -221,7 +234,7 @@ fn probe(root: &Path, rel: &str, plain: Option<&Path>, b: &mut Budget) -> Option
     if let Some(p) = plain {
         let meta = fs::symlink_metadata(p).ok()?;
         if meta.is_file() {
-            return Some((meta.len(), p.to_path_buf()));
+            return (meta.len() <= MAX_ICON_BYTES).then(|| (meta.len(), p.to_path_buf()));
         }
         if !meta.file_type().is_symlink() {
             return None;
@@ -233,7 +246,7 @@ fn probe(root: &Path, rel: &str, plain: Option<&Path>, b: &mut Budget) -> Option
     b.links -= 1;
     let p = inside(root, rel, b)?;
     let meta = fs::metadata(&p).ok()?;
-    meta.is_file().then_some((meta.len(), p))
+    (meta.is_file() && meta.len() <= MAX_ICON_BYTES).then_some((meta.len(), p))
 }
 
 /// `rel` inside `root` — resolved through [`crate::resolve_inside`], which
@@ -262,10 +275,23 @@ fn join_rel(dir: &str, name: &str) -> String {
 /// a space as a different name - through a link beside it. So a path with such
 /// a component is never the answer, however it was found.
 pub fn find(root: &Path) -> Option<PathBuf> {
-    find_unchecked(root).filter(|p| {
-        !p.components()
-            .any(|c| matches!(c, Component::Normal(n) if crate::languages::win32_rewrites_name(n)))
-    })
+    find_unchecked(root).filter(|p| !has_rewritten_component(p))
+}
+
+/// Does any component of `p` end in a dot or a space (on Windows)?
+fn has_rewritten_component(p: &Path) -> bool {
+    p.components()
+        .any(|c| matches!(c, Component::Normal(n) if crate::languages::win32_rewrites_name(n)))
+}
+
+/// Is this directory entry an Android density bucket (`mipmap-*`,
+/// `drawable-*`) that may be looked into? One whose name Win32 rewrites is not:
+/// it is opened as another directory, and the plain-file shortcut in [`probe`]
+/// never reaches the checks that would notice.
+fn is_icon_bucket(name: &std::ffi::OsStr) -> bool {
+    let s = name.to_string_lossy();
+    (s.starts_with("mipmap") || s.starts_with("drawable"))
+        && !crate::languages::win32_rewrites_name(name)
 }
 
 fn find_unchecked(root: &Path) -> Option<PathBuf> {
@@ -315,11 +341,7 @@ fn find_unchecked(root: &Path) -> Option<PathBuf> {
         if let Ok(entries) = fs::read_dir(&dir) {
             let buckets = entries
                 .flatten()
-                .filter(|e| {
-                    let name = e.file_name().to_string_lossy().to_string();
-                    (name.starts_with("mipmap") || name.starts_with("drawable"))
-                        && !crate::languages::win32_rewrites_name(&e.file_name())
-                })
+                .filter(|e| is_icon_bucket(&e.file_name()))
                 .take(MAX_ENTRIES);
             for entry in buckets {
                 let name = entry.file_name().to_string_lossy().to_string();
@@ -756,6 +778,10 @@ mod tests {
             &root.join("public/manifest.json"),
             br#"{"icons":[{"src":"evil./icon.png","sizes":"512x512"}]}"#,
         );
+        // Each layer on its own: `find_unchecked` has no final filter, so a
+        // path with such a component that gets this far is `resolve_inside`'s
+        // doing (or not), and the bucket filter's below.
+        assert_eq!(find_unchecked(&root), None);
         assert_eq!(find(&root), None);
 
         // An Android bucket of that name.
@@ -764,7 +790,81 @@ mod tests {
             &root.join("app/src/main/res/mipmap-hdpi./ic_launcher.png"),
             b"png",
         );
+        assert_eq!(find_unchecked(&root), None);
         assert_eq!(find(&root), None);
+    }
+
+    #[test]
+    fn only_a_real_density_bucket_is_looked_into() {
+        use std::ffi::OsStr;
+        assert!(is_icon_bucket(OsStr::new("mipmap-hdpi")));
+        assert!(is_icon_bucket(OsStr::new("drawable-xhdpi")));
+        assert!(!is_icon_bucket(OsStr::new("values")));
+        // Win32 opens these as `mipmap-hdpi`: the filter is the only thing
+        // between them and the shortcut that skips the link walk.
+        #[cfg(windows)]
+        {
+            assert!(!is_icon_bucket(OsStr::new("mipmap-hdpi.")));
+            assert!(!is_icon_bucket(OsStr::new("drawable-xhdpi ")));
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_path_with_a_rewritten_component_is_recognised() {
+        assert!(has_rewritten_component(Path::new(
+            r"C:\proj\evil.\icon.png"
+        )));
+        assert!(has_rewritten_component(Path::new(r"C:\proj\a \b.png")));
+        assert!(!has_rewritten_component(Path::new(r"C:\proj\a.b\icon.png")));
+        assert!(!has_rewritten_component(Path::new(r"C:\proj\.hidden\x")));
+    }
+
+    #[test]
+    fn a_file_too_big_to_serve_is_not_an_icon() {
+        // The asset protocol reads the whole file into one buffer.
+        let root = tmp("toobig");
+        write(&root.join("icon.png"), b"small");
+        let big = fs::File::create(root.join("favicon.png")).unwrap();
+        big.set_len(MAX_ICON_BYTES + 1).unwrap();
+        // `favicon.png` comes before `icon.png` in the order of candidates.
+        assert_eq!(find(&root).unwrap(), canon(root.join("icon.png")));
+        // The icon set: the largest file within the cap, not the largest.
+        let set = root.join("Assets.xcassets/AppIcon.appiconset");
+        write(&set.join("small.png"), b"s");
+        let huge = fs::File::create(set.join("huge.png")).unwrap();
+        huge.set_len(MAX_ICON_BYTES + 1).unwrap();
+        let mut b = Budget::new();
+        let found = largest_png(
+            &canon(root.clone()),
+            "Assets.xcassets/AppIcon.appiconset",
+            &canon(set.clone()),
+            &mut b,
+        )
+        .unwrap();
+        assert_eq!(found, canon(set.join("small.png")));
+        // And one at the limit still is.
+        let at = fs::File::create(root.join("icon.svg")).unwrap();
+        at.set_len(MAX_ICON_BYTES).unwrap();
+        assert_eq!(find(&root).unwrap(), canon(root.join("icon.svg")));
+    }
+
+    #[test]
+    fn a_manifest_of_invalid_bytes_is_charged_without_overflowing() {
+        // Every invalid byte decodes to three, so the text can be longer than
+        // the budget it was read within; the subtraction used to underflow
+        // (a panic in a debug build, no bound at all in a release build).
+        let root = tmp("badbytes");
+        write(&root.join("logo.png"), b"png");
+        write(&root.join("manifest.json"), &vec![0xFF; 700_000]);
+        write(
+            &root.join("site.webmanifest"),
+            manifest_json(0, true).as_bytes(),
+        );
+        // The budget is spent by the first, so the second is not read.
+        assert_eq!(find(&root), None);
+        fs::remove_file(root.join("manifest.json")).unwrap();
+        assert_eq!(find(&root).unwrap(), canon(root.join("logo.png")));
     }
 
     #[test]

@@ -236,7 +236,9 @@ test("the Count-again button follows the project on screen", () => {
 //
 // Comment lines are dropped first: a guard that is only commented out is not
 // there, and a pattern that still matched it would call it present.
-const code = (text) => text.replace(/^\s*(\/\/|\/\*|\*).*$/gm, "");
+// A `*` only counts as a comment when it continues a block comment (`* text`,
+// `*/`): `*steps -= 1;` is a dereference and stays.
+const code = (text) => text.replace(/^\s*(\/\/|\/\*|\*(\s|\/|$)).*$/gm, "");
 
 function rustFn(name) {
   const start = RUST.search(new RegExp(`\\n(?:async )?fn ${name}\\b`));
@@ -314,15 +316,28 @@ test("an answer for a project the reader has left is dropped", () => {
     "renderFiles takes its ticket before it can return early"
   );
   guardAfter(files, 'await invoke("file_tree"', "mine !== filesSeq", "crumb.innerHTML", "renderFiles");
-  // The success path is guarded as well as the catch branch: the last one
-  // sits between the call's end and the first line that draws the listing.
+  // The success path is guarded as well as the catch branch: past the end of
+  // the catch block and before the first line that draws the listing.
+  const catchAt = files.indexOf("} catch");
+  const catchEnd = files.indexOf("\n  }\n", catchAt);
+  assert.ok(catchEnd > catchAt, "renderFiles: no catch block");
   const drawn = files.indexOf("crumb.innerHTML");
-  assert.ok(files.lastIndexOf("mine !== filesSeq", drawn) > files.indexOf("} catch"), "renderFiles draws a stale listing");
+  const success = files.indexOf("mine !== filesSeq", catchEnd);
+  assert.ok(success >= 0 && success < drawn, "renderFiles draws a stale listing");
 });
 
-test("the language badge is cleared before the next scan can set it", () => {
+test("the language badge belongs to one project and is cleared when another is shown", () => {
   const detail = jsFn("async function renderDetail(");
-  const clear = detail.indexOf("els.langs.hidden = true;");
-  assert.ok(clear >= 0, "renderDetail never clears the badge");
-  assert.ok(clear < detail.indexOf("scanLanguages("), "the badge is cleared after the scan starts");
+  // Another project's badge goes before anything is awaited (the pane already
+  // shows the new name); the same project's stays until its scan answers.
+  const awaited = detail.indexOf("await mapStatus(");
+  const clear = detail.indexOf("clearLangs()");
+  assert.match(detail, /els\.langs\.dataset\.project !== p\.id/);
+  assert.ok(clear >= 0 && clear < awaited, "the badge of the previous project is still up while the answer is awaited");
+  // The scan owns the badge: an empty answer and a failure take it off.
+  const scan = detail.slice(detail.indexOf("scanLanguages("));
+  const thenAt = scan.indexOf(".then(");
+  const emptyClear = scan.indexOf("clearLangs()", thenAt);
+  assert.ok(emptyClear > thenAt && emptyClear < scan.indexOf("els.langs.textContent = text"), "an empty scan leaves the old badge");
+  assert.match(scan.slice(scan.indexOf(".catch(")), /clearLangs\(\)/);
 });

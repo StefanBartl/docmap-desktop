@@ -1005,22 +1005,31 @@ async function renderOverview() {
   fillOverviewTraffic();
 }
 
+/** Take the language badge off the screen, and with it whose it was. */
+function clearLangs() {
+  els.langs.hidden = true;
+  els.langs.textContent = "";
+  els.langs.removeAttribute("title");
+  delete els.langs.dataset.project;
+}
+
 /** What the row used to carry, for the selected project only. */
 async function renderDetail() {
   const p = projects.find((x) => x.id === selectedId);
   els.detail.hidden = !p;
   if (!p) return;
 
+  // The badge belongs to the project whose scan set it. Another project's is
+  // taken off before anything is awaited - the pane is already showing the new
+  // name - but a re-render of the same project (after Generate, a traffic
+  // refresh) keeps its badge until the new scan answers, rather than blanking
+  // it for as long as the walk takes.
+  if (els.langs.dataset.project !== p.id) clearLangs();
+
   const status = await mapStatus(invoke, p.map_dir);
   // Commands answer in the order they finish, not the order they were asked:
   // by now another project may be the one on screen.
   if (p.id !== selectedId) return;
-  // The badge belongs to a scan, and the scan below only ever sets it: without
-  // this a project with no badge (no recognised sources, or a scan that failed)
-  // kept the one of the project before it.
-  els.langs.hidden = true;
-  els.langs.textContent = "";
-  els.langs.removeAttribute("title");
   renderIcon(p.id);
   renderCounts(status);
 
@@ -1042,13 +1051,19 @@ async function renderDetail() {
       // note over it is exactly as true.
       callsSupport = callsSupportFor(scan, engineLangs);
       const text = badgeText(scan);
-      if (!text) return;
+      // The scan is the one that owns the badge: an empty answer takes it off.
+      if (!text) {
+        clearLangs();
+        return;
+      }
       els.langs.textContent = text;
       els.langs.title = summaryText(scan, supportFor(scan, engineLangs));
+      els.langs.dataset.project = p.id;
       els.langs.hidden = false;
     })
     .catch(() => {
       // An unreadable directory costs its language line and nothing else.
+      if (p.id === selectedId) clearLangs();
     });
 
   refreshFreshness(p.id);
