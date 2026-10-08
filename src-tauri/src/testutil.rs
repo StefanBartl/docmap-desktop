@@ -46,15 +46,24 @@ pub fn file_link(link: &Path, target: &Path) -> bool {
 /// same address returns at once. A test that only asserts "this did not take
 /// long" would then pass with the guard removed on every re-run, after the
 /// first, red, one.
+// Only the tests that need a link to a host call it, and those exist on
+// Windows alone.
+#[cfg_attr(not(windows), allow(dead_code))]
 pub fn unc_host() -> String {
     use std::sync::atomic::{AtomicU64, Ordering};
+    use std::sync::OnceLock;
     static NEXT: AtomicU64 = AtomicU64::new(0);
-    let millis = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis() as u64)
-        .unwrap_or(0);
-    // 7 is coprime to 250, so the calls of one run never repeat.
-    let n = (millis + NEXT.fetch_add(1, Ordering::Relaxed) * 7) % 250 + 1;
+    // Drawn once: the offset from the clock is what differs between runs, the
+    // counter is what differs inside one.
+    static START: OnceLock<u64> = OnceLock::new();
+    let start = *START.get_or_init(|| {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as u64 % 250)
+            .unwrap_or(0)
+    });
+    // 7 is coprime to 250, so up to 250 calls of one run never repeat.
+    let n = (start + NEXT.fetch_add(1, Ordering::Relaxed) * 7) % 250 + 1;
     format!("203.0.113.{n}")
 }
 

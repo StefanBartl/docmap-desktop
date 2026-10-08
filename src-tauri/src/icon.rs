@@ -27,7 +27,7 @@
 //! thirty projects is noise pretending to be information.
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use crate::safe_read;
 
@@ -73,20 +73,16 @@ fn readable_file(p: &Path) -> bool {
 /// [`crate::resolve_inside`], which refuses such shapes before touching the
 /// disk and requires the result to stay inside the project.
 ///
-/// `entries` is what is left of the budget of `src` values to resolve in all
-/// the manifests of this `find`: a manifest can hold some seventy thousand of
-/// them, `find` looks at up to twenty-one manifests, and each costs a walk and
-/// a `canonicalize`. A real manifest lists a handful of icons.
-fn from_manifest(
-    root: &Path,
-    manifest: &Path,
-    dir_rel: &str,
-    entries: &mut usize,
-) -> Option<PathBuf> {
-    if *entries == 0 {
+/// `b` is what is left of the budget of this `find`: a manifest can hold some
+/// seventy thousand `src` values, `find` looks at up to twenty-one manifests,
+/// and each value costs a walk and a `canonicalize`. A real manifest is a few
+/// kilobytes and lists a handful of icons.
+fn from_manifest(root: &Path, manifest: &Path, dir_rel: &str, b: &mut Budget) -> Option<PathBuf> {
+    if b.entries == 0 || b.manifest_bytes == 0 {
         return None;
     }
-    let body = safe_read::read_text(manifest, 1 << 20, false)?;
+    let body = safe_read::read_text(manifest, b.manifest_bytes.min(1 << 20), false)?;
+    b.manifest_bytes -= body.len() as u64;
     let v: serde_json::Value = serde_json::from_str(&body).ok()?;
     let icons = v.get("icons")?.as_array()?;
     let dir_rel = Path::new(dir_rel);
@@ -96,10 +92,10 @@ fn from_manifest(
         let Some(src) = icon.get("src").and_then(|s| s.as_str()) else {
             continue;
         };
-        if *entries == 0 {
+        if b.entries == 0 {
             break;
         }
-        *entries -= 1;
+        b.entries -= 1;
         // `sizes` is "48x48" or "48x48 96x96" or "any"; take the first
         // number it offers and treat "any" (an SVG) as larger than any
         // raster, because it is.
@@ -119,7 +115,11 @@ fn from_manifest(
         // not the filesystem root. Reading it as absolute would send this
         // looking in `C:/`.
         let rel = src.trim_start_matches(['/', '\\']);
-        let Ok(path) = crate::resolve_inside(root, &dir_rel.join(rel).to_string_lossy()) else {
+        let Ok(path) = crate::resolve_inside_budgeted(
+            root,
+            &dir_rel.join(rel).to_string_lossy(),
+            &mut b.steps,
+        ) else {
             continue;
         };
         if readable_file(&path) && best.as_ref().is_none_or(|(b, _)| px > *b) {
@@ -141,8 +141,9 @@ fn from_manifest(
 ///
 /// Bounded: the directory is repository content, and resolving a link costs a
 /// walk and a `canonicalize` (tens of milliseconds for a chain of links). At
-/// most [`MAX_ENTRIES`] files are looked at and `links` of them may be links.
-fn largest_png(root: &Path, rel_dir: &str, dir: &Path, links: &mut usize) -> Option<PathBuf> {
+/// most [`MAX_ENTRIES`] files are looked at and the links among them draw on
+/// the budget `b`.
+fn largest_png(root: &Path, rel_dir: &str, dir: &Path, b: &mut Budget) -> Option<PathBuf> {
     let mut best: Option<(u64, PathBuf)> = None;
     let pngs = fs::read_dir(dir)
         .ok()?
@@ -160,7 +161,7 @@ fn largest_png(root: &Path, rel_dir: &str, dir: &Path, links: &mut usize) -> Opt
             root,
             &format!("{rel_dir}/{name}"),
             Some(&dir.join(&name)),
-            links,
+            b,
         ) else {
             continue;
         };
@@ -175,6 +176,39 @@ fn largest_png(root: &Path, rel_dir: &str, dir: &Path, links: &mut usize) -> Opt
 /// resolves along the way, in a directory that is repository content.
 const MAX_ENTRIES: usize = 256;
 const MAX_LINKS: usize = 32;
+/// Components the link walk may look at, over every path one `find` resolves.
+/// An ordinary project needs a few hundred; each look costs the kernel a walk
+/// of the whole prefix, so a hostile tree can make the same few thousand cost
+/// minutes.
+const FIND_WALK_STEPS: u32 = 4096;
+/// Bytes of manifest read and parsed, in all the manifests of one `find`.
+const MAX_MANIFEST_BYTES: u64 = 2 << 20;
+
+/// What one [`find`] may spend. The repository decides how much there is to
+/// look at - thousands of manifest entries, links, levels - so the work is
+/// bounded per request and not per path, and every part of the lookup draws on
+/// the same budget.
+struct Budget {
+    /// Links resolved in the directory scans.
+    links: usize,
+    /// `src` values resolved, in all the manifests.
+    entries: usize,
+    /// Components looked at by the link walk, over all paths.
+    steps: u32,
+    /// Manifest bytes still to be read.
+    manifest_bytes: u64,
+}
+
+impl Budget {
+    fn new() -> Self {
+        Budget {
+            links: MAX_LINKS,
+            entries: MAX_ENTRIES,
+            steps: FIND_WALK_STEPS,
+            manifest_bytes: MAX_MANIFEST_BYTES,
+        }
+    }
+}
 
 /// `rel` under `root` as an icon candidate: its size and where to read it.
 ///
@@ -182,13 +216,8 @@ const MAX_LINKS: usize = 32;
 /// known to be real ones. If it is a regular file it is taken as it is - a path
 /// of plain components cannot lead anywhere else, and one `lstat` replaces the
 /// walk and the `canonicalize`. Only a link goes through [`inside`], and only
-/// while `links` lasts.
-fn probe(
-    root: &Path,
-    rel: &str,
-    plain: Option<&Path>,
-    links: &mut usize,
-) -> Option<(u64, PathBuf)> {
+/// while the budget lasts.
+fn probe(root: &Path, rel: &str, plain: Option<&Path>, b: &mut Budget) -> Option<(u64, PathBuf)> {
     if let Some(p) = plain {
         let meta = fs::symlink_metadata(p).ok()?;
         if meta.is_file() {
@@ -198,11 +227,11 @@ fn probe(
             return None;
         }
     }
-    if *links == 0 {
+    if b.links == 0 {
         return None;
     }
-    *links -= 1;
-    let p = inside(root, rel)?;
+    b.links -= 1;
+    let p = inside(root, rel, b)?;
     let meta = fs::metadata(&p).ok()?;
     meta.is_file().then_some((meta.len(), p))
 }
@@ -213,8 +242,8 @@ fn probe(
 /// `is_file` and `metadata` all follow links, and on Windows a `favicon.ico`
 /// that is a link to `\\host\share` makes the machine contact that host just to
 /// answer "is it a file".
-fn inside(root: &Path, rel: &str) -> Option<PathBuf> {
-    crate::resolve_inside(root, rel).ok()
+fn inside(root: &Path, rel: &str, b: &mut Budget) -> Option<PathBuf> {
+    crate::resolve_inside_budgeted(root, rel, &mut b.steps).ok()
 }
 
 /// `dir/name`, with `.` meaning the root itself.
@@ -227,35 +256,44 @@ fn join_rel(dir: &str, name: &str) -> String {
 }
 
 /// Look for an icon under `root`. `None` is the common and correct answer.
+///
+/// The answer is handed on without its `\\?\` prefix (to the asset protocol,
+/// which opens it as given), and Win32 reads a component that ends in a dot or
+/// a space as a different name - through a link beside it. So a path with such
+/// a component is never the answer, however it was found.
 pub fn find(root: &Path) -> Option<PathBuf> {
+    find_unchecked(root).filter(|p| {
+        !p.components()
+            .any(|c| matches!(c, Component::Normal(n) if crate::languages::win32_rewrites_name(n)))
+    })
+}
+
+fn find_unchecked(root: &Path) -> Option<PathBuf> {
     // Canonical, so what a manifest names can be checked against it.
     let root = fs::canonicalize(root).ok()?;
     let root = root.as_path();
-    // Links the directory scans below may resolve, in all: see `probe`.
-    let mut links = MAX_LINKS;
-    // Manifest `src` values to resolve, in all the manifests: see `from_manifest`.
-    let mut manifest_entries = MAX_ENTRIES;
+    let mut b = Budget::new();
     // 1 & 2 & 3: the web conventions, per static root.
     for dir in WEB_ROOTS {
-        let Some(base) = inside(root, if *dir == "." { "" } else { dir }) else {
+        let Some(base) = inside(root, if *dir == "." { "" } else { dir }, &mut b) else {
             continue;
         };
         if !base.is_dir() {
             continue;
         }
         for name in MANIFESTS {
-            let Some(m) = inside(root, &join_rel(dir, name)) else {
+            let Some(m) = inside(root, &join_rel(dir, name), &mut b) else {
                 continue;
             };
             if m.is_file() {
                 let dir_rel = if *dir == "." { "" } else { dir };
-                if let Some(icon) = from_manifest(root, &m, dir_rel, &mut manifest_entries) {
+                if let Some(icon) = from_manifest(root, &m, dir_rel, &mut b) {
                     return Some(icon);
                 }
             }
         }
         for name in FAVICONS {
-            let Some(f) = inside(root, &join_rel(dir, name)) else {
+            let Some(f) = inside(root, &join_rel(dir, name), &mut b) else {
                 continue;
             };
             if readable_file(&f) {
@@ -267,7 +305,7 @@ pub fn find(root: &Path) -> Option<PathBuf> {
     // 4: Android. `mipmap-*` is a family of density buckets; the largest
     // file across them is the highest-density copy of the same icon.
     for res in ["app/src/main/res", "src/main/res", "res"] {
-        let Some(dir) = inside(root, res) else {
+        let Some(dir) = inside(root, res, &mut b) else {
             continue;
         };
         if !dir.is_dir() {
@@ -279,7 +317,8 @@ pub fn find(root: &Path) -> Option<PathBuf> {
                 .flatten()
                 .filter(|e| {
                     let name = e.file_name().to_string_lossy().to_string();
-                    name.starts_with("mipmap") || name.starts_with("drawable")
+                    (name.starts_with("mipmap") || name.starts_with("drawable"))
+                        && !crate::languages::win32_rewrites_name(&e.file_name())
                 })
                 .take(MAX_ENTRIES);
             for entry in buckets {
@@ -293,7 +332,7 @@ pub fn find(root: &Path) -> Option<PathBuf> {
                         root,
                         &format!("{res}/{name}/{icon}"),
                         real_dir.then_some(plain.as_path()),
-                        &mut links,
+                        &mut b,
                     ) else {
                         continue;
                     };
@@ -316,11 +355,11 @@ pub fn find(root: &Path) -> Option<PathBuf> {
         "Resources/Assets.xcassets",
     ] {
         let rel_dir = format!("{assets}/AppIcon.appiconset");
-        let Some(dir) = inside(root, &rel_dir) else {
+        let Some(dir) = inside(root, &rel_dir, &mut b) else {
             continue;
         };
         if dir.is_dir() {
-            if let Some(p) = largest_png(root, &rel_dir, &dir, &mut links) {
+            if let Some(p) = largest_png(root, &rel_dir, &dir, &mut b) {
                 return Some(p);
             }
         }
@@ -551,19 +590,21 @@ mod tests {
         write(&root.join("d/a.png"), b"abc");
         let plain = root.join("d/a.png");
         // A regular file is taken as it is, even with no links left.
-        let mut links = 0;
-        let (size, p) = probe(&root, "d/a.png", Some(&plain), &mut links).unwrap();
-        assert_eq!((size, links, p), (3, 0, plain.clone()));
+        let mut none = Budget::new();
+        none.links = 0;
+        let (size, p) = probe(&root, "d/a.png", Some(&plain), &mut none).unwrap();
+        assert_eq!((size, none.links, p), (3, 0, plain.clone()));
 
         if !crate::testutil::file_link(&root.join("d/l.png"), &plain) {
             eprintln!("SKIP: no privilege to create symlinks");
             return;
         }
         let link = root.join("d/l.png");
-        assert!(probe(&root, "d/l.png", Some(&link), &mut links).is_none());
-        let mut one = 1;
+        assert!(probe(&root, "d/l.png", Some(&link), &mut none).is_none());
+        let mut one = Budget::new();
+        one.links = 1;
         let (size, p) = probe(&root, "d/l.png", Some(&link), &mut one).unwrap();
-        assert_eq!((size, one, p), (3, 0, plain));
+        assert_eq!((size, one.links, p), (3, 0, plain));
     }
 
     #[test]
@@ -582,40 +623,148 @@ mod tests {
                 &root.join("big.png")
             ));
         }
-        let mut links = MAX_LINKS;
-        let found = largest_png(&root, rel, &root.join(rel), &mut links).unwrap();
+        let mut b = Budget::new();
+        let found = largest_png(&root, rel, &root.join(rel), &mut b).unwrap();
         // More links than the budget: it is spent, not exceeded, and the call
         // still answers (with the linked file, the larger of what it saw).
-        assert_eq!(links, 0);
+        assert_eq!(b.links, 0);
         assert_eq!(found, root.join("big.png"));
         // With nothing left, only plain files are considered.
-        let mut none = 0;
+        let mut none = Budget::new();
+        none.links = 0;
         let found = largest_png(&root, rel, &root.join(rel), &mut none).unwrap();
         assert_eq!(found, root.join(rel).join("plain.png"));
     }
 
+    /// A manifest listing `missing` icons that are not there, then `logo.png`
+    /// if `logo`.
+    fn manifest_json(missing: usize, logo: bool) -> String {
+        let mut icons: Vec<_> = (0..missing)
+            .map(|i| serde_json::json!({"src": format!("missing{i}.png")}))
+            .collect();
+        if logo {
+            icons.push(serde_json::json!({"src": "logo.png", "sizes": "512x512"}));
+        }
+        serde_json::json!({ "icons": icons }).to_string()
+    }
+
     #[test]
-    fn a_manifest_is_read_for_a_limited_number_of_icons_in_all() {
+    fn a_manifest_is_read_for_a_limited_number_of_icons() {
         let root = tmp("manifestcap");
         write(&root.join("logo.png"), b"png");
-        let missing =
-            (0..MAX_ENTRIES).map(|i| serde_json::json!({"src": format!("missing{i}.png")}));
-        let at = |first: bool| {
-            let mut icons: Vec<_> = missing.clone().collect();
-            let logo = serde_json::json!({"src": "logo.png", "sizes": "512x512"});
-            if first {
-                icons.insert(0, logo);
-            } else {
-                icons.push(logo);
-            }
-            serde_json::json!({ "icons": icons }).to_string()
-        };
-        write(&root.join("manifest.json"), at(false).as_bytes());
-        // The 257th entry is past what is looked at: no icon, and no time
-        // spent on the other twenty manifests a repository could name.
+        write(
+            &root.join("manifest.json"),
+            manifest_json(MAX_ENTRIES, true).as_bytes(),
+        );
+        // The 257th entry is past what is looked at.
         assert_eq!(find(&root), None);
-        write(&root.join("manifest.json"), at(true).as_bytes());
+        write(
+            &root.join("manifest.json"),
+            manifest_json(MAX_ENTRIES - 1, true).as_bytes(),
+        );
         assert_eq!(find(&root).unwrap(), canon(root.join("logo.png")));
+    }
+
+    #[test]
+    fn the_icon_budget_is_shared_by_all_the_manifests_of_one_find() {
+        let root = tmp("manifestshared");
+        write(&root.join("logo.png"), b"png");
+        // 200 + 100 missing entries, and the logo as the 301st: out of reach
+        // with one budget for the lookup, found with one per manifest.
+        write(
+            &root.join("manifest.json"),
+            manifest_json(200, false).as_bytes(),
+        );
+        write(
+            &root.join("site.webmanifest"),
+            manifest_json(100, true).as_bytes(),
+        );
+        assert_eq!(find(&root), None);
+        // On its own the second one is fine.
+        fs::remove_file(root.join("manifest.json")).unwrap();
+        assert_eq!(find(&root).unwrap(), canon(root.join("logo.png")));
+    }
+
+    #[test]
+    fn the_bytes_of_manifests_read_are_shared_too() {
+        let root = tmp("manifestbytes");
+        write(&root.join("logo.png"), b"png");
+        let padded = |pad: usize, logo: bool| {
+            let mut v: serde_json::Value = serde_json::from_str(&manifest_json(0, logo)).unwrap();
+            v["pad"] = serde_json::Value::String("x".repeat(pad));
+            v.to_string()
+        };
+        // Two manifests of a megabyte that say nothing use up most of the
+        // budget; the real one, a few hundred kilobytes, no longer fits.
+        write(
+            &root.join("manifest.json"),
+            padded(1_000_000, false).as_bytes(),
+        );
+        write(
+            &root.join("site.webmanifest"),
+            padded(1_000_000, false).as_bytes(),
+        );
+        write(
+            &root.join("manifest.webmanifest"),
+            padded(200_000, true).as_bytes(),
+        );
+        assert_eq!(find(&root), None);
+        fs::remove_file(root.join("manifest.json")).unwrap();
+        assert_eq!(find(&root).unwrap(), canon(root.join("logo.png")));
+    }
+
+    #[test]
+    fn the_work_of_the_link_walk_is_shared_by_all_the_paths_of_one_find() {
+        let mut b = Budget::new();
+        b.steps = 3;
+        let root = canon(tmp("steps"));
+        write(&root.join("a/b/c/d/e.png"), b"png");
+        // Five components cost five looks; three are all there is.
+        #[cfg(windows)]
+        {
+            assert!(inside(&root, "a/b/c/d/e.png", &mut b).is_none());
+            assert_eq!(b.steps, 0);
+            // Spent: nothing is looked at any more, not even a short path.
+            assert!(inside(&root, "a", &mut b).is_none());
+        }
+        #[cfg(not(windows))]
+        {
+            // The link walk is a Windows thing; elsewhere there is no cost.
+            assert!(inside(&root, "a/b/c/d/e.png", &mut b).is_some());
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_name_win32_rewrites_never_reaches_the_asset_protocol() {
+        // `evil.` is a real directory (made through the verbatim root) beside
+        // a junction `evil`. The path find() answers with is handed on
+        // without its `\\?\` prefix, and then Win32 opens `evil.` as `evil`.
+        // `fresh_dir`, not `tmp`: only a verbatim path can remove a directory
+        // named `evil.` again for the next run.
+        let root = crate::testutil::fresh_dir("docmap-icon-rewritten");
+        let elsewhere = crate::testutil::fresh_dir("docmap-icon-rewritten-target");
+        write(&elsewhere.join("icon.png"), b"the-other-one");
+
+        // A manifest `src` through such a directory.
+        write(&root.join("public/evil./icon.png"), b"png");
+        assert!(crate::testutil::dir_link(
+            &root.join("public/evil"),
+            &elsewhere
+        ));
+        write(
+            &root.join("public/manifest.json"),
+            br#"{"icons":[{"src":"evil./icon.png","sizes":"512x512"}]}"#,
+        );
+        assert_eq!(find(&root), None);
+
+        // An Android bucket of that name.
+        fs::remove_file(root.join("public/manifest.json")).unwrap();
+        write(
+            &root.join("app/src/main/res/mipmap-hdpi./ic_launcher.png"),
+            b"png",
+        );
+        assert_eq!(find(&root), None);
     }
 
     #[test]
