@@ -222,21 +222,28 @@ fn refuse_linked_output(root: &str, flags: &ProjectFlags) -> Result<(), String> 
     }
     // The files the engine writes are just as much the repository's: a link
     // that leaves the project (or reaches another machine) is refused, one that
-    // stays inside it is not - `map_file` is the one that tells them apart.
+    // stays inside it is not - `map_file` is the one that tells them apart. A
+    // link whose target is not there cannot be told apart from one that leaves
+    // (the engine would create the target wherever the link says), so it is
+    // refused too.
     for name in OUTPUT_FILES {
         let is_link =
             fs::symlink_metadata(dir.join(name)).is_ok_and(|m| m.file_type().is_symlink());
         if is_link && map_file(root, &dir, name).is_none() {
             return Err(format!(
-                "{rel}/{name} is a link out of the project (or to another machine), so the map is \
-                 neither written to nor read from where it leads. Replace it with a plain file."
+                "{rel}/{name} is a link that leaves the project, goes to another machine or \
+                 cannot be checked (its target is not there), so the map is neither written to \
+                 nor read from where it leads. Replace it with a plain file."
             ));
         }
     }
     Ok(())
 }
 
-/// The files the engine writes into the output directory.
+/// The files the engine writes into the output directory: the map
+/// (`index.html`, `module_map.json`, `overview.md`) and the badge a
+/// `.docmap.json` can ask for (`coverage.svg`). Keep in step with what the
+/// engine writes (documentation.nvim, `lua/documentation/init.lua`).
 const OUTPUT_FILES: [&str; 4] = [
     "index.html",
     "module_map.json",
@@ -2358,6 +2365,26 @@ async fn set_telemetry(
 /// An empty `rel` is the root itself, which is what a folder search over the
 /// whole project asks for.
 pub(crate) fn resolve_inside(root: &Path, rel: &str) -> Result<PathBuf, String> {
+    let mut steps = WALK_STEPS;
+    resolve_inside_budgeted(root, rel, &mut steps)
+}
+
+/// [`resolve_inside`] with the work of the link walk (one `lstat` per component
+/// looked at, the re-walk after every link hop included) drawn from `steps`.
+///
+/// The caps on `rel` do not bound what a *link* costs: its target is walked
+/// again from the link's directory, and a target can name thousands of real
+/// levels. A caller that resolves many paths on behalf of one request (the icon
+/// lookup tries some seventy fixed names and up to 256 manifest entries) shares
+/// one budget, so the request is bounded rather than each path. Spent, the walk
+/// answers "too many links".
+pub(crate) fn resolve_inside_budgeted(
+    root: &Path,
+    rel: &str,
+    steps: &mut u32,
+) -> Result<PathBuf, String> {
+    #[cfg(not(windows))]
+    let _ = &steps;
     if rel.contains('\0') {
         return Err("a path cannot contain a NUL".to_string());
     }
@@ -2404,6 +2431,13 @@ pub(crate) fn resolve_inside(root: &Path, rel: &str) -> Result<PathBuf, String> 
                 if reparsed_by_push(name) {
                     return Err(format!("{rel} is not a path inside the project"));
                 }
+                // The root is a canonical, verbatim path, so `evil.` is looked
+                // at as itself here; handed on without the prefix (as the
+                // icon path is, to the asset protocol, and the editor's) Win32
+                // reads it as `evil` - through a link, if there is one beside it.
+                if crate::languages::win32_rewrites_name(name) {
+                    return Err(format!("{rel} is not a path inside the project"));
+                }
                 collapsed.push(name);
                 depth += 1;
                 // Looking at each prefix of an existing path costs a walk of
@@ -2429,12 +2463,12 @@ pub(crate) fn resolve_inside(root: &Path, rel: &str) -> Result<PathBuf, String> 
         return Err(format!("{rel} resolves outside the project"));
     }
     #[cfg(windows)]
-    match links_to_network(&clean, root.components().count(), &mut 16) {
+    match links_to_network(&clean, root.components().count(), &mut 16, steps) {
         LinkWalk::Local => {}
         LinkWalk::Network => return Err(format!("{rel} goes through a link to another machine")),
         LinkWalk::TooDeep => {
             return Err(format!(
-                "{rel} goes through too many links (or a link loop)"
+                "{rel} goes through too many links (or a link loop, or a very deep path)"
             ))
         }
         LinkWalk::Unusable => {
@@ -2497,12 +2531,8 @@ pub(crate) fn map_dir_is_plain(root: &Path, map_dir: &Path) -> bool {
                 // Win32 drops a trailing dot or space before the file system
                 // sees the name, so `map.` is `map` - which the verbatim path
                 // walked here would report as missing.
-                #[cfg(windows)]
-                {
-                    let s = name.to_string_lossy();
-                    if s.ends_with('.') || s.ends_with(' ') {
-                        return false;
-                    }
+                if languages::win32_rewrites_name(name) {
+                    return false;
                 }
                 walked.push(name);
             }
@@ -2575,6 +2605,10 @@ pub(crate) fn map_file(root: &Path, map_dir: &Path, name: &str) -> Option<PathBu
 const MAX_REL_LEN: usize = 32 * 1024;
 const MAX_REL_COMPONENTS: usize = 256;
 
+/// What one [`resolve_inside`] may spend on its link walk: components looked
+/// at, over the whole chain of links. A real path needs a few dozen.
+const WALK_STEPS: u32 = 1024;
+
 /// Does the link at `path` - an entry below `root`, which is not inspected -
 /// stay on this machine? Always so off Windows, where a link cannot name a
 /// share.
@@ -2582,7 +2616,12 @@ fn link_stays_local(root: &Path, path: &Path) -> bool {
     #[cfg(windows)]
     {
         matches!(
-            links_to_network(path, root.components().count(), &mut 16),
+            links_to_network(
+                path,
+                root.components().count(),
+                &mut 16,
+                &mut WALK_STEPS.min(256)
+            ),
             LinkWalk::Local
         )
     }
@@ -2631,7 +2670,7 @@ enum LinkWalk {
 /// component misses). `budget` is shared across the chain. The first `skip`
 /// components are not inspected — the canonical project root has no links.
 #[cfg(windows)]
-fn links_to_network(path: &Path, skip: usize, budget: &mut u8) -> LinkWalk {
+fn links_to_network(path: &Path, skip: usize, budget: &mut u8, steps: &mut u32) -> LinkWalk {
     use std::path::Prefix;
 
     let parts: Vec<Component> = path.components().collect();
@@ -2661,6 +2700,12 @@ fn links_to_network(path: &Path, skip: usize, budget: &mut u8) -> LinkWalk {
         if i < skip {
             continue;
         }
+        // Each look costs the kernel a walk of the whole prefix, so a path of
+        // thousands of real levels - or a link to one - is quadratic work.
+        if *steps == 0 {
+            return LinkWalk::TooDeep;
+        }
+        *steps -= 1;
         // Not there: `canonicalize` will say so, and nothing past it can be
         // reached.
         let Ok(meta) = fs::symlink_metadata(&walked) else {
@@ -2701,13 +2746,19 @@ fn links_to_network(path: &Path, skip: usize, budget: &mut u8) -> LinkWalk {
             // reachable by that spelling. Not local unless it provably is.
             return LinkWalk::Unusable;
         }
-        let base = if target.is_absolute() {
-            target
+        // A relative target continues from the link's directory, and everything
+        // up to it has just been looked at and is plain: it is not looked at
+        // again (each hop restarted from the drive, which made a chain of
+        // links at the bottom of a deep tree cost the depth once per hop).
+        // An absolute one can lead anywhere and is walked from its start.
+        let (base, vetted) = if target.is_absolute() {
+            (target, 0)
         } else {
-            walked.parent().unwrap_or(&walked).join(target)
+            let parent = walked.parent().unwrap_or(&walked);
+            (parent.join(target), parent.components().count())
         };
         let rest: PathBuf = parts[i + 1..].iter().collect();
-        return links_to_network(&base.join(rest), 0, budget);
+        return links_to_network(&base.join(rest), vetted, budget, steps);
     }
     LinkWalk::Local
 }
@@ -3894,6 +3945,18 @@ mod tests {
 
     #[test]
     fn a_linked_output_file_that_leaves_the_project_is_refused_too() {
+        // The names are spelled out here and not taken from the list under
+        // test: dropping one from it (or never adding one the engine starts to
+        // write) has to fail this.
+        assert_eq!(
+            OUTPUT_FILES,
+            [
+                "index.html",
+                "module_map.json",
+                "overview.md",
+                "coverage.svg"
+            ]
+        );
         let root = fresh_dir("docmap-refuse-file");
         let map = root.join("docs").join("map");
         fs::create_dir_all(&map).unwrap();
@@ -3903,25 +3966,93 @@ mod tests {
         let root_str = portable(&root);
         let flags = ProjectFlags::default();
         assert!(refuse_linked_output(&root_str, &flags).is_ok());
-        if !file_link(&map.join("module_map.json"), &root.join("inside.json")) {
+        if !file_link(&map.join("probe.json"), &root.join("inside.json")) {
             eprintln!("SKIP: no privilege to create symlinks");
             return;
         }
-        assert!(
-            refuse_linked_output(&root_str, &flags).is_ok(),
-            "a link that stays inside the project is fine"
+        fs::remove_file(map.join("probe.json")).unwrap();
+        for name in [
+            "index.html",
+            "module_map.json",
+            "overview.md",
+            "coverage.svg",
+        ] {
+            // A link that stays inside the project is fine ...
+            assert!(file_link(&map.join(name), &root.join("inside.json")));
+            assert!(
+                refuse_linked_output(&root_str, &flags).is_ok(),
+                "{name}: a link that stays inside the project is fine"
+            );
+            fs::remove_file(map.join(name)).unwrap();
+            // ... one that leaves it is not ...
+            assert!(file_link(&map.join(name), &outside));
+            let err = refuse_linked_output(&root_str, &flags).unwrap_err();
+            assert!(err.contains(&format!("docs/map/{name} is a link")), "{err}");
+            fs::remove_file(map.join(name)).unwrap();
+            // ... and neither is one whose target is not there, which the
+            // engine would create wherever the link says.
+            assert!(file_link(&map.join(name), &root.join("not-there.md")));
+            let err = refuse_linked_output(&root_str, &flags).unwrap_err();
+            assert!(err.contains(&format!("docs/map/{name} is a link")), "{err}");
+            fs::remove_file(map.join(name)).unwrap();
+        }
+        assert!(refuse_linked_output(&root_str, &flags).is_ok());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn the_work_of_the_link_walk_is_bounded_whatever_a_link_points_at() {
+        // The caps on `rel` do not reach a link target: a link can name
+        // thousands of real levels, and each look at one costs the kernel the
+        // walk of its whole prefix.
+        let dir = fresh_dir("docmap-deep-target");
+        let deep = "a/".repeat(120);
+        fs::create_dir_all(dir.join(&deep)).unwrap();
+        fs::write(dir.join(&deep).join("f.png"), "x").unwrap();
+        let target = format!("{}f.png", deep.replace('/', "\\"));
+        if std::os::windows::fs::symlink_file(&target, dir.join("l")).is_err() {
+            eprintln!("SKIP: no privilege to create symlinks");
+            return;
+        }
+        // A budget of the real size is spent by a tree of 1 100 levels (4 s to
+        // build); a small one shows the same with 120.
+        let mut steps = 100;
+        let err = resolve_inside_budgeted(&dir, "l", &mut steps).unwrap_err();
+        assert!(err.contains("too many links"), "{err}");
+        assert_eq!(steps, 0);
+        // With enough it is an ordinary path.
+        let mut steps = 200;
+        assert_eq!(
+            resolve_inside_budgeted(&dir, "l", &mut steps).unwrap(),
+            dir.join(&deep).join("f.png")
         );
-        assert!(file_link(&map.join("index.html"), &outside));
-        let err = refuse_linked_output(&root_str, &flags).unwrap_err();
-        assert!(err.contains("docs/map/index.html is a link"), "{err}");
-        // A link whose target is not there would be created by the engine.
-        fs::remove_file(map.join("index.html")).unwrap();
-        assert!(file_link(
-            &map.join("overview.md"),
-            &root.join("not-there.md")
-        ));
-        let err = refuse_linked_output(&root_str, &flags).unwrap_err();
-        assert!(err.contains("docs/map/overview.md is a link"), "{err}");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_chain_of_links_at_the_bottom_of_a_deep_tree_does_not_walk_the_tree_once_per_hop() {
+        // 15 hops below 200 levels: walked from the top each time that is
+        // 3 000 looks; continued from the link's directory it is about 230.
+        let dir = fresh_dir("docmap-deep-chain");
+        let deep = "a/".repeat(200);
+        fs::create_dir_all(dir.join(&deep)).unwrap();
+        fs::write(dir.join(&deep).join("f.png"), "x").unwrap();
+        let bottom = dir.join(&deep);
+        let mut made = true;
+        for i in 1..=15 {
+            let to = if i == 15 {
+                "f.png".to_string()
+            } else {
+                format!("x{}", i + 1)
+            };
+            made &= std::os::windows::fs::symlink_file(&to, bottom.join(format!("x{i}"))).is_ok();
+        }
+        if !made {
+            eprintln!("SKIP: no privilege to create symlinks");
+            return;
+        }
+        let resolved = resolve_inside(&dir, &format!("{deep}x1")).unwrap();
+        assert_eq!(resolved, bottom.join("f.png"));
     }
 
     #[cfg(windows)]
@@ -4114,6 +4245,11 @@ mod tests {
             "docs/c:",
             "a/C:..",
             "a.txt:stream",
+            // Win32 reads these as `evil`, `x` and `b`.
+            "evil./icon.png",
+            "x./",
+            "a/b /c",
+            "icon.png.",
         ] {
             assert!(
                 shape(rel).contains("not a path inside the project"),

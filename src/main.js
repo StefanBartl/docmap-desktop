@@ -1015,6 +1015,12 @@ async function renderDetail() {
   // Commands answer in the order they finish, not the order they were asked:
   // by now another project may be the one on screen.
   if (p.id !== selectedId) return;
+  // The badge belongs to a scan, and the scan below only ever sets it: without
+  // this a project with no badge (no recognised sources, or a scan that failed)
+  // kept the one of the project before it.
+  els.langs.hidden = true;
+  els.langs.textContent = "";
+  els.langs.removeAttribute("title");
   renderIcon(p.id);
   renderCounts(status);
 

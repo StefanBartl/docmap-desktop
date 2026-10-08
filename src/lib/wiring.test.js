@@ -233,16 +233,21 @@ test("the Count-again button follows the project on screen", () => {
 //
 // A guard that is not called is a guard that is not there, and the Rust tests
 // exercise the helpers, not the commands (those take a live AppHandle).
+//
+// Comment lines are dropped first: a guard that is only commented out is not
+// there, and a pattern that still matched it would call it present.
+const code = (text) => text.replace(/^\s*(\/\/|\/\*|\*).*$/gm, "");
+
 function rustFn(name) {
   const start = RUST.search(new RegExp(`\\n(?:async )?fn ${name}\\b`));
   assert.ok(start >= 0, `no fn ${name} in main.rs`);
-  return RUST.slice(start, RUST.indexOf("\n}\n", start));
+  return code(RUST.slice(start, RUST.indexOf("\n}\n", start)));
 }
 
 function jsFn(name) {
   const start = MAIN.indexOf(name);
   assert.ok(start >= 0, `no ${name} in main.js`);
-  return MAIN.slice(start, MAIN.indexOf("\n}\n", start));
+  return code(MAIN.slice(start, MAIN.indexOf("\n}\n", start)));
 }
 
 test("the engine is not started on a project whose output is a link", () => {
@@ -272,13 +277,52 @@ test("the commands that walk a repository's directories run off the main thread"
   }
 });
 
+test("inspect_folder looks at .git without following it", () => {
+  const body = rustFn("inspect_folder");
+  assert.match(body, /languages::has_git_entry\(root_path\)/);
+  assert.doesNotMatch(body, /join\("\.git"\)/);
+});
+
+// Commands run concurrently now, so answers arrive in the order they finish: a
+// guard has to sit right after the await whose answer it protects, before
+// anything is drawn from it.
+function guardAfter(body, awaited, guard, before, what) {
+  const at = body.indexOf(awaited);
+  assert.ok(at >= 0, `${what}: no ${awaited}`);
+  const g = body.indexOf(guard, at);
+  assert.ok(g >= 0, `${what}: nothing guards the answer of ${awaited}`);
+  const drawn = body.indexOf(before, at);
+  assert.ok(drawn < 0 || g < drawn, `${what}: ${before} comes before the guard`);
+}
+
 test("an answer for a project the reader has left is dropped", () => {
-  // Commands run concurrently now, so answers arrive in the order they finish.
   const detail = jsFn("async function renderDetail(");
-  assert.ok((detail.match(/if \(p\.id !== selectedId\) return;/g) ?? []).length >= 2, "renderDetail draws a stale answer");
-  const selectBody = jsFn("async function select(");
-  assert.ok((selectBody.match(/if \(selectedId !== id\) return;/g) ?? []).length >= 3, "select draws a stale answer");
+  const stale = "if (p.id !== selectedId) return;";
+  guardAfter(detail, "await mapStatus(", stale, "renderIcon(", "renderDetail");
+  guardAfter(detail, "scanLanguages(", stale, "callsSupport = callsSupportFor", "renderDetail's scan");
+
+  const sel = jsFn("async function select(");
+  const left = "if (selectedId !== id) return;";
+  guardAfter(sel, "await mapStatus(", left, "if (!status.exists)", "select");
+  guardAfter(sel, "await scanLanguages(", left, "showPlaceholder(", "select");
+  guardAfter(sel, 'await invoke("serve_project"', left, "mapBase = ", "select");
+
   const files = jsFn("async function renderFiles(");
-  assert.match(files, /const mine = \+\+filesSeq;/);
-  assert.ok((files.match(/mine !== filesSeq/g) ?? []).length >= 2, "renderFiles draws a stale listing");
+  assert.ok(
+    files.indexOf("const mine = ++filesSeq;") >= 0 &&
+      files.indexOf("const mine = ++filesSeq;") < files.indexOf("if (!filesOpen || !selectedId) return;"),
+    "renderFiles takes its ticket before it can return early"
+  );
+  guardAfter(files, 'await invoke("file_tree"', "mine !== filesSeq", "crumb.innerHTML", "renderFiles");
+  // The success path is guarded as well as the catch branch: the last one
+  // sits between the call's end and the first line that draws the listing.
+  const drawn = files.indexOf("crumb.innerHTML");
+  assert.ok(files.lastIndexOf("mine !== filesSeq", drawn) > files.indexOf("} catch"), "renderFiles draws a stale listing");
+});
+
+test("the language badge is cleared before the next scan can set it", () => {
+  const detail = jsFn("async function renderDetail(");
+  const clear = detail.indexOf("els.langs.hidden = true;");
+  assert.ok(clear >= 0, "renderDetail never clears the badge");
+  assert.ok(clear < detail.indexOf("scanLanguages("), "the badge is cleared after the scan starts");
 });

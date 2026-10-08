@@ -542,4 +542,22 @@ mod tests {
         let root = tmp("missing");
         assert!(list(&root, "nope").is_err());
     }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_name_win32_rewrites_is_not_listed() {
+        // `evil.` can only be made through a verbatim path, and a row for it
+        // would be a click that opens `evil` instead.
+        let root = crate::testutil::fresh_dir("docmap-ft-rewritten");
+        write(&root.join("evil.").join("a.txt"), b"x");
+        write(&root.join("trail "), b"x");
+        write(&root.join("plain.txt"), b"x");
+        let names: Vec<_> = list(&root, "")
+            .unwrap()
+            .entries
+            .into_iter()
+            .map(|e| e.name)
+            .collect();
+        assert_eq!(names, ["plain.txt"]);
+    }
 }

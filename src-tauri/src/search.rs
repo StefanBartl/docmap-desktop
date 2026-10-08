@@ -864,4 +864,24 @@ mod tests {
         assert!(!r.available);
         assert!(r.hits.is_empty());
     }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_name_win32_rewrites_is_not_searched() {
+        // `evil.` is a real file (made through the verbatim root) beside a
+        // link `evil` to a file outside. Opened by a path without the
+        // verbatim prefix - a stored project root is one - Win32 reads
+        // `evil.` as `evil`, and the search would read the outside file.
+        let base = crate::testutil::fresh_dir("docmap-search-rewritten");
+        let root = base.join("root");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("evil."), "inside").unwrap();
+        fs::write(base.join("outside.txt"), "needle").unwrap();
+        if !crate::testutil::file_link(&root.join("evil"), &base.join("outside.txt")) {
+            eprintln!("SKIP: no privilege to create symlinks");
+            return;
+        }
+        let stored = PathBuf::from(crate::portable(&root));
+        assert!(text(&stored, "needle").hits.is_empty());
+    }
 }
