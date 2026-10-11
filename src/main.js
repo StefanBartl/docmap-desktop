@@ -1976,7 +1976,11 @@ async function checkMap(id) {
   // `--lenient` makes the exit code mean staleness and nothing else, so this
   // reads one bit rather than sniffing the engine's prose for a sentence that
   // is free to be reworded — see `check_map` in `main.rs`.
-  say(res.current ? t("check.current") : t("check.stale"));
+  // Exit code 2 is the engine saying it did not get as far as a verdict (it
+  // refused to read a map through a link or an unsafe map directory, or could
+  // not run): that is not "stale", and regenerating would not settle it.
+  const stale = res.code !== 2;
+  say(res.current ? t("check.current") : t(stale ? "check.stale" : "check.refused"));
   if (here()) appendLog(log || "(no output)", !res.current);
 }
 

@@ -205,7 +205,22 @@ struct ProjectFlags {
 ///
 /// What a `.docmap.json` in the repository says about `out_dir` is the
 /// engine's to read, and so is refusing to write through a link there.
+///
+/// The project's own `out_dir` is vetted first, exactly as it is passed to the
+/// engine. The dialog no longer takes a value the engine refuses, but one saved
+/// before that (`../maps`, `docs/my map`) or put into `workspace.json` by hand
+/// is still passed on. Generate and Check say so here, in the dialog's words,
+/// instead of leaving it to the engine's message, which Check cannot tell from
+/// a stale map.
 fn refuse_linked_output(root: &str, flags: &ProjectFlags) -> Result<(), String> {
+    if let Some(dir) = flags.out_dir.as_deref().filter(|dir| !dir.is_empty()) {
+        if !is_safe_out_dir(dir, cfg!(windows)) {
+            return Err(format!(
+                "Project settings: {}. Change it there.",
+                map_dir_refusal(dir)
+            ));
+        }
+    }
     let root = Path::new(root);
     let rel = flags
         .out_dir
@@ -888,24 +903,60 @@ fn rel_path(raw: Option<String>) -> Option<String> {
     (!cleaned.is_empty()).then_some(cleaned)
 }
 
+/// Would the engine take `dir` as its map directory?
+///
+/// The rule of documentation.nvim's `core/safe_out_dir.lua` (the engine refuses
+/// any other `--out-dir`, "not a safe relative path"), and of the one name
+/// check its `core/safe_fs.lua` adds on Windows. Keep them in step: this is
+/// what keeps the dialog from taking a value that could only fail on the next
+/// Generate. Every name must be made of ASCII letters, digits, `-`, `_` and
+/// `.`, and must not be `.` or `..`; a leading separator makes the path
+/// absolute, and a drive (`C:x`) holds a `:`, which no name may. Empty names
+/// are collapsed (`docs//map`), but one name has to be left. Windows drops a
+/// trailing dot before the file system sees a name, so there `map.` is
+/// refused; a trailing space is outside the whitelist already.
+///
+/// `windows` is a parameter so that both answers can be tested anywhere.
+fn is_safe_out_dir(dir: &str, windows: bool) -> bool {
+    let dir = dir.replace('\\', "/");
+    if dir.starts_with('/') {
+        return false;
+    }
+    let plain = |c: char| c.is_ascii_alphanumeric() || matches!(c, '-' | '.' | '_');
+    let mut names = dir.split('/').filter(|name| !name.is_empty()).peekable();
+    names.peek().is_some()
+        && names.all(|name| {
+            name != "."
+                && name != ".."
+                && name.chars().all(plain)
+                && !(windows && name.ends_with('.'))
+        })
+}
+
+/// Why `value` is not a map directory, in the words the dialog shows.
+fn map_dir_refusal(value: &str) -> String {
+    format!(
+        "the map directory must be a folder inside the project, not `{value}` (only letters, digits, `-`, `_` and `.` in names, no `.` or `..` component, no absolute path; on Windows a name must not end in a dot)"
+    )
+}
+
 /// The Map directory setting, or why it cannot be one.
 ///
-/// The engine refuses an `--out-dir` that is absolute, names a drive or has a
-/// `..` component ("not a safe relative path"), so saving one would only move
-/// the failure to the next Generate. Checked on the raw text: [`rel_path`]
-/// trims a leading `/`, which would turn `/maps` into the project-relative
+/// What the engine refuses is refused here ([`is_safe_out_dir`]), on the value
+/// that will be stored and passed to it: `  ./out/ ` is stored as `out`, which
+/// is fine. The one thing checked on the raw text is a leading `/`, because
+/// [`rel_path`] trims it, which would turn `/maps` into the project-relative
 /// `maps` and hide that an absolute path was meant.
 fn map_dir_setting(raw: Option<String>) -> Result<Option<String>, String> {
-    if let Some(value) = raw.as_deref() {
-        let value = value.trim().replace('\\', "/");
-        let drive = value.as_bytes().get(1) == Some(&b':');
-        if value.starts_with('/') || drive || value.split('/').any(|part| part == "..") {
-            return Err(format!(
-                "the map directory must be a folder inside the project, not `{value}` (no `..`, no absolute path)"
-            ));
-        }
+    let typed = raw.as_deref().unwrap_or("").trim().replace('\\', "/");
+    let dir = rel_path(raw);
+    let unsafe_dir = dir
+        .as_deref()
+        .is_some_and(|dir| !is_safe_out_dir(dir, cfg!(windows)));
+    if typed.starts_with('/') || unsafe_dir {
+        return Err(map_dir_refusal(&typed));
     }
-    Ok(rel_path(raw))
+    Ok(dir)
 }
 
 /// A free-text setting, trimmed, with empty meaning "unset".
@@ -1951,8 +2002,10 @@ struct CheckResult {
 /// caller with one bit cannot tell those apart. Sniffing the prose on stderr
 /// for "Module map is stale" would work today and break the first time that
 /// sentence is reworded. With `--lenient` the exit code means staleness and
-/// nothing else, and the findings still arrive in the output, which is where
-/// this app already shows the engine's own report verbatim.
+/// nothing else, except `2`: the engine refused or could not run and so has no
+/// verdict (the frontend reads it as "not checked", not as "stale"). The findings
+/// still arrive in the output, which is where this app already shows the engine's
+/// own report verbatim.
 ///
 /// Writes nothing. That is why it is its own command rather than a flag on
 /// `generate`: the two have opposite guarantees, and a boolean that decided
@@ -2541,11 +2594,12 @@ fn reparsed_by_push(name: &std::ffi::OsStr) -> bool {
 /// is followed to find out (`symlink_metadata` does not, and reports a Windows
 /// junction as a link too).
 ///
-/// A map directory that is not under the root (`../maps`, set by the user in
-/// Project settings) is not repository content and is left alone here; `..` in
-/// it is walked as the OS does, and only the part inside the root is inspected.
-/// The engine itself refuses such a value on write and on `--check`, so this
-/// only governs what the app reads.
+/// A map directory that is not under the root (`../maps`, saved in Project
+/// settings before they refused it) is not repository content and is left
+/// alone here; `..` in it is walked as the OS does, and only the part inside
+/// the root is inspected. The engine itself refuses such a value on write and
+/// on `--check`, and so does [`refuse_linked_output`] before Generate and
+/// Check, so this only governs what the app reads.
 ///
 /// A component that is not there yet is fine - there is nothing to read - but
 /// the walk goes on past it, because a later `..` can lead back to one that is
@@ -3702,11 +3756,76 @@ mod tests {
             r"\maps",
             "C:/maps",
             "C:maps",
+            // Only a drive once the `./` is gone, which is what gets stored.
+            "./C:/maps",
+            r".\C:\maps",
         ] {
             assert!(ok(bad).is_err(), "{bad} must be refused");
         }
         // A name that merely contains dots is fine.
         assert_eq!(ok("docs/map..v2"), Ok(Some("docs/map..v2".into())));
+    }
+
+    #[test]
+    fn a_map_directory_setting_is_refused_where_the_engine_would_refuse_it() {
+        let ok = |v: &str| map_dir_setting(Some(v.into()));
+        // The engine's `safe_out_dir` allows ASCII letters, digits, `-`, `_` and
+        // `.` in a name, and no `.` or `..` name: the rest fails at the next
+        // Generate, with a message that reads as if the map were at fault.
+        for bad in [
+            "docs/my map",
+            "docs/./map",
+            "docs/map/.",
+            ".",
+            "./.",
+            "dokumentation/\u{fc}bersicht",
+            "~/maps",
+            "docs/map:x",
+            "1:x",
+            "docs/ma\np",
+            "docs/ma\0p",
+        ] {
+            let err = ok(bad).unwrap_err();
+            assert!(err.starts_with("the map directory must be"), "{bad}: {err}");
+            assert!(err.contains("only letters, digits"), "{bad}: {err}");
+        }
+        // What it takes stays accepted: dots inside a name, a name that starts
+        // with one, empty names (the engine collapses them), the `./` and the
+        // surrounding space that `rel_path` strips before the engine sees it.
+        for (typed, stored) in [
+            ("docs/map", "docs/map"),
+            ("docs/map..v2", "docs/map..v2"),
+            ("docs//map", "docs//map"),
+            (".github/map", ".github/map"),
+            ("Docs/Map_v2-1.0", "Docs/Map_v2-1.0"),
+            ("  ./out/ ", "out"),
+            (r"docs\map", "docs/map"),
+        ] {
+            assert_eq!(ok(typed), Ok(Some(stored.into())), "{typed}");
+        }
+        // The refusal names the value as typed.
+        assert!(ok("docs/my map").unwrap_err().contains("`docs/my map`"));
+    }
+
+    #[test]
+    fn a_name_ending_in_a_dot_is_refused_where_windows_would_rewrite_it() {
+        // Win32 reads `map.` as `map`, and the engine's `safe_fs` refuses such a
+        // name there and nowhere else.
+        for dir in ["docs/map.", "docs/map./x", "docs/..."] {
+            assert!(is_safe_out_dir(dir, false), "{dir}");
+            assert!(!is_safe_out_dir(dir, true), "{dir} on Windows");
+        }
+        for dir in ["docs/map", "docs/map..v2", ".github/map"] {
+            assert!(is_safe_out_dir(dir, false), "{dir}");
+            assert!(is_safe_out_dir(dir, true), "{dir} on Windows");
+        }
+        // Nothing left once the empty names are collapsed.
+        assert!(!is_safe_out_dir("", false));
+        assert!(!is_safe_out_dir("//", false));
+        // The engine folds backslashes first, so a stored `docs\map` is `docs/map`
+        // and a stored `\maps` is absolute.
+        assert!(is_safe_out_dir(r"docs\map", false));
+        assert!(!is_safe_out_dir(r"\maps", false));
     }
 
     #[test]
@@ -4274,12 +4393,42 @@ mod tests {
             ..Default::default()
         };
         assert!(refuse_linked_output(&root_str, &own).is_ok());
-        // And one outside the project is the user's.
-        let outside = ProjectFlags {
-            out_dir: Some("../maps".into()),
+    }
+
+    #[test]
+    fn a_stored_map_directory_the_engine_refuses_is_reported_instead_of_run() {
+        let root = fresh_dir("docmap-refuse-stored");
+        let root_str = portable(&root);
+        let stored = |dir: &str| ProjectFlags {
+            out_dir: Some(dir.into()),
             ..Default::default()
         };
-        assert!(refuse_linked_output(&root_str, &outside).is_ok());
+        // Saved before the dialog refused it, or put into `workspace.json` by
+        // hand: passed on to the engine as it is, so it is turned back here.
+        // A blank one is not the default either (`--out-dir=  ` is passed).
+        for dir in [
+            "../maps",
+            "/maps",
+            "C:/maps",
+            "docs/my map",
+            "docs/./map",
+            "./out",
+            "  ",
+        ] {
+            let err = refuse_linked_output(&root_str, &stored(dir)).unwrap_err();
+            assert!(
+                err.starts_with("Project settings: the map directory must be"),
+                "{dir}: {err}"
+            );
+            assert!(err.contains(&format!("`{dir}`")), "{dir}: {err}");
+            assert!(err.ends_with("Change it there."), "{dir}: {err}");
+        }
+        for dir in ["out", "docs/map", "docs//map", ""] {
+            assert!(
+                refuse_linked_output(&root_str, &stored(dir)).is_ok(),
+                "{dir}"
+            );
+        }
     }
 
     #[test]
