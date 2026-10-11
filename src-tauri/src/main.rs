@@ -888,6 +888,26 @@ fn rel_path(raw: Option<String>) -> Option<String> {
     (!cleaned.is_empty()).then_some(cleaned)
 }
 
+/// The Map directory setting, or why it cannot be one.
+///
+/// The engine refuses an `--out-dir` that is absolute, names a drive or has a
+/// `..` component ("not a safe relative path"), so saving one would only move
+/// the failure to the next Generate. Checked on the raw text: [`rel_path`]
+/// trims a leading `/`, which would turn `/maps` into the project-relative
+/// `maps` and hide that an absolute path was meant.
+fn map_dir_setting(raw: Option<String>) -> Result<Option<String>, String> {
+    if let Some(value) = raw.as_deref() {
+        let value = value.trim().replace('\\', "/");
+        let drive = value.as_bytes().get(1) == Some(&b':');
+        if value.starts_with('/') || drive || value.split('/').any(|part| part == "..") {
+            return Err(format!(
+                "the map directory must be a folder inside the project, not `{value}` (no `..`, no absolute path)"
+            ));
+        }
+    }
+    Ok(rel_path(raw))
+}
+
 /// A free-text setting, trimmed, with empty meaning "unset".
 fn text(raw: Option<String>) -> Option<String> {
     let cleaned = raw?.trim().to_string();
@@ -938,7 +958,7 @@ fn project_scope_set(
         .filter_map(|p| rel_path(Some(p)))
         .collect();
     let langs = languages.filter(|l| !l.is_empty());
-    let out = rel_path(out_dir);
+    let out = map_dir_setting(out_dir)?;
     // Several sources are comma-separated, so this is cleaned segment by
     // segment rather than as one path — `--source=lua, src/` has to reach
     // the engine as `lua,src`, and `rel_path` over the whole string would
@@ -3664,6 +3684,29 @@ mod tests {
         assert_eq!(cmd.get_program(), "explorer");
         let args: Vec<&std::ffi::OsStr> = cmd.get_args().collect();
         assert_eq!(args, vec![std::ffi::OsStr::new(target)]);
+    }
+
+    #[test]
+    fn a_map_directory_setting_must_stay_inside_the_project() {
+        let ok = |v: &str| map_dir_setting(Some(v.into()));
+        assert_eq!(ok("docs/map"), Ok(Some("docs/map".into())));
+        assert_eq!(ok("  ./out/ "), Ok(Some("out".into())));
+        assert_eq!(map_dir_setting(None), Ok(None));
+        assert_eq!(ok("   "), Ok(None));
+        for bad in [
+            "../maps",
+            "docs/../../maps",
+            "..",
+            r"..\maps",
+            "/maps",
+            r"\maps",
+            "C:/maps",
+            "C:maps",
+        ] {
+            assert!(ok(bad).is_err(), "{bad} must be refused");
+        }
+        // A name that merely contains dots is fine.
+        assert_eq!(ok("docs/map..v2"), Ok(Some("docs/map..v2".into())));
     }
 
     #[test]
