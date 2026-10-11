@@ -2522,8 +2522,10 @@ fn reparsed_by_push(name: &std::ffi::OsStr) -> bool {
 /// junction as a link too).
 ///
 /// A map directory that is not under the root (`../maps`, set by the user in
-/// Project settings) is not repository content and is left alone; `..` in it is
-/// walked as the OS does, and only the part inside the root is inspected.
+/// Project settings) is not repository content and is left alone here; `..` in
+/// it is walked as the OS does, and only the part inside the root is inspected.
+/// The engine itself refuses such a value on write and on `--check`, so this
+/// only governs what the app reads.
 ///
 /// A component that is not there yet is fine - there is nothing to read - but
 /// the walk goes on past it, because a later `..` can lead back to one that is
