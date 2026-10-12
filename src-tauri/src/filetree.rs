@@ -163,7 +163,7 @@ fn git_states(root: &Path, dir: &Path) -> GitStates {
     // to the entry it belongs to. Empty when listing the root.
     let prefix = dir
         .strip_prefix(root)
-        .map(|r| crate::portable(r))
+        .map(crate::portable)
         .unwrap_or_default();
     let prefix = if prefix.is_empty() {
         String::new()
@@ -254,7 +254,7 @@ pub fn list(root: &Path, sub: &str) -> Result<Listing, String> {
         let path = entry.path();
         let rel = path
             .strip_prefix(&root)
-            .map(|r| crate::portable(r))
+            .map(crate::portable)
             .unwrap_or_else(|_| name.clone());
         let meta = entry.metadata().ok();
         // A symlink is reported as what it is rather than followed: following
