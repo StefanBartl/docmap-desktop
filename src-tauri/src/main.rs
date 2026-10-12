@@ -1107,7 +1107,14 @@ fn clone_url_problem(url: &str) -> Option<&'static str> {
     if url.starts_with('-') {
         return Some("the URL starts with '-', git would read it as an option");
     }
-    if url.contains("::") {
+    // git reads `<name>::<address>` as a remote helper only when the URL starts
+    // with scheme characters and then `::`; an IPv6 literal (`https://[::1]/r`)
+    // has `::` elsewhere and is a plain address.
+    let scheme_len = url
+        .bytes()
+        .take_while(|b| b.is_ascii_alphanumeric() || matches!(b, b'+' | b'.' | b'-'))
+        .count();
+    if url[scheme_len..].starts_with("::") {
         return Some("the URL names a remote helper ('::'), which is not supported");
     }
     let lower = url.to_ascii_lowercase();
@@ -1142,10 +1149,23 @@ fn repo_dir_name(url: &str) -> Option<String> {
         && name.len() <= 100
         && name != "."
         && name != ".."
+        && !name.ends_with('.')
+        && !is_windows_device_name(name)
         && name
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'));
     plain.then(|| name.to_string())
+}
+
+/// `CON`, `NUL`, `COM1` … : names Windows opens as a device, with or without an
+/// extension, in any case. A clone folder of that name is no folder.
+fn is_windows_device_name(name: &str) -> bool {
+    let stem = name.split('.').next().unwrap_or(name).to_ascii_lowercase();
+    matches!(stem.as_str(), "con" | "prn" | "aux" | "nul")
+        || ["com", "lpt"].iter().any(|p| {
+            stem.strip_prefix(p)
+                .is_some_and(|n| matches!(n.as_bytes(), [b'1'..=b'9']))
+        })
 }
 
 /// Clone a repository into the cache directory and add it as a project.
@@ -3822,6 +3842,8 @@ mod tests {
             "ssh://git@host:2222/a/b.git",
             "git://host/a/b.git",
             "git@github.com:StefanBartl/docmap-desktop.git",
+            "https://[::1]/a/b.git",
+            "ssh://git@[2001:db8::1]/a/b.git",
         ] {
             assert_eq!(clone_url_problem(good), None, "{good:?} must pass");
         }
@@ -3857,6 +3879,21 @@ mod tests {
                 assert!(!n.contains(['/', '\\', ':']), "{bad:?} gave {n:?}");
             }
         }
+        for device in [
+            "https://host/o/con",
+            "https://host/o/NUL.git",
+            "https://host/o/com1",
+            "https://host/o/lpt9.txt",
+            "https://host/o/aux.v2",
+            "https://host/o/name.",
+        ] {
+            assert_eq!(repo_dir_name(device), None, "{device:?} is no folder name");
+        }
+        assert_eq!(
+            repo_dir_name("https://host/o/com10").as_deref(),
+            Some("com10"),
+            "only COM1..COM9 are devices"
+        );
         assert_eq!(repo_dir_name("https://host/a/.."), None);
         assert_eq!(repo_dir_name("https://host/x\\.."), None);
         assert_eq!(repo_dir_name("https://host/a/b?x=1"), None);
