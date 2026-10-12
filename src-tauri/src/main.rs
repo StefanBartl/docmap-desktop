@@ -1082,18 +1082,68 @@ fn repos_cache_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(dir)
 }
 
+/// The transports a pasted URL may use. `GIT_ALLOW_PROTOCOL` makes git refuse
+/// every other one (`ext::` runs a command, `file:` reads the local disk), so
+/// a URL that slips past [`clone_url_problem`] still cannot reach them.
+const CLONE_PROTOCOLS: &str = "https:http:ssh:git";
+
+/// Why `url` may not be handed to `git clone`, or `None` when it may.
+///
+/// The URL is user input that becomes an argument of another program, so the
+/// shape is decided here and not left to git: a URL that starts with `-` is
+/// read by git as an option (`--upload-pack=…` runs a command), and a
+/// `<transport>::<address>` URL selects a remote helper. What stays allowed is
+/// what a user pastes from a hosting page: `https://`, `http://`, `ssh://`,
+/// `git://` and the scp form `user@host:path`.
+fn clone_url_problem(url: &str) -> Option<&'static str> {
+    if url.is_empty() || url.len() > 2048 {
+        return Some("the URL is empty or too long");
+    }
+    if url.chars().any(|c| c.is_control() || c.is_whitespace()) {
+        return Some("the URL contains a space or a control character");
+    }
+    if url.starts_with('-') {
+        return Some("the URL starts with '-', git would read it as an option");
+    }
+    if url.contains("::") {
+        return Some("the URL names a remote helper ('::'), which is not supported");
+    }
+    let lower = url.to_ascii_lowercase();
+    let known_scheme = ["https://", "http://", "ssh://", "git://"]
+        .iter()
+        .any(|s| lower.starts_with(s));
+    if known_scheme {
+        return None;
+    }
+    // scp form: `user@host:path`. The part before the first ':' must not
+    // contain '/' (that would be a relative path), and there must be a path.
+    if let Some((host, path)) = url.split_once(':') {
+        if !host.is_empty() && !path.is_empty() && !host.contains('/') && host.contains('@') {
+            return None;
+        }
+    }
+    Some("the URL must start with https://, http://, ssh://, git:// or look like user@host:path")
+}
+
 /// The directory name a clone of `url` should land in: the URL's last path
-/// segment, minus a trailing `.git`. Not validated beyond that — git itself
-/// is the authority on whether `url` is actually clonable.
+/// segment, minus a trailing `.git`.
+///
+/// The name becomes a path under the cache directory, so only a plain name
+/// passes: letters, digits, `.`, `_` and `-`, never `.` or `..`, no separator
+/// (a backslash is one on Windows), no `:` (a drive or a stream on Windows).
+/// Whether `url` is actually clonable stays git's decision.
 fn repo_dir_name(url: &str) -> Option<String> {
     let trimmed = url.trim_end_matches('/');
     let last = trimmed.rsplit(['/', ':']).next()?;
     let name = last.strip_suffix(".git").unwrap_or(last);
-    if name.is_empty() {
-        None
-    } else {
-        Some(name.to_string())
-    }
+    let plain = !name.is_empty()
+        && name.len() <= 100
+        && name != "."
+        && name != ".."
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'));
+    plain.then(|| name.to_string())
 }
 
 /// Clone a repository into the cache directory and add it as a project.
@@ -1116,9 +1166,19 @@ fn repo_dir_name(url: &str) -> Option<String> {
 /// that was already imported should not be an error.
 #[tauri::command]
 async fn import_from_url(app: tauri::AppHandle, url: String) -> Result<Vec<Project>, String> {
-    let name =
-        repo_dir_name(&url).ok_or_else(|| format!("could not derive a folder name from {url}"))?;
-    let dest = repos_cache_dir(&app)?.join(&name);
+    let url = url.trim().to_owned();
+    if let Some(problem) = clone_url_problem(&url) {
+        return Err(format!("cannot import this URL: {problem}"));
+    }
+    let name = repo_dir_name(&url)
+        .ok_or_else(|| "could not derive a plain folder name from the URL".to_owned())?;
+    let cache = repos_cache_dir(&app)?;
+    let dest = cache.join(&name);
+    // The name is plain, so this holds; checked anyway because the next lines
+    // add a directory as a project and, on failure, delete one.
+    if dest.parent() != Some(cache.as_path()) {
+        return Err("the folder for this clone would lie outside the cache".to_owned());
+    }
 
     if dest.is_dir() {
         return add_project(app, portable(&dest));
@@ -1129,10 +1189,13 @@ async fn import_from_url(app: tauri::AppHandle, url: String) -> Result<Vec<Proje
     let dest_for_cleanup = dest.clone();
     let out = tauri::async_runtime::spawn_blocking(move || {
         let mut cmd = std::process::Command::new("git");
-        cmd.args(["clone", "--depth", "1", &url_owned, &dest_str]);
+        // `--` ends the options: nothing after it is read as one, whatever
+        // the URL or the destination looks like.
+        cmd.args(["clone", "--depth", "1", "--", &url_owned, &dest_str]);
         // No credential prompt, ever: there is no terminal to answer it on,
         // and a prompt nobody can see is a clone that never ends.
         cmd.env("GIT_TERMINAL_PROMPT", "0");
+        cmd.env("GIT_ALLOW_PROTOCOL", CLONE_PROTOCOLS);
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;
@@ -3723,6 +3786,77 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_url_that_git_would_read_as_an_option_or_a_helper_is_refused() {
+        for bad in [
+            "--upload-pack=calc",
+            "-u calc",
+            "-cprotocol.ext.allow=always",
+            "ext::sh -c calc",
+            "ext::calc",
+            "fd::3",
+            "file:///C:/secret",
+            "/etc/passwd",
+            "C:\\Users\\x\\repo",
+            "../other",
+            "https://host/a b",
+            "https://host/a\nb",
+            "",
+        ] {
+            assert!(clone_url_problem(bad).is_some(), "{bad:?} must be refused");
+        }
+    }
+
+    #[test]
+    fn the_urls_a_user_pastes_from_a_hosting_page_are_accepted() {
+        for good in [
+            "https://github.com/StefanBartl/docmap-desktop",
+            "https://github.com/StefanBartl/docmap-desktop.git",
+            "HTTPS://example.org/a/b.git",
+            "http://intranet/a/b",
+            "ssh://git@host:2222/a/b.git",
+            "git://host/a/b.git",
+            "git@github.com:StefanBartl/docmap-desktop.git",
+        ] {
+            assert_eq!(clone_url_problem(good), None, "{good:?} must pass");
+        }
+    }
+
+    #[test]
+    fn the_folder_of_a_clone_is_a_plain_name_and_never_a_way_out() {
+        assert_eq!(
+            repo_dir_name("https://github.com/o/docmap-desktop.git").as_deref(),
+            Some("docmap-desktop")
+        );
+        assert_eq!(
+            repo_dir_name("git@github.com:o/my_repo.v2/").as_deref(),
+            Some("my_repo.v2")
+        );
+        for bad in [
+            "https://host/a/..",
+            "https://host/a/../",
+            "https://host/a/.",
+            "https://host/a/..git",
+            "https://host/x\\..",
+            "https://host/C:",
+            "https://host/",
+            "https://host/a/b?x=1",
+            "https://host/a/b%2f..",
+        ] {
+            let name = repo_dir_name(bad);
+            assert!(
+                name.as_deref().is_none_or(|n| n != ".." && n != "."),
+                "{bad:?} gave {name:?}"
+            );
+            if let Some(n) = name {
+                assert!(!n.contains(['/', '\\', ':']), "{bad:?} gave {n:?}");
+            }
+        }
+        assert_eq!(repo_dir_name("https://host/a/.."), None);
+        assert_eq!(repo_dir_name("https://host/x\\.."), None);
+        assert_eq!(repo_dir_name("https://host/a/b?x=1"), None);
+    }
 
     // `open_externally`'s own `windows_open_command` is not spawned here (it
     // opens a real window on this machine); what is checked is the `Command`

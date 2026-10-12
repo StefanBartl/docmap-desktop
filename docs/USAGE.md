@@ -117,6 +117,13 @@ what runs here, unchanged — with one exception: git is never allowed to *ask*
 gives up after 15 minutes. A clone that fails shows git's own error, not a
 guess at what went wrong.
 
+Only the forms a hosting page gives you are accepted: `https://`, `http://`,
+`ssh://`, `git://` and `user@host:path`. A URL that starts with `-`, names a
+remote helper (`ext::…`, `fd::…`), points at a local path or contains a space
+is refused before git is started, and git itself is limited to those same
+transports. The folder in `repos/` is the last part of the URL, and only a
+plain name (letters, digits, `.`, `_`, `-`) is used.
+
 The URL tab can also list **your own GitHub repositories** to pick from,
 behind a button rather than on open — listing them is a network call
 against your account, and a dialog that made one just for being looked at
