@@ -664,8 +664,7 @@ fn add_one(ws: &mut Workspace, root: &str) -> Result<Option<Project>, String> {
 fn add_project(app: tauri::AppHandle, root: String) -> Result<Vec<Project>, String> {
     with_workspace(&app, |ws| {
         add_one(ws, &root)?;
-        ws.projects
-            .sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        ws.projects.sort_by_key(|p| p.name.to_lowercase());
         Ok(ws.projects.clone())
     })
 }
@@ -754,7 +753,7 @@ fn list_subdirs(root: &Path) -> Result<Vec<(String, String, bool)>, String> {
         let is_git = languages::has_git_entry(&path);
         out.push((name, canonical, is_git));
     }
-    out.sort_by(|a, b| a.0.to_lowercase().cmp(&b.0.to_lowercase()));
+    out.sort_by_key(|entry| entry.0.to_lowercase());
     Ok(out)
 }
 
@@ -828,8 +827,7 @@ fn import_many(app: tauri::AppHandle, roots: Vec<String>) -> Result<ImportResult
                 Err(e) => errors.push(format!("{root}: {e}")),
             }
         }
-        ws.projects
-            .sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        ws.projects.sort_by_key(|p| p.name.to_lowercase());
         Ok(())
     })?;
 
@@ -991,6 +989,10 @@ fn base_url(raw: Option<String>) -> Option<String> {
 /// with a stale `map_dir` would generate into one directory and read from
 /// another, which is the most confusing failure this dialog could produce:
 /// everything succeeds and the window shows the old map.
+// One argument per field of the settings dialog: Tauri maps the named
+// arguments of a command to the keys of the object `src/main.js` sends, so
+// folding them into a struct would change that wire format for no gain.
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 fn project_scope_set(
     app: tauri::AppHandle,
@@ -1945,8 +1947,7 @@ async fn import_from_nvim_config(app: tauri::AppHandle) -> Result<ImportResult, 
                 Err(e) => errors.push(format!("{}: {e}", entry.name)),
             }
         }
-        ws.projects
-            .sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        ws.projects.sort_by_key(|p| p.name.to_lowercase());
         Ok(())
     })?;
 
@@ -2174,8 +2175,11 @@ fn traffic_sources(ws: &Workspace) -> traffic::Sources {
 }
 
 /// What a project needs to resolve its repository: root, an already-known
-/// `repo_url`, and whether it was opted out. `None` for an id nobody added.
-fn traffic_project(ws: &Workspace, id: &str) -> Option<(String, Option<String>, bool)> {
+/// `repo_url`, and whether it was opted out.
+type TrafficProject = (String, Option<String>, bool);
+
+/// [`TrafficProject`] of a project, or `None` for an id nobody added.
+fn traffic_project(ws: &Workspace, id: &str) -> Option<TrafficProject> {
     ws.projects
         .iter()
         .find(|p| p.id == id)
@@ -2258,7 +2262,7 @@ async fn traffic_list(
 ) -> Result<Vec<traffic::ListEntry>, String> {
     let ws = read_workspace(&app)?;
     let sources = traffic_sources(&ws);
-    let wanted: Vec<(String, (String, Option<String>, bool))> = ids
+    let wanted: Vec<(String, TrafficProject)> = ids
         .into_iter()
         .filter_map(|id| traffic_project(&ws, &id).map(|p| (id, p)))
         .collect();
