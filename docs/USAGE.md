@@ -122,7 +122,10 @@ Only the forms a hosting page gives you are accepted: `https://`, `http://`,
 remote helper (`ext::…`, `fd::…`), points at a local path or contains a space
 is refused before git is started, and git itself is limited to those same
 transports. The folder in `repos/` is the last part of the URL, and only a
-plain name (letters, digits, `.`, `_`, `-`) is used.
+plain name (letters, digits, `.`, `_`, `-`) is used. A name that ends in `.`
+or that Windows opens as a device (`CON`, `PRN`, `AUX`, `NUL`, `COM1`–`COM9`,
+`LPT1`–`LPT9`, with or without an extension) is refused on every platform.
+An IPv6 address in a URL (`https://[::1]/repo.git`) is fine.
 
 The URL tab can also list **your own GitHub repositories** to pick from,
 behind a button rather than on open — listing them is a network call
