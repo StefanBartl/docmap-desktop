@@ -30,6 +30,13 @@ use tauri::menu::{
 };
 use tauri::{AppHandle, Emitter, Runtime};
 
+use crate::apperr::AppError;
+
+/// A step of building the menu that Tauri refused; its words are the detail.
+fn build_err(e: tauri::Error) -> AppError {
+    AppError::new("err.menu.build").detail(e)
+}
+
 /// The window state the menu has to *show*, not just act on.
 ///
 /// A checkmark is a claim about how the window currently is, so it cannot be
@@ -262,7 +269,7 @@ fn fill<'a, R: Runtime>(
     labels: &HashMap<String, String>,
     state: &ViewState,
     has_project: bool,
-) -> Result<SubmenuBuilder<'a, R, AppHandle<R>>, String> {
+) -> Result<SubmenuBuilder<'a, R, AppHandle<R>>, AppError> {
     let mut sub = sub;
     for node in nodes {
         sub = match node {
@@ -273,7 +280,7 @@ fn fill<'a, R: Runtime>(
                 if let Some(accel) = it.accel {
                     b = b.accelerator(accel);
                 }
-                sub.item(&b.build(app).map_err(|e| e.to_string())?)
+                sub.item(&b.build(app).map_err(build_err)?)
             }
             Node::Check(it) => {
                 let mut b = CheckMenuItemBuilder::with_id(it.id, &labels[it.id])
@@ -281,12 +288,12 @@ fn fill<'a, R: Runtime>(
                 if let Some(accel) = it.accel {
                     b = b.accelerator(accel);
                 }
-                sub.item(&b.build(app).map_err(|e| e.to_string())?)
+                sub.item(&b.build(app).map_err(build_err)?)
             }
             Node::Sub(id, children) => {
                 let nested = SubmenuBuilder::new(app, &labels[*id]);
                 let nested = fill(app, nested, children, labels, state, has_project)?;
-                sub.item(&nested.build().map_err(|e| e.to_string())?)
+                sub.item(&nested.build().map_err(build_err)?)
             }
             Node::Locales => {
                 let mut acc = sub;
@@ -300,7 +307,7 @@ fn fill<'a, R: Runtime>(
                         &loc.label,
                     )
                     .checked(loc.code == state.locale);
-                    acc = acc.item(&b.build(app).map_err(|e| e.to_string())?);
+                    acc = acc.item(&b.build(app).map_err(build_err)?);
                 }
                 acc
             }
@@ -315,7 +322,7 @@ pub fn build<R: Runtime + 'static>(
     labels: &HashMap<String, String>,
     has_project: bool,
     state: &ViewState,
-) -> Result<Menu<R>, String> {
+) -> Result<Menu<R>, AppError> {
     let missing: Vec<&str> = label_keys()
         .into_iter()
         .filter(|k| !labels.contains_key(*k))
@@ -325,10 +332,10 @@ pub fn build<R: Runtime + 'static>(
         // unreachable; if it is ever reached, the menu is out of step with
         // the interface and saying so is more use than an English label
         // sitting in a German menu.
-        return Err(format!("menu labels missing: {}", missing.join(", ")));
+        return Err(AppError::new("err.menu.labels").with("keys", missing.join(", ")));
     }
 
-    let menu = Menu::new(app).map_err(|e| e.to_string())?;
+    let menu = Menu::new(app).map_err(build_err)?;
 
     for group in GROUPS {
         let mut sub = fill(
@@ -345,12 +352,11 @@ pub fn build<R: Runtime + 'static>(
         // on macOS, the platform's own placement.
         if group.id == "menu.file" {
             sub = sub.separator();
-            sub =
-                sub.item(&PredefinedMenuItem::close_window(app, None).map_err(|e| e.to_string())?);
-            sub = sub.item(&PredefinedMenuItem::quit(app, None).map_err(|e| e.to_string())?);
+            sub = sub.item(&PredefinedMenuItem::close_window(app, None).map_err(build_err)?);
+            sub = sub.item(&PredefinedMenuItem::quit(app, None).map_err(build_err)?);
         }
-        menu.append(&sub.build().map_err(|e| e.to_string())?)
-            .map_err(|e| e.to_string())?;
+        menu.append(&sub.build().map_err(build_err)?)
+            .map_err(build_err)?;
     }
 
     Ok(menu)

@@ -562,6 +562,14 @@ is the bar for listing a locale unmarked. `?i18n=debug` marks any string
 still falling back to English, so an unfinished locale is countable rather
 than merely embarrassing.
 
+Error messages follow the language too. What the app says went wrong is
+in the window's language; what *something else* said is shown after a
+dash exactly as it was said — the operating system's error, `git`'s,
+`gh`'s or Neovim's output, a path or a project name. So a German window
+reads *C:/x lässt sich nicht lesen — Access is denied. (os error 5)* on
+an English Windows. An error this window has no wording for (a newer
+backend than the window) is shown in English, marked `‹en›`.
+
 Theme, language and zoom live in `localStorage` rather than in the
 workspace file, because they are properties of *this machine's eyes*.
 

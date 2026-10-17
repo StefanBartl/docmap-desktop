@@ -101,9 +101,13 @@ Turning "this should be better" into a filed report, from inside the app.
 ## Interface language
 
 The app's own UI language, switchable from View → Language and from
-Settings → Appearance.
+Settings → Appearance. Error messages from the backend are translated too:
+a failing command answers with a catalog key, named parameters and the
+untranslated detail (the OS error, `git`'s or `gh`'s output), never with an
+English sentence of its own.
 
-- **Module:** `src/lib/i18n.js`
+- **Module:** `src/lib/i18n.js`, `src/lib/errors.js`,
+  `src-tauri/src/apperr.rs`
 - **Config:** Settings → Appearance → interface language
 
 ## One look with the other desktop apps

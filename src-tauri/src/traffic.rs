@@ -35,6 +35,8 @@ use std::time::{Duration, SystemTime};
 
 use serde::{Deserialize, Deserializer, Serialize};
 
+use crate::apperr::AppError;
+
 /// The digest schema this reader understands. A file with a higher one is
 /// refused with its own message ([`Status::NewerSchema`]) rather than guessed
 /// at: a field that changed meaning would otherwise show up as a wrong number.
@@ -177,7 +179,7 @@ pub struct Digest {
 #[derive(Debug, Clone, PartialEq)]
 pub enum LoadError {
     /// Unreadable, too large, not JSON, or the wrong shape.
-    Unreadable(String),
+    Unreadable(AppError),
     /// `schema` is higher than [`KNOWN_SCHEMA`].
     Newer(u64),
 }
@@ -189,12 +191,12 @@ pub fn parse(bytes: &[u8]) -> Result<Digest, LoadError> {
     // whatever a website sent, and a stray invalid byte must not turn a whole
     // digest into "unreadable".
     let text = String::from_utf8_lossy(bytes);
-    let value: serde_json::Value =
-        serde_json::from_str(&text).map_err(|e| LoadError::Unreadable(format!("not JSON: {e}")))?;
+    let value: serde_json::Value = serde_json::from_str(&text)
+        .map_err(|e| LoadError::Unreadable(AppError::new("err.traffic.digestNotJson").detail(e)))?;
     let schema = value
         .get("schema")
         .and_then(|s| s.as_u64())
-        .ok_or_else(|| LoadError::Unreadable("no schema field".to_string()))?;
+        .ok_or_else(|| LoadError::Unreadable(AppError::new("err.traffic.noSchema")))?;
     // Checked before the structure is read: a newer schema may well have
     // changed a field's type, and "this plugin is newer than this app" is a
     // more useful thing to say than a serde type error.
@@ -202,7 +204,7 @@ pub fn parse(bytes: &[u8]) -> Result<Digest, LoadError> {
         return Err(LoadError::Newer(schema));
     }
     let mut digest: Digest = serde_json::from_value(value)
-        .map_err(|e| LoadError::Unreadable(format!("unexpected shape: {e}")))?;
+        .map_err(|e| LoadError::Unreadable(AppError::new("err.traffic.shape").detail(e)))?;
     digest.daily.views.truncate(MAX_DAILY);
     digest.daily.clones.truncate(MAX_DAILY);
     if let Some(list) = digest.referrers.as_mut() {
@@ -218,19 +220,36 @@ pub fn parse(bytes: &[u8]) -> Result<Digest, LoadError> {
 ///
 /// The length check alone is not enough — a file can grow between the stat and
 /// the read — so the read itself is bounded too.
-fn read_capped(path: &Path) -> Result<Vec<u8>, String> {
-    let file = fs::File::open(path).map_err(|e| format!("cannot open: {e}"))?;
+///
+/// The error names the file by its name only: the folder is on the Settings
+/// panel already, and the name is what tells a digest from `root.json`.
+fn read_capped(path: &Path) -> Result<Vec<u8>, AppError> {
+    let file_name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let too_large = || {
+        AppError::new("err.traffic.tooLarge")
+            .with("file", &file_name)
+            .with("mib", MAX_READ / (1024 * 1024))
+    };
+    let unreadable = |e: std::io::Error| {
+        AppError::new("err.traffic.unreadable")
+            .with("file", &file_name)
+            .detail(e)
+    };
+    let file = fs::File::open(path).map_err(unreadable)?;
     if let Ok(meta) = file.metadata() {
         if meta.len() > MAX_READ {
-            return Err(format!("larger than {} MiB", MAX_READ / (1024 * 1024)));
+            return Err(too_large());
         }
     }
     let mut buf = Vec::new();
     file.take(MAX_READ + 1)
         .read_to_end(&mut buf)
-        .map_err(|e| format!("cannot read: {e}"))?;
+        .map_err(unreadable)?;
     if buf.len() as u64 > MAX_READ {
-        return Err(format!("larger than {} MiB", MAX_READ / (1024 * 1024)));
+        return Err(too_large());
     }
     Ok(buf)
 }
@@ -535,9 +554,9 @@ fn count_files(dir: &Path) -> (usize, Option<u64>) {
 /// Accepts the three shapes a person might point at: the plugin's data folder
 /// (has `root.json`), a `digest_dir` (has a `digest/` folder), or the
 /// `digest/` folder itself. The `Err` is a sentence about what was missing.
-pub fn probe(folder: &Path) -> Result<Found, String> {
+pub fn probe(folder: &Path) -> Result<Found, AppError> {
     if !folder.is_dir() {
-        return Err("not a folder".to_string());
+        return Err(AppError::new("err.traffic.notFolder"));
     }
 
     let root_path = folder.join("root.json");
@@ -546,11 +565,15 @@ pub fn probe(folder: &Path) -> Result<Found, String> {
     let mut rejected_digest_dir: Option<String> = None;
 
     if root_path.is_file() {
-        let bytes = read_capped(&root_path).map_err(|e| format!("root.json: {e}"))?;
+        let bytes = read_capped(&root_path)?;
         let value: serde_json::Value = serde_json::from_str(&String::from_utf8_lossy(&bytes))
-            .map_err(|e| format!("root.json is not JSON: {e}"))?;
+            .map_err(|e| {
+                AppError::new("err.traffic.notJson")
+                    .with("file", "root.json")
+                    .detail(e)
+            })?;
         if value.get("schema").and_then(|s| s.as_u64()).unwrap_or(0) > KNOWN_SCHEMA {
-            return Err("root.json is newer than this app understands".to_string());
+            return Err(AppError::new("err.traffic.rootNewer"));
         }
         // Absolute and local only. A relative path would resolve against this
         // process's working directory, which is wherever the app was started
@@ -624,11 +647,11 @@ pub fn probe(folder: &Path) -> Result<Found, String> {
         } else {
             raw
         };
-        format!("root.json's digest_dir ({shown}) is not an absolute local path -- ignored")
+        AppError::new("err.traffic.digestDirIgnored").with("dir", shown)
     } else if root_path.is_file() {
-        "root.json points to a folder with no digests".to_string()
+        AppError::new("err.traffic.noDigests")
     } else {
-        "no root.json and no digest folder".to_string()
+        AppError::new("err.traffic.nothing")
     })
 }
 
@@ -640,7 +663,7 @@ pub struct Attempt {
     pub via: Via,
     pub dir: String,
     pub ok: bool,
-    pub reason: Option<String>,
+    pub reason: Option<AppError>,
 }
 
 /// The discovery chain, first hit wins. `None` means nothing was found — the
@@ -787,8 +810,9 @@ pub struct Info {
     pub status: Status,
     /// `owner/name`, when the project resolved to one.
     pub repo: Option<String>,
-    /// For `unreadable` and `newer_schema`: what is wrong, verbatim.
-    pub message: Option<String>,
+    /// For `unreadable` and `newer_schema`: what is wrong, as an
+    /// [`AppError`] the window renders in its own language.
+    pub message: Option<AppError>,
     pub summary: Option<Summary>,
     /// The digest folder that was read, and how it was found.
     pub dir: Option<String>,
@@ -859,9 +883,11 @@ pub fn info_with(repo: Option<&str>, hidden: bool, located: Option<&(Via, Found)
         }
         Err(LoadError::Newer(n)) => {
             info.status = Status::NewerSchema;
-            info.message = Some(format!(
-                "schema {n}, this app understands up to {KNOWN_SCHEMA}"
-            ));
+            info.message = Some(
+                AppError::new("err.traffic.schema")
+                    .with("schema", n)
+                    .with("known", KNOWN_SCHEMA),
+            );
         }
         Err(LoadError::Unreadable(reason)) => {
             info.status = Status::Unreadable;
@@ -1020,21 +1046,28 @@ pub const ASK_TIMEOUT: Duration = Duration::from_secs(30);
 ///
 /// Markers rather than "the last line": a config that prints anything at
 /// startup would otherwise be read as a path.
-pub fn parse_asked(stdout: &str) -> Result<String, String> {
+///
+/// A failure carries Neovim's own words as its detail: the plugin's error
+/// when it reported one, and whatever the run printed on stderr.
+pub fn parse_asked(stdout: &str, stderr: &str) -> Result<String, AppError> {
+    let words = |own: &str| {
+        [own.trim(), stderr.trim()]
+            .into_iter()
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
     if let Some(dir) = between(stdout, "<<docmap-traffic-dir:", ":>>") {
         let dir = dir.trim();
         if dir.is_empty() {
-            return Err("Neovim answered with an empty path".to_string());
+            return Err(AppError::new("err.traffic.emptyAnswer").detail(words("")));
         }
         return Ok(dir.replace('\\', "/"));
     }
     if let Some(err) = between(stdout, "<<docmap-traffic-err:", ":>>") {
-        return Err(format!(
-            "github_stats.nvim could not be loaded in Neovim: {}",
-            err.trim()
-        ));
+        return Err(AppError::new("err.traffic.noPlugin").detail(words(err)));
     }
-    Err("Neovim did not answer".to_string())
+    Err(AppError::new("err.traffic.noAnswer").detail(words("")))
 }
 
 fn between<'a>(s: &'a str, open: &str, close: &str) -> Option<&'a str> {
@@ -1592,7 +1625,9 @@ mod tests {
         );
         let info = info_for(Some("owner/alpha"), false, &sources_for(&root));
         assert_eq!(info.status, Status::NewerSchema);
-        assert!(info.message.unwrap().contains("schema 9"));
+        let message = info.message.unwrap();
+        assert_eq!(message.key(), "err.traffic.schema");
+        assert_eq!(message.param("schema"), Some("9"));
     }
 
     #[test]
@@ -1752,12 +1787,15 @@ mod tests {
 
     #[test]
     fn a_folder_that_does_not_qualify_says_why() {
-        assert!(probe(&tmp("shapes-empty"))
-            .unwrap_err()
-            .contains("no root.json"));
         assert_eq!(
-            probe(&tmp("shapes-empty").join("missing")).unwrap_err(),
-            "not a folder"
+            probe(&tmp("shapes-empty")).unwrap_err().key(),
+            "err.traffic.nothing"
+        );
+        assert_eq!(
+            probe(&tmp("shapes-empty").join("missing"))
+                .unwrap_err()
+                .key(),
+            "err.traffic.notFolder"
         );
 
         // An absolute path on *this* OS: `Z:/...` reads as absolute on
@@ -1932,23 +1970,40 @@ mod tests {
     fn neovims_answer_is_read_between_markers_and_ignores_startup_noise() {
         let out = "some config printed this\n\n<<docmap-traffic-dir:C:\\Users\\me\\AppData\\Local\\nvim-data\\github_stats.nvim:>>\n";
         assert_eq!(
-            parse_asked(out).unwrap(),
+            parse_asked(out, "").unwrap(),
             "C:/Users/me/AppData/Local/nvim-data/github_stats.nvim"
         );
     }
 
     #[test]
     fn neovims_failure_and_silence_are_told_apart() {
-        let err = parse_asked("\n<<docmap-traffic-err:module 'github_stats.digest' not found:>>\n")
-            .unwrap_err();
-        assert!(err.contains("could not be loaded") && err.contains("not found"));
+        let err = parse_asked(
+            "\n<<docmap-traffic-err:module 'github_stats.digest' not found:>>\n",
+            "",
+        )
+        .unwrap_err();
+        assert_eq!(err.key(), "err.traffic.noPlugin");
         assert_eq!(
-            parse_asked("nothing useful").unwrap_err(),
-            "Neovim did not answer"
+            err.detail_text(),
+            Some("module 'github_stats.digest' not found")
         );
-        assert!(parse_asked("<<docmap-traffic-dir: :>>")
-            .unwrap_err()
-            .contains("empty"));
+        let err = parse_asked("nothing useful", "").unwrap_err();
+        assert_eq!(err.key(), "err.traffic.noAnswer");
+        assert_eq!(err.detail_text(), None);
+        assert_eq!(
+            parse_asked("<<docmap-traffic-dir: :>>", "")
+                .unwrap_err()
+                .key(),
+            "err.traffic.emptyAnswer"
+        );
+    }
+
+    #[test]
+    fn neovims_stderr_rides_along_as_the_detail() {
+        let err = parse_asked("nothing useful", "  E5113: boom \n").unwrap_err();
+        assert_eq!(err.detail_text(), Some("E5113: boom"));
+        let err = parse_asked("<<docmap-traffic-err:no module:>>", "E5113: boom").unwrap_err();
+        assert_eq!(err.detail_text(), Some("no module\nE5113: boom"));
     }
 
     #[test]

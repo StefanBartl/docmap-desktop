@@ -99,6 +99,22 @@ test("only four outcomes get a line; the other three say nothing", () => {
     key: "traffic.newer",
     vars: { reason: "schema 9" },
   });
+  // What the command actually sends: an error with a key, rendered in the
+  // window's language rather than passed on as an object.
+  assert.deepEqual(
+    lineFor({
+      status: "newer_schema",
+      message: { key: "err.traffic.schema", params: { schema: "9", known: "1" }, detail: null },
+    }),
+    { key: "traffic.newer", vars: { reason: "Schema 9, this app understands up to 1" } }
+  );
+  assert.deepEqual(
+    lineFor({
+      status: "unreadable",
+      message: { key: "err.traffic.digestNotJson", params: {}, detail: "expected value at line 1" },
+    }),
+    { key: "traffic.unreadable", vars: { reason: "The digest is not JSON — expected value at line 1" } }
+  );
   // No GitHub remote is not an error; no plugin behaves as before; opt-out is opt-out.
   for (const quiet of ["no_remote", "no_digest", "disabled", "something_new", undefined]) {
     assert.equal(lineFor({ status: quiet }), null, String(quiet));

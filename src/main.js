@@ -41,6 +41,7 @@ import { t, plural, setLocale, initialLocale, LOCALES, keys } from "./lib/i18n.j
 import { summarizeEngineLog, generatedMessage, PER_CHECK } from "./lib/engine-log.js";
 import { createRunReport, createTaskLog } from "./lib/run-report.js";
 import { createLiveStatus } from "./lib/live-status.js";
+import { errorText } from "./lib/errors.js";
 import {
   trend as trendOf,
   windows as trafficWindows,
@@ -72,7 +73,7 @@ function fatal(what, err) {
   box.querySelector("h2").textContent = what;
   box.querySelector("p").textContent =
     "This is a bug in docmap-desktop, not in the project you opened.";
-  box.querySelector(".detail").textContent = String(err);
+  box.querySelector(".detail").textContent = errorText(err);
 }
 
 window.addEventListener("error", (ev) => fatal("Something failed", ev.message));
@@ -1322,7 +1323,7 @@ async function select(id) {
   try {
     served = await invoke("serve_project", { id });
   } catch (e) {
-    say(String(e));
+    say(errorText(e));
   }
   if (selectedId !== id) return;
   mapBase = served ?? convertFileSrc(status.index_path);
@@ -1440,7 +1441,7 @@ async function removeProject(id) {
     }
     await refresh(list);
   } catch (e) {
-    say(String(e));
+    say(errorText(e));
   }
 }
 
@@ -1675,7 +1676,7 @@ els.pickEngine.addEventListener("click", async () => {
     renderEngine();
     say("Engine set");
   } catch (e) {
-    say(String(e));
+    say(errorText(e));
   }
 });
 
@@ -1688,7 +1689,7 @@ els.pickGrammars.addEventListener("click", async () => {
     renderEngine();
     say("Grammars set");
   } catch (e) {
-    say(String(e));
+    say(errorText(e));
   }
 });
 
@@ -1747,7 +1748,7 @@ els.pickNvim.addEventListener("click", async () => {
     renderNvim();
     say("nvim set");
   } catch (e) {
-    say(String(e));
+    say(errorText(e));
   }
 });
 
@@ -1759,7 +1760,7 @@ els.pickNvimConfig.addEventListener("click", async () => {
     renderNvim();
     say("Neovim config directory set");
   } catch (e) {
-    say(String(e));
+    say(errorText(e));
   }
 });
 
@@ -1842,8 +1843,8 @@ async function generateFor(id, full = false) {
       { restoreDisabled: false }
     );
   } catch (e) {
-    if (here()) showTaskPlaceholder(t("ph.enginefail.title"), escapeHtml(String(e)));
-    say(String(e));
+    if (here()) showTaskPlaceholder(t("ph.enginefail.title"), escapeHtml(errorText(e)));
+    say(errorText(e));
   } finally {
     renderEngine();
   }
@@ -2040,8 +2041,8 @@ async function checkMap(id) {
   try {
     res = await invoke("check_map", { root: p.root });
   } catch (e) {
-    say(t("check.failed").replace("{error}", String(e)));
-    if (here()) appendLog(String(e), true);
+    say(fill(t("check.failed"), { error: errorText(e) }));
+    if (here()) appendLog(errorText(e), true);
     return;
   }
 
@@ -2157,7 +2158,7 @@ window.addEventListener("message", (ev) => {
       id: selectedId,
       path: data.path,
       line: data.line ?? null,
-    }).catch((e) => say(String(e)));
+    }).catch((e) => say(errorText(e)));
     return;
   }
 
@@ -2187,7 +2188,7 @@ window.addEventListener("message", (ev) => {
     if (chose) return;
     await restoreLast();
   } catch (e) {
-    say(String(e));
+    say(errorText(e));
   }
 })();
 
@@ -2240,7 +2241,7 @@ async function closeThen(fn) {
     // The same surface every other failure in this window uses. A dialog
     // action that fails silently is worse here than elsewhere: the reader
     // just asked for something specific.
-    say(String(e));
+    say(errorText(e));
   }
 }
 
@@ -2353,7 +2354,7 @@ document.getElementById("pick-folder").addEventListener("click", async () => {
   try {
     scan = await invoke("inspect_folder", { root: dir });
   } catch (e) {
-    folderScan.note.textContent = String(e);
+    folderScan.note.textContent = errorText(e);
     return;
   }
 
@@ -2424,6 +2425,7 @@ const REPO_PROBLEMS = {
   not_installed: "repos.notInstalled",
   not_authenticated: "repos.notAuthenticated",
   failed: "repos.failed",
+  unreadable: "repos.unreadable",
 };
 
 function renderRepos() {
@@ -2499,7 +2501,7 @@ addbox.loadRepos.addEventListener("click", async () => {
     addbox.repoFilter.hidden = false;
     renderRepos();
   } catch (e) {
-    addbox.repoState.textContent = String(e);
+    addbox.repoState.textContent = errorText(e);
   } finally {
     addbox.loadRepos.disabled = false;
   }
@@ -2548,7 +2550,7 @@ async function applyZoom(factor) {
     zoom = await invoke("set_zoom", { factor });
     localStorage.setItem(ZOOM_KEY, String(zoom));
   } catch (e) {
-    say(String(e));
+    say(errorText(e));
   }
 }
 
@@ -2843,7 +2845,7 @@ fb.go.addEventListener("click", async () => {
     });
     fb.box.close();
   } catch (e) {
-    fb.problem.textContent = String(e);
+    fb.problem.textContent = errorText(e);
     fb.problem.hidden = false;
   }
 });
@@ -2878,7 +2880,9 @@ function telemetryNamespace(project) {
 }
 
 function fill(text, vars) {
-  return Object.keys(vars).reduce((s, k) => s.replace("{" + k + "}", vars[k]), text);
+  // A function as the replacement, so a `$&` in a path or an error's detail
+  // is inserted as written rather than read as a replacement pattern.
+  return Object.keys(vars).reduce((s, k) => s.replace("{" + k + "}", () => vars[k]), text);
 }
 
 async function renderTelemetry() {
@@ -2955,7 +2959,7 @@ tel.toggle.addEventListener("click", async () => {
     await invoke("set_telemetry", { namespace: ns, enabled: !!tel.toggle.dataset.enable });
     await renderTelemetry();
   } catch (e) {
-    tel.state.textContent = String(e);
+    tel.state.textContent = errorText(e);
   } finally {
     tel.toggle.disabled = false;
   }
@@ -3128,7 +3132,12 @@ function renderTrafficSurvey(survey) {
 
   trafficUi.state.textContent = t("traffic.none");
   const tried = survey.attempts.map((a) =>
-    fill(t("traffic.lookedItem"), { dir: a.dir, via: t("traffic.via." + a.via), reason: a.reason || "" })
+    fill(t("traffic.lookedItem"), {
+      dir: a.dir,
+      via: t("traffic.via." + a.via),
+      // Why this folder did not qualify, as the command's error says it.
+      reason: a.reason ? errorText(a.reason) : "",
+    })
   );
   if (tried.length) {
     trafficUi.looked.textContent = fill(t("traffic.looked"), { list: tried.join("; ") });
@@ -3172,7 +3181,7 @@ trafficUi.choose.addEventListener("click", async () => {
     renderTrafficSurvey(await invoke("traffic_set_dir", { path: dir }));
     await refreshTraffic();
   } catch (e) {
-    say(String(e));
+    say(errorText(e));
   }
 });
 
@@ -3181,7 +3190,7 @@ trafficUi.clear.addEventListener("click", async () => {
     renderTrafficSurvey(await invoke("traffic_set_dir", { path: null }));
     await refreshTraffic();
   } catch (e) {
-    say(String(e));
+    say(errorText(e));
   }
 });
 
@@ -3193,7 +3202,7 @@ trafficUi.ask.addEventListener("click", async () => {
       renderTrafficSurvey(await invoke("traffic_ask_neovim"));
       await refreshTraffic();
     } catch (e) {
-      trafficUi.state.textContent = String(e);
+      trafficUi.state.textContent = errorText(e);
     }
   });
 });
@@ -3204,7 +3213,7 @@ trafficUi.refresh.addEventListener("click", async () => {
     renderTrafficSurvey(await invoke("traffic_settings"));
     await refreshTraffic();
   } catch (e) {
-    say(String(e));
+    say(errorText(e));
   }
 });
 
@@ -3225,7 +3234,7 @@ trafficUi.show.addEventListener("change", async () => {
     // to `hidden` (not `!hidden`, which would just re-apply the failed
     // toggle) to match `p.traffic_hidden`, which was never updated.
     trafficUi.show.checked = hidden;
-    say(String(e));
+    say(errorText(e));
   }
 });
 
@@ -3278,7 +3287,7 @@ function renderTrafficPaths(list, id) {
       li.title = t("traffic.detail.openFile");
       makeOpenable(li, () => {
         invoke("open_in_editor", { id, path: p.project_path, line: null }).catch((err) =>
-          say(String(err))
+          say(errorText(err))
         );
       });
     }
@@ -3314,7 +3323,7 @@ document.getElementById("proj-traffic-detail").addEventListener("click", async (
     renderTrafficDetail(d, id);
     trafficBox.el.showModal();
   } catch (e) {
-    say(String(e));
+    say(errorText(e));
   }
 });
 
@@ -3358,7 +3367,7 @@ els.stale.addEventListener("click", async () => {
       when.textContent = ago ? fill(t("changes.after"), { ago }) : "";
       li.append(name, when);
       makeOpenable(li, () => {
-        invoke("open_in_editor", { id, path: f.path, line: null }).catch((err) => say(String(err)));
+        invoke("open_in_editor", { id, path: f.path, line: null }).catch((err) => say(errorText(err)));
       });
       changesBox.list.append(li);
     }
@@ -3372,7 +3381,7 @@ els.stale.addEventListener("click", async () => {
     changesBox.generate.disabled = els.gen.disabled;
     changesBox.el.showModal();
   } catch (e) {
-    say(String(e));
+    say(errorText(e));
   }
 });
 
@@ -3452,7 +3461,7 @@ async function exportCurrentView() {
     await invoke("save_text", { path, contents: reply.data });
     say(t("export.done").replace("{name}", path));
   } catch (e) {
-    say(String(e));
+    say(errorText(e));
   }
 }
 
@@ -3503,7 +3512,7 @@ async function renderFiles() {
     crumb.textContent = "";
     const li = document.createElement("li");
     li.className = "files-msg";
-    li.textContent = String(e);
+    li.textContent = errorText(e);
     list.append(li);
     return;
   }
@@ -3618,7 +3627,7 @@ async function renderFiles() {
       // A file opens where files open — the editor setting decides which,
       // and an empty setting means the desktop's own association.
       invoke("open_in_editor", { id: selectedId, path: e.path, line: null }).catch((err) =>
-        say(String(err))
+        say(errorText(err))
       );
     });
 
@@ -3762,7 +3771,7 @@ async function renderStats(force = false) {
     try {
       s = await call;
     } catch (e) {
-      if (id === selectedId) statsUi.state.textContent = String(e);
+      if (id === selectedId) statsUi.state.textContent = errorText(e);
       return;
     } finally {
       syncStatsRefresh();
@@ -3847,7 +3856,7 @@ async function renderStats(force = false) {
         node("span", "ov-deps-who", fill(t("stats.lines"), { n: nf.format(f.lines) }))
       );
       makeOpenable(li, () => {
-        invoke("open_in_editor", { id, path: f.path, line: null }).catch((err) => say(String(err)));
+        invoke("open_in_editor", { id, path: f.path, line: null }).catch((err) => say(errorText(err)));
       });
       return li;
     })
@@ -4041,7 +4050,7 @@ function renderFolderHits(res, query) {
     }
     b.addEventListener("click", () => {
       invoke("open_in_editor", { id: selectedId, path: h.path, line: h.line ?? null }).catch((e) =>
-        say(String(e))
+        say(errorText(e))
       );
     });
     finder.results.append(li);
@@ -4087,7 +4096,7 @@ function renderViewHits(res) {
       li.classList.add("finder-hit-row");
       open.addEventListener("click", () => {
         invoke("open_in_editor", { id: selectedId, path: h.file, line: h.line ?? null }).catch((e) =>
-          say(String(e))
+          say(errorText(e))
         );
       });
       li.append(open);
@@ -4106,7 +4115,7 @@ function renderViewHits(res) {
         closeFinder();
       } else if (h.file) {
         invoke("open_in_editor", { id: selectedId, path: h.file, line: h.line ?? null }).catch((e) =>
-          say(String(e))
+          say(errorText(e))
         );
       }
     });
@@ -4163,7 +4172,7 @@ async function runFinderOnce() {
     // A stale answer to a question nobody is asking any more stays quiet.
     if (seq === finderSeq) {
       finder.results.replaceChildren();
-      setFinderState(String(e));
+      setFinderState(errorText(e));
     }
   }
 }
@@ -4263,7 +4272,7 @@ finder.pick.addEventListener("click", async () => {
     finder.path.value = dir;
     applyScopeText();
   } catch (e) {
-    say(String(e));
+    say(errorText(e));
   }
 });
 
@@ -4376,7 +4385,7 @@ async function renderWorkspaces() {
   try {
     entries = await invoke("list_workspaces");
   } catch (e) {
-    ws.problem.textContent = String(e);
+    ws.problem.textContent = errorText(e);
     ws.problem.hidden = false;
     return [];
   }
@@ -4412,7 +4421,7 @@ async function renderWorkspaces() {
         await invoke("rename_workspace", { from: w.name, to });
         await renderWorkspaces();
       } catch (e) {
-        ws.problem.textContent = String(e);
+        ws.problem.textContent = errorText(e);
         ws.problem.hidden = false;
       }
     });
@@ -4430,7 +4439,7 @@ async function renderWorkspaces() {
         await invoke("delete_workspace", { name: w.name });
         await renderWorkspaces();
       } catch (e) {
-        ws.problem.textContent = String(e);
+        ws.problem.textContent = errorText(e);
         ws.problem.hidden = false;
       }
     });
@@ -4465,7 +4474,7 @@ async function useWorkspace(name) {
     // behind a dialog that is already gone rather than under one.
     await restoreLast();
   } catch (e) {
-    ws.problem.textContent = String(e);
+    ws.problem.textContent = errorText(e);
     ws.problem.hidden = false;
   }
 }
@@ -4551,7 +4560,7 @@ const MENU_ACTIONS = {
     try {
       await invoke("open_map_in_browser", { id: selectedId });
     } catch (e) {
-      say(String(e));
+      say(errorText(e));
     }
   },
   "menu.file.export": () => exportCurrentView(),
@@ -4560,7 +4569,7 @@ const MENU_ACTIONS = {
     try {
       await invoke("reveal_project", { id: selectedId });
     } catch (e) {
-      say(String(e));
+      say(errorText(e));
     }
   },
   "menu.file.copy_path": async () => {
@@ -4573,7 +4582,7 @@ const MENU_ACTIONS = {
       await navigator.clipboard.writeText(p.root);
       say(fill(t("copy.path.done"), { path: p.root }));
     } catch (e) {
-      say(String(e));
+      say(errorText(e));
     }
   },
   "menu.file.remove": () => selectedId && removeProject(selectedId),
@@ -4619,7 +4628,7 @@ const MENU_ACTIONS = {
     try {
       await invoke("reveal_settings");
     } catch (e) {
-      say(String(e));
+      say(errorText(e));
     }
   },
   "menu.help.about": () => openAbout(),
@@ -4870,7 +4879,7 @@ document.getElementById("scope-save").addEventListener("click", async () => {
     await refresh();
   } catch (e) {
     const problem = document.getElementById("scope-problem");
-    problem.textContent = fill(t("scope.failed"), { error: String(e) });
+    problem.textContent = fill(t("scope.failed"), { error: errorText(e) });
     problem.hidden = false;
   }
 });
@@ -4912,7 +4921,7 @@ document.getElementById("scope-add").addEventListener("click", async () => {
     field.value = lines.join("\n");
     problem.hidden = true;
   } catch (e) {
-    problem.textContent = fill(t("scope.failed"), { error: String(e) });
+    problem.textContent = fill(t("scope.failed"), { error: errorText(e) });
     problem.hidden = false;
   }
 });
@@ -5013,12 +5022,12 @@ document.getElementById("about-copy").addEventListener("click", async () => {
   } catch (e) {
     // A clipboard the window is not allowed to touch is not a reason to
     // lose the text: it is already on screen and selectable.
-    say(String(e));
+    say(errorText(e));
   }
 });
 
 document.getElementById("editor-cmd").addEventListener("change", (ev) => {
-  invoke("editor_command", { set: ev.target.value }).catch((e) => say(String(e)));
+  invoke("editor_command", { set: ev.target.value }).catch((e) => say(errorText(e)));
 });
 
 document.getElementById("prefs-sort").addEventListener("change", (ev) => {
@@ -5033,7 +5042,7 @@ async function openDocs(page) {
   try {
     await invoke("open_docs", { page });
   } catch (e) {
-    say(String(e));
+    say(errorText(e));
   }
 }
 
@@ -5060,7 +5069,7 @@ async function syncMenu() {
     // Surfaced rather than swallowed: a window with no menu is a window
     // missing half its commands, and silence here would look like a menu
     // bar that is simply slow.
-    say("Menu: " + String(e));
+    say("Menu: " + errorText(e));
   }
 }
 

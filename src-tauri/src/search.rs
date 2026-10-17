@@ -30,6 +30,7 @@ use std::time::{Duration, Instant};
 use serde::Serialize;
 use serde_json::Value;
 
+use crate::apperr::AppError;
 use crate::languages::{is_map_dir, is_nested_checkout, SKIP_DIRS};
 use crate::safe_read;
 
@@ -174,9 +175,9 @@ pub fn run(
     mode: Mode,
     case_sensitive: bool,
     limit: usize,
-) -> Result<Results, String> {
+) -> Result<Results, AppError> {
     if !scope.is_dir() {
-        return Err(format!("{} is not a folder", scope.display()));
+        return Err(AppError::not_dir(scope.display()));
     }
     let query = query.trim();
     if query.is_empty() {
@@ -428,15 +429,18 @@ const ELEMENTS: &[(&str, &str)] = &[
 /// Search what the map shows. `map_json` is the map's `module_map.json`, as
 /// `crate::map_file` resolved it: this does not look for it, so a link the
 /// caller refused is never reached from here.
-pub fn view(map_json: &Path, query: &str, limit: usize) -> Result<ViewResults, String> {
+pub fn view(map_json: &Path, query: &str, limit: usize) -> Result<ViewResults, AppError> {
     let needle = fold_chars(query.trim());
     // Bounded and regular-file-only: the map lives in a repository somebody
     // else wrote, and it is read on every pause in typing.
     let Some(raw) = safe_read::read_text(map_json, safe_read::MAP_JSON_MAX, false) else {
         return Ok(ViewResults::default());
     };
-    let map: Value =
-        serde_json::from_str(&raw).map_err(|e| format!("module_map.json is not JSON: {e}"))?;
+    let map: Value = serde_json::from_str(&raw).map_err(|e| {
+        AppError::new("err.map.notJson")
+            .with("path", "module_map.json")
+            .detail(e)
+    })?;
     let mut out = ViewResults {
         available: true,
         ..Default::default()

@@ -52,6 +52,9 @@ pub enum ListProblem {
     NotAuthenticated,
     /// It ran and failed for some other reason; the message is `gh`'s own.
     Failed,
+    /// It answered, but not with the list it was asked for; the message is
+    /// the parser's.
+    Unreadable,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -169,8 +172,8 @@ pub fn list(limit: u32) -> RepoList {
         },
         Err(e) => RepoList {
             repos: vec![],
-            problem: Some(ListProblem::Failed),
-            message: Some(format!("gh answered with something unreadable: {e}")),
+            problem: Some(ListProblem::Unreadable),
+            message: Some(e.to_string()),
         },
     }
 }
@@ -187,6 +190,7 @@ mod tests {
         // sentences, and only one of which says "install something".
         assert_ne!(ListProblem::NotInstalled, ListProblem::NotAuthenticated);
         assert_ne!(ListProblem::NotAuthenticated, ListProblem::Failed);
+        assert_ne!(ListProblem::Failed, ListProblem::Unreadable);
     }
 
     #[test]

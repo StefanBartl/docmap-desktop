@@ -20,6 +20,8 @@
 //! dead end. The mapping lives in one table below, so turning Discussions on
 //! later moves a category by editing one line.
 
+use crate::apperr::AppError;
+
 /// What kind of feedback this is, and where that kind belongs.
 ///
 /// An allowlist keyed by a short name the frontend sends. The webview never
@@ -84,11 +86,11 @@ const MAX_BODY: usize = 4000;
 
 /// Build the URL for a prefilled report. Public for the sake of its tests:
 /// what this produces is the whole feature, and it is a pure function.
-pub fn url(repo: &str, topic: &str, title: &str, body: &str) -> Result<String, String> {
+pub fn url(repo: &str, topic: &str, title: &str, body: &str) -> Result<String, AppError> {
     let entry = TOPICS
         .iter()
         .find(|t| t.id == topic)
-        .ok_or_else(|| format!("no such feedback topic: {topic}"))?;
+        .ok_or_else(|| AppError::new("err.feedback.topic").with("topic", topic))?;
 
     let mut body = body.to_string();
     if body.len() > MAX_BODY {

@@ -31,6 +31,7 @@ use std::time::{Duration, Instant};
 
 use serde::Serialize;
 
+use crate::apperr::AppError;
 use crate::languages::{is_map_dir, is_nested_checkout, SKIP_DIRS};
 use crate::safe_read;
 
@@ -343,9 +344,9 @@ pub struct Stats {
 }
 
 /// Count `root`. `map_dir` is skipped, for the reason every walk here skips it.
-pub fn collect(root: &Path, map_dir: &Path) -> Result<Stats, String> {
+pub fn collect(root: &Path, map_dir: &Path) -> Result<Stats, AppError> {
     if !root.is_dir() {
-        return Err(format!("{} is not a directory", root.display()));
+        return Err(AppError::not_dir(root.display()));
     }
 
     let mut by_lang: HashMap<&'static str, LangStats> = HashMap::new();
