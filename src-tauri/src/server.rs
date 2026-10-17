@@ -77,6 +77,14 @@ pub struct Server {
 /// project, so a second server would only be a socket nobody reads.
 static CURRENT: Mutex<Option<Server>> = Mutex::new(None);
 
+/// Take the server slot. A poisoned slot (a panic while it was held) is a
+/// map that cannot be served, and says so: `err.lock` speaks of saving,
+/// which is what the workspace lock guards, not what failed here.
+fn lock_servers<T>(slot: &Mutex<T>) -> Result<std::sync::MutexGuard<'_, T>, AppError> {
+    slot.lock()
+        .map_err(|_| AppError::new("err.server.start").detail("server lock poisoned"))
+}
+
 /// Fixed-name routes the engine is allowed to be asked for. `commit/<sha>`
 /// is not in here — see `handle`'s own dispatch — because its name carries
 /// the sha, which cannot be a fixed list entry.
@@ -384,7 +392,7 @@ fn handle(cfg: &ServeConfig, stream: &mut TcpStream) {
 /// keeps answering for the previously selected repository does not look like
 /// the wrong tree, it looks like a broken map.
 pub fn start(cfg: ServeConfig) -> Result<u16, AppError> {
-    let mut current = CURRENT.lock().map_err(|_| AppError::new("err.lock"))?;
+    let mut current = lock_servers(&CURRENT)?;
     if let Some(running) = current.as_ref() {
         if running.root == cfg.root {
             return Ok(running.port);
@@ -460,8 +468,23 @@ pub fn url(port: u16) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{safe_sha, servable_file};
+    use super::{lock_servers, safe_sha, servable_file};
     use std::fs;
+    use std::sync::Mutex;
+
+    #[test]
+    fn a_poisoned_server_slot_says_the_map_cannot_be_served() {
+        let slot = Mutex::new(0u8);
+        let _ = std::panic::catch_unwind(|| {
+            let _held = slot.lock().unwrap();
+            panic!("poison the slot");
+        });
+        assert!(slot.is_poisoned());
+        let e = lock_servers(&slot).expect_err("a poisoned slot is an error");
+        assert_eq!(e.key(), "err.server.start");
+        assert_eq!(e.detail_text(), Some("server lock poisoned"));
+        assert!(lock_servers(&Mutex::new(0u8)).is_ok());
+    }
 
     // The one function here worth a real test even in a crate with no
     // CI: it is the whole security property standing between a request

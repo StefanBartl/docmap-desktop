@@ -5069,7 +5069,7 @@ async function syncMenu() {
     // Surfaced rather than swallowed: a window with no menu is a window
     // missing half its commands, and silence here would look like a menu
     // bar that is simply slow.
-    say("Menu: " + errorText(e));
+    say(errorText(e));
   }
 }
 
