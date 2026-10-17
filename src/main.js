@@ -37,8 +37,8 @@ import {
   languageRows as statsLanguageRows,
   formatBytes,
 } from "./lib/stats.js";
-import { t, setLocale, initialLocale, LOCALES, keys } from "./lib/i18n.js";
-import { summarizeEngineLog, PER_CHECK } from "./lib/engine-log.js";
+import { t, plural, setLocale, initialLocale, LOCALES, keys } from "./lib/i18n.js";
+import { summarizeEngineLog, generatedMessage, PER_CHECK } from "./lib/engine-log.js";
 import { paintLog } from "./lib/log-view.js";
 import {
   trend as trendOf,
@@ -683,21 +683,7 @@ async function render() {
 // ranking is useful before it is complete, and an empty window is not.
 // =====================================================================
 
-/**
- * A rough age, in the largest unit that still reads as a number.
- *
- * One is its own string in both locales rather than `{n} hour(s)`. The
- * bracketed plural is fine in a count beside a label — `9 module(s)` is read
- * as a number with a unit — and wrong the moment the text is a sentence, and
- * "changed 1 hour(s) ago" is a sentence. German needs the dative for the
- * same phrase (`vor einer Stunde`, `vor 2 Stunden`), which a single form
- * with a placeholder cannot produce either.
- */
-function plural(key, n) {
-  const one = t(key + ".one");
-  return n === 1 && one ? one : t(key).replace("{n}", String(n));
-}
-
+/** A rough age, in the largest unit that still reads as a number (`plural` is in `lib/i18n.js`). */
 function agoText(secs) {
   if (typeof secs !== "number" || secs < 0) return null;
   if (secs < 3600) return plural("ov.ago.min", Math.max(1, Math.round(secs / 60)));
@@ -1821,7 +1807,7 @@ async function generateFor(id, full = false) {
             // with it every finding the status line counts.
             if (log && selectedId === id) showRunReport(log);
           }
-          say(generatedMessage(p.name, log));
+          say(generatedMessageFor(p.name, log));
         } else {
           if (here()) {
             showTaskPlaceholder(
@@ -1906,13 +1892,8 @@ function hideRunReport() {
 els.runReportClose.addEventListener("click", hideRunReport);
 
 /** "Generated X", plus what the engine found when it found anything. */
-function generatedMessage(name, log) {
-  const { tally } = summarizeEngineLog(log);
-  if (!tally.error && !tally.warn) return "Generated " + name;
-  return t("gen.done.findings")
-    .replace("{name}", name)
-    .replace("{errors}", String(tally.error))
-    .replace("{warnings}", String(tally.warn));
+function generatedMessageFor(name, log) {
+  return generatedMessage(name, summarizeEngineLog(log).tally, { t, plural });
 }
 
 els.gen.addEventListener("click", () => selectedId && generateFor(selectedId));

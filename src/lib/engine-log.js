@@ -137,3 +137,31 @@ export function summarizeEngineLog(text, perCheck = PER_CHECK) {
     folded: groups.reduce((n, g) => n + g.more, 0),
   };
 }
+
+/**
+ * The status line after a run that made a map: "Generated X", plus what the
+ * engine found when it found errors or warnings.
+ *
+ * Every word comes from the catalog, in both branches: the clean run used to be
+ * a hard-coded English sentence, so a German window showed German after a run
+ * with findings and English after a clean one. The counts go through `plural`
+ * (`1 error`, not `1 errors`). Placeholders are filled in one pass with a
+ * function, so a project called `a$&b` or `{errors}` comes out as written.
+ *
+ * `tr` is passed in, not imported, to keep this file free of the locale state.
+ *
+ * @param {string} name
+ * @param {Tally} tally
+ * @param {{t: (key: string) => string, plural: (key: string, n: number) => string}} tr
+ */
+export function generatedMessage(name, tally, tr) {
+  const clean = !tally.error && !tally.warn;
+  const parts = clean
+    ? { name }
+    : {
+        name,
+        errors: tr.plural("gen.count.errors", tally.error),
+        warnings: tr.plural("gen.count.warnings", tally.warn),
+      };
+  return tr.t(clean ? "gen.done.clean" : "gen.done.findings").replace(/\{(name|errors|warnings)\}/g, (_, k) => parts[k]);
+}
