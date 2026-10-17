@@ -474,9 +474,15 @@ so acting on it would skip exactly the ones this command exists for.
 that, and the ordinary Generate still produces a complete map apart from
 that detail.
 
-Either way, the engine's own report — counts, coverage, drift findings — is
-shown under the view verbatim rather than summarized. It already says what
-it found.
+Either way, the engine's own report is shown under the view: what was written,
+the counts and the coverage as they are; the findings (drift findings such as a
+dead README link or a Lua file without `---@module`) grouped by check, a few
+examples each and how many more there are, with **Show all** for the rest. A
+vault with findings is still *generated*: the map is written and the status bar
+says how many errors and warnings the engine found. "Failed" is kept for a run
+that did not write a map (no such directory, a refused output directory, a
+crashed backend) — the window asks the engine for `--lenient`, so error-severity
+findings in the tree do not turn into a non-zero exit.
 
 ## The staleness mark
 
