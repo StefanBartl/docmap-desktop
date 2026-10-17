@@ -64,7 +64,7 @@
   --panel: var(--surface);
   --ink: var(--text);
   /* The bundled face first, then the kit's stack (a token cannot name
-     itself, so the stack is repeated; the check in fonts.test.js keeps the
+     itself, so the stack is repeated; the check in tokens.test.js keeps the
      two in step). Referenced by `.repo-name` and the feedback block since
      before it existed: both were silently falling back to the inherited
      proportional face, which is how a repository list of monospaced names
@@ -232,8 +232,11 @@ button:hover:not(:disabled) {
   color: var(--accent);
 }
 
+/* Every focus ring is the kit's --focus, a colour of its own as in the other
+   apps. It was --accent-soft here and on the project list: about 1.2:1
+   against the sidebar, a ring that was there and could not be seen. */
 button:focus-visible {
-  outline: 2px solid var(--accent-soft);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 
@@ -255,7 +258,7 @@ button:focus-visible {
 }
 
 #projects:focus-visible {
-  outline: 2px solid var(--accent-soft);
+  outline: 2px solid var(--focus);
   outline-offset: -2px;
 }
 
@@ -270,7 +273,7 @@ button:focus-visible {
 }
 
 .proj:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus);
   outline-offset: -2px;
 }
 
@@ -528,7 +531,7 @@ button:focus-visible {
 }
 
 .ov-open:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus);
   outline-offset: 1px;
 }
 
@@ -686,7 +689,7 @@ button:focus-visible {
    so its focus ring has to survive the marker removal above. */
 #engine > summary:focus-visible,
 #nvim > summary:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
   border-radius: 3px;
 }
@@ -1475,7 +1478,7 @@ button:focus-visible {
   cursor: pointer;
 }
 .traffic-path-open:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -2049,7 +2052,7 @@ body.has-bar {
 }
 
 .finder > input:focus {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus);
   outline-offset: -1px;
 }
 

@@ -2,6 +2,9 @@
 
 import importlib.util
 import pathlib
+import subprocess
+import sys
+import tempfile
 import unittest
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -28,6 +31,13 @@ class Findings(unittest.TestCase):
     def test_an_unreadable_file_is_not_counted(self):
         found, count = colors.findings(KIT, ["src/style.css"], lambda path: None)
         self.assertEqual((found, count), ([], 0))
+
+    def test_started_from_another_folder_it_still_checks_this_repository(self):
+        with tempfile.TemporaryDirectory() as elsewhere:
+            run = subprocess.run(
+                [sys.executable, str(HERE / "check-colors.py")], cwd=elsewhere, capture_output=True, text=True
+            )
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
 
     def test_the_repository_is_clean(self):
         top, paths = KIT.tracked_files()

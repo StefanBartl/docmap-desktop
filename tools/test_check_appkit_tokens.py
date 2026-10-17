@@ -18,6 +18,7 @@ KIT = """/* a comment with --fake: light-dark(#111, #222); in it */
   --bg: light-dark(#f7f7f5, #15171a);
   --text: light-dark(#1b1d20, #e8e9ea);
   --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  --backdrop: rgb(0 0 0 / 0.45);
   --radius: 6px;
 }
 """
@@ -71,6 +72,19 @@ class Fallback(unittest.TestCase):
     def test_no_pair_is_an_error_not_an_empty_fallback(self):
         with self.assertRaises(ValueError):
             tokens.pairs(":root { --radius: 6px; }")
+
+    def test_a_light_dark_the_fallback_cannot_copy_is_an_error_not_a_token_left_out(self):
+        for value in ("light-dark(rgb(255 229 138), rgb(107 90 0))", "color-mix(in srgb, light-dark(#111, #222) 50%, red)"):
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "--mark"):
+                tokens.pairs(KIT.replace("--radius: 6px;", f"--mark: {value};"))
+
+    def test_the_backdrop_gets_its_own_copy_of_the_tokens_it_reads(self):
+        css = tokens.fallback(KIT, "v9.9.9")
+        self.assertIn("  ::backdrop {\n    --backdrop: rgb(0 0 0 / 0.45);\n  }\n}\n", css)
+
+    def test_a_kit_without_the_backdrop_token_is_an_error(self):
+        with self.assertRaisesRegex(ValueError, "--backdrop"):
+            tokens.fallback(KIT.replace("--backdrop", "--shade"), "v9.9.9")
 
     def test_light_by_default_dark_by_system_or_by_choice(self):
         css = tokens.fallback(KIT, "v9.9.9")
@@ -156,6 +170,16 @@ class EndToEnd(unittest.TestCase):
         (self.app / tokens.FALLBACK).write_text("edited", encoding="utf-8")
         self.assertEqual(self.run_check("--write"), 0)
         self.assertEqual(self.run_check(), 0)
+
+    def test_a_kit_the_fallback_cannot_follow_is_an_error_not_a_traceback(self):
+        (self.kit / tokens.KIT_PATH).write_bytes(KIT.replace("#15171a", "rgb(21 23 26)").encode())
+        git(self.kit, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qam", "rgb")
+        git(self.kit, "-c", "user.name=t", "-c", "user.email=t@t", "tag", "-a", "v1.1.0", "-m", "v1.1.0")
+        commit = subprocess.run(
+            ["git", "-C", str(self.kit), "rev-parse", "HEAD"], check=True, capture_output=True, text=True
+        ).stdout.strip()
+        self.pin(commit, tag="v1.1.0")
+        self.assertEqual(self.run_check(), 2)
 
     def test_no_clone_is_unreachable_not_a_pass(self):
         self.assertEqual(quiet(["--appkit", str(self.app / "nowhere"), "--root", str(self.app)]), 2)

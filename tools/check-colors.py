@@ -44,6 +44,9 @@ def findings(check, paths, read):
 
 def main():
     check = kit_check()
+    # The kit's file asks git in the current folder. Run from anywhere else, it would read that folder's repository
+    # (and pass it, if it has a clean src/): this script checks this repository, wherever it is started.
+    os.chdir(HERE)
     top, paths = check.tracked_files()
 
     def read(path):
