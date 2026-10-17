@@ -462,9 +462,14 @@ const CATALOGS = {
     "menu.project.generate_full": "Generate map (full)",
     "gen.full.needsLuals": "Full generation needs lua-language-server on PATH. The map was not written; the ordinary Generate map still works and is complete apart from the type detail.",
     "gen.all.progress": "Generating {n} of {total} — {name}",
-    "gen.done.findings": "Generated {name} — {errors} errors, {warnings} warnings",
+    "gen.done.clean": "Generated {name}",
+    "gen.done.findings": "Generated {name} — {errors}, {warnings}",
+    "gen.count.errors": "{n} errors",
+    "gen.count.errors.one": "1 error",
+    "gen.count.warnings": "{n} warnings",
+    "gen.count.warnings.one": "1 warning",
     "log.more": "… and {n} more",
-    "log.showAll": "Show all {n} findings",
+    "log.showAll": "Show all {n} listed findings",
     "log.fold": "Show fewer",
     "log.title": "Engine report",
     "log.close": "Close the report",
@@ -923,9 +928,14 @@ const CATALOGS = {
     "menu.project.generate_full": "Karte erzeugen (full)",
     "gen.full.needsLuals": "Für die volle Erzeugung muss lua-language-server auf PATH liegen. Es wurde nichts geschrieben; das normale Karte erzeugen funktioniert weiter und ist bis auf die Typdetails vollständig.",
     "gen.all.progress": "Erzeuge {n} von {total} — {name}",
-    "gen.done.findings": "{name} erzeugt — {errors} Fehler, {warnings} Warnungen",
+    "gen.done.clean": "{name} erzeugt",
+    "gen.done.findings": "{name} erzeugt — {errors}, {warnings}",
+    "gen.count.errors": "{n} Fehler",
+    "gen.count.errors.one": "1 Fehler",
+    "gen.count.warnings": "{n} Warnungen",
+    "gen.count.warnings.one": "1 Warnung",
     "log.more": "… und {n} weitere",
-    "log.showAll": "Alle {n} Befunde zeigen",
+    "log.showAll": "Alle {n} aufgelisteten Befunde zeigen",
     "log.fold": "Weniger zeigen",
     "log.title": "Bericht der Engine",
     "log.close": "Bericht schließen",
@@ -1017,6 +1027,22 @@ export function t(key) {
   const en = CATALOGS.en[key];
   if (en === undefined) return debug ? "‹missing:" + key + "›" : "";
   return debug ? "‹en› " + en : en;
+}
+
+/**
+ * A count in a sentence: `key.one` for exactly one, otherwise `key` with `{n}`
+ * filled in.
+ *
+ * One is its own string in both locales rather than `{n} hour(s)`. The
+ * bracketed plural is fine in a count beside a label — `9 module(s)` is read
+ * as a number with a unit — and wrong the moment the text is a sentence, and
+ * "changed 1 hour(s) ago" is a sentence. German needs the dative for the
+ * same phrase (`vor einer Stunde`, `vor 2 Stunden`), which a single form
+ * with a placeholder cannot produce either.
+ */
+export function plural(key, n) {
+  const one = t(key + ".one");
+  return n === 1 && one ? one : t(key).replace("{n}", () => String(n));
 }
 
 /** Every key the source catalog defines — what a completeness check counts. */

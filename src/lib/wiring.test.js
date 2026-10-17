@@ -126,6 +126,7 @@ test("no English catalog key is dead", () => {
     read("./traffic.js"),
     read("./finder.js"),
     read("./stats.js"),
+    read("./engine-log.js"),
   ].join("\n");
   const RUNTIME = [
     "menu.", // the Rust menu builder asks for these by id

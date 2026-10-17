@@ -129,8 +129,10 @@ full fidelity is never reported as broken.
 
 Counts and coverage are shown as the engine wrote them. The findings, which
 can be a hundred lines for a large vault, are grouped by check with a few
-examples each and a **Show all** button; the status bar names the error and
-warning counts.
+examples each and a **Show all** button (it counts the findings the report lists:
+the tally above also counts `info` findings, which the engine never lists); the
+status bar names the error and warning counts, in the interface language and
+singular for one (`1 error`); a clean run reads `Generated X` (`X erzeugt`).
 
 Where it is shown depends on whether there is a map to show:
 

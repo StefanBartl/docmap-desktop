@@ -130,5 +130,5 @@ test("the window shows the engine's report through the grouping, not as one bloc
     assert.match(body, /paintLog\(document, box, text, PER_CHECK, logLabels\)/, fn);
     assert.doesNotMatch(body, /textContent\s*=\s*text/, "the whole log is not one text node");
   }
-  assert.match(main, /say\(generatedMessage\(p\.name, log\)\)/, "the status names what was found");
+  assert.match(main, /say\(generatedMessageFor\(p\.name, log\)\)/, "the status names what was found");
 });
