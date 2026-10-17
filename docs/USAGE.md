@@ -122,13 +122,26 @@ Only the forms a hosting page gives you are accepted: `https://`, `http://`,
 remote helper (`ext::…`, `fd::…`), points at a local path or contains a space
 is refused before git is started, and git itself is limited to those same
 transports. The folder in `repos/` is the last part of the URL followed by
-`-` and eight hex digits of a hash of the whole URL, e.g. `foo-c2edc6b0` for
+`-` and eight hex digits of a hash of the URL, e.g. `foo-c2edc6b0` for
 `https://github.com/a/foo`: two repositories of the same name
 (`github.com/a/foo` and `github.com/b/foo`) get two folders and become two
-projects. The same URL with or without a trailing `/` or `.git` is one
-repository and is not cloned again. A clone made by an earlier version, in a
+projects. The project itself is named after the repository, `foo`, not after
+its folder; when a project named `foo` is already listed, the second one is
+named `b/foo` (owner and name), so the two can be told apart.
+
+One repository is cloned once, however its URL is spelled: `https://`,
+`http://`, `ssh://`, `git://` and `git@host:owner/name` all name the same
+repository, as do a trailing `/` or `.git`, a user or token in the URL, and
+the host in any case. On GitHub, GitLab, Bitbucket and Codeberg the owner and
+name are compared in any case too (`github.com/Owner/Name` is
+`github.com/owner/name`); on other hosts their case counts. A port counts
+only where it is not the usual one (an ssh port never counts). A folder is
+reused only when its `origin` is this repository, so a URL that happens to
+get the same hash as another gets a folder of its own (`foo-c2edc6b0-2`)
+instead of opening the other one. A clone made by an earlier version, in a
 folder named only `foo`, is still found and used where it is, but only for
-the URL its `origin` points at; any other `foo` gets a folder of its own.
+the repository its `origin` points at; any other `foo` gets a folder of its
+own.
 The last part of the URL must be a plain name (letters, digits, `.`, `_`,
 `-`). A name that ends in `.` or that Windows opens as a device (`CON`,
 `PRN`, `AUX`, `NUL`, `COM1`–`COM9`, `LPT1`–`LPT9`, with or without an
