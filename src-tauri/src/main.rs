@@ -1157,6 +1157,101 @@ fn repo_dir_name(url: &str) -> Option<String> {
     plain.then(|| name.to_string())
 }
 
+/// The part of `url` two imports must share to be the same repository: the
+/// URL without trailing `/` and without a trailing `.git`, which a hosting page
+/// offers both with and without.
+fn clone_url_key(url: &str) -> &str {
+    let trimmed = url.trim_end_matches('/');
+    trimmed.strip_suffix(".git").unwrap_or(trimmed)
+}
+
+/// The folder a new clone of `url` lands in: [`repo_dir_name`] plus `-` and
+/// eight hex digits of a hash of [`clone_url_key`], e.g. `foo-1a2b3c4d`.
+///
+/// A hash of the whole URL rather than the owner: the owner alone does not
+/// tell `github.com/a/foo` from `gitlab.com/a/foo`, and an owner (or a host, a
+/// port, a group path) can hold characters a plain folder name may not, so it
+/// would need its own escaping and could still collide after it. The hash
+/// covers every part of the URL and only adds `[0-9a-f-]` to a name that is
+/// already plain, so the result is plain too. FNV-1a, written out, because the
+/// name must stay the same across builds (`DefaultHasher` makes no such
+/// promise); 32 bits is plenty for the handful of same-named repositories one
+/// user imports, and short enough to keep the name readable.
+fn clone_dir_name(url: &str) -> Option<String> {
+    let name = repo_dir_name(url)?;
+    let hash = clone_url_key(url)
+        .bytes()
+        .fold(0xcbf2_9ce4_8422_2325_u64, |h, b| {
+            (h ^ u64::from(b)).wrapping_mul(0x0000_0100_0000_01b3)
+        });
+    Some(format!("{name}-{:08x}", hash >> 32))
+}
+
+/// Where an import of `url` goes, decided before anything is cloned.
+#[derive(Debug, PartialEq, Eq)]
+enum CloneTarget {
+    /// This URL is already cloned here: add it, clone nothing.
+    Existing(PathBuf),
+    /// Nothing of this URL is in the cache yet: clone into this folder.
+    Clone(PathBuf),
+}
+
+/// The clone of `url` under `cache`, or the folder a new one goes into.
+///
+/// Two names are looked at. The current one ([`clone_dir_name`]) holds only
+/// clones of this URL. The old one, the plain [`repo_dir_name`] every clone
+/// got before the hash was added, is used only when its `origin` is this URL
+/// (compared by [`clone_url_key`]): it may just as well hold another
+/// repository of the same name, which is the mix-up the hash is there to end.
+/// Old clones are found in place rather than moved to the new name, because
+/// the workspace already lists them by their path, and a move would leave that
+/// entry pointing at nothing.
+fn clone_target(cache: &Path, url: &str) -> Result<CloneTarget, String> {
+    let name = clone_dir_name(url)
+        .ok_or_else(|| "could not derive a plain folder name from the URL".to_owned())?;
+    let dest = cache.join(&name);
+    if dest.is_dir() {
+        return Ok(CloneTarget::Existing(dest));
+    }
+    if let Some(old) = repo_dir_name(url).map(|n| cache.join(n)) {
+        let same = origin_url(&old).is_some_and(|o| clone_url_key(&o) == clone_url_key(url));
+        if same {
+            return Ok(CloneTarget::Existing(old));
+        }
+    }
+    Ok(CloneTarget::Clone(dest))
+}
+
+/// The `origin` URL in the git config of the clone at `dir`, if it has one.
+///
+/// `git config --file` reads that one file and nothing else: no repository is
+/// opened, so neither its hooks nor a `safe.directory` check play a part. The
+/// path goes in [`portable`] form: git for Windows cannot open a `\\?\` path,
+/// which is what a canonical path is there.
+fn origin_url(dir: &Path) -> Option<String> {
+    let config = dir.join(".git").join("config");
+    if !config.is_file() {
+        return None;
+    }
+    let mut cmd = std::process::Command::new("git");
+    cmd.arg("config")
+        .arg("--file")
+        .arg(portable(&config))
+        .args(["--get", "remote.origin.url"]);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    let out = cmd.output().ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let url = String::from_utf8_lossy(&out.stdout).trim().to_owned();
+    (!url.is_empty()).then_some(url)
+}
+
 /// `CON`, `NUL`, `COM1` … : names Windows opens as a device, with or without an
 /// extension, in any case. A clone folder of that name is no folder.
 fn is_windows_device_name(name: &str) -> bool {
@@ -1183,27 +1278,35 @@ fn is_windows_device_name(name: &str) -> bool {
 /// is materially smaller — the "Größe" failure mode this feature was kept
 /// separate from folder-adding specifically to isolate.
 ///
-/// Cloning into an already-populated destination is a no-op, same
-/// reasoning as `add_project`'s own duplicate check: re-entering a URL
-/// that was already imported should not be an error.
+/// Importing a URL that is already cloned is a no-op, same reasoning as
+/// `add_project`'s own duplicate check: re-entering a URL that was already
+/// imported should not be an error. Which folder is "already cloned" is
+/// [`clone_target`]'s decision; another repository of the same name gets a
+/// folder of its own.
 #[tauri::command]
 async fn import_from_url(app: tauri::AppHandle, url: String) -> Result<Vec<Project>, String> {
     let url = url.trim().to_owned();
     if let Some(problem) = clone_url_problem(&url) {
         return Err(format!("cannot import this URL: {problem}"));
     }
-    let name = repo_dir_name(&url)
-        .ok_or_else(|| "could not derive a plain folder name from the URL".to_owned())?;
     let cache = repos_cache_dir(&app)?;
-    let dest = cache.join(&name);
+    let (cache_for_lookup, url_for_lookup) = (cache.clone(), url.clone());
+    let target = tauri::async_runtime::spawn_blocking(move || {
+        clone_target(&cache_for_lookup, &url_for_lookup)
+    })
+    .await
+    .map_err(|e| format!("clone task failed: {e}"))??;
+    let dest = match &target {
+        CloneTarget::Existing(dir) | CloneTarget::Clone(dir) => dir.clone(),
+    };
     // The name is plain, so this holds; checked anyway because the next lines
     // add a directory as a project and, on failure, delete one.
     if dest.parent() != Some(cache.as_path()) {
         return Err("the folder for this clone would lie outside the cache".to_owned());
     }
 
-    if dest.is_dir() {
-        return add_project(app, portable(&dest));
+    if let CloneTarget::Existing(dir) = target {
+        return add_project(app, portable(&dir));
     }
 
     let dest_str = portable(&dest);
@@ -3922,6 +4025,127 @@ mod tests {
         assert_eq!(repo_dir_name("https://host/a/.."), None);
         assert_eq!(repo_dir_name("https://host/x\\.."), None);
         assert_eq!(repo_dir_name("https://host/a/b?x=1"), None);
+    }
+
+    /// A folder that looks like a clone of `url`: `.git/config` with that
+    /// `origin`, written by git itself so the file is in git's own format.
+    fn fake_clone(dir: &Path, url: &str) {
+        fs::create_dir_all(dir.join(".git")).unwrap();
+        let ok = std::process::Command::new("git")
+            .arg("config")
+            .arg("--file")
+            .arg(portable(&dir.join(".git").join("config")))
+            .args(["remote.origin.url", url])
+            .status()
+            .unwrap()
+            .success();
+        assert!(ok, "git config could not write {}", dir.display());
+    }
+
+    #[test]
+    fn the_folder_of_a_clone_tells_two_repositories_of_one_name_apart() {
+        let a = clone_dir_name("https://github.com/a/foo").unwrap();
+        let b = clone_dir_name("https://github.com/b/foo").unwrap();
+        let other_host = clone_dir_name("https://gitlab.com/a/foo").unwrap();
+        assert_ne!(a, b);
+        assert_ne!(a, other_host);
+        for name in [&a, &b, &other_host] {
+            assert!(name.starts_with("foo-"), "{name:?}");
+            // Still a plain name: what repo_dir_name lets through, plus [0-9a-f-].
+            assert!(
+                name.len() == "foo-".len() + 8
+                    && name
+                        .chars()
+                        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-')),
+                "{name:?}"
+            );
+        }
+        // One repository, however the hosting page spells its URL.
+        for same in [
+            "https://github.com/a/foo/",
+            "https://github.com/a/foo.git",
+            "https://github.com/a/foo.git/",
+        ] {
+            assert_eq!(clone_dir_name(same).as_ref(), Some(&a), "{same:?}");
+        }
+        // Fixed across builds: an old clone must keep its name.
+        assert_eq!(
+            clone_dir_name("https://github.com/a/foo").as_deref(),
+            Some("foo-c2edc6b0")
+        );
+        assert_eq!(clone_dir_name("https://host/o/.."), None);
+        assert_eq!(clone_dir_name("https://host/o/con"), None);
+    }
+
+    #[test]
+    fn importing_the_same_url_twice_finds_the_first_clone() {
+        let cache = crate::testutil::fresh_dir("clone-target-same-url");
+        let url = "https://github.com/a/foo";
+        let CloneTarget::Clone(first) = clone_target(&cache, url).unwrap() else {
+            panic!("an empty cache has nothing to reuse");
+        };
+        assert_eq!(first, cache.join("foo-c2edc6b0"));
+        fake_clone(&first, url);
+        for again in [url, "https://github.com/a/foo.git"] {
+            assert_eq!(
+                clone_target(&cache, again).unwrap(),
+                CloneTarget::Existing(first.clone()),
+                "{again:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn two_urls_with_the_same_last_part_become_two_clones() {
+        let cache = crate::testutil::fresh_dir("clone-target-same-name");
+        let a = "https://github.com/a/foo";
+        let b = "https://github.com/b/foo";
+        let CloneTarget::Clone(dir_a) = clone_target(&cache, a).unwrap() else {
+            panic!("an empty cache has nothing to reuse");
+        };
+        fake_clone(&dir_a, a);
+        let CloneTarget::Clone(dir_b) = clone_target(&cache, b).unwrap() else {
+            panic!("b/foo must not open the clone of a/foo");
+        };
+        assert_ne!(dir_a, dir_b);
+        assert_eq!(dir_b.parent(), Some(cache.as_path()));
+        fake_clone(&dir_b, b);
+        assert_eq!(
+            clone_target(&cache, a).unwrap(),
+            CloneTarget::Existing(dir_a)
+        );
+        assert_eq!(
+            clone_target(&cache, b).unwrap(),
+            CloneTarget::Existing(dir_b)
+        );
+    }
+
+    #[test]
+    fn a_clone_under_the_old_plain_name_is_found_only_for_its_own_url() {
+        let cache = crate::testutil::fresh_dir("clone-target-old-name");
+        let a = "https://github.com/a/foo.git";
+        let old = cache.join("foo");
+        fake_clone(&old, a);
+        // Its own URL, with or without `.git`: the old folder, no new clone.
+        for same in [a, "https://github.com/a/foo"] {
+            assert_eq!(
+                clone_target(&cache, same).unwrap(),
+                CloneTarget::Existing(old.clone()),
+                "{same:?}"
+            );
+        }
+        // Another repository named foo: a folder of its own, not a/foo's.
+        assert_eq!(
+            clone_target(&cache, "https://github.com/b/foo").unwrap(),
+            CloneTarget::Clone(cache.join(clone_dir_name("https://github.com/b/foo").unwrap()))
+        );
+        // A folder of that name that is no clone at all is not taken either.
+        let stray = cache.join("bar");
+        fs::create_dir_all(&stray).unwrap();
+        assert!(matches!(
+            clone_target(&cache, "https://github.com/a/bar").unwrap(),
+            CloneTarget::Clone(dir) if dir != stray
+        ));
     }
 
     // `open_externally`'s own `windows_open_command` is not spawned here (it

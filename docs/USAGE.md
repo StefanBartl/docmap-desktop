@@ -121,10 +121,18 @@ Only the forms a hosting page gives you are accepted: `https://`, `http://`,
 `ssh://`, `git://` and `user@host:path`. A URL that starts with `-`, names a
 remote helper (`ext::…`, `fd::…`), points at a local path or contains a space
 is refused before git is started, and git itself is limited to those same
-transports. The folder in `repos/` is the last part of the URL, and only a
-plain name (letters, digits, `.`, `_`, `-`) is used. A name that ends in `.`
-or that Windows opens as a device (`CON`, `PRN`, `AUX`, `NUL`, `COM1`–`COM9`,
-`LPT1`–`LPT9`, with or without an extension) is refused on every platform.
+transports. The folder in `repos/` is the last part of the URL followed by
+`-` and eight hex digits of a hash of the whole URL, e.g. `foo-c2edc6b0` for
+`https://github.com/a/foo`: two repositories of the same name
+(`github.com/a/foo` and `github.com/b/foo`) get two folders and become two
+projects. The same URL with or without a trailing `/` or `.git` is one
+repository and is not cloned again. A clone made by an earlier version, in a
+folder named only `foo`, is still found and used where it is, but only for
+the URL its `origin` points at; any other `foo` gets a folder of its own.
+The last part of the URL must be a plain name (letters, digits, `.`, `_`,
+`-`). A name that ends in `.` or that Windows opens as a device (`CON`,
+`PRN`, `AUX`, `NUL`, `COM1`–`COM9`, `LPT1`–`LPT9`, with or without an
+extension) is refused on every platform.
 An IPv6 address in a URL (`https://[::1]/repo.git`) is fine.
 
 The URL tab can also list **your own GitHub repositories** to pick from,
