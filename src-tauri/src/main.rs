@@ -1986,8 +1986,9 @@ async fn import_from_nvim_config(app: tauri::AppHandle) -> Result<ImportResult, 
 /// written".** Without it the engine exits 1 whenever the *tree* carries
 /// error-severity drift findings (a Lua file without `---@module`, say) -
 /// after it has written the map, because the findings are a verdict on the
-/// source, not a failure of the run. A repository like that (WKDBooks: 28 such
-/// findings) was reported as "Failed" with a map sitting on disk. A real
+/// source, not a failure of the run. A repository like that (a large vault
+/// with a few dozen such findings) was reported as "Failed" with a map sitting
+/// on disk. A real
 /// failure (no such directory, an unsafe `out_dir`, a crashed backend) still
 /// exits 1 with `--lenient`, so the flag removes exactly the false alarm.
 /// `check_map` passes it for the same reason; the findings themselves still
@@ -2112,8 +2113,8 @@ struct CheckResult {
 /// sentence is reworded. With `--lenient` the exit code means staleness and
 /// nothing else, except `2`: the engine refused or could not run and so has no
 /// verdict (the frontend reads it as "not checked", not as "stale"). The findings
-/// still arrive in the output, which is where this app already shows the engine's
-/// own report verbatim.
+/// still arrive in the output, which is where this app shows the engine's own
+/// report: its lines as they are, the findings grouped per check and capped.
 ///
 /// Writes nothing. That is why it is its own command rather than a flag on
 /// `generate`: the two have opposite guarantees, and a boolean that decided
@@ -4957,19 +4958,21 @@ mod tests {
             .collect()
     }
 
-    // WKDBooks was shown as "Failed" with its map on disk: the engine exits 1
-    // after writing when the tree has error-severity drift findings, unless it
-    // is told `--lenient`. A map is "generated" when the engine wrote it, so a
-    // Generate has to ask for that exit code - and still pass everything else.
+    // A vault with findings was shown as "Failed" with its map on disk: the
+    // engine exits 1 after writing when the tree has error-severity drift
+    // findings, unless it is told `--lenient`. A map is "generated" when the
+    // engine wrote it, so a Generate has to ask for that exit code - and still
+    // pass everything else. (That `generate` really builds its command line
+    // here is `src/lib/wiring.test.js`'s job.)
     #[test]
     fn generate_asks_for_the_exit_code_that_means_the_map_was_written() {
         let plain = generate_command(
             "docmap",
-            "E:/repos/WKDBooks",
+            "E:/repos/example-vault",
             false,
             &ProjectFlags::default(),
         );
-        assert_eq!(args_of(&plain), ["E:/repos/WKDBooks", "--lenient"]);
+        assert_eq!(args_of(&plain), ["E:/repos/example-vault", "--lenient"]);
 
         let flags = ProjectFlags {
             exclude: vec!["vendor".into()],
