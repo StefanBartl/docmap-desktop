@@ -40,6 +40,7 @@ import {
 import { t, plural, setLocale, initialLocale, LOCALES, keys } from "./lib/i18n.js";
 import { summarizeEngineLog, generatedMessage, PER_CHECK } from "./lib/engine-log.js";
 import { paintLog } from "./lib/log-view.js";
+import { createRunReport } from "./lib/run-report.js";
 import {
   trend as trendOf,
   windows as trafficWindows,
@@ -1875,21 +1876,22 @@ const logLabels = {
  * it". It scrolls on its own (the shell never does) and closes; it also goes
  * when another project or message takes the view.
  */
+const runReport = createRunReport({
+  doc: document,
+  panel: els.runReport,
+  body: els.runReportBody,
+  close: els.runReportClose,
+  perCheck: PER_CHECK,
+  labels: logLabels,
+});
+
 function showRunReport(text) {
-  const box = document.createElement("div");
-  box.className = "gen-log";
-  els.runReportBody.replaceChildren(box);
-  paintLog(document, box, text, PER_CHECK, logLabels);
-  els.runReportBody.scrollTop = 0;
-  els.runReport.hidden = false;
+  runReport.show(text);
 }
 
 function hideRunReport() {
-  els.runReport.hidden = true;
-  els.runReportBody.replaceChildren();
+  runReport.hide();
 }
-
-els.runReportClose.addEventListener("click", hideRunReport);
 
 /** "Generated X", plus what the engine found when it found anything. */
 function generatedMessageFor(name, log) {

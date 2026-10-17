@@ -281,9 +281,15 @@ test("the report of a run that worked is drawn on the map, not in the placeholde
   // removed again the moment it was shown.
   assert.ok(ok.indexOf("await select(id)") < ok.indexOf("showRunReport(log)"));
 
-  const show = jsFn("function showRunReport(");
-  assert.doesNotMatch(show, /placeholder/, "the docked report must not depend on the placeholder");
-  assert.match(show, /els\.runReport\.hidden = false/);
+  // The behaviour lives in lib/run-report.js (run-report.test.js drives it);
+  // this is only the join: main.js hands it the three elements.
+  assert.match(jsFn("function showRunReport("), /runReport\.show\(text\)/);
+  assert.match(jsFn("function hideRunReport("), /runReport\.hide\(\)/);
+  const make = jsFn("const runReport = createRunReport(");
+  assert.match(make, /panel: els\.runReport,/);
+  assert.match(make, /body: els\.runReportBody,/);
+  assert.match(make, /close: els\.runReportClose,/);
+  assert.doesNotMatch(make, /placeholder/, "the docked report must not depend on the placeholder");
 });
 
 test("a report goes when its project or its message goes", () => {
