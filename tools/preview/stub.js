@@ -318,6 +318,24 @@ const R = {
     more: 0
   }),
   project_scope_set: () => null,
+  // The report of a run over WKDBooks, in the engine's own format and with
+  // its real counts (28 errors, 71 warnings): the "many findings" case. The
+  // `mono` project answers the same run with a crash after the findings, to
+  // look at a failed run; every other one is a run that wrote its map.
+  generate: (a) => {
+    const row = (sev, check, msg) => `  [${sev}] ${check.padEnd(22)} ${msg}`;
+    const err = [];
+    for (let i = 0; i < 28; i++) err.push(row("error", "missing-module-tag", `./Development/wkdbook-Lua/Tests/t${i}.lua has no ---@module annotation`));
+    for (let i = 0; i < 44; i++) {
+      const target = i % 3 ? `../../../../../documentation.nvim/docs/d${i}.md` : `$REPOS_DIR/documentation.nvim/docs/d${i}.md`;
+      err.push(row("warn", "dead-readme-link", `Development/wkdbook-myplugins/documentation.nvim/ROADMAP/R${i}.md links to '${target}' which does not exist`));
+    }
+    for (let i = 0; i < 22; i++) err.push(row("warn", "missing-summary", `./Development/x/f${i}.lua has no summary`));
+    const out = ["wrote docs/map/index.html", "wrote docs/map/module_map.json", "2 modules, 1090 namespaces, 57 files", "", "28 errors, 71 warnings, 176 info", ""];
+    const crashed = String(a.root).includes("mono");
+    if (crashed) err.push("docmap: source directory not found", "stack traceback:", "\t[C]: in function 'assert'");
+    return { ok: !crashed, code: crashed ? 1 : 0, stdout: out.join("\n"), stderr: err.join("\n") + "\n" };
+  },
   telemetry_info: () => ({ enabled: false }),
   about_info: () => ({ app: "docmap-desktop", version: "0.1.0" }),
   project_icon: () => null,
