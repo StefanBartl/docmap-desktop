@@ -53,8 +53,51 @@ test("rustfmt.toml pins Unix line endings for every checkout", () => {
 
 test("the README's test section names the local mirror of both Rust gates", () => {
   const readme = read("README.md");
-  const section = readme.slice(readme.indexOf("### Tests"));
-  assert.ok(section.length < readme.length, "no Tests section");
+  const at = readme.indexOf("### Tests");
+  // `slice(-1)` of a missing heading is the last character, which is "shorter
+  // than the file" and made this guard pass on exactly the case it is for.
+  assert.ok(at >= 0, "no Tests section: was the heading renamed?");
+  const section = readme.slice(at);
   assert.match(section, /cargo fmt --check/);
   assert.match(section, /cargo clippy --locked --all-targets -- -D warnings/);
+});
+
+/** The YAML without its comment lines: a comment that mentions a key is not the key. */
+const code = (yml) => yml.replace(/^\s*#.*$/gm, "");
+
+test("no gate can fail without failing the run: no continue-on-error, no matrix exclusion", () => {
+  const yml = read(".github/workflows/ci.yml");
+  assert.doesNotMatch(code(yml), /continue-on-error/, "a step or job that may fail is not a gate");
+  assert.doesNotMatch(code(yml), /^\s*exclude:/m, "a matrix exclusion exempts a platform from every gate");
+  // Per step as well, for the Rust gates named in the findings.
+  const all = steps(yml);
+  for (const re of [/cargo fmt --check/, /cargo clippy/, /cargo test/, /node --test/]) {
+    const i = all.findIndex((s) => re.test(code(s.body)));
+    assert.ok(i >= 0, `no step runs ${re}`);
+    assert.doesNotMatch(code(all[i].body), /continue-on-error/, `the ${re} step is allowed to fail`);
+    assert.doesNotMatch(code(all[i].body), /^\s*if:/m, `the ${re} step is skipped on some platform`);
+  }
+});
+
+test("the matrix still covers all three platforms", () => {
+  const yml = code(read(".github/workflows/ci.yml"));
+  const matrix = yml.slice(yml.indexOf("matrix:"), yml.indexOf("runs-on:"));
+  for (const p of ["ubuntu-22.04", "windows-latest", "macos-latest"]) {
+    assert.ok(matrix.includes(`platform: ${p}`), `${p} left the matrix`);
+  }
+});
+
+test("the LF checkout the fmt step relies on is there", () => {
+  // `newline_style = "Unix"` makes a CRLF file a *failure*; what keeps the
+  // Windows runner green is that git checks files out with LF.
+  assert.match(read(".gitattributes"), /^\*\s+text=auto\s+eol=lf\s*$/m);
+});
+
+test("the comment on the floating toolchain names both rustfmt and clippy", () => {
+  const yml = read(".github/workflows/ci.yml");
+  const at = yml.indexOf("floating `stable`");
+  assert.ok(at >= 0, "the comment on the toolchain choice is gone");
+  const comment = yml.slice(at, yml.indexOf("- uses: dtolnay/rust-toolchain", at));
+  assert.match(comment, /rustfmt/);
+  assert.match(comment, /clippy/);
 });
