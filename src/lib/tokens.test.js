@@ -49,6 +49,12 @@ test("the meaning colours of the kit stay unused: this window says a state in wo
   assert.doesNotMatch(CSS, /var\(--(ok|warn|bad)\)/);
 });
 
+test("every focus ring is the kit's --focus, not the accent", () => {
+  const rings = [...stripComments(CSS).matchAll(/outline:\s*\d+px\s+solid\s+([^;]+);/g)].map((m) => m[1].trim());
+  assert.ok(rings.length >= 5, `expected the focus rings, found ${rings.length}`);
+  assert.deepEqual(rings.filter((c) => c !== "var(--focus)"), []);
+});
+
 test("the body takes the kit's type", () => {
   assert.match(stripComments(CSS), /font:\s*var\(--font-size\)\s*\/\s*var\(--line-height\)\s*var\(--font\);/);
 });
