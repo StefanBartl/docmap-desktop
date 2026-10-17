@@ -29,7 +29,7 @@ Lua. The format reads Markdown, not a language.
   that is not yours is read.
 - **[DESKTOP](DESKTOP.md)** — the parts that make it a desktop program rather
   than a page: menu bar, keyboard and mouse behaviour, export, feedback,
-  interface language.
+  interface language, and the look it shares with the other desktop apps.
 
 Reference documentation lives one level up and is not repeated here:
 [`USAGE.md`](../USAGE.md) is the button-by-button manual and

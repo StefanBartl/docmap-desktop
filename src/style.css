@@ -35,54 +35,41 @@
   font-display: block;
 }
 
-/* Deliberately close to the generated map's own palette: this window is a
-   frame around that page, and a frame that fights its content reads as two
-   programs stapled together. Both light and dark, following the OS. */
+/* The palette, the type and the shapes are the kit's: appkit-ui's tokens
+   (`appkit-tokens.css`, a copy pinned in `tools/appkit-ui.pin` and checked
+   by `tools/check-appkit-tokens.py`), loaded before this file by
+   index.html, so this window looks like tasks-desktop and rules-desktop.
+   The kit's names are used as they are where they mean the same thing
+   (--bg, --muted, --line, --accent, --accent-soft, --shadow, --radius ...);
+   the two names this file has always used for its own surfaces stay, as
+   aliases, so no rule below had to change for the move:
+
+     --panel  the sidebar and the other chrome: the kit's --surface, the
+              colour tasks-desktop gives its bar and cards
+     --ink    the text: the kit's --text
+
+   Light, dark and `data-theme` come with the tokens: light-dark() follows
+   the system, and `data-theme="light"`/`"dark"` on <html> overrides it
+   (nothing stamped means system -- three states, not two, so a reader who
+   overrode it once can hand the decision back to the OS). A WebView without
+   light-dark() takes the same colours from `appkit-tokens-fallback.css`,
+   which keeps the duplicated theme blocks this file used to carry, generated
+   from the tokens rather than written by hand.
+
+   What is deliberately not the kit's: --mono (below), and the meaning
+   colours --ok/--warn/--bad, which no rule here uses -- this window marks a
+   state with a word and the accent, not with red and green. */
 
 :root {
-  --bg: #ffffff;
-  --panel: #f7f7f8;
-  --ink: #1a1a1c;
-  --muted: #6b6b73;
-  --line: #e2e2e6;
-  --accent: #2f6fd0;
-  --accent-soft: #dbe7fa;
-  /* Referenced by `.repo-name` and the feedback block since before it
-     existed: both were silently falling back to the inherited
+  --panel: var(--surface);
+  --ink: var(--text);
+  /* The bundled face first, then the kit's stack (a token cannot name
+     itself, so the stack is repeated; the check in fonts.test.js keeps the
+     two in step). Referenced by `.repo-name` and the feedback block since
+     before it existed: both were silently falling back to the inherited
      proportional face, which is how a repository list of monospaced names
      came out unaligned. */
-  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-}
-
-/* Three states, not two. "System" is the default and has to stay
-   *choosable*, so a reader who overrode it once can hand the decision back
-   to the OS — a two-way toggle can only ever leave them pinned.
-   Nothing stamped on <html> means system; `data-theme` means they decided.
-
-   The dark block is guarded with `:not([data-theme="light"])` so an explicit
-   light choice still wins on a dark-mode machine, and repeated under
-   `[data-theme="dark"]` so an explicit dark choice wins on a light one.
-   Without both, the switch would work in one direction only. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #16171a;
-    --panel: #1d1e22;
-    --ink: #e6e6ea;
-    --muted: #9a9aa4;
-    --line: #2c2d33;
-    --accent: #7aa7f0;
-    --accent-soft: #22304a;
-  }
-}
-
-:root[data-theme="dark"] {
-  --bg: #16171a;
-  --panel: #1d1e22;
-  --ink: #e6e6ea;
-  --muted: #9a9aa4;
-  --line: #2c2d33;
-  --accent: #7aa7f0;
-  --accent-soft: #22304a;
+  --mono: "JetBrains Mono", ui-monospace, 'Cascadia Mono', Consolas, monospace;
 }
 
 * {
@@ -102,7 +89,7 @@ body {
      then `auto` so the bar is exactly as tall as its one line and the
      panes take the rest. */
   grid-template-rows: 1fr auto;
-  font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font: var(--font-size) / var(--line-height) var(--font);
   color: var(--ink);
   background: var(--bg);
   /* The sidebar is a chrome surface, not content: no text selection drag,
@@ -148,7 +135,7 @@ body {
   height: 24px;
   padding: 0;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: transparent;
   color: var(--muted);
   cursor: pointer;
@@ -183,7 +170,7 @@ body.sb-auto #sidebar {
 
 body.sb-auto #sidebar.peek {
   transform: none;
-  box-shadow: 6px 0 22px rgb(0 0 0 / 0.28);
+  box-shadow: var(--shadow);
 }
 
 /* The grip: a short bar and a chevron on the visible edge. */
@@ -234,7 +221,7 @@ button {
   font: inherit;
   padding: 7px 11px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: var(--bg);
   color: var(--ink);
   cursor: pointer;
@@ -274,7 +261,7 @@ button:focus-visible {
 
 .proj {
   padding: 8px 10px;
-  border-radius: 7px;
+  border-radius: var(--radius);
   cursor: pointer;
 }
 
@@ -397,7 +384,6 @@ button:focus-visible {
   color: var(--ink);
   background: var(--panel);
   border-bottom: 1px solid var(--line);
-  box-shadow: 0 1px 4px rgb(0 0 0 / 0.08);
 }
 
 /* A column that centres what fits and scrolls what does not.
@@ -516,7 +502,7 @@ button:focus-visible {
   width: 100%;
   padding: 9px 12px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: var(--panel);
   color: var(--ink);
   font: inherit;
@@ -801,7 +787,7 @@ button:focus-visible {
 .fact-tag {
   padding: 0 7px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-family: inherit;
   font-size: 10px;
   color: var(--muted);
@@ -911,7 +897,6 @@ button:focus-visible {
   max-height: min(45%, 360px);
   border-top: 1px solid var(--line);
   background: var(--panel);
-  box-shadow: 0 -2px 8px rgb(0 0 0 / 0.08);
 }
 
 .run-report[hidden] {
@@ -959,7 +944,7 @@ button:focus-visible {
 .gen-log-toggle {
   padding: 3px 10px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: var(--panel);
   color: var(--ink);
   font: inherit;
@@ -976,9 +961,9 @@ button:focus-visible {
   max-width: 300px;
   padding: 8px 10px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--shadow-sm);
   font-size: 11.5px;
   line-height: 1.45;
   color: var(--ink);
@@ -991,12 +976,12 @@ button:focus-visible {
   width: min(560px, 92vw);
   padding: 18px 20px 20px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--bg);
   color: var(--ink);
 }
 .addbox::backdrop {
-  background: rgba(0, 0, 0, 0.38);
+  background: var(--backdrop);
 }
 .addbox-close-form {
   float: right;
@@ -1022,7 +1007,7 @@ button:focus-visible {
   display: flex;
   gap: 0;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius);
   overflow: hidden;
   margin-bottom: 14px;
 }
@@ -1070,7 +1055,7 @@ button:focus-visible {
   min-width: 0;
   padding: 6px 8px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: var(--bg);
   color: var(--ink);
   font-size: 12.5px;
@@ -1078,7 +1063,7 @@ button:focus-visible {
 .addbox-go {
   padding: 6px 12px;
   border: 1px solid var(--accent);
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: var(--accent-soft);
   color: var(--accent);
   font-size: 12.5px;
@@ -1115,7 +1100,7 @@ button:focus-visible {
 .addbox-secondary {
   padding: 6px 10px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: transparent;
   color: var(--muted);
   font-size: 12px;
@@ -1134,7 +1119,7 @@ button:focus-visible {
   max-height: 34vh;
   overflow-y: auto;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius);
 }
 .repo {
   display: grid;
@@ -1179,7 +1164,7 @@ button:focus-visible {
   overflow: auto;
   max-height: 60vh;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius);
 }
 .matrix-table {
   border-collapse: collapse;
@@ -1271,7 +1256,7 @@ button:focus-visible {
   min-width: 0;
   padding: 3px 6px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: var(--bg);
   color: var(--ink);
   font-size: 11.5px;
@@ -1300,7 +1285,7 @@ button:focus-visible {
   box-sizing: border-box;
   padding: 7px 9px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: var(--bg);
   color: var(--ink);
   font: inherit;
@@ -1325,7 +1310,7 @@ button:focus-visible {
   margin: 6px 0 0;
   padding: 8px 10px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: var(--panel);
   color: var(--muted);
   font-family: var(--mono);
@@ -1366,7 +1351,7 @@ button:focus-visible {
 .picker select {
   padding: 5px 6px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: var(--bg);
   color: var(--ink);
   font: inherit;
@@ -1407,7 +1392,7 @@ button:focus-visible {
   margin: 2px 0 4px;
   padding: 1px 9px;
   border: 1px solid var(--accent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--accent-soft);
   color: var(--ink);
   font-size: 11.5px;
@@ -1537,7 +1522,7 @@ button:focus-visible {
   min-width: 0;
   padding: 5px 7px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: var(--bg);
   color: var(--ink);
   font: inherit;
@@ -1606,7 +1591,7 @@ button:focus-visible {
   margin: 0;
   padding: 0;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius);
   overflow: hidden;
 }
 
@@ -1687,9 +1672,9 @@ button:focus-visible {
   padding: 4px;
   list-style: none;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--panel);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+  box-shadow: var(--shadow);
 }
 
 .ctxmenu[hidden] {
@@ -1762,7 +1747,7 @@ button:focus-visible {
   height: 32px;
   margin: 0 0 8px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius);
   object-fit: contain;
   background: var(--bg);
 }
@@ -1907,7 +1892,7 @@ button:focus-visible {
   margin: 12px 0;
   padding: 0;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
@@ -2013,7 +1998,7 @@ body.has-bar {
 .viewtabs button {
   padding: 4px 12px;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: transparent;
   color: var(--muted);
   font-size: 12.5px;
@@ -2044,7 +2029,7 @@ body.has-bar {
   position: relative;
   padding: 5px 10px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--bg);
   color: var(--ink);
   font: inherit;
@@ -2065,9 +2050,9 @@ body.has-bar {
   width: min(760px, calc(100% - 28px));
   padding: 10px 12px 12px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: var(--bg);
-  box-shadow: 0 10px 30px rgb(0 0 0 / 0.3);
+  box-shadow: var(--shadow);
 }
 
 .finder-panel[hidden] {
@@ -2101,7 +2086,7 @@ body.has-bar {
   min-width: 0;
   padding: 4px 8px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: var(--panel);
   color: var(--ink);
   font-family: var(--mono);
@@ -2117,7 +2102,7 @@ body.has-bar {
   flex: 0 0 auto;
   padding: 4px 9px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: var(--panel);
   color: var(--ink);
   font: inherit;
@@ -2127,7 +2112,7 @@ body.has-bar {
 .finder-seg {
   display: inline-flex;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius);
   overflow: hidden;
 }
 
@@ -2178,7 +2163,7 @@ body.has-bar {
   width: 100%;
   padding: 5px 8px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: transparent;
   color: var(--ink);
   text-align: left;
@@ -2228,7 +2213,7 @@ body.has-bar {
   flex: 0 0 auto;
   padding: 0 6px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-family: inherit;
   font-size: 10px;
   color: var(--muted);
@@ -2250,7 +2235,7 @@ body.has-bar {
   align-self: center;
   padding: 2px 8px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: transparent;
   color: var(--accent);
   font-size: 11px;
@@ -2309,7 +2294,7 @@ body.has-bar {
 .stat-tile {
   padding: 10px 12px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: var(--panel);
 }
 
