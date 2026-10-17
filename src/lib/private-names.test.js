@@ -6,7 +6,7 @@ import path from "node:path";
 
 // This repository is public. The vaults its author keeps notes and rules in are
 // not, and neither are the ids of the rules written there: a fixture named
-// after a real vault, or a comment citing "rule NREL-13", tells a stranger how
+// after a real vault, or a comment citing a private rule by its id, tells a stranger how
 // the private side is laid out and cannot be resolved by them anyway (APP-01).
 // Fixtures carry neutral names. A name that was committed once stays in the
 // history; this keeps the current tree clean.
