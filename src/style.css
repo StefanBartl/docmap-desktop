@@ -348,11 +348,20 @@ button:focus-visible {
   position: relative;
   min-width: 0;
   min-height: 0;
+  /* A column: the view (map, message, overview, Files, Statistics - one of
+     them at a time) takes what is left, and the engine's report, when there
+     is one, sits under it at its own height. The report used to float over
+     the foot of the map and hid its scrollbar and its last 45 per cent; now
+     the map gets smaller instead, and no pane covers the report. */
+  display: flex;
+  flex-direction: column;
 }
 
 #map {
   width: 100%;
   height: 100%;
+  flex: 1 1 0;
+  min-height: 0;
   border: 0;
   display: block;
 }
@@ -399,6 +408,8 @@ button:focus-visible {
   display: flex;
   flex-direction: column;
   height: 100%;
+  flex: 1 1 0;
+  min-height: 0;
   overflow-y: auto;
   text-align: center;
   color: var(--muted);
@@ -462,6 +473,8 @@ button:focus-visible {
    corpus of fifty is a normal size for it. */
 .overview {
   height: 100%;
+  flex: 1 1 0;
+  min-height: 0;
   overflow-y: auto;
   padding: 22px 24px 28px;
   box-sizing: border-box;
@@ -882,16 +895,13 @@ button:focus-visible {
   background: var(--log-bg, var(--bg));
 }
 
-/* The report of a run that worked, over the foot of the map. Below the Files
-   and Statistics panes (z-index 2): they are about the repository, not about
-   the run, and cover it the way they cover the map. */
+/* The report of a run that worked, docked under the map: the last item of the
+   column that `#view` is, so the map above it is shorter by exactly the
+   report's height and nothing - not the map's scrollbar, not the Files or
+   Statistics pane - is drawn over it. */
 .run-report {
   --log-bg: var(--panel);
-  position: absolute;
-  z-index: 1;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  flex: none;
   display: flex;
   flex-direction: column;
   max-height: min(45%, 360px);
@@ -1762,9 +1772,11 @@ button:focus-visible {
    shell never scrolls, which is why the map is an iframe and this is a
    section with its own overflow. */
 .files {
-  position: absolute;
+  /* In the column, but still above the map's context note (z-index 1). */
+  position: relative;
   z-index: 2;
-  inset: var(--bar-h, 0px) 0 0 0;
+  flex: 1 1 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background: var(--bg);
@@ -2249,9 +2261,11 @@ body.has-bar {
 
 /* ---------------------------------------------------------- statistics */
 .stats {
-  position: absolute;
+  /* In the column, but still above the map's context note (z-index 1). */
+  position: relative;
   z-index: 2;
-  inset: var(--bar-h, 0px) 0 0 0;
+  flex: 1 1 0;
+  min-height: 0;
   overflow: auto;
   padding: 18px 24px 28px;
   background: var(--bg);

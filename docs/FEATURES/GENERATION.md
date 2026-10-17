@@ -137,13 +137,21 @@ singular for one (`1 error`); a clean run reads `Generated X` (`X erzeugt`).
 Where it is shown depends on whether there is a map to show:
 
 - **A run that wrote its map** puts the report in a panel at the foot of the
-  map (**Engine report**), with its own scroll bar and a close button. The map
-  stays on screen above it. Another project, another message or the close
-  button takes it away. **Show all** stays at the foot of the panel while it
-  scrolls.
+  map (**Engine report**), with its own scroll bar and a close button. It is
+  docked, not laid over the map: the map gets shorter by the height of the
+  panel, and the Files and Statistics views share the space above it the same
+  way, so nothing covers the report and the report covers nothing. Another
+  project, another message, the close button or **Esc** inside the panel takes
+  it away; closing it hands the keyboard focus to **Generate** (or the project
+  picker while Generate is busy). **Show all** stays at the foot of the panel
+  while it scrolls.
 - **A run that failed**, and **Check exactly**, have no map, so the report sits
   under the message in the middle of the view, which scrolls when the report is
-  longer than the window.
+  longer than the window and can be reached with Tab when it has no button.
+
+Changing the interface language with a report open words it again: the **Show
+all** button, the "and N more" rows and the status line (the choice of folded or
+expanded stays).
 
 Findings never make a run "Failed" — the engine is asked for `--lenient`, so
 findings in the tree do not turn into a non-zero exit. It stays non-zero for a

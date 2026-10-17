@@ -126,7 +126,11 @@ test("the window shows the engine's report through the grouping, not as one bloc
   const start = main.indexOf("function appendLog(");
   assert.ok(start > 0, "appendLog should exist");
   const body = main.slice(start, main.indexOf("\n}\n", start));
-  assert.match(body, /paintLog\(document, box, text, PER_CHECK, logLabels\)/);
+  assert.match(body, /taskLog\.append\(text, bad\)/);
+  // ...which draws it through the grouping (lib/run-report.js, run-report.test.js).
+  const tl = main.slice(main.indexOf("createTaskLog({"), main.indexOf("});", main.indexOf("createTaskLog({")));
+  assert.match(tl, /perCheck: PER_CHECK/);
+  assert.match(tl, /labels: logLabels/);
   assert.doesNotMatch(body, /textContent\s*=\s*text/, "the whole log is not one text node");
   // The docked report is drawn by lib/run-report.js (driven by
   // run-report.test.js); main.js hands it the grouping's limit and labels.
@@ -134,5 +138,5 @@ test("the window shows the engine's report through the grouping, not as one bloc
   const dock = main.slice(at, main.indexOf("});", at));
   assert.match(dock, /perCheck: PER_CHECK/);
   assert.match(dock, /labels: logLabels/);
-  assert.match(main, /say\(generatedMessageFor\(p\.name, log\)\)/, "the status names what was found");
+  assert.match(main, /sayLive\(\(\) => generatedMessageFor\(p\.name, log\)\)/, "the status names what was found, and is reworded with the language");
 });

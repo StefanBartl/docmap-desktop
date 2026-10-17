@@ -39,8 +39,8 @@ import {
 } from "./lib/stats.js";
 import { t, plural, setLocale, initialLocale, LOCALES, keys } from "./lib/i18n.js";
 import { summarizeEngineLog, generatedMessage, PER_CHECK } from "./lib/engine-log.js";
-import { paintLog } from "./lib/log-view.js";
-import { createRunReport } from "./lib/run-report.js";
+import { createRunReport, createTaskLog } from "./lib/run-report.js";
+import { createLiveStatus } from "./lib/live-status.js";
 import {
   trend as trendOf,
   windows as trafficWindows,
@@ -219,8 +219,19 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+const statusLine = createLiveStatus(els.status);
+
 function say(msg) {
-  els.status.textContent = msg || "";
+  statusLine.say(msg);
+}
+
+/**
+ * A status line that is a sentence of the catalog (a run's outcome, the
+ * counts in it): `say` keeps the words it was given, this keeps the way to
+ * make them, so a language switch rewords the line.
+ */
+function sayLive(make) {
+  statusLine.sayLive(make);
 }
 
 /**
@@ -261,6 +272,7 @@ function showPlaceholder(title, body) {
   // Whatever is said here replaces the view, so the last run's report (a
   // different subject, drawn over a map that is no longer there) goes too.
   hideRunReport();
+  taskLog.clear();
   els.placeholder.hidden = false;
   els.placeholder.innerHTML =
     "<h2></h2><p></p>";
@@ -1808,7 +1820,7 @@ async function generateFor(id, full = false) {
             // with it every finding the status line counts.
             if (log && selectedId === id) showRunReport(log);
           }
-          say(generatedMessageFor(p.name, log));
+          sayLive(() => generatedMessageFor(p.name, log));
         } else {
           if (here()) {
             showTaskPlaceholder(
@@ -1851,12 +1863,7 @@ async function generateFor(id, full = false) {
  * goes to `showRunReport`.
  */
 function appendLog(text, bad) {
-  const host = els.placeholder.hidden ? null : els.placeholder;
-  if (!host) return;
-  const box = document.createElement("div");
-  box.className = "gen-log" + (bad ? " bad" : "");
-  host.appendChild(box);
-  paintLog(document, box, text, PER_CHECK, logLabels);
+  taskLog.append(text, bad);
 }
 
 /** The words of the report's controls, read at draw time (the language can change). */
@@ -1866,7 +1873,13 @@ const logLabels = {
   get fold() {
     return t("log.fold");
   },
+  get title() {
+    return t("log.title");
+  },
 };
+
+/** The report under a placeholder message; also the placeholder's tab stop while it holds one. */
+const taskLog = createTaskLog({ doc: document, host: els.placeholder, perCheck: PER_CHECK, labels: logLabels });
 
 /**
  * The report of a run that worked, docked at the foot of the map.
@@ -1883,6 +1896,9 @@ const runReport = createRunReport({
   close: els.runReportClose,
   perCheck: PER_CHECK,
   labels: logLabels,
+  // Closing the report drops the focus on <body> otherwise. Generate is what
+  // opened it; if that is busy or disabled, the project picker is always there.
+  returnFocus: () => [els.gen, els.list],
 });
 
 function showRunReport(text) {
@@ -2037,7 +2053,7 @@ async function checkMap(id) {
   // refused to read a map through a link or an unsafe map directory, or could
   // not run): that is not "stale", and regenerating would not settle it.
   const stale = res.code !== 2;
-  say(res.current ? t("check.current") : t(stale ? "check.stale" : "check.refused"));
+  sayLive(() => (res.current ? t("check.current") : t(stale ? "check.stale" : "check.refused")));
   if (here()) appendLog(log || "(no output)", !res.current);
 }
 
@@ -4674,6 +4690,12 @@ function chooseLocale(code) {
   if (statsOpen) renderStats();
   void render();
   syncMenu();
+  // The reports are drawn in script, with the words of the language that was
+  // current then: the button, the "and N more" rows, and the status line that
+  // counts them.
+  runReport.refresh();
+  taskLog.refresh();
+  statusLine.refresh();
 }
 
 

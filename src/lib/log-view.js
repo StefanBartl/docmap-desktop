@@ -49,17 +49,19 @@ export function paintLog(doc, box, text, perCheck, labels) {
     toggle.className = "gen-log-toggle";
     foot.appendChild(toggle);
     box.replaceChildren(rows, foot);
-    view = { rows, foot, toggle, text, expanded: false };
+    view = { rows, foot, toggle, text, labels, expanded: false };
     views.set(box, view);
     toggle.addEventListener("click", () => {
-      paintLog(doc, box, view.text, view.expanded ? PER_CHECK : Infinity, labels);
+      paintLog(doc, box, view.text, view.expanded ? PER_CHECK : Infinity, view.labels);
     });
   }
   view.text = text;
+  view.labels = labels;
 
   const s = summarizeEngineLog(text, perCheck);
   const expanded = !Number.isFinite(perCheck);
   view.expanded = expanded;
+  if (!expanded) view.foldedAt = perCheck;
 
   const rows = [];
   const add = (cls, line) => {
@@ -82,4 +84,20 @@ export function paintLog(doc, box, text, perCheck, labels) {
   view.toggle.textContent = expanded ? labels.fold : labels.showAll(s.findings);
   view.toggle.setAttribute("aria-expanded", String(expanded));
   return { toggle: view.toggle };
+}
+
+/**
+ * Draw an already painted box again with (possibly) new labels - the interface
+ * language changed - keeping what the reader chose: the report text, and
+ * whether "Show all" was pressed. The button is relabelled, not replaced, so
+ * the focus on it stays.
+ *
+ * @param {Document} doc
+ * @param {HTMLElement} box a box that `paintLog` has drawn; anything else is left alone
+ * @param {LogLabels} labels
+ */
+export function repaintLog(doc, box, labels) {
+  const view = views.get(box);
+  if (!view) return;
+  paintLog(doc, box, view.text, view.expanded ? Infinity : (view.foldedAt ?? PER_CHECK), labels);
 }
