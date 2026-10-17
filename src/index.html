@@ -316,6 +316,18 @@
          <h2 data-i18n="view.nothing">Nothing selected</h2>
          <p data-i18n="view.pickOne">Pick a project on the left.</p>
       </div>
+
+      <!-- The engine's report after a run that worked: docked at the foot of
+           the map, with its own scroll, and closable. A failed run's report
+           is not here but under the message in #placeholder (there is no map
+           to dock it to). Hidden until `showRunReport` fills it. -->
+      <section id="run-report" class="run-report" role="region" aria-labelledby="run-report-title" hidden>
+        <header class="run-report-head">
+          <h3 id="run-report-title" data-i18n="log.title">Engine report</h3>
+          <button id="run-report-close" type="button" class="run-report-close" data-i18n-aria="log.close" aria-label="Close">&times;</button>
+        </header>
+        <div id="run-report-body" class="run-report-body" tabindex="0"></div>
+      </section>
     </main>
 
     <!-- One help bubble, reused by every control that carries `data-help`.

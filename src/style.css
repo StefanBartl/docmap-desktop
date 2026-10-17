@@ -400,12 +400,34 @@ button:focus-visible {
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.08);
 }
 
+/* A column that centres what fits and scrolls what does not.
+ *
+ * It was `display: grid; place-content: center`, and that centres by pushing
+ * the overflow out of *both* ends: a failed run's report (a hundred lines when
+ * expanded, 650px even folded) put the heading above the top edge of a window
+ * whose body does not scroll, with nothing to scroll to. Auto margins on the
+ * first and last child centre the same way and never go negative, so a short
+ * message sits in the middle and a long one starts at the top, and
+ * `overflow-y` makes the rest reachable. */
 .placeholder {
-  display: grid;
-  place-content: center;
+  display: flex;
+  flex-direction: column;
   height: 100%;
+  overflow-y: auto;
   text-align: center;
   color: var(--muted);
+}
+
+.placeholder > * {
+  flex: none;
+}
+
+.placeholder > :first-child {
+  margin-top: auto;
+}
+
+.placeholder > :last-child {
+  margin-bottom: auto;
 }
 
 /* `display: grid` above outranks the UA's `[hidden] { display: none }`, so
@@ -442,6 +464,8 @@ button:focus-visible {
   font-size: 12px;
   color: var(--muted);
   max-width: 60ch;
+  margin-left: auto;
+  margin-right: auto;
   user-select: text;
 }
 
@@ -822,8 +846,8 @@ button:focus-visible {
   gap: 6px;
 }
 
-/* Generation output: the engine's own report, shown verbatim rather than
-   summarised — it already says exactly what it found. */
+/* Generation output: the engine's own report. Its lines are shown as they are
+   and its findings are grouped per check (lib/engine-log.js). */
 .gen-log {
   margin: 12px auto 0;
   max-width: 70ch;
@@ -863,8 +887,76 @@ button:focus-visible {
   font-style: italic;
 }
 
+/* The button stays at the foot of whatever scrolls (the placeholder, the run
+   report), so "Show fewer" is never 1500px below the pane after "Show all". */
+.gen-log-foot {
+  position: sticky;
+  bottom: 0;
+  padding: 8px 0 6px;
+  background: var(--log-bg, var(--bg));
+}
+
+/* The report of a run that worked, over the foot of the map. Below the Files
+   and Statistics panes (z-index 2): they are about the repository, not about
+   the run, and cover it the way they cover the map. */
+.run-report {
+  --log-bg: var(--panel);
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: min(45%, 360px);
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: 0 -2px 8px rgb(0 0 0 / 0.08);
+}
+
+.run-report[hidden] {
+  display: none;
+}
+
+.run-report-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 8px 2px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.run-report-head h3 {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--ink);
+}
+
+.run-report-close {
+  padding: 0 8px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.run-report-close:hover {
+  color: var(--ink);
+}
+
+/* The scroller. Focusable (`tabindex` in the markup) so the keyboard can
+   scroll it when the report has no button to land on. */
+.run-report-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 16px;
+}
+
 .gen-log-toggle {
-  margin-top: 10px;
   padding: 3px 10px;
   border: 1px solid var(--line);
   border-radius: 6px;
