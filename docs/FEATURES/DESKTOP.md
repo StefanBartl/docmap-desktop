@@ -106,6 +106,31 @@ Settings → Appearance.
 - **Module:** `src/lib/i18n.js`
 - **Config:** Settings → Appearance → interface language
 
+## One look with the other desktop apps
+
+Colours, type and shapes come from appkit-ui, the kit tasks-desktop and
+rules-desktop are built on, so the three windows look alike. This window has
+no package manager, so the kit's token file is a checked-in copy pinned to
+one tag; CI fails when the copy drifts from that tag or when a colour is
+written anywhere but in the tokens. Light, dark and the explicit choice in
+View → Theme behave as in the other apps.
+
+Kept on purpose, not aligned:
+
+- **JetBrains Mono, bundled** (with its OFL licence) in front of the kit's
+  monospace stack: paths have to be legible, `Il1` and `O0` included.
+- **No meaning colours.** The kit has green, amber and red; this window
+  marks a state with a word and the accent.
+- **The theme blocks stay duplicated, as a fallback.** The kit writes each
+  colour as `light-dark()`; for a WebView without it,
+  `appkit-tokens-fallback.css` (generated from the tokens) carries the same
+  colours as plain values, system choice and `data-theme` included.
+- **`--panel` and `--ink`** stay as names, as aliases of the kit's
+  `--surface` and `--text`.
+
+- **Module:** `src/appkit-tokens.css`, `src/appkit-tokens-fallback.css`, `src/style.css`
+- **Config:** `tools/appkit-ui.pin` (the tag); `tools/check-appkit-tokens.py`, `tools/check-colors.py`
+
 ## Busy buttons
 
 One place for "disable, swap label, run, restore", instead of that pattern

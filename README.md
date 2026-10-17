@@ -192,6 +192,18 @@ gives for no bundler:
 node --test src/lib/*.test.js
 ```
 
+The design tokens are a copy of appkit-ui's (`src/appkit-tokens.css`, the tag
+in `tools/appkit-ui.pin`); CI checks the copy against that tag and refuses
+colours outside the tokens. The same checks and their tests, locally (the
+first asks GitHub; `--appkit <clone>` reads a local appkit instead, `--write`
+takes the file of a new tag):
+
+```bash
+python tools/check-appkit-tokens.py
+python tools/check-colors.py
+python -m unittest discover -s tools -p "test_*.py"
+```
+
 Layout is not something those can see. `python tools/preview/preview.py` serves
 the window in a browser with a stubbed backend (`tools/preview/stub.js`), for
 looking at it at the minimum window size (900x600); `tools/preview/probe-report.js`

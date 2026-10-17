@@ -1,5 +1,6 @@
 # Runs the checks on every push and pull request: cargo fmt --check, cargo
-# clippy -D warnings and cargo test (Rust), and node --test (the shared frontend helpers under src/lib/). Deliberately
+# clippy -D warnings and cargo test (Rust), and node --test (the shared frontend helpers under src/lib/);
+# a second job, `tokens`, checks the design tokens copied from appkit-ui. Deliberately
 # separate from release.yml, which builds real installers from a real
 # downloaded engine sidecar and only runs on a pushed vX.Y.Z tag -- this one
 # only needs the Rust/JS code itself to be correct, on every push, without
@@ -119,3 +120,22 @@ jobs:
       - name: node --test
         shell: bash
         run: node --test src/lib/*.test.js
+
+  # The design tokens come from appkit-ui as a checked-in copy (no package
+  # manager in this frontend). The copy and its generated fallback must be
+  # the kit's file at the tag in tools/appkit-ui.pin, and that tag must still
+  # name the pinned commit; no colour may be written outside the tokens.
+  # One platform is enough: these read files, nothing here is built.
+  tokens:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: the token copy matches the pinned appkit tag
+        run: python3 tools/check-appkit-tokens.py
+
+      - name: no colour outside the tokens
+        run: python3 tools/check-colors.py
+
+      - name: unit tests of the tools
+        run: python3 -m unittest discover -s tools -p "test_*.py"
