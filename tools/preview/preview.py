@@ -53,10 +53,25 @@ def build() -> pathlib.Path:
     return out
 
 
+class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
+    """Never let the browser reuse a file.
+
+    The default handler sends only `Last-Modified`, so the browser decides how
+    long to trust a copy by itself - and a module edited a minute ago was then
+    served from cache on reload, which made a fixed bug look still broken (and
+    a broken one look fixed). A preview that cannot be trusted to show the
+    current source is worse than none.
+    """
+
+    def end_headers(self) -> None:
+        self.send_header("Cache-Control", "no-store")
+        super().end_headers()
+
+
 def main() -> None:
     out = build()
     os.chdir(ROOT)
-    handler = http.server.SimpleHTTPRequestHandler
+    handler = NoCacheHandler
     # Threading: a browser opens speculative connections that send nothing,
     # and a single-threaded server waits on the first one forever -- every
     # later request, including the page itself, then hangs.

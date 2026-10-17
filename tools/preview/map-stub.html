@@ -1,0 +1,26 @@
+<!doctype html>
+<!-- Preview-only stand-in for a generated map. NOT part of the app.
+
+     The real page reports to its parent as soon as it runs; the window waits
+     eight seconds for that and then replaces the map with "the map did not
+     load" (the blank-pane watchdog). Without a page that answers, a preview
+     of a *successful* run lost its map - and everything docked to it - after
+     eight seconds, which is a different state from the one the app is in. -->
+<meta charset="utf-8" />
+<title>map stub</title>
+<style>
+  body { margin: 0; font: 14px sans-serif; background: #f4f1ea; color: #333; }
+  @media (prefers-color-scheme: dark) { body { background: #1c1f26; color: #ccd; } }
+  main { padding: 24px; }
+  .row { height: 28px; margin: 6px 0; border-radius: 4px; background: rgb(128 128 160 / .25); }
+</style>
+<main>
+  <h1>A generated map (stub)</h1>
+  <p>Stands where the real map is, so what is docked to it can be looked at.</p>
+  <div class="row"></div><div class="row"></div><div class="row"></div>
+  <div class="row"></div><div class="row"></div><div class="row"></div>
+  <div class="row"></div><div class="row"></div><div class="row"></div>
+</main>
+<script>
+  parent.postMessage({ source: "docmap", tab: "overview" }, "*");
+</script>

@@ -318,22 +318,54 @@ const R = {
     more: 0
   }),
   project_scope_set: () => null,
-  // The report of a run over WKDBooks, in the engine's own format and with
-  // its real counts (28 errors, 71 warnings): the "many findings" case. The
-  // `mono` project answers the same run with a crash after the findings, to
-  // look at a failed run; every other one is a run that wrote its map.
+  // A run in the engine's own report format, in the three outcomes the real
+  // app shows, chosen by project so each can be looked at:
+  //
+  //   * `mono` (a-monorepo...): a crash after the findings. Exit 1, no map
+  //     written, the old one (it has one) stays - "Failed" with the report.
+  //   * `runtime-analysis`: a clean run. Exit 0, a map, nothing found.
+  //   * every other one: a run that wrote its map and found a lot in the tree
+  //     (28 errors, 71 warnings: the "many findings" case). A project that had
+  //     no map has one afterwards, which is what makes the window select it and
+  //     leave the placeholder behind - the state the real app is in then.
+  //
+  // The vault names in the findings are made up; the *shape* (relative paths
+  // with many `../`, a `$REPOS_DIR` placeholder, 44/22/4/1 warnings per check)
+  // is the report of a real run. The tally is the engine's own line: it counts
+  // every finding including the `info` ones stderr never lists, so errors and
+  // warnings agree with the listed rows and `info` does not.
   generate: (a) => {
     const row = (sev, check, msg) => `  [${sev}] ${check.padEnd(22)} ${msg}`;
-    const err = [];
-    for (let i = 0; i < 28; i++) err.push(row("error", "missing-module-tag", `./Development/wkdbook-Lua/Tests/t${i}.lua has no ---@module annotation`));
-    for (let i = 0; i < 44; i++) {
-      const target = i % 3 ? `../../../../../documentation.nvim/docs/d${i}.md` : `$REPOS_DIR/documentation.nvim/docs/d${i}.md`;
-      err.push(row("warn", "dead-readme-link", `Development/wkdbook-myplugins/documentation.nvim/ROADMAP/R${i}.md links to '${target}' which does not exist`));
-    }
-    for (let i = 0; i < 22; i++) err.push(row("warn", "missing-summary", `./Development/x/f${i}.lua has no summary`));
-    const out = ["wrote docs/map/index.html", "wrote docs/map/module_map.json", "2 modules, 1090 namespaces, 57 files", "", "28 errors, 71 warnings, 176 info", ""];
+    const project = PROJECTS.find((p) => p.root === a.root);
     const crashed = String(a.root).includes("mono");
+    const clean = String(a.root).includes("runtime-analysis");
+    const err = [];
+    let errors = 0;
+    let warnings = 0;
+    if (!clean) {
+      for (let i = 0; i < 28; i++, errors++) err.push(row("error", "missing-module-tag", `./vault-a/tests/t${i}.lua has no ---@module annotation`));
+      for (let i = 0; i < 44; i++, warnings++) {
+        const target = i % 3 ? `../../../../../documentation.nvim/docs/d${i}.md` : `$REPOS_DIR/documentation.nvim/docs/d${i}.md`;
+        err.push(row("warn", "dead-readme-link", `vault-b/plugin-x/ROADMAP/R${i}.md links to '${target}' which does not exist`));
+      }
+      for (let i = 0; i < 22; i++, warnings++) err.push(row("warn", "missing-summary", `./vault-c/f${i}.lua has no summary`));
+      for (let i = 0; i < 4; i++, warnings++) err.push(row("warn", "require-not-declared", `./a${i}.lua requires 'b${i}'`));
+      err.push(row("warn", "doc-references-missing", "./README.md references a missing doc"));
+      warnings++;
+    }
+    const out = [
+      "wrote docs/map/index.html",
+      "wrote docs/map/module_map.json",
+      "2 modules, 1090 namespaces, 57 files",
+      "",
+      `${errors} errors, ${warnings} warnings, ${clean ? 0 : 176} info`,
+      "",
+    ];
     if (crashed) err.push("docmap: source directory not found", "stack traceback:", "\t[C]: in function 'assert'");
+    if (!crashed && project && !STATE[project.id].st) {
+      STATE[project.id].st = { modules: 2, files: 57, namespaces: 1090, schema: 5 };
+      STATE[project.id].fr = { stale: false };
+    }
     return { ok: !crashed, code: crashed ? 1 : 0, stdout: out.join("\n"), stderr: err.join("\n") + "\n" };
   },
   telemetry_info: () => ({ enabled: false }),
@@ -380,7 +412,9 @@ window.__TAURI__ = {
       console.warn("[stub] unhandled command:", cmd, args);
       return null;
     },
-    convertFileSrc: (p) => p
+    // The map page itself is not worth stubbing faithfully; `map-stub.html`
+    // only has to run and say so (see its header for why).
+    convertFileSrc: () => "/tools/preview/map-stub.html"
   },
   // Always the same directory: enough to preview `inspect_folder`'s
   // checklist path (see `R.inspect_folder`) without a real filesystem.
