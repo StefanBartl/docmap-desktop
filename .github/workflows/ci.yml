@@ -1,5 +1,5 @@
-# Runs the checks on every push and pull request: cargo clippy -D warnings and
-# cargo test (Rust), and node --test (the shared frontend helpers under src/lib/). Deliberately
+# Runs the checks on every push and pull request: cargo fmt --check, cargo
+# clippy -D warnings and cargo test (Rust), and node --test (the shared frontend helpers under src/lib/). Deliberately
 # separate from release.yml, which builds real installers from a real
 # downloaded engine sidecar and only runs on a pushed vX.Y.Z tag -- this one
 # only needs the Rust/JS code itself to be correct, on every push, without
@@ -59,7 +59,7 @@ jobs:
       # at the same stable version reproduces it before pushing.
       - uses: dtolnay/rust-toolchain@stable
         with:
-          components: clippy
+          components: clippy, rustfmt
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -75,6 +75,15 @@ jobs:
           [ "${{ matrix.platform }}" = "windows-latest" ] && suffix=".exe"
           touch "src-tauri/binaries/docmap-${{ matrix.engine_triple }}${suffix}"
           touch src-tauri/resources/grammars/placeholder.dll
+
+      # Formatting is a gate like clippy, on every platform and ahead of it (the
+      # cheaper failure first). Needs no placeholders: it only parses sources.
+      # Line endings are fixed by src-tauri/rustfmt.toml (`newline_style =
+      # "Unix"`) together with .gitattributes' `eol=lf`, so a CRLF working copy
+      # on Windows cannot make this step fail.
+      - name: cargo fmt --check
+        working-directory: src-tauri
+        run: cargo fmt --check
 
       # Needs the staged placeholders above (build.rs runs under clippy too).
       # Runs on every platform of the matrix because the lints of
