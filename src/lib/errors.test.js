@@ -23,13 +23,45 @@ function readSource(path) {
 
 const RUST = readSource("../../src-tauri/src/apperr.rs");
 
-function rustTable() {
-  const body = RUST.slice(RUST.indexOf("pub const ENGLISH"), RUST.indexOf("\n];\n"));
-  return [...body.matchAll(/\(\s*"((?:err|api)\.[A-Za-z.]+)",\s*"([^"]*)",?\s*\)/g)].map((m) => ({
-    key: m[1],
-    english: m[2],
-  }));
+// The body of `ENGLISH`, from its declaration to the `];` closing it.
+function tableBody(src) {
+  return src.slice(src.indexOf("pub const ENGLISH"), src.indexOf("\n];\n"));
 }
+
+// The key class is wider than a key may be (apperr.rs's `key_char` allows
+// letters, digits, `.` and `_`): an entry this reader cannot parse would
+// otherwise vanish from every test below without a word.
+function parseTable(body) {
+  return [...body.matchAll(/\(\s*"((?:err|api)\.[A-Za-z0-9_.-]+)",\s*"([^"]*)",?\s*\)/g)].map(
+    (m) => ({ key: m[1], english: m[2] })
+  );
+}
+
+function rustTable() {
+  return parseTable(tableBody(RUST));
+}
+
+test("the table reader reads keys with digits, underscores and dashes", () => {
+  const body = `pub const ENGLISH: &[(&str, &str)] = &[
+    ("err.path.read", "Cannot read {path}"),
+    ("err.utf8.invalid", "{path} is not UTF-8"),
+    (
+        "err.open_url.failed",
+        "The address {url} could not be opened",
+    ),
+    ("err.x-y", "Dashed"),`;
+  assert.deepEqual(
+    parseTable(body).map((e) => e.key),
+    ["err.path.read", "err.utf8.invalid", "err.open_url.failed", "err.x-y"]
+  );
+});
+
+test("every entry of the table is parsed, none skipped", () => {
+  // Each entry opens with `(` and a quote; sentences carry no quotes
+  // (apperr.rs asserts it), so this count is the table's length.
+  const entries = [...tableBody(RUST).matchAll(/\(\s*"/g)].length;
+  assert.equal(rustTable().length, entries, "the reader skipped entries of apperr::ENGLISH");
+});
 
 function inLocale(code, fn) {
   const before = locale();
@@ -195,4 +227,15 @@ test("main.js never stringifies a caught error itself", () => {
     (src.match(/errorText\(/g) || []).length >= 40,
     "expected the error call sites to go through errorText"
   );
+});
+
+test("main.js puts no English words of its own around an error's text", () => {
+  // errorText is already a whole sentence in the window's language; a
+  // literal glued to it ("Menu: " + …) is English in a German window.
+  const src = readSource("../main.js");
+  const glued = [
+    ...src.matchAll(/(["'`])[^"'`\n]*\1\s*\+\s*errorText\(/g),
+    ...src.matchAll(/errorText\([^()]*\)\s*\+\s*(["'`])[^"'`\n]*\1/g),
+  ].map((m) => m[0]);
+  assert.deepEqual(glued, [], `translate or drop the words around: ${glued.join(" | ")}`);
 });

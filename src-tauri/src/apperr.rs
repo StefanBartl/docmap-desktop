@@ -355,6 +355,30 @@ mod tests {
         ("traffic.rs", include_str!("traffic.rs")),
     ];
 
+    /// What a key is made of: the catalog's own convention
+    /// (`menu.file.open_browser`) plus digits. `errors.test.js` reads the
+    /// table with this same class, so the two readers see the same keys.
+    fn key_char(c: char) -> bool {
+        c.is_ascii_alphanumeric() || c == '.' || c == '_'
+    }
+
+    #[test]
+    fn keys_used_reads_keys_with_digits_underscores_and_dashes() {
+        let src = r#"Err(AppError::new("err.open_url.failed").with("url", u));
+            Err(AppError::new("err.utf8.invalid"));
+            Err(AppError::new("err.x-y"));
+            Err(AppError::new("err.path.read"))"#;
+        assert_eq!(
+            keys_used("x.rs", src),
+            [
+                "err.open_url.failed",
+                "err.utf8.invalid",
+                "err.x-y",
+                "err.path.read"
+            ]
+        );
+    }
+
     /// The `"err.…"` and `"api.…"` literals of one source. Of this file only
     /// the constructors count: the table is what is checked, and these tests
     /// are not a use.
@@ -373,8 +397,11 @@ mod tests {
             let mut rest = src;
             while let Some(at) = rest.find(prefix) {
                 let after = &rest[at + 1..];
+                // Wider than a key may be (see `key_char`): a key with a
+                // `-` in it must be read whole and then fail the table
+                // lookup, not be cut short and skipped.
                 let len = after
-                    .find(|c: char| !(c.is_ascii_alphanumeric() || c == '.'))
+                    .find(|c: char| !(key_char(c) || c == '-'))
                     .unwrap_or(after.len());
                 if after[len..].starts_with('"') {
                     out.push(after[..len].to_string());
@@ -449,6 +476,10 @@ mod tests {
             assert!(
                 key.starts_with("err.") || key.starts_with("api."),
                 "{key}: keys are err.* (the window) or api.* (the page)"
+            );
+            assert!(
+                key.chars().all(key_char),
+                "{key}: a key is letters, digits, `.` and `_` (what both test readers parse)"
             );
             assert!(
                 !sentence.contains('"') && !sentence.contains('\\'),
