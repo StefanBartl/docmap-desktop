@@ -289,6 +289,8 @@ test("the report of a run that worked is drawn on the map, not in the placeholde
   assert.match(make, /panel: els\.runReport,/);
   assert.match(make, /body: els\.runReportBody,/);
   assert.match(make, /close: els\.runReportClose,/);
+  // Closing it must have somewhere to put the keyboard (run-report.test.js).
+  assert.match(make, /returnFocus: \(\) => \[els\.gen, els\.list\]/);
   assert.doesNotMatch(make, /placeholder/, "the docked report must not depend on the placeholder");
 });
 
@@ -311,12 +313,26 @@ test("the docked report has the markup, the scroll and the hidden rule it needs"
   const css = read("../style.css");
   assert.match(cssRule(css, ".run-report-body"), /overflow-y:\s*auto/);
   assert.match(cssRule(css, ".run-report"), /max-height:/, "an unbounded report would cover the map");
-  assert.match(cssRule(css, ".run-report"), /position:\s*absolute/);
+  // A layout dock, not an overlay: the last item of the `#view` column, so the
+  // map is shorter by its height and no pane is drawn over it. The layout
+  // itself is measured in the browser (tools/preview/probe-report.js).
+  const dock = cssRule(css, ".run-report");
+  assert.doesNotMatch(dock, /position:\s*absolute/, "an overlay hides the map's scrollbar and the report's own rows");
+  assert.match(dock, /flex:\s*none/);
+  assert.match(cssRule(css, "#view"), /display:\s*flex/);
+  assert.match(cssRule(css, "#view"), /flex-direction:\s*column/);
+  for (const sel of ["#map", ".files", ".stats", ".overview", ".placeholder"]) {
+    assert.match(cssRule(css, sel), /flex:\s*1 1 0/, `${sel} must share the column with the docked report`);
+  }
+  for (const sel of [".files", ".stats"]) {
+    // `relative`: in the column (the report is never under them), and still
+    // above the context note, which is absolute with z-index 1.
+    assert.doesNotMatch(cssRule(css, sel), /position:\s*absolute/, `${sel} drawn over the column would cover the report`);
+    assert.match(cssRule(css, sel), /position:\s*relative/);
+  }
   // `display: flex` outranks the UA's `[hidden]` rule: without this a closed
   // report stays on screen (the trap `.placeholder[hidden]` already documents).
   assert.match(cssRule(css, ".run-report[hidden]"), /display:\s*none/);
-  // The z-index of the opaque panes is pinned above; the report sits below it.
-  assert.match(cssRule(css, ".run-report"), /z-index:\s*1\b/);
 });
 
 test("a message with a long report scrolls instead of being centred off the top", () => {
@@ -436,4 +452,15 @@ test("the language badge belongs to one project and is cleared when another is s
   const emptyClear = scan.indexOf("clearLangs()", thenAt);
   assert.ok(emptyClear > thenAt && emptyClear < scan.indexOf("els.langs.textContent = text"), "an empty scan leaves the old badge");
   assert.match(scan.slice(scan.indexOf(".catch(")), /clearLangs\(\)/);
+});
+
+test("a language switch redraws what main.js painted in script: both reports and the status line", () => {
+  // The behaviour is in lib/run-report.js and lib/live-status.js (their tests
+  // change the language and read the text); this is the join that calls them.
+  const body = jsFn("function chooseLocale(");
+  for (const call of ["runReport.refresh()", "taskLog.refresh()", "statusLine.refresh()"]) {
+    assert.ok(body.includes(call), `chooseLocale does not call ${call}`);
+  }
+  // The run's outcome is a recipe, not a frozen string.
+  assert.match(MAIN, /sayLive\(\(\) => \(res\.current \?/, "the check verdict stays in the old language");
 });

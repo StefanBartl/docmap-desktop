@@ -478,8 +478,8 @@ Either way, the engine's own report is shown: what was written, the counts and
 the coverage as they are; the findings (drift findings such as a dead README
 link or a Lua file without `---@module`) grouped by check, a few examples each
 and how many more there are, with **Show all** for the rest. After a run that
-wrote a map it is a panel at the foot of the map (**Engine report**, scrolls,
-closes with ×); after a failed run, and for **Check exactly**, it is under the
+wrote a map it is a panel docked under the map (**Engine report**, scrolls,
+closes with × or Esc; the map above it gets shorter); after a failed run, and for **Check exactly**, it is under the
 message in the middle of the view. Both scroll when the report is long. A
 vault with findings is still *generated*: the map is written and the status bar
 says how many errors and warnings the engine found. "Failed" is kept for a run
