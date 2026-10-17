@@ -4,24 +4,26 @@ import { readFileSync } from "node:fs";
 
 import { PER_CHECK, parseEngineLog, groupFindings, summarizeEngineLog } from "./engine-log.js";
 
-// The report of a real run over WKDBooks (the vault the window reported as
-// "Failed"), in the engine's own format and with its real counts: stdout is
-// what was written plus the tally, stderr is one line per non-info finding.
-// Built rather than pasted so the shape is the thing that is written down.
+// The report of a real run over a large vault (the kind the window used to
+// report as "Failed"), in the engine's own format and with its real counts:
+// stdout is what was written plus the tally, stderr is one line per non-info
+// finding. Built rather than pasted so the shape is the thing that is written
+// down - and with neutral names: this repository is public, the vault the
+// report was first seen on is not.
 const line = (sev, check, msg) => `  [${sev}] ${check.padEnd(22)} ${msg}`;
 
-function wkdbooks() {
+function bigVault() {
   const err = [];
   for (let i = 0; i < 28; i++) {
-    err.push(line("error", "missing-module-tag", `./Development/wkdbook-Lua/Tests/t${i}.lua has no ---@module annotation`));
+    err.push(line("error", "missing-module-tag", `./vault-a/tests/t${i}.lua has no ---@module annotation`));
   }
   for (let i = 0; i < 44; i++) {
     // A relative path with many `../` and a `$REPOS_DIR` placeholder: the two
     // spellings the real findings have.
     const target = i % 3 === 0 ? `$REPOS_DIR/documentation.nvim/docs/d${i}.md` : `../../../../../documentation.nvim/docs/d${i}.md`;
-    err.push(line("warn", "dead-readme-link", `Development/wkdbook-myplugins/documentation.nvim/ROADMAP/R${i}.md links to '${target}' which does not exist`));
+    err.push(line("warn", "dead-readme-link", `vault-b/plugin-x/ROADMAP/R${i}.md links to '${target}' which does not exist`));
   }
-  for (let i = 0; i < 22; i++) err.push(line("warn", "missing-summary", `./Development/x/f${i}.lua has no summary`));
+  for (let i = 0; i < 22; i++) err.push(line("warn", "missing-summary", `./vault-c/f${i}.lua has no summary`));
   for (let i = 0; i < 4; i++) err.push(line("warn", "require-not-declared", `./a${i}.lua requires 'b${i}'`));
   err.push(line("warn", "doc-references-missing", "./README.md references a missing doc"));
   const out = [
@@ -44,7 +46,7 @@ test("a finding line is read as severity, check and message", () => {
 });
 
 test("everything that is not a finding stays, in order, and the tally is read", () => {
-  const w = wkdbooks();
+  const w = bigVault();
   const r = parseEngineLog([w.stdout, w.stderr].join("\n"));
   assert.equal(r.findings.length, w.findings);
   assert.deepEqual(r.tally, { error: 28, warn: 71, info: 176 });
@@ -58,7 +60,7 @@ test("everything that is not a finding stays, in order, and the tally is read", 
 });
 
 test("a lot of warnings fold to a few lines per check, worst kind first", () => {
-  const w = wkdbooks();
+  const w = bigVault();
   const s = summarizeEngineLog(w.stdout + w.stderr);
   assert.deepEqual(
     s.groups.map((g) => [g.severity, g.check, g.count]),
@@ -81,7 +83,7 @@ test("a lot of warnings fold to a few lines per check, worst kind first", () => 
 });
 
 test("showing everything is the same grouping without the cap", () => {
-  const w = wkdbooks();
+  const w = bigVault();
   const s = summarizeEngineLog(w.stdout + w.stderr, Infinity);
   assert.equal(s.folded, 0);
   assert.equal(s.groups.find((g) => g.check === "dead-readme-link").shown.length, 44);
@@ -119,8 +121,14 @@ test("the window shows the engine's report through the grouping, not as one bloc
   // read from the source, as `wiring.test.js` does for the others: a log put
   // back under the status as raw text is the flood this module exists to end.
   const main = readFileSync(new URL("../main.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-  const body = main.slice(main.indexOf("function appendLog("), main.indexOf("function paintLog("));
-  assert.match(body, /paintLog\(box, text, PER_CHECK\)/);
-  assert.doesNotMatch(body, /textContent\s*=\s*text/, "the whole log is not one text node");
+  // Both places a report is drawn: under a message (a run with no map) and
+  // docked to the map (a run that worked).
+  for (const fn of ["function appendLog(", "function showRunReport("]) {
+    const start = main.indexOf(fn);
+    assert.ok(start > 0, `${fn} should exist`);
+    const body = main.slice(start, main.indexOf("\n}\n", start));
+    assert.match(body, /paintLog\(document, box, text, PER_CHECK, logLabels\)/, fn);
+    assert.doesNotMatch(body, /textContent\s*=\s*text/, "the whole log is not one text node");
+  }
   assert.match(main, /say\(generatedMessage\(p\.name, log\)\)/, "the status names what was found");
 });

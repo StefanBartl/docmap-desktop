@@ -252,6 +252,95 @@ function jsFn(name) {
   return code(MAIN.slice(start, MAIN.indexOf("\n}\n", start)));
 }
 
+// ---- the engine's report: where it is drawn, and that it can be reached ----
+//
+// What follows is the part of the report no function test can see. It shipped
+// once with the report invisible after a successful run (the only place it was
+// drawn was a placeholder that `select()` had just hidden) and unscrollable
+// after "Show all" (a centred grid in a window whose body does not scroll).
+// Both were "verified in the preview", which showed neither state. These pin
+// the joins; whether the layout really scrolls is measured in a browser with
+// `tools/preview/probe-report.js`, which needs a layout engine and so is not
+// part of `node --test`.
+
+/** The declarations of the first rule whose selector is exactly `selector`. */
+function cssRule(css, selector) {
+  const start = css.search(new RegExp(`(^|\\n)${selector.replace(/[.[\]()]/g, "\\$&")} \\{`));
+  assert.ok(start >= 0, `no rule for ${selector} in style.css`);
+  return css.slice(css.indexOf("{", start) + 1, css.indexOf("}", start));
+}
+
+test("the report of a run that worked is drawn on the map, not in the placeholder select() hid", () => {
+  const gen = jsFn("async function generateFor(");
+  const ok = gen.slice(gen.indexOf("if (res.ok)"), gen.indexOf("} else {", gen.indexOf("if (res.ok)")));
+  assert.match(ok, /await select\(id\);/);
+  assert.match(ok, /showRunReport\(log\)/, "a successful run draws no report");
+  assert.doesNotMatch(ok, /appendLog\(/, "appendLog has no host once select() has hidden the placeholder");
+  // And drawn after `select`, which hides any report: before it, it would be
+  // removed again the moment it was shown.
+  assert.ok(ok.indexOf("await select(id)") < ok.indexOf("showRunReport(log)"));
+
+  const show = jsFn("function showRunReport(");
+  assert.doesNotMatch(show, /placeholder/, "the docked report must not depend on the placeholder");
+  assert.match(show, /els\.runReport\.hidden = false/);
+});
+
+test("a report goes when its project or its message goes", () => {
+  // Left up, the last run's findings would sit over the next project's map.
+  for (const fn of ["async function select(", "function showPlaceholder(", "function dropSelection("]) {
+    assert.match(jsFn(fn), /hideRunReport\(\)/, `${fn} leaves the old report up`);
+  }
+});
+
+test("the docked report has the markup, the scroll and the hidden rule it needs", () => {
+  for (const id of ["run-report", "run-report-body", "run-report-close"]) {
+    assert.ok(HTML.includes(`id="${id}"`), `no #${id} in the markup`);
+  }
+  // A scroller the keyboard can reach: a report with nothing to fold
+  // has no button to land on.
+  assert.match(HTML, /id="run-report-body"[^>]*tabindex="0"/);
+  assert.match(HTML, /id="run-report"[^>]*role="region"/);
+
+  const css = read("../style.css");
+  assert.match(cssRule(css, ".run-report-body"), /overflow-y:\s*auto/);
+  assert.match(cssRule(css, ".run-report"), /max-height:/, "an unbounded report would cover the map");
+  assert.match(cssRule(css, ".run-report"), /position:\s*absolute/);
+  // `display: flex` outranks the UA's `[hidden]` rule: without this a closed
+  // report stays on screen (the trap `.placeholder[hidden]` already documents).
+  assert.match(cssRule(css, ".run-report[hidden]"), /display:\s*none/);
+  // The z-index of the opaque panes is pinned above; the report sits below it.
+  assert.match(cssRule(css, ".run-report"), /z-index:\s*1\b/);
+});
+
+test("a message with a long report scrolls instead of being centred off the top", () => {
+  const css = read("../style.css");
+  const ph = cssRule(css, ".placeholder");
+  assert.match(ph, /overflow-y:\s*auto/, "the placeholder must scroll");
+  // `place-content: center` pushes the overflow out of both ends, so the top
+  // of the report ends up above the window with nothing to scroll back to.
+  assert.doesNotMatch(ph, /place-content:\s*center/);
+  assert.doesNotMatch(ph, /align-content:\s*center/);
+  assert.match(cssRule(css, ".placeholder > :first-child"), /margin-top:\s*auto/);
+  assert.match(cssRule(css, ".placeholder > :last-child"), /margin-bottom:\s*auto/);
+});
+
+test("the button that folds the report stays at the foot of what scrolls", () => {
+  const css = read("../style.css");
+  assert.match(cssRule(css, ".gen-log-foot"), /position:\s*sticky/);
+  assert.match(cssRule(css, ".gen-log-foot"), /bottom:\s*0/);
+});
+
+test("Generate runs the engine through generate_command, with --lenient", () => {
+  // The Rust test reads the arguments of `generate_command`; this is the join
+  // to the command itself. A `generate` that builds its own `Command` again
+  // leaves that test green and a vault with findings "Failed" with its map on
+  // disk. The test has to go through the entry point, not only the helper.
+  const body = rustFn("generate");
+  assert.match(body, /generate_command\(&engine, &root, full, &flags\)/);
+  assert.doesNotMatch(body, /Command::new/, "generate builds its own command line");
+  assert.match(rustFn("check_map"), /cmd\.arg\("--lenient"\)/);
+});
+
 test("the engine is not started on a project whose output is a link", () => {
   for (const name of ["generate", "check_map"]) {
     const body = rustFn(name);

@@ -181,3 +181,10 @@ gives for no bundler:
 ```bash
 node --test src/lib/*.test.js
 ```
+
+Layout is not something those can see. `python tools/preview/preview.py` serves
+the window in a browser with a stubbed backend (`tools/preview/stub.js`), for
+looking at it at the minimum window size (900x600); `tools/preview/probe-report.js`
+drives the engine-report flows there and measures whether the report can be
+scrolled to and its button reached. It is a layout check only: what the
+commands do is looked at in the installed app.

@@ -2,7 +2,7 @@
 
 Running the engine. This app does not analyse anything — it finds
 `documentation.nvim`'s standalone binary, runs it as a subprocess, and shows
-what came back verbatim.
+what came back: its own lines as they are, its findings grouped per check.
 
 ## Four generate commands, four guarantees
 
@@ -127,10 +127,29 @@ full fidelity is never reported as broken.
 
 ## The engine's report
 
-Counts and coverage are shown under the view as the engine wrote them. The
-findings, which can be a hundred lines for a large vault, are grouped by check
-with a few examples each and a **Show all** button; the status bar names the
-error and warning counts. Findings never make a run "Failed" — the engine is
-asked for `--lenient`, so only a run that wrote no map exits non-zero.
+Counts and coverage are shown as the engine wrote them. The findings, which
+can be a hundred lines for a large vault, are grouped by check with a few
+examples each and a **Show all** button; the status bar names the error and
+warning counts.
 
-- **Module:** `src/main.js`, `src/lib/engine-log.js` (the grouping; `src-tauri/src/main.rs` `generate_command` passes `--lenient`)
+Where it is shown depends on whether there is a map to show:
+
+- **A run that wrote its map** puts the report in a panel at the foot of the
+  map (**Engine report**), with its own scroll bar and a close button. The map
+  stays on screen above it. Another project, another message or the close
+  button takes it away. **Show all** stays at the foot of the panel while it
+  scrolls.
+- **A run that failed**, and **Check exactly**, have no map, so the report sits
+  under the message in the middle of the view, which scrolls when the report is
+  longer than the window.
+
+Findings never make a run "Failed" — the engine is asked for `--lenient`, so
+findings in the tree do not turn into a non-zero exit. It stays non-zero for a
+run that could not do its job (no such directory, a refused output directory, a
+crashed backend). It can also be non-zero with the map already on disk: the
+engine computes coverage and the summary after it has written the map, so a
+crash in that later part still exits 1 (read from the engine's source, not
+provoked), and the window then shows the run as failed.
+
+- **Module:** `src/main.js`, `src/lib/engine-log.js` (the grouping), `src/lib/log-view.js` (drawing it; `src-tauri/src/main.rs` `generate_command` passes `--lenient`)
+- **Tests:** `src/lib/log-view.test.js`, `src/lib/wiring.test.js`; the layout itself is measured in the browser preview with `tools/preview/probe-report.js`

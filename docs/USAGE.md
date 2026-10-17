@@ -474,10 +474,13 @@ so acting on it would skip exactly the ones this command exists for.
 that, and the ordinary Generate still produces a complete map apart from
 that detail.
 
-Either way, the engine's own report is shown under the view: what was written,
-the counts and the coverage as they are; the findings (drift findings such as a
-dead README link or a Lua file without `---@module`) grouped by check, a few
-examples each and how many more there are, with **Show all** for the rest. A
+Either way, the engine's own report is shown: what was written, the counts and
+the coverage as they are; the findings (drift findings such as a dead README
+link or a Lua file without `---@module`) grouped by check, a few examples each
+and how many more there are, with **Show all** for the rest. After a run that
+wrote a map it is a panel at the foot of the map (**Engine report**, scrolls,
+closes with ×); after a failed run, and for **Check exactly**, it is under the
+message in the middle of the view. Both scroll when the report is long. A
 vault with findings is still *generated*: the map is written and the status bar
 says how many errors and warnings the engine found. "Failed" is kept for a run
 that did not write a map (no such directory, a refused output directory, a

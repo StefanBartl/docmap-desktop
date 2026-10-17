@@ -39,6 +39,7 @@ import {
 } from "./lib/stats.js";
 import { t, setLocale, initialLocale, LOCALES, keys } from "./lib/i18n.js";
 import { summarizeEngineLog, PER_CHECK } from "./lib/engine-log.js";
+import { paintLog } from "./lib/log-view.js";
 import {
   trend as trendOf,
   windows as trafficWindows,
@@ -109,6 +110,9 @@ const els = {
   status: document.getElementById("status"),
   frame: document.getElementById("map"),
   placeholder: document.getElementById("placeholder"),
+  runReport: document.getElementById("run-report"),
+  runReportBody: document.getElementById("run-report-body"),
+  runReportClose: document.getElementById("run-report-close"),
   overview: document.getElementById("overview"),
   ovHeadline: document.getElementById("ov-headline"),
   ovActions: document.getElementById("ov-actions"),
@@ -253,6 +257,9 @@ function showPlaceholder(title, body) {
   // The overview answers the same empty screen. A message about one project
   // shown over a list of all of them is two subjects at once.
   els.overview.hidden = true;
+  // Whatever is said here replaces the view, so the last run's report (a
+  // different subject, drawn over a map that is no longer there) goes too.
+  hideRunReport();
   els.placeholder.hidden = false;
   els.placeholder.innerHTML =
     "<h2></h2><p></p>";
@@ -1241,6 +1248,9 @@ async function select(id) {
   // reload, not a switch: the search and the folder being browsed stay.
   const switched = (id || null) !== selectedId;
   selectedId = id || null;
+  // A report belongs to one run of one project. A caller that has one for
+  // this selection draws it again after `select` returns (`generateFor`).
+  hideRunReport();
   syncMenu();
   titleFor(projects.find((x) => x.id === id));
   try {
@@ -1412,6 +1422,8 @@ function dropSelection() {
   selectedId = null;
   mapBase = null;
   mapTab = null;
+  // The report is about the project that was just dropped.
+  hideRunReport();
   closePanes();
   resetFinder();
   // The View menu's checks and the project items follow the selection and the
@@ -1803,7 +1815,11 @@ async function generateFor(id, full = false) {
           await refresh();
           if (here()) {
             await select(id);
-            if (log) appendLog(log, false);
+            // Not `appendLog`: `select` has just put the map on screen and
+            // hidden the placeholder, which is the only host `appendLog`
+            // has - the report of a run that worked was dropped there, and
+            // with it every finding the status line counts.
+            if (log && selectedId === id) showRunReport(log);
           }
           say(generatedMessage(p.name, log));
         } else {
@@ -1841,6 +1857,11 @@ async function generateFor(id, full = false) {
  * shown as they are; the findings - one line each, a hundred of them for a
  * big vault - are grouped per check with a few examples, and the rest is one
  * button away. See `lib/engine-log.js`.
+ *
+ * This is the report of a run that has *no map to show*: a failed generation
+ * and "Check exactly", where the message is the view and the report is
+ * under it. A run that worked has a map on screen instead and its report
+ * goes to `showRunReport`.
  */
 function appendLog(text, bad) {
   const host = els.placeholder.hidden ? null : els.placeholder;
@@ -1848,39 +1869,41 @@ function appendLog(text, bad) {
   const box = document.createElement("div");
   box.className = "gen-log" + (bad ? " bad" : "");
   host.appendChild(box);
-  paintLog(box, text, PER_CHECK);
+  paintLog(document, box, text, PER_CHECK, logLabels);
 }
 
-/** (Re)draw one log box with at most `perCheck` examples per check. */
-function paintLog(box, text, perCheck) {
-  const s = summarizeEngineLog(text, perCheck);
-  box.replaceChildren();
-  const add = (cls, line) => {
-    const row = document.createElement("div");
-    if (cls) row.className = cls;
-    row.textContent = line;
-    box.appendChild(row);
-  };
-  if (s.other.length) add("gen-log-report", s.other.join("\n"));
-  for (const g of s.groups) {
-    add("gen-log-head " + g.severity, "[" + g.severity + "] " + g.check + " · " + g.count);
-    for (const msg of g.shown) add("gen-log-line", msg);
-    if (g.more > 0) add("gen-log-more", t("log.more").replace("{n}", String(g.more)));
-  }
-  // Only offered when the cap hid something, or after it was lifted: a short
-  // report has nothing to expand and a button for it would be noise.
-  const expanded = !Number.isFinite(perCheck);
-  if (s.folded > 0 || expanded) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "gen-log-toggle";
-    btn.textContent = expanded
-      ? t("log.fold")
-      : t("log.showAll").replace("{n}", String(s.findings));
-    btn.addEventListener("click", () => paintLog(box, text, expanded ? PER_CHECK : Infinity));
-    box.appendChild(btn);
-  }
+/** The words of the report's controls, read at draw time (the language can change). */
+const logLabels = {
+  more: (n) => t("log.more").replace("{n}", String(n)),
+  showAll: (n) => t("log.showAll").replace("{n}", String(n)),
+  get fold() {
+    return t("log.fold");
+  },
+};
+
+/**
+ * The report of a run that worked, docked at the foot of the map.
+ *
+ * Over the map rather than instead of it: the map is what the reader asked
+ * for, and the report is the answer to "what did the engine find while making
+ * it". It scrolls on its own (the shell never does) and closes; it also goes
+ * when another project or message takes the view.
+ */
+function showRunReport(text) {
+  const box = document.createElement("div");
+  box.className = "gen-log";
+  els.runReportBody.replaceChildren(box);
+  paintLog(document, box, text, PER_CHECK, logLabels);
+  els.runReportBody.scrollTop = 0;
+  els.runReport.hidden = false;
 }
+
+function hideRunReport() {
+  els.runReport.hidden = true;
+  els.runReportBody.replaceChildren();
+}
+
+els.runReportClose.addEventListener("click", hideRunReport);
 
 /** "Generated X", plus what the engine found when it found anything. */
 function generatedMessage(name, log) {
@@ -1994,9 +2017,11 @@ async function generateAll(only) {
  * why the mark's own tooltip has always pointed at a command that did not
  * exist yet.
  *
- * The engine's report is shown verbatim, the same as generation's. It already
- * says what it found, and summarising it here would be this window inventing
- * a second opinion about a tree it did not read.
+ * The engine's report is shown the way generation's is: its own lines as they
+ * are, its findings grouped per check and capped (`lib/engine-log.js`). That
+ * only regroups what the engine printed - it counts and sorts, and says
+ * nothing the engine did not - so this window still has no opinion of its own
+ * about a tree it did not read.
  */
 async function checkMap(id) {
   const p = projects.find((x) => x.id === id);
