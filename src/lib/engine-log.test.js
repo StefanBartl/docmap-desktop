@@ -123,12 +123,16 @@ test("the window shows the engine's report through the grouping, not as one bloc
   const main = readFileSync(new URL("../main.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   // Both places a report is drawn: under a message (a run with no map) and
   // docked to the map (a run that worked).
-  for (const fn of ["function appendLog(", "function showRunReport("]) {
-    const start = main.indexOf(fn);
-    assert.ok(start > 0, `${fn} should exist`);
-    const body = main.slice(start, main.indexOf("\n}\n", start));
-    assert.match(body, /paintLog\(document, box, text, PER_CHECK, logLabels\)/, fn);
-    assert.doesNotMatch(body, /textContent\s*=\s*text/, "the whole log is not one text node");
-  }
+  const start = main.indexOf("function appendLog(");
+  assert.ok(start > 0, "appendLog should exist");
+  const body = main.slice(start, main.indexOf("\n}\n", start));
+  assert.match(body, /paintLog\(document, box, text, PER_CHECK, logLabels\)/);
+  assert.doesNotMatch(body, /textContent\s*=\s*text/, "the whole log is not one text node");
+  // The docked report is drawn by lib/run-report.js (driven by
+  // run-report.test.js); main.js hands it the grouping's limit and labels.
+  const at = main.indexOf("createRunReport({");
+  const dock = main.slice(at, main.indexOf("});", at));
+  assert.match(dock, /perCheck: PER_CHECK/);
+  assert.match(dock, /labels: logLabels/);
   assert.match(main, /say\(generatedMessageFor\(p\.name, log\)\)/, "the status names what was found");
 });
