@@ -840,6 +840,40 @@ button:focus-visible {
   color: var(--ink);
 }
 
+/* The engine's findings, grouped: a head per check, a few example lines under
+   it, then how many more there are. The report lines above keep the verbatim
+   look. See lib/engine-log.js. */
+.gen-log-report {
+  margin-bottom: 8px;
+}
+
+.gen-log-head {
+  margin-top: 8px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.gen-log-line {
+  padding-left: 2ch;
+  overflow-wrap: anywhere;
+}
+
+.gen-log-more {
+  padding-left: 2ch;
+  font-style: italic;
+}
+
+.gen-log-toggle {
+  margin-top: 10px;
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
 /* The button help bubble. Sized for a sentence or two, not a paragraph: if a
    control needs more than that, the control is the problem. `position:fixed`
    for the same reason the map's cards use it — the sidebar scrolls, and an

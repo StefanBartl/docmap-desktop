@@ -38,6 +38,7 @@ import {
   formatBytes,
 } from "./lib/stats.js";
 import { t, setLocale, initialLocale, LOCALES, keys } from "./lib/i18n.js";
+import { summarizeEngineLog, PER_CHECK } from "./lib/engine-log.js";
 import {
   trend as trendOf,
   windows as trafficWindows,
@@ -1804,7 +1805,7 @@ async function generateFor(id, full = false) {
             await select(id);
             if (log) appendLog(log, false);
           }
-          say("Generated " + p.name);
+          say(generatedMessage(p.name, log));
         } else {
           if (here()) {
             showTaskPlaceholder(
@@ -1833,14 +1834,62 @@ async function generateFor(id, full = false) {
   }
 }
 
-/** Put the engine's own words under whatever is on screen. */
+/**
+ * Put the engine's own words under whatever is on screen.
+ *
+ * The report lines (what was written, the counts, a crash's traceback) are
+ * shown as they are; the findings - one line each, a hundred of them for a
+ * big vault - are grouped per check with a few examples, and the rest is one
+ * button away. See `lib/engine-log.js`.
+ */
 function appendLog(text, bad) {
   const host = els.placeholder.hidden ? null : els.placeholder;
   if (!host) return;
-  const pre = document.createElement("div");
-  pre.className = "gen-log" + (bad ? " bad" : "");
-  pre.textContent = text;
-  host.appendChild(pre);
+  const box = document.createElement("div");
+  box.className = "gen-log" + (bad ? " bad" : "");
+  host.appendChild(box);
+  paintLog(box, text, PER_CHECK);
+}
+
+/** (Re)draw one log box with at most `perCheck` examples per check. */
+function paintLog(box, text, perCheck) {
+  const s = summarizeEngineLog(text, perCheck);
+  box.replaceChildren();
+  const add = (cls, line) => {
+    const row = document.createElement("div");
+    if (cls) row.className = cls;
+    row.textContent = line;
+    box.appendChild(row);
+  };
+  if (s.other.length) add("gen-log-report", s.other.join("\n"));
+  for (const g of s.groups) {
+    add("gen-log-head " + g.severity, "[" + g.severity + "] " + g.check + " · " + g.count);
+    for (const msg of g.shown) add("gen-log-line", msg);
+    if (g.more > 0) add("gen-log-more", t("log.more").replace("{n}", String(g.more)));
+  }
+  // Only offered when the cap hid something, or after it was lifted: a short
+  // report has nothing to expand and a button for it would be noise.
+  const expanded = !Number.isFinite(perCheck);
+  if (s.folded > 0 || expanded) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "gen-log-toggle";
+    btn.textContent = expanded
+      ? t("log.fold")
+      : t("log.showAll").replace("{n}", String(s.findings));
+    btn.addEventListener("click", () => paintLog(box, text, expanded ? PER_CHECK : Infinity));
+    box.appendChild(btn);
+  }
+}
+
+/** "Generated X", plus what the engine found when it found anything. */
+function generatedMessage(name, log) {
+  const { tally } = summarizeEngineLog(log);
+  if (!tally.error && !tally.warn) return "Generated " + name;
+  return t("gen.done.findings")
+    .replace("{name}", name)
+    .replace("{errors}", String(tally.error))
+    .replace("{warnings}", String(tally.warn));
 }
 
 els.gen.addEventListener("click", () => selectedId && generateFor(selectedId));

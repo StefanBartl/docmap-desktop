@@ -1979,6 +1979,47 @@ async fn import_from_nvim_config(app: tauri::AppHandle) -> Result<ImportResult, 
     })
 }
 
+/// The engine command line of one **Generate**.
+///
+/// Its own function so a test can read the arguments, and for one reason in
+/// particular: **`--lenient` is what makes the exit code mean "the map was
+/// written".** Without it the engine exits 1 whenever the *tree* carries
+/// error-severity drift findings (a Lua file without `---@module`, say) -
+/// after it has written the map, because the findings are a verdict on the
+/// source, not a failure of the run. A repository like that (WKDBooks: 28 such
+/// findings) was reported as "Failed" with a map sitting on disk. A real
+/// failure (no such directory, an unsafe `out_dir`, a crashed backend) still
+/// exits 1 with `--lenient`, so the flag removes exactly the false alarm.
+/// `check_map` passes it for the same reason; the findings themselves still
+/// arrive on stderr, where this program shows them (grouped and capped).
+fn generate_command(
+    engine: &str,
+    root: &str,
+    full: bool,
+    flags: &ProjectFlags,
+) -> std::process::Command {
+    let mut cmd = std::process::Command::new(engine);
+    // Just the root: the engine detects `source` itself, verified against
+    // three unrelated repositories. Passing a guess would be worse than
+    // letting it look.
+    cmd.arg(root);
+    // `--full` adds `lua-language-server --doc` enrichment: the
+    // `@class`/`@alias` detail behind the Types panel. It needs the
+    // tool on PATH and says `lua-language-server not found on PATH`
+    // when it is missing, rather than quietly producing a thinner map.
+    // The caller has to put that sentence somewhere the reader is
+    // looking - see `WORKPLAN.md` §2 on why that obligation is
+    // this side's rather than the menu's.
+    if full {
+        cmd.arg("--full");
+    }
+    cmd.arg("--lenient");
+    // This project's own settings, not the machine's: see
+    // `Project::exclude` for why they live where they do.
+    apply_flags(&mut cmd, flags);
+    cmd
+}
+
 #[derive(Debug, Serialize)]
 struct GenerateResult {
     ok: bool,
@@ -2020,24 +2061,7 @@ async fn generate(
     })?;
 
     tauri::async_runtime::spawn_blocking(move || {
-        let mut cmd = std::process::Command::new(&engine);
-        // Just the root: the engine detects `source` itself, verified against
-        // three unrelated repositories. Passing a guess would be worse than
-        // letting it look.
-        cmd.arg(&root);
-        // `--full` adds `lua-language-server --doc` enrichment: the
-        // `@class`/`@alias` detail behind the Types panel. It needs the
-        // tool on PATH and says `lua-language-server not found on PATH`
-        // when it is missing, rather than quietly producing a thinner map.
-        // The caller has to put that sentence somewhere the reader is
-        // looking — see `WORKPLAN.md` §2 on why that obligation is
-        // this side's rather than the menu's.
-        if full {
-            cmd.arg("--full");
-        }
-        // This project's own settings, not the machine's: see
-        // `Project::exclude` for why they live where they do.
-        apply_flags(&mut cmd, &flags);
+        let mut cmd = generate_command(&engine, &root, full, &flags);
         if let Some(g) = info.grammars {
             cmd.env("DOCMAP_TS_DIR", g);
         }
@@ -4927,6 +4951,34 @@ mod tests {
     // the whole point of this test is that it reads *this crate's real*
     // `tauri.conf.json`, and a fake context would leave it asserting
     // against a configuration nobody ships.
+    fn args_of(cmd: &std::process::Command) -> Vec<String> {
+        cmd.get_args()
+            .map(|a| a.to_string_lossy().into_owned())
+            .collect()
+    }
+
+    // WKDBooks was shown as "Failed" with its map on disk: the engine exits 1
+    // after writing when the tree has error-severity drift findings, unless it
+    // is told `--lenient`. A map is "generated" when the engine wrote it, so a
+    // Generate has to ask for that exit code - and still pass everything else.
+    #[test]
+    fn generate_asks_for_the_exit_code_that_means_the_map_was_written() {
+        let plain = generate_command(
+            "docmap",
+            "E:/repos/WKDBooks",
+            false,
+            &ProjectFlags::default(),
+        );
+        assert_eq!(args_of(&plain), ["E:/repos/WKDBooks", "--lenient"]);
+
+        let flags = ProjectFlags {
+            exclude: vec!["vendor".into()],
+            ..ProjectFlags::default()
+        };
+        let full = args_of(&generate_command("docmap", "/r", true, &flags));
+        assert_eq!(full, ["/r", "--full", "--lenient", "--exclude=vendor"]);
+    }
+
     // The per-project engine settings normalise on the way *in*, so that
     // `apply_flags` can pass what was stored without cleaning it a second
     // time. That split only holds if the cleaning is actually total, which

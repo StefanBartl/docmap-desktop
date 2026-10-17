@@ -125,9 +125,12 @@ full fidelity is never reported as broken.
 - **Config:** Settings → Engine → Grammars…
 - **Docs:** [USAGE.md](../USAGE.md#the-engine-indicator)
 
-## The engine's report, verbatim
+## The engine's report
 
-Counts, coverage and drift findings are shown under the view as the engine
-wrote them, not summarized. It already says what it found.
+Counts and coverage are shown under the view as the engine wrote them. The
+findings, which can be a hundred lines for a large vault, are grouped by check
+with a few examples each and a **Show all** button; the status bar names the
+error and warning counts. Findings never make a run "Failed" — the engine is
+asked for `--lenient`, so only a run that wrote no map exits non-zero.
 
-- **Module:** `src/main.js`
+- **Module:** `src/main.js`, `src/lib/engine-log.js` (the grouping; `src-tauri/src/main.rs` `generate_command` passes `--lenient`)
