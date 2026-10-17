@@ -619,6 +619,17 @@ fn list_projects(app: tauri::AppHandle) -> Result<Vec<Project>, String> {
 /// once after its own batch, and reporting "no map here" in the view is more
 /// useful than refusing to add the project.
 fn add_one(ws: &mut Workspace, root: &str) -> Result<Option<Project>, String> {
+    add_one_named(ws, root, None)
+}
+
+/// [`add_one`] with the sidebar name given rather than taken from the folder:
+/// an import from a URL names the project after the repository, not after
+/// its clone folder (see [`imported_name`]). `None` is the folder name.
+fn add_one_named(
+    ws: &mut Workspace,
+    root: &str,
+    name: Option<String>,
+) -> Result<Option<Project>, String> {
     let root_path = Path::new(root);
     if !root_path.is_dir() {
         return Err(format!("{root} is not a directory"));
@@ -630,10 +641,12 @@ fn add_one(ws: &mut Workspace, root: &str) -> Result<Option<Project>, String> {
         return Ok(None);
     }
 
-    let name = root_path
-        .file_name()
-        .map(|n| n.to_string_lossy().to_string())
-        .unwrap_or_else(|| canonical.clone());
+    let name = name.unwrap_or_else(|| {
+        root_path
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| canonical.clone())
+    });
 
     let project = Project {
         id: canonical.clone(),
@@ -1157,16 +1170,86 @@ fn repo_dir_name(url: &str) -> Option<String> {
     plain.then(|| name.to_string())
 }
 
-/// The part of `url` two imports must share to be the same repository: the
-/// URL without trailing `/` and without a trailing `.git`, which a hosting page
-/// offers both with and without.
-fn clone_url_key(url: &str) -> &str {
-    let trimmed = url.trim_end_matches('/');
-    trimmed.strip_suffix(".git").unwrap_or(trimmed)
+/// Hosts whose owner and repository names are case-insensitive: the same
+/// repository is reached as `github.com/Owner/Name` and `github.com/owner/name`.
+/// Elsewhere the path keeps its case, because a plain git server serves files
+/// from a file system that may well tell `Foo` from `foo`.
+const CASE_INSENSITIVE_HOSTS: [&str; 4] =
+    ["github.com", "gitlab.com", "bitbucket.org", "codeberg.org"];
+
+/// The part of `url` two imports must share to be the same repository, as
+/// `https://<host>[:<port>]/<path>`.
+///
+/// One repository is offered in many spellings, and each must find the one
+/// clone: `https://`, `http://`, `ssh://`, `git://` and the scp form
+/// `user@host:path` all name the same host and path, so the scheme and any
+/// user or password are left out. The host is compared in lower case, the
+/// path too on [`CASE_INSENSITIVE_HOSTS`]. A port stays only where it is not
+/// the scheme's default; an ssh port never does, since ssh runs on a port of
+/// its own beside the web one. A trailing `/` and `.git` (in any case) go.
+/// `https://github.com/a/foo` is its own key, so clones made before this
+/// normalisation keep their folder names.
+fn clone_url_key(url: &str) -> String {
+    let (scheme, rest) = match url.find("://") {
+        Some(i) => (url[..i].to_ascii_lowercase(), &url[i + 3..]),
+        None => (String::from("scp"), url),
+    };
+    let (authority, path) = if scheme == "scp" {
+        // `user@host:path`, the host possibly a bracketed IPv6 address.
+        let host_start = rest.find('@').map_or(0, |i| i + 1);
+        let colon = if rest[host_start..].starts_with('[') {
+            rest[host_start..].find(']').and_then(|end| {
+                rest[host_start + end..]
+                    .find(':')
+                    .map(|c| host_start + end + c)
+            })
+        } else {
+            rest[host_start..].find(':').map(|c| host_start + c)
+        };
+        match colon {
+            Some(c) => (&rest[..c], &rest[c + 1..]),
+            None => (rest, ""),
+        }
+    } else {
+        rest.split_once('/').unwrap_or((rest, ""))
+    };
+    let host_port = authority.rsplit_once('@').map_or(authority, |(_, h)| h);
+    let (host, port) = if host_port.starts_with('[') {
+        match host_port.find(']') {
+            Some(end) => (&host_port[..=end], host_port[end + 1..].strip_prefix(':')),
+            None => (host_port, None),
+        }
+    } else {
+        match host_port.rsplit_once(':') {
+            Some((h, p)) if p.bytes().all(|b| b.is_ascii_digit()) => (h, Some(p)),
+            _ => (host_port, None),
+        }
+    };
+    let host = host.to_ascii_lowercase();
+    let port = match (scheme.as_str(), port) {
+        (_, None | Some("")) | ("ssh" | "scp", _) => String::new(),
+        ("https", Some("443")) | ("http", Some("80")) | ("git", Some("9418")) => String::new(),
+        (_, Some(p)) => format!(":{p}"),
+    };
+    let path = path.trim_matches('/');
+    let path = match path.len().checked_sub(4) {
+        Some(cut) if path.is_char_boundary(cut) && path[cut..].eq_ignore_ascii_case(".git") => {
+            &path[..cut]
+        }
+        _ => path,
+    };
+    let path = path.trim_end_matches('/');
+    let path = if CASE_INSENSITIVE_HOSTS.contains(&host.as_str()) {
+        path.to_ascii_lowercase()
+    } else {
+        path.to_owned()
+    };
+    format!("https://{host}{port}/{path}")
 }
 
-/// The folder a new clone of `url` lands in: [`repo_dir_name`] plus `-` and
-/// eight hex digits of a hash of [`clone_url_key`], e.g. `foo-1a2b3c4d`.
+/// The folder a new clone of `url` lands in: [`repo_dir_name`] of the
+/// [`clone_url_key`] plus `-` and eight hex digits of a hash of that key, e.g.
+/// `foo-1a2b3c4d`. Every spelling of one repository gets the same name.
 ///
 /// A hash of the whole URL rather than the owner: the owner alone does not
 /// tell `github.com/a/foo` from `gitlab.com/a/foo`, and an owner (or a host, a
@@ -1176,14 +1259,16 @@ fn clone_url_key(url: &str) -> &str {
 /// already plain, so the result is plain too. FNV-1a, written out, because the
 /// name must stay the same across builds (`DefaultHasher` makes no such
 /// promise); 32 bits is plenty for the handful of same-named repositories one
-/// user imports, and short enough to keep the name readable.
+/// user imports, and short enough to keep the name readable. It is not enough
+/// to trust: two URLs can share a hash (FNV is not keyed, so a colliding URL
+/// can even be searched for), which is why [`clone_target`] checks the
+/// `origin` of a folder of this name before it takes it.
 fn clone_dir_name(url: &str) -> Option<String> {
-    let name = repo_dir_name(url)?;
-    let hash = clone_url_key(url)
-        .bytes()
-        .fold(0xcbf2_9ce4_8422_2325_u64, |h, b| {
-            (h ^ u64::from(b)).wrapping_mul(0x0000_0100_0000_01b3)
-        });
+    let key = clone_url_key(url);
+    let name = repo_dir_name(&key)?;
+    let hash = key.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |h, b| {
+        (h ^ u64::from(b)).wrapping_mul(0x0000_0100_0000_01b3)
+    });
     Some(format!("{name}-{:08x}", hash >> 32))
 }
 
@@ -1198,28 +1283,72 @@ enum CloneTarget {
 
 /// The clone of `url` under `cache`, or the folder a new one goes into.
 ///
-/// Two names are looked at. The current one ([`clone_dir_name`]) holds only
-/// clones of this URL. The old one, the plain [`repo_dir_name`] every clone
-/// got before the hash was added, is used only when its `origin` is this URL
-/// (compared by [`clone_url_key`]): it may just as well hold another
+/// A folder is taken only when its `origin` is this repository (compared by
+/// [`clone_url_key`]), whatever its name. The current name
+/// ([`clone_dir_name`]) and its overflow slots `<name>-2` … `<name>-16` are
+/// looked at first: a hash shared with another URL puts that URL's clone in
+/// the first slot, and this one goes into the next free one instead of
+/// opening the other repository. Then the old names, the plain
+/// [`repo_dir_name`] every clone got before the hash was added (as typed, and
+/// as the key spells it): such a folder may just as well hold another
 /// repository of the same name, which is the mix-up the hash is there to end.
 /// Old clones are found in place rather than moved to the new name, because
 /// the workspace already lists them by their path, and a move would leave that
-/// entry pointing at nothing.
+/// entry pointing at nothing. Every slot is looked at, not only those up to
+/// the first free one, so a slot emptied by hand does not hide a later clone.
 fn clone_target(cache: &Path, url: &str) -> Result<CloneTarget, String> {
-    let name = clone_dir_name(url)
+    let base = clone_dir_name(url)
         .ok_or_else(|| "could not derive a plain folder name from the URL".to_owned())?;
-    let dest = cache.join(&name);
-    if dest.is_dir() {
-        return Ok(CloneTarget::Existing(dest));
+    let key = clone_url_key(url);
+    let holds_this = |dir: &Path| origin_url(dir).is_some_and(|o| clone_url_key(&o) == key);
+    let mut free = None;
+    for slot in 1..=CLONE_DIR_SLOTS {
+        let dir = match slot {
+            1 => cache.join(&base),
+            n => cache.join(format!("{base}-{n}")),
+        };
+        if dir.is_dir() {
+            if holds_this(&dir) {
+                return Ok(CloneTarget::Existing(dir));
+            }
+        } else if free.is_none() && !dir.exists() {
+            free = Some(dir);
+        }
     }
-    if let Some(old) = repo_dir_name(url).map(|n| cache.join(n)) {
-        let same = origin_url(&old).is_some_and(|o| clone_url_key(&o) == clone_url_key(url));
-        if same {
+    let mut old_names = vec![repo_dir_name(url), repo_dir_name(&key)];
+    old_names.dedup();
+    for old in old_names.into_iter().flatten().map(|n| cache.join(n)) {
+        if holds_this(&old) {
             return Ok(CloneTarget::Existing(old));
         }
     }
-    Ok(CloneTarget::Clone(dest))
+    free.map(CloneTarget::Clone)
+        .ok_or_else(|| format!("every folder for this clone ({base} and its overflow) is taken"))
+}
+
+/// How many folders [`clone_target`] tries for one hash: the name itself and
+/// 15 overflow slots, far more than chance or a deliberate collision fills.
+const CLONE_DIR_SLOTS: u32 = 16;
+
+/// The sidebar name of a project imported from `url`: the repository name as
+/// the URL spells it (`foo`, not the clone folder `foo-c2edc6b0`), or
+/// `owner/foo` when a project of that name is already listed, so two
+/// repositories of one name can be told apart. `None` leaves the folder name.
+fn imported_name(url: &str, projects: &[Project]) -> Option<String> {
+    let name = repo_dir_name(url)?;
+    if !projects.iter().any(|p| p.name.eq_ignore_ascii_case(&name)) {
+        return Some(name);
+    }
+    let mut parts = url.trim_end_matches('/').rsplitn(3, ['/', ':']);
+    let _last = parts.next();
+    let owner = parts
+        .next()
+        .map(|o| o.rsplit('@').next().unwrap_or(o))
+        .filter(|o| !o.is_empty());
+    Some(match owner {
+        Some(owner) => format!("{owner}/{name}"),
+        None => name,
+    })
 }
 
 /// The `origin` URL in the git config of the clone at `dir`, if it has one.
@@ -1261,6 +1390,18 @@ fn is_windows_device_name(name: &str) -> bool {
             stem.strip_prefix(p)
                 .is_some_and(|n| matches!(n.as_bytes(), [b'1'..=b'9']))
         })
+}
+
+/// Add the clone of `url` at `dir` as a project named after the repository
+/// ([`imported_name`]), not after its clone folder. One lock, so the name is
+/// chosen against the list it goes into.
+fn add_imported(app: &tauri::AppHandle, dir: &Path, url: &str) -> Result<Vec<Project>, String> {
+    with_workspace(app, |ws| {
+        let name = imported_name(url, &ws.projects);
+        add_one_named(ws, &portable(dir), name)?;
+        ws.projects.sort_by_key(|p| p.name.to_lowercase());
+        Ok(ws.projects.clone())
+    })
 }
 
 /// Clone a repository into the cache directory and add it as a project.
@@ -1306,7 +1447,7 @@ async fn import_from_url(app: tauri::AppHandle, url: String) -> Result<Vec<Proje
     }
 
     if let CloneTarget::Existing(dir) = target {
-        return add_project(app, portable(&dir));
+        return add_imported(&app, &dir, &url);
     }
 
     let dest_str = portable(&dest);
@@ -1344,7 +1485,7 @@ async fn import_from_url(app: tauri::AppHandle, url: String) -> Result<Vec<Proje
         ));
     }
 
-    add_project(app, portable(&dest))
+    add_imported(&app, &dest, &url)
 }
 
 /// What the view needs to know before it tries to show anything.
@@ -4146,6 +4287,140 @@ mod tests {
             clone_target(&cache, "https://github.com/a/bar").unwrap(),
             CloneTarget::Clone(dir) if dir != stray
         ));
+    }
+
+    #[test]
+    fn every_spelling_of_one_repository_gets_one_clone_folder() {
+        // What a hosting page, the GitHub picker or a pasted URL may say for
+        // github.com/a/foo: one repository, one folder, no second clone.
+        for same in [
+            "https://github.com/a/foo",
+            "https://github.com/a/foo.GIT",
+            "https://github.com/A/Foo",
+            "HTTPS://GitHub.com/a/foo/",
+            "https://github.com:443/a/foo",
+            "http://github.com/a/foo",
+            "https://user:token@github.com/a/foo.git",
+            "git://github.com/a/foo",
+            "ssh://git@github.com/a/foo",
+            "ssh://git@github.com:22/a/foo.git",
+            "git@github.com:a/foo.git",
+            "git@github.com:/a/foo",
+        ] {
+            assert_eq!(
+                clone_dir_name(same).as_deref(),
+                Some("foo-c2edc6b0"),
+                "{same:?}"
+            );
+        }
+        // Still told apart: another owner, another host, another port, and a
+        // path whose case a plain git server may well care about.
+        let differ = |a: &str, b: &str| {
+            assert_ne!(clone_url_key(a), clone_url_key(b), "{a:?} vs {b:?}");
+        };
+        differ("https://github.com/a/foo", "https://github.com/b/foo");
+        differ("https://github.com/a/foo", "https://gitlab.com/a/foo");
+        differ("https://example.org/A/Foo", "https://example.org/a/foo");
+        differ(
+            "https://example.org:8443/a/foo",
+            "https://example.org/a/foo",
+        );
+        // A bracketed IPv6 host, in the scp form as well.
+        for same in ["git@[::1]:a/foo.git", "ssh://git@[::1]:2222/a/foo"] {
+            assert_eq!(
+                clone_url_key(same),
+                clone_url_key("https://[::1]/a/foo"),
+                "{same:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_clone_made_from_another_spelling_of_the_url_is_found() {
+        let cache = crate::testutil::fresh_dir("clone-target-spelling");
+        // Cloned over ssh, imported again from the picker's https URL.
+        let new = cache.join("foo-c2edc6b0");
+        fake_clone(&new, "git@github.com:a/foo.git");
+        assert_eq!(
+            clone_target(&cache, "https://github.com/A/Foo").unwrap(),
+            CloneTarget::Existing(new)
+        );
+        // An old plain-name clone made over ssh, imported again over https.
+        let old = cache.join("bar");
+        fake_clone(&old, "git@github.com:a/bar.git");
+        assert_eq!(
+            clone_target(&cache, "https://github.com/a/bar").unwrap(),
+            CloneTarget::Existing(old)
+        );
+    }
+
+    #[test]
+    fn a_hash_shared_with_another_url_does_not_open_that_urls_clone() {
+        // Two real URLs whose 32-bit hashes collide.
+        let a = "https://github.com/user54873/foo";
+        let b = "https://github.com/user101577/foo";
+        assert_eq!(clone_dir_name(a).as_deref(), Some("foo-354dbd88"));
+        assert_eq!(clone_dir_name(b), clone_dir_name(a));
+
+        let cache = crate::testutil::fresh_dir("clone-target-collision");
+        let base = cache.join("foo-354dbd88");
+        assert_eq!(
+            clone_target(&cache, a).unwrap(),
+            CloneTarget::Clone(base.clone())
+        );
+        fake_clone(&base, a);
+        let CloneTarget::Clone(dir_b) = clone_target(&cache, b).unwrap() else {
+            panic!("b must not open the clone of a, which shares its hash");
+        };
+        assert_eq!(dir_b, cache.join("foo-354dbd88-2"));
+        fake_clone(&dir_b, b);
+        assert_eq!(
+            clone_target(&cache, a).unwrap(),
+            CloneTarget::Existing(base.clone())
+        );
+        assert_eq!(
+            clone_target(&cache, b).unwrap(),
+            CloneTarget::Existing(dir_b.clone())
+        );
+        // The first slot emptied by hand: b's clone is still found, not
+        // cloned again into the hole.
+        fs::remove_dir_all(&base).unwrap();
+        assert_eq!(
+            clone_target(&cache, b).unwrap(),
+            CloneTarget::Existing(dir_b)
+        );
+        // A folder of the hashed name that is no clone is not taken.
+        fs::create_dir_all(&base).unwrap();
+        assert_eq!(
+            clone_target(&cache, a).unwrap(),
+            CloneTarget::Clone(cache.join("foo-354dbd88-3"))
+        );
+    }
+
+    #[test]
+    fn an_imported_project_is_named_after_the_repository_not_its_clone_folder() {
+        let cache = crate::testutil::fresh_dir("imported-name");
+        let mut ws = Workspace::default();
+        let mut import = |url: &str| {
+            let dir = cache.join(clone_dir_name(url).unwrap());
+            fs::create_dir_all(&dir).unwrap();
+            let name = imported_name(url, &ws.projects);
+            add_one_named(&mut ws, &portable(&dir), name)
+                .unwrap()
+                .unwrap()
+                .name
+        };
+        // The name the URL gives, in the case it gives it (the picker's URL).
+        assert_eq!(import("https://github.com/Owner/Docmap"), "Docmap");
+        assert_eq!(import("https://github.com/a/foo"), "foo");
+        // A second repository of one name: told apart by its owner.
+        assert_eq!(import("https://github.com/b/foo.git"), "b/foo");
+        assert_eq!(import("git@gitlab.com:c/foo.git"), "c/foo");
+        // A folder added by hand keeps its folder name.
+        let plain = cache.join("by-hand");
+        fs::create_dir_all(&plain).unwrap();
+        let added = add_one(&mut ws, &portable(&plain)).unwrap().unwrap();
+        assert_eq!(added.name, "by-hand");
     }
 
     // `open_externally`'s own `windows_open_command` is not spawned here (it
