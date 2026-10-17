@@ -52,12 +52,13 @@ jobs:
 
       # Deliberately the floating `stable`, not a pinned version (same choice
       # as the author's other desktop app). The consequence is known and accepted: a new
-      # stable release can ship new default clippy lints, and the clippy step
-      # below (-D warnings) then turns this CI red WITHOUT any code change
+      # stable release can ship new default clippy lints or change what rustfmt
+      # considers formatted, and the clippy step below (-D warnings) or the fmt
+      # check above it then turns this CI red WITHOUT any code change
       # (tasks-desktop saw exactly that with Rust 1.99, c43e4ab). The fix in
-      # that case is to adjust the code (or allow the lint with a stated
-      # reason), never to pin the toolchain to silence it. A local toolchain
-      # at the same stable version reproduces it before pushing.
+      # that case is to adjust the code (`cargo fmt`, or allow the lint with a
+      # stated reason), never to pin the toolchain to silence it. A local
+      # toolchain at the same stable version reproduces it before pushing.
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
@@ -79,9 +80,13 @@ jobs:
 
       # Formatting is a gate like clippy, on every platform and ahead of it (the
       # cheaper failure first). Needs no placeholders: it only parses sources.
-      # Line endings are fixed by src-tauri/rustfmt.toml (`newline_style =
-      # "Unix"`) together with .gitattributes' `eol=lf`, so a CRLF working copy
-      # on Windows cannot make this step fail.
+      # Line endings: src-tauri/rustfmt.toml pins `newline_style = "Unix"`, which
+      # turns a CRLF source file into a failure ("Incorrect newline style"), not
+      # into something rustfmt tolerates. What keeps this step green on the
+      # Windows runner is the checkout: .gitattributes' `eol=lf` gives every
+      # runner LF files. A developer on Windows whose editor writes CRLF sees
+      # the error locally although git would normalise the file on commit: use
+      # an LF editor setting, or `git config core.autocrlf input`.
       - name: cargo fmt --check
         working-directory: src-tauri
         run: cargo fmt --check

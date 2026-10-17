@@ -11,7 +11,11 @@
 //
 //   python tools/preview/preview.py
 //   open http://localhost:8731/tools/preview/preview.html, set the window to
-//   900x600 (the app's minimum, tauri.conf.json), then in the page's console:
+//   900x600 (the app's minimum, tauri.conf.json), then in the page's console
+//   (the probe closes the workspaces dialog the preview opens at start, which
+//   would otherwise make the page inert and `focusKept` meaningless; the
+//   result says `focusTaken: false` and `focusKept: null` if focus() still
+//   had no effect):
 //
 //     const { probe } = await import("/tools/preview/probe-report.js");
 //     for (const id of ["p7", "p2", "p5"]) console.log(JSON.stringify(await probe(id)));
@@ -57,6 +61,11 @@ function reach(box, top, bottom) {
  * @param {string} id project id in the stub
  */
 export async function probe(id) {
+  // The preview opens the workspaces dialog (modal) at start. While it is
+  // open the rest of the page is inert: `focus()` is a no-op, and a focus
+  // measurement would report a false negative. Close it first.
+  const workspaces = $("wsbox");
+  if (workspaces && workspaces.open) workspaces.close();
   select(id);
   await sleep(700);
   $("gen").click();
@@ -84,16 +93,28 @@ export async function probe(id) {
     };
   };
 
+  // Docked means in the column: the map ends where the report starts, so
+  // nothing of the map (its scrollbar, its last rows) is under the report.
+  if (docked) {
+    const mapBox = $("map").getBoundingClientRect();
+    const reportBox = $("run-report").getBoundingClientRect();
+    out.dock = { mapBottom: Math.round(mapBox.bottom), reportTop: Math.round(reportBox.top), mapClear: mapBox.bottom <= reportBox.top + 1 };
+  }
+
   state("folded");
   const toggle = host.querySelector(".gen-log-toggle");
   // A clean run has nothing to fold: the button exists but its foot is hidden.
   out.toggleOffered = !!toggle && !toggle.closest(".gen-log-foot").hidden;
   if (out.toggleOffered) {
     toggle.focus();
+    // Did `focus()` work at all? If not (an inert page, a hidden button) the
+    // answer below would be a false `false`, so say that nothing was measured.
+    out.focusTaken = document.activeElement === toggle;
     toggle.click();
     await sleep(100);
     state("expanded");
-    out.focusKept = document.activeElement === toggle && document.activeElement.isConnected;
+    out.focusKept = out.focusTaken ? document.activeElement === toggle && document.activeElement.isConnected : null;
+    if (!out.focusTaken) out.warning = "focus() had no effect (is a modal dialog open?): focusKept was not measured";
     out.ariaExpanded = toggle.getAttribute("aria-expanded");
     host.scrollTop = host.scrollHeight;
     out.toggleReachableAtBottom = inside(toggle, host);

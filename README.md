@@ -183,7 +183,9 @@ cargo clippy --locked --all-targets -- -D warnings
 ```
 
 (`cargo fmt` applies the formatting; `newline_style` is pinned to Unix in
-`src-tauri/rustfmt.toml`.) The frontend's shared helpers
+`src-tauri/rustfmt.toml`, so a CRLF working copy fails `cargo fmt --check`
+locally - CI is safe because `.gitattributes` checks out LF. On Windows use an
+LF editor setting or `git config core.autocrlf input`.) The frontend's shared helpers
 (`src/lib/*.js`) have their own tests, run with Node's built-in test runner —
 no `npm install` involved, on purpose, the same reasoning `src/index.html`
 gives for no bundler:
@@ -208,5 +210,8 @@ Layout is not something those can see. `python tools/preview/preview.py` serves
 the window in a browser with a stubbed backend (`tools/preview/stub.js`), for
 looking at it at the minimum window size (900x600); `tools/preview/probe-report.js`
 drives the engine-report flows there and measures whether the report can be
-scrolled to and its button reached. It is a layout check only: what the
+scrolled to and its button reached, whether the map ends where the docked report
+starts, and whether **Show all** keeps the keyboard focus (it closes the
+workspaces dialog the preview opens at start, which makes the page inert, and
+reports `focusKept: null` if `focus()` still had no effect). It is a layout check only: what the
 commands do is looked at in the installed app.
