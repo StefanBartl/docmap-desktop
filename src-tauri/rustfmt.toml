@@ -1,0 +1,5 @@
+# Checked-in sources are LF on every OS (.gitattributes: eol=lf). Without this,
+# rustfmt's default "Auto" follows whatever the file on disk uses, so a CRLF
+# working copy would format -- and `cargo fmt --check` would judge -- differently
+# from the Linux CI runner.
+newline_style = "Unix"

@@ -173,7 +173,17 @@ dependency).
 
 ### Tests
 
-`cd src-tauri && cargo test` for the Rust side. The frontend's shared helpers
+`cd src-tauri && cargo test` for the Rust side. CI also gates on formatting and
+lints on all three platforms; the local mirror of those two steps is
+
+```bash
+cd src-tauri
+cargo fmt --check
+cargo clippy --locked --all-targets -- -D warnings
+```
+
+(`cargo fmt` applies the formatting; `newline_style` is pinned to Unix in
+`src-tauri/rustfmt.toml`.) The frontend's shared helpers
 (`src/lib/*.js`) have their own tests, run with Node's built-in test runner —
 no `npm install` involved, on purpose, the same reasoning `src/index.html`
 gives for no bundler:
