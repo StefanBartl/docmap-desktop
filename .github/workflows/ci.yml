@@ -1,5 +1,5 @@
-# Runs the test suites on every push and pull request: cargo test (Rust)
-# and node --test (the shared frontend helpers under src/lib/). Deliberately
+# Runs the checks on every push and pull request: cargo clippy -D warnings and
+# cargo test (Rust), and node --test (the shared frontend helpers under src/lib/). Deliberately
 # separate from release.yml, which builds real installers from a real
 # downloaded engine sidecar and only runs on a pushed vX.Y.Z tag -- this one
 # only needs the Rust/JS code itself to be correct, on every push, without
@@ -49,7 +49,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
+      # Deliberately the floating `stable`, not a pinned version (NREL-13, same
+      # choice as tasks-desktop). The consequence is known and accepted: a new
+      # stable release can ship new default clippy lints, and the clippy step
+      # below (-D warnings) then turns this CI red WITHOUT any code change
+      # (tasks-desktop saw exactly that with Rust 1.99, c43e4ab). The fix in
+      # that case is to adjust the code (or allow the lint with a stated
+      # reason), never to pin the toolchain to silence it. A local toolchain
+      # at the same stable version reproduces it before pushing.
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -65,6 +75,14 @@ jobs:
           [ "${{ matrix.platform }}" = "windows-latest" ] && suffix=".exe"
           touch "src-tauri/binaries/docmap-${{ matrix.engine_triple }}${suffix}"
           touch src-tauri/resources/grammars/placeholder.dll
+
+      # Needs the staged placeholders above (build.rs runs under clippy too).
+      # Runs on every platform of the matrix because the lints of
+      # `cfg(target_os = ...)` code are only visible on that target: a
+      # Windows-only clippy run would never see the Linux/macOS branches.
+      - name: cargo clippy
+        working-directory: src-tauri
+        run: cargo clippy --locked --all-targets -- -D warnings
 
       - name: cargo test
         working-directory: src-tauri
