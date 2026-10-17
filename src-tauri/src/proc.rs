@@ -9,6 +9,44 @@
 use std::io::Read;
 use std::time::{Duration, Instant};
 
+use crate::apperr::AppError;
+
+/// Why [`run_with_timeout`] has no output to hand back. Not an [`AppError`]
+/// itself: which sentence fits depends on the program (a Neovim that does not
+/// answer is most likely waiting for input), so the caller picks it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ProcError {
+    /// It could not be started or waited for; the OS error, verbatim.
+    Failed(String),
+    /// It was killed after this many seconds without finishing.
+    Timeout(u64),
+}
+
+impl ProcError {
+    /// `err.proc.run` or `err.proc.timeout`, naming `program`.
+    pub fn into_app(self, program: &str) -> AppError {
+        match self {
+            ProcError::Failed(e) => AppError::new("err.proc.run")
+                .with("program", program)
+                .detail(e),
+            ProcError::Timeout(secs) => AppError::new("err.proc.timeout")
+                .with("program", program)
+                .with("secs", secs),
+        }
+    }
+
+    /// The same for a headless Neovim, whose silence asks a question of its
+    /// own: does the configuration stop to wait for input?
+    pub fn into_nvim(self, program: &str) -> AppError {
+        match self {
+            ProcError::Timeout(secs) => AppError::new("err.nvim.timeout")
+                .with("program", program)
+                .with("secs", secs),
+            failed => failed.into_app(program),
+        }
+    }
+}
+
 /// Run `cmd` to completion and collect its output, or kill it after `limit`.
 ///
 /// Only the child this function started is killed, by its handle. The output
@@ -19,14 +57,14 @@ use std::time::{Duration, Instant};
 pub fn run_with_timeout(
     cmd: &mut std::process::Command,
     limit: Duration,
-) -> Result<std::process::Output, String> {
+) -> Result<std::process::Output, ProcError> {
     use std::process::Stdio;
     use std::sync::mpsc;
 
     cmd.stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    let mut child = cmd.spawn().map_err(|e| e.to_string())?;
+    let mut child = cmd.spawn().map_err(|e| ProcError::Failed(e.to_string()))?;
 
     fn drain<R: Read + Send + 'static>(pipe: Option<R>) -> mpsc::Receiver<Vec<u8>> {
         let (tx, rx) = mpsc::channel();
@@ -75,8 +113,8 @@ pub fn run_with_timeout(
             stdout,
             stderr,
         }),
-        (None, Some(e)) => Err(e),
-        (None, None) => Err(format!("no answer within {} s", limit.as_secs())),
+        (None, Some(e)) => Err(ProcError::Failed(e)),
+        (None, None) => Err(ProcError::Timeout(limit.as_secs())),
     }
 }
 
@@ -111,11 +149,36 @@ mod tests {
         #[cfg(not(windows))]
         let line = "sleep 30";
         let started = Instant::now();
-        let err = run_with_timeout(&mut shell(line), Duration::from_millis(300)).unwrap_err();
-        assert!(err.contains("no answer"), "{err}");
+        let err = run_with_timeout(&mut shell(line), Duration::from_millis(1300)).unwrap_err();
+        assert_eq!(err, ProcError::Timeout(1));
         assert!(
             started.elapsed() < Duration::from_secs(10),
             "must not wait for the child"
         );
+    }
+
+    #[test]
+    fn a_program_that_cannot_start_is_a_failure_with_the_os_error() {
+        let mut cmd = std::process::Command::new("docmap-desktop-no-such-program-x");
+        let err = run_with_timeout(&mut cmd, Duration::from_secs(5)).unwrap_err();
+        let ProcError::Failed(text) = &err else {
+            panic!("{err:?}")
+        };
+        assert!(!text.is_empty());
+        let app = err.into_app("x");
+        assert_eq!(app.key(), "err.proc.run");
+        assert_eq!(app.param("program"), Some("x"));
+    }
+
+    #[test]
+    fn a_silent_neovim_is_asked_whether_it_waits_for_input() {
+        let e = ProcError::Timeout(60).into_nvim("nvim");
+        assert_eq!(e.key(), "err.nvim.timeout");
+        assert_eq!(e.param("secs"), Some("60"));
+        let e = ProcError::Timeout(60).into_app("git");
+        assert_eq!(e.key(), "err.proc.timeout");
+        let e = ProcError::Failed("nope".into()).into_nvim("nvim");
+        assert_eq!(e.key(), "err.proc.run");
+        assert_eq!(e.detail_text(), Some("nope"));
     }
 }

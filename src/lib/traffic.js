@@ -12,6 +12,8 @@
 // plugin does not track has *no number*, and every function below keeps that
 // distinct from `0`.
 
+import { errorText } from "./errors.js";
+
 /** A digest older than this is said to be old. The plugin fetches daily
     while a Neovim session runs; three days without one means nothing has run
     it, not that the traffic stopped. */
@@ -96,9 +98,16 @@ export function windows(metric, field = "count", locale) {
  * four say what they are. (`no_digest` is explained where it can be acted on,
  * in Settings.)
  *
- * @param {{ status: string, repo?: string|null, message?: string|null }} info
+ * `message` is the command's error for what is wrong (`apperr.rs`), shown in
+ * the window's language through `errorText`.
+ *
+ * @param {{ status: string, repo?: string|null, message?: object|string|null }} info
  * @returns {{ key: string, vars: Record<string,string> }|null}
  */
+function reasonOf(info) {
+  return info.message ? errorText(info.message) : "";
+}
+
 export function lineFor(info) {
   if (!info) return null;
   switch (info.status) {
@@ -107,9 +116,9 @@ export function lineFor(info) {
     case "not_tracked":
       return { key: "traffic.notTracked", vars: { repo: info.repo || "" } };
     case "unreadable":
-      return { key: "traffic.unreadable", vars: { reason: info.message || "" } };
+      return { key: "traffic.unreadable", vars: { reason: reasonOf(info) } };
     case "newer_schema":
-      return { key: "traffic.newer", vars: { reason: info.message || "" } };
+      return { key: "traffic.newer", vars: { reason: reasonOf(info) } };
     default:
       return null;
   }

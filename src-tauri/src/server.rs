@@ -49,6 +49,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use crate::apperr::AppError;
+
 /// Everything one running server answers for.
 #[derive(Debug, Clone)]
 pub struct ServeConfig {
@@ -186,9 +188,17 @@ fn respond(stream: &mut TcpStream, code: u16, ctype: &str, body: &[u8]) {
     let _ = stream.flush();
 }
 
-fn respond_json_error(stream: &mut TcpStream, code: u16, message: &str) {
-    let body = serde_json::json!({ "error": message }).to_string();
-    respond(stream, code, "application/json", body.as_bytes());
+/// A `/api/*` (or static) failure. The body keeps `error`, the English
+/// sentence the generated page reads and shows; `key`, `params` and `detail`
+/// ride along in the shape every command's error has, under `api.*` keys that
+/// belong to the page's catalog and never to this app's. See `apperr.rs`.
+fn respond_json_error(stream: &mut TcpStream, code: u16, error: &AppError) {
+    respond(
+        stream,
+        code,
+        "application/json",
+        error.api_body().as_bytes(),
+    );
 }
 
 #[cfg(windows)]
@@ -239,17 +249,14 @@ fn engine_supports_api(engine: &str) -> bool {
 /// commit count (commits) — the same one-flag-many-meanings shape
 /// `core/api.lua`'s own `M.answer(name, opts, param)` already uses, kept
 /// consistent on this side rather than inventing a second flag per route.
-fn engine_api(cfg: &ServeConfig, route: &str, param: Option<&str>) -> Result<String, String> {
+fn engine_api(cfg: &ServeConfig, route: &str, param: Option<&str>) -> Result<String, AppError> {
     let engine = cfg
         .engine
         .as_ref()
-        .ok_or_else(|| "no docmap engine configured".to_string())?;
+        .ok_or_else(|| AppError::new("api.engine.none"))?;
 
     if !engine_supports_api(engine) {
-        return Err(format!(
-            "{engine} is an older docmap engine without --api support. \
-             Rebuild it from documentation.nvim, or point at a newer one."
-        ));
+        return Err(AppError::new("api.engine.old").with("engine", engine));
     }
 
     let mut cmd = std::process::Command::new(engine);
@@ -262,15 +269,15 @@ fn engine_api(cfg: &ServeConfig, route: &str, param: Option<&str>) -> Result<Str
     }
     no_window(&mut cmd);
 
-    let out = cmd
-        .output()
-        .map_err(|e| format!("could not run {engine}: {e}"))?;
+    let out = cmd.output().map_err(|e| {
+        AppError::new("api.engine.run")
+            .with("engine", engine)
+            .detail(e)
+    })?;
     if !out.status.success() {
-        return Err(format!(
-            "engine exited {}: {}",
-            out.status.code().unwrap_or(-1),
-            String::from_utf8_lossy(&out.stderr).trim()
-        ));
+        return Err(AppError::new("api.engine.exit")
+            .with("code", out.status.code().unwrap_or(-1))
+            .detail(String::from_utf8_lossy(&out.stderr)));
     }
 
     let body = String::from_utf8_lossy(&out.stdout).trim().to_string();
@@ -280,7 +287,7 @@ fn engine_api(cfg: &ServeConfig, route: &str, param: Option<&str>) -> Result<Str
     // on that same door. Serving prose as `application/json` turns a
     // recognisable failure into a parse error inside the page.
     if serde_json::from_str::<serde_json::Value>(&body).is_err() {
-        return Err(format!("engine did not answer {route} with JSON"));
+        return Err(AppError::new("api.engine.notJson").with("route", route));
     }
     Ok(body)
 }
@@ -299,7 +306,7 @@ fn handle(cfg: &ServeConfig, stream: &mut TcpStream) {
     let method = parts.next().unwrap_or("");
     let target = parts.next().unwrap_or("/");
     if method != "GET" {
-        return respond_json_error(stream, 405, "only GET is served");
+        return respond_json_error(stream, 405, &AppError::new("api.method"));
     }
 
     let (path, query) = match target.split_once('?') {
@@ -326,7 +333,7 @@ fn handle(cfg: &ServeConfig, stream: &mut TcpStream) {
         // falling through to the "no such endpoint" branch below.
         if let Some(sha) = name.strip_prefix("commit/") {
             if !safe_sha(sha) {
-                return respond_json_error(stream, 400, "not a commit hash");
+                return respond_json_error(stream, 400, &AppError::new("api.sha"));
             }
             return match engine_api(cfg, name, None) {
                 Ok(body) => respond(stream, 200, "application/json", body.as_bytes()),
@@ -338,7 +345,7 @@ fn handle(cfg: &ServeConfig, stream: &mut TcpStream) {
             // Deliberately not echoed back: refusing to repeat an
             // unvalidated value is free, and this is the input that would
             // otherwise reach a subprocess.
-            return respond_json_error(stream, 404, "no such endpoint");
+            return respond_json_error(stream, 404, &AppError::new("api.route"));
         }
         // `snapshot=` (telemetry/loaded) and `n=` (commits) never both
         // apply to the same route, mirroring `editor/serve.lua`'s own
@@ -360,13 +367,13 @@ fn handle(cfg: &ServeConfig, stream: &mut TcpStream) {
 
     let requested = path.trim_start_matches('/');
     let Some(name) = safe_static_name(requested) else {
-        return respond_json_error(stream, 400, "bad path");
+        return respond_json_error(stream, 400, &AppError::new("api.path"));
     };
     let body = servable_file(Path::new(&cfg.root), Path::new(&cfg.map_dir), name)
         .and_then(|file| crate::safe_read::read_bytes(&file, crate::safe_read::MAP_SERVE_MAX));
     match body {
         Some(body) => respond(stream, 200, content_type(name), &body),
-        None => respond_json_error(stream, 404, "not found"),
+        None => respond_json_error(stream, 404, &AppError::new("api.notFound")),
     }
 }
 
@@ -376,8 +383,8 @@ fn handle(cfg: &ServeConfig, stream: &mut TcpStream) {
 /// same rule `editor/serve.lua` arrived at after a real bug: a server that
 /// keeps answering for the previously selected repository does not look like
 /// the wrong tree, it looks like a broken map.
-pub fn start(cfg: ServeConfig) -> Result<u16, String> {
-    let mut current = CURRENT.lock().map_err(|_| "server lock poisoned")?;
+pub fn start(cfg: ServeConfig) -> Result<u16, AppError> {
+    let mut current = CURRENT.lock().map_err(|_| AppError::new("err.lock"))?;
     if let Some(running) = current.as_ref() {
         if running.root == cfg.root {
             return Ok(running.port);
@@ -394,16 +401,17 @@ pub fn start(cfg: ServeConfig) -> Result<u16, String> {
     // something eventually, and a retry loop looking for a free one is the
     // same thing done worse.
     let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
-    let listener = TcpListener::bind(addr).map_err(|e| format!("bind failed: {e}"))?;
+    let listener =
+        TcpListener::bind(addr).map_err(|e| AppError::new("err.server.start").detail(e))?;
     // Non-blocking so the accept loop can poll `stop` instead of blocking in
     // `incoming()` forever -- std's TcpListener has no other way to cancel
     // an in-progress accept from outside the thread that owns it.
     listener
         .set_nonblocking(true)
-        .map_err(|e| format!("cannot set non-blocking: {e}"))?;
+        .map_err(|e| AppError::new("err.server.start").detail(e))?;
     let port = listener
         .local_addr()
-        .map_err(|e| format!("no local address: {e}"))?
+        .map_err(|e| AppError::new("err.server.start").detail(e))?
         .port();
 
     let stop = Arc::new(AtomicBool::new(false));

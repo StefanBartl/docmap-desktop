@@ -25,6 +25,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
 
+use crate::apperr::AppError;
 use crate::languages::SKIP_DIRS;
 
 #[derive(Serialize)]
@@ -225,12 +226,16 @@ struct GitStates {
 /// resolves outside the project, for the same reason `open_in_editor` does:
 /// the caller is a window rendering somebody's repository, and `..` is the
 /// difference between browsing a project and browsing a disk.
-pub fn list(root: &Path, sub: &str) -> Result<Listing, String> {
-    let root = fs::canonicalize(root).map_err(|e| format!("cannot resolve project root: {e}"))?;
+pub fn list(root: &Path, sub: &str) -> Result<Listing, AppError> {
+    let root = fs::canonicalize(root).map_err(|e| {
+        AppError::new("err.path.resolve")
+            .with("path", root.display())
+            .detail(e)
+    })?;
     // Shape first, filesystem second: see `resolve_inside`.
     let dir = crate::resolve_inside(&root, sub)?;
     if !dir.is_dir() {
-        return Err(format!("{sub} is not a directory"));
+        return Err(AppError::not_dir(sub));
     }
 
     // Asked once, before the loop: this is one subprocess for the whole
@@ -239,7 +244,7 @@ pub fn list(root: &Path, sub: &str) -> Result<Listing, String> {
 
     let mut entries = Vec::new();
     for entry in fs::read_dir(&dir)
-        .map_err(|e| format!("cannot read {sub}: {e}"))?
+        .map_err(|e| AppError::new("err.path.read").with("path", sub).detail(e))?
         .flatten()
     {
         // Win32 reads `x.` as `x`: see `languages::win32_rewrites_name`.

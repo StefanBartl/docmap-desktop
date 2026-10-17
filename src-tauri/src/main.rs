@@ -9,6 +9,7 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod apperr;
 mod deps;
 mod feedback;
 mod filetree;
@@ -40,9 +41,21 @@ use std::fs;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Mutex;
 
+use apperr::AppError;
 use serde::{Deserialize, Serialize};
 use tauri::Manager;
 use tauri_plugin_shell::ShellExt;
+
+/// An [`AppError`] about a file or folder: `key`'s sentence names `path`, and
+/// the OS error is the detail.
+fn path_err(key: &'static str, path: &Path, e: impl std::fmt::Display) -> AppError {
+    AppError::new(key).with("path", path.display()).detail(e)
+}
+
+/// An [`AppError`] about a project-relative path, as it was given.
+fn path_key(key: &'static str, rel: &str) -> AppError {
+    AppError::new(key).with("path", rel)
+}
 
 /// A path as this program shows it and passes it around: forward slashes,
 /// and no `\?\`.
@@ -212,13 +225,10 @@ struct ProjectFlags {
 /// is still passed on. Generate and Check say so here, in the dialog's words,
 /// instead of leaving it to the engine's message, which Check cannot tell from
 /// a stale map.
-fn refuse_linked_output(root: &str, flags: &ProjectFlags) -> Result<(), String> {
+fn refuse_linked_output(root: &str, flags: &ProjectFlags) -> Result<(), AppError> {
     if let Some(dir) = flags.out_dir.as_deref().filter(|dir| !dir.is_empty()) {
         if !is_safe_out_dir(dir, cfg!(windows)) {
-            return Err(format!(
-                "Project settings: {}. Change it there.",
-                map_dir_refusal(dir)
-            ));
+            return Err(AppError::new("err.outDir.stored").with("value", dir));
         }
     }
     let root = Path::new(root);
@@ -230,10 +240,7 @@ fn refuse_linked_output(root: &str, flags: &ProjectFlags) -> Result<(), String> 
         .unwrap_or("docs/map");
     let dir = root.join(rel);
     if !map_dir_is_plain(root, &dir) {
-        return Err(format!(
-            "{rel} is a link, so the map is neither written to nor read from where it leads. \
-             Replace it with a plain directory."
-        ));
+        return Err(AppError::new("err.outDir.link").with("dir", rel));
     }
     // The files the engine writes are just as much the repository's: a link
     // that leaves the project (or reaches another machine) is refused, one that
@@ -245,11 +252,7 @@ fn refuse_linked_output(root: &str, flags: &ProjectFlags) -> Result<(), String> 
         let is_link =
             fs::symlink_metadata(dir.join(name)).is_ok_and(|m| m.file_type().is_symlink());
         if is_link && map_file(root, &dir, name).is_none() {
-            return Err(format!(
-                "{rel}/{name} is a link that leaves the project, goes to another machine or \
-                 cannot be checked (its target is not there), so the map is neither written to \
-                 nor read from where it leads. Replace it with a plain file."
-            ));
+            return Err(AppError::new("err.outDir.fileLink").with("file", format!("{rel}/{name}")));
         }
     }
     Ok(())
@@ -423,17 +426,17 @@ fn workspace_file_name(name: &str) -> String {
     }
 }
 
-fn workspaces_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+fn workspaces_dir(app: &tauri::AppHandle) -> Result<PathBuf, AppError> {
     let dir = app
         .path()
         .app_config_dir()
-        .map_err(|e| format!("no config directory: {e}"))?
+        .map_err(|e| AppError::new("err.config.noDir").detail(e))?
         .join("workspaces");
-    fs::create_dir_all(&dir).map_err(|e| format!("cannot create {}: {e}", dir.display()))?;
+    fs::create_dir_all(&dir).map_err(|e| path_err("err.path.create", &dir, e))?;
     Ok(dir)
 }
 
-fn workspace_projects_path(app: &tauri::AppHandle, name: &str) -> Result<PathBuf, String> {
+fn workspace_projects_path(app: &tauri::AppHandle, name: &str) -> Result<PathBuf, AppError> {
     Ok(workspaces_dir(app)?.join(format!("{}.json", workspace_file_name(name))))
 }
 
@@ -442,7 +445,7 @@ fn workspace_projects_path(app: &tauri::AppHandle, name: &str) -> Result<PathBuf
 /// Read from the directory rather than from an index kept beside it: an
 /// index is a second thing to keep in step, and the answer to "which
 /// workspaces are there" is already spelled by the files.
-pub fn workspace_names(app: &tauri::AppHandle) -> Result<Vec<String>, String> {
+pub fn workspace_names(app: &tauri::AppHandle) -> Result<Vec<String>, AppError> {
     let dir = workspaces_dir(app)?;
     let mut names = Vec::new();
     if let Ok(entries) = fs::read_dir(&dir) {
@@ -468,12 +471,12 @@ pub fn workspace_names(app: &tauri::AppHandle) -> Result<Vec<String>, String> {
 /// `app_config_dir` rather than a file beside the executable: an installed
 /// app has no business writing into Program Files, and a portable copy on a
 /// USB stick should still find the same list on the same machine.
-fn workspace_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+fn workspace_path(app: &tauri::AppHandle) -> Result<PathBuf, AppError> {
     let dir = app
         .path()
         .app_config_dir()
-        .map_err(|e| format!("no config directory: {e}"))?;
-    fs::create_dir_all(&dir).map_err(|e| format!("cannot create {}: {e}", dir.display()))?;
+        .map_err(|e| AppError::new("err.config.noDir").detail(e))?;
+    fs::create_dir_all(&dir).map_err(|e| path_err("err.path.create", &dir, e))?;
     Ok(dir.join("workspace.json"))
 }
 
@@ -494,15 +497,16 @@ fn write_atomic(path: &Path, body: impl AsRef<[u8]>) -> std::io::Result<()> {
 }
 
 /// The settings file, without the project list attached.
-fn read_settings(app: &tauri::AppHandle) -> Result<Workspace, String> {
+fn read_settings(app: &tauri::AppHandle) -> Result<Workspace, AppError> {
     let path = workspace_path(app)?;
     match fs::read_to_string(&path) {
-        Ok(body) => serde_json::from_str(&body)
-            .map_err(|e| format!("{} is not readable as a workspace: {e}", path.display())),
+        Ok(body) => {
+            serde_json::from_str(&body).map_err(|e| path_err("err.workspace.unreadable", &path, e))
+        }
         // A missing file is the first-run case, not an error. An empty
         // workspace is exactly what a first run should see.
         Err(ref e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Workspace::default()),
-        Err(e) => Err(format!("cannot read {}: {e}", path.display())),
+        Err(e) => Err(path_err("err.path.read", &path, e)),
     }
 }
 
@@ -517,7 +521,7 @@ fn read_settings(app: &tauri::AppHandle) -> Result<Workspace, String> {
 /// workspaces existed carries its projects inline, and they become the
 /// first workspace. A feature whose first act is losing somebody's project
 /// list is not a feature.
-fn read_workspace(app: &tauri::AppHandle) -> Result<Workspace, String> {
+fn read_workspace(app: &tauri::AppHandle) -> Result<Workspace, AppError> {
     let mut ws = read_settings(app)?;
     let name = ws
         .active
@@ -526,23 +530,22 @@ fn read_workspace(app: &tauri::AppHandle) -> Result<Workspace, String> {
     let path = workspace_projects_path(app, &name)?;
 
     if path.is_file() {
-        let body = fs::read_to_string(&path)
-            .map_err(|e| format!("cannot read {}: {e}", path.display()))?;
+        let body = fs::read_to_string(&path).map_err(|e| path_err("err.path.read", &path, e))?;
         ws.projects = serde_json::from_str(&body)
-            .map_err(|e| format!("{} is not readable as a project list: {e}", path.display()))?;
+            .map_err(|e| path_err("err.workspace.listUnreadable", &path, e))?;
     } else if !ws.projects.is_empty() {
         // Pre-workspace file with projects inline. Written out under the
         // active name so the next read finds it where it now belongs.
         let body = serde_json::to_string_pretty(&ws.projects)
-            .map_err(|e| format!("cannot serialise: {e}"))?;
-        write_atomic(&path, body).map_err(|e| format!("cannot write {}: {e}", path.display()))?;
+            .map_err(|e| AppError::new("err.workspace.serialise").detail(e))?;
+        write_atomic(&path, body).map_err(|e| path_err("err.path.write", &path, e))?;
     }
 
     ws.active = Some(name);
     Ok(ws)
 }
 
-fn write_workspace(app: &tauri::AppHandle, ws: &Workspace) -> Result<(), String> {
+fn write_workspace(app: &tauri::AppHandle, ws: &Workspace) -> Result<(), AppError> {
     let name = ws
         .active
         .clone()
@@ -552,10 +555,9 @@ fn write_workspace(app: &tauri::AppHandle, ws: &Workspace) -> Result<(), String>
     // write fails afterwards the projects are still saved, which is the
     // right way round for the half nobody can retype.
     let list_path = workspace_projects_path(app, &name)?;
-    let list =
-        serde_json::to_string_pretty(&ws.projects).map_err(|e| format!("cannot serialise: {e}"))?;
-    write_atomic(&list_path, list)
-        .map_err(|e| format!("cannot write {}: {e}", list_path.display()))?;
+    let list = serde_json::to_string_pretty(&ws.projects)
+        .map_err(|e| AppError::new("err.workspace.serialise").detail(e))?;
+    write_atomic(&list_path, list).map_err(|e| path_err("err.path.write", &list_path, e))?;
 
     // The settings, with the list left out — it would be a stale second
     // copy the moment anything is added to the real one.
@@ -573,9 +575,9 @@ fn write_workspace(app: &tauri::AppHandle, ws: &Workspace) -> Result<(), String>
     settings.editor = ws.editor.clone();
 
     let path = workspace_path(app)?;
-    let body =
-        serde_json::to_string_pretty(&settings).map_err(|e| format!("cannot serialise: {e}"))?;
-    write_atomic(&path, body).map_err(|e| format!("cannot write {}: {e}", path.display()))
+    let body = serde_json::to_string_pretty(&settings)
+        .map_err(|e| AppError::new("err.workspace.serialise").detail(e))?;
+    write_atomic(&path, body).map_err(|e| path_err("err.path.write", &path, e))
 }
 
 /// Guards every workspace.json read-modify-write cycle. Two commands that
@@ -590,11 +592,11 @@ static WORKSPACE_LOCK: Mutex<()> = Mutex::new(());
 /// race: the lock, not the shared function.
 fn with_workspace<T>(
     app: &tauri::AppHandle,
-    f: impl FnOnce(&mut Workspace) -> Result<T, String>,
-) -> Result<T, String> {
+    f: impl FnOnce(&mut Workspace) -> Result<T, AppError>,
+) -> Result<T, AppError> {
     let _guard = WORKSPACE_LOCK
         .lock()
-        .map_err(|_| "workspace lock poisoned".to_string())?;
+        .map_err(|_| AppError::new("err.lock"))?;
     let mut ws = read_workspace(app)?;
     let result = f(&mut ws)?;
     write_workspace(app, &ws)?;
@@ -602,7 +604,7 @@ fn with_workspace<T>(
 }
 
 #[tauri::command]
-fn list_projects(app: tauri::AppHandle) -> Result<Vec<Project>, String> {
+fn list_projects(app: tauri::AppHandle) -> Result<Vec<Project>, AppError> {
     Ok(read_workspace(&app)?.projects)
 }
 
@@ -618,7 +620,7 @@ fn list_projects(app: tauri::AppHandle) -> Result<Vec<Project>, String> {
 /// **not** sort `ws.projects` or require a map to exist yet; the caller sorts
 /// once after its own batch, and reporting "no map here" in the view is more
 /// useful than refusing to add the project.
-fn add_one(ws: &mut Workspace, root: &str) -> Result<Option<Project>, String> {
+fn add_one(ws: &mut Workspace, root: &str) -> Result<Option<Project>, AppError> {
     add_one_named(ws, root, None)
 }
 
@@ -629,13 +631,16 @@ fn add_one_named(
     ws: &mut Workspace,
     root: &str,
     name: Option<String>,
-) -> Result<Option<Project>, String> {
+) -> Result<Option<Project>, AppError> {
     let root_path = Path::new(root);
     if !root_path.is_dir() {
-        return Err(format!("{root} is not a directory"));
+        return Err(AppError::not_dir(root));
     }
-    let canonical =
-        portable(&fs::canonicalize(root_path).map_err(|e| format!("cannot resolve {root}: {e}"))?);
+    let canonical = portable(&fs::canonicalize(root_path).map_err(|e| {
+        AppError::new("err.path.resolve")
+            .with("path", root)
+            .detail(e)
+    })?);
 
     if ws.projects.iter().any(|p| p.id == canonical) {
         return Ok(None);
@@ -674,7 +679,7 @@ fn add_one_named(
 /// Add a directory to the workspace. See `add_one` for what actually happens;
 /// this is the single-directory case wrapped in its own lock-read-write.
 #[tauri::command]
-fn add_project(app: tauri::AppHandle, root: String) -> Result<Vec<Project>, String> {
+fn add_project(app: tauri::AppHandle, root: String) -> Result<Vec<Project>, AppError> {
     with_workspace(&app, |ws| {
         add_one(ws, &root)?;
         ws.projects.sort_by_key(|p| p.name.to_lowercase());
@@ -721,18 +726,17 @@ struct FolderScan {
 /// A directory that vanishes or resolves to nowhere between listing and
 /// canonicalising is skipped rather than aborting the whole scan — a stale
 /// symlink two directories down should not blank out the other thirty-one.
-fn list_subdirs(root: &Path) -> Result<Vec<(String, String, bool)>, String> {
+fn list_subdirs(root: &Path) -> Result<Vec<(String, String, bool)>, AppError> {
     let mut out = Vec::new();
     // Verbatim, so that every path built from it below is looked at literally:
     // on the typed folder Win32 rewrites a name (`evil.` is `evil`, `NUL` is a
     // device) before the file system sees it, and a link's target that names
     // one was looked at as something other than what the kernel then follows.
-    let root =
-        fs::canonicalize(root).map_err(|e| format!("cannot read {}: {e}", root.display()))?;
+    let root = fs::canonicalize(root).map_err(|e| path_err("err.path.read", root, e))?;
     let root = root.as_path();
-    let entries = fs::read_dir(root).map_err(|e| format!("cannot read {}: {e}", root.display()))?;
+    let entries = fs::read_dir(root).map_err(|e| path_err("err.path.read", root, e))?;
     for entry in entries {
-        let entry = entry.map_err(|e| format!("cannot read {}: {e}", root.display()))?;
+        let entry = entry.map_err(|e| path_err("err.path.read", root, e))?;
         let name = entry.file_name().to_string_lossy().to_string();
         if name.starts_with('.') || languages::win32_rewrites_name(&entry.file_name()) {
             continue;
@@ -780,10 +784,10 @@ fn list_subdirs(root: &Path) -> Result<Vec<(String, String, bool)>, String> {
 /// `async` so that a slow disk (a share, a folder of thousands of entries)
 /// stalls a worker and not the window.
 #[tauri::command(async)]
-fn inspect_folder(app: tauri::AppHandle, root: String) -> Result<FolderScan, String> {
+fn inspect_folder(app: tauri::AppHandle, root: String) -> Result<FolderScan, AppError> {
     let root_path = Path::new(&root);
     if !root_path.is_dir() {
-        return Err(format!("{root} is not a directory"));
+        return Err(AppError::not_dir(&root));
     }
 
     // Looked at, not followed: see `languages::is_nested_checkout`.
@@ -827,7 +831,7 @@ fn inspect_folder(app: tauri::AppHandle, root: String) -> Result<FolderScan, Str
 /// on its own, the same isolation `import_from_nvim_config`'s loop already
 /// gives its own batch.
 #[tauri::command]
-fn import_many(app: tauri::AppHandle, roots: Vec<String>) -> Result<ImportResult, String> {
+fn import_many(app: tauri::AppHandle, roots: Vec<String>) -> Result<ImportResult, AppError> {
     let mut added = Vec::new();
     let mut already_present = 0usize;
     let mut errors = Vec::new();
@@ -837,7 +841,10 @@ fn import_many(app: tauri::AppHandle, roots: Vec<String>) -> Result<ImportResult
             match add_one(ws, root) {
                 Ok(Some(project)) => added.push(project),
                 Ok(None) => already_present += 1,
-                Err(e) => errors.push(format!("{root}: {e}")),
+                Err(error) => errors.push(ImportFailure {
+                    name: root.clone(),
+                    error,
+                }),
             }
         }
         ws.projects.sort_by_key(|p| p.name.to_lowercase());
@@ -873,13 +880,13 @@ struct ProjectSettings {
 }
 
 #[tauri::command]
-fn project_scope_get(app: tauri::AppHandle, id: String) -> Result<ProjectSettings, String> {
+fn project_scope_get(app: tauri::AppHandle, id: String) -> Result<ProjectSettings, AppError> {
     let ws = read_workspace(&app)?;
     let project = ws
         .projects
         .iter()
         .find(|p| p.id == id)
-        .ok_or_else(|| format!("no such project: {id}"))?;
+        .ok_or_else(|| AppError::no_project(&id))?;
     Ok(ProjectSettings {
         exclude: project.exclude.clone(),
         languages: project.languages.clone(),
@@ -945,10 +952,8 @@ fn is_safe_out_dir(dir: &str, windows: bool) -> bool {
 }
 
 /// Why `value` is not a map directory, in the words the dialog shows.
-fn map_dir_refusal(value: &str) -> String {
-    format!(
-        "the map directory must be a folder inside the project, not `{value}` (only letters, digits, `-`, `_` and `.` in names, no `.` or `..` component, no absolute path; on Windows a name must not end in a dot)"
-    )
+fn map_dir_refusal(value: &str) -> AppError {
+    AppError::new("err.outDir.unsafe").with("value", value)
 }
 
 /// The Map directory setting, or why it cannot be one.
@@ -958,7 +963,7 @@ fn map_dir_refusal(value: &str) -> String {
 /// is fine. The one thing checked on the raw text is a leading `/`, because
 /// [`rel_path`] trims it, which would turn `/maps` into the project-relative
 /// `maps` and hide that an absolute path was meant.
-fn map_dir_setting(raw: Option<String>) -> Result<Option<String>, String> {
+fn map_dir_setting(raw: Option<String>) -> Result<Option<String>, AppError> {
     let typed = raw.as_deref().unwrap_or("").trim().replace('\\', "/");
     let dir = rel_path(raw);
     let unsafe_dir = dir
@@ -1017,7 +1022,7 @@ fn project_scope_set(
     repo_url: Option<String>,
     branch: Option<String>,
     full: Option<bool>,
-) -> Result<ProjectSettings, String> {
+) -> Result<ProjectSettings, AppError> {
     let cleaned: Vec<String> = exclude
         .iter()
         .cloned()
@@ -1045,7 +1050,7 @@ fn project_scope_set(
             .projects
             .iter_mut()
             .find(|p| p.id == id)
-            .ok_or_else(|| format!("no such project: {id}"))?;
+            .ok_or_else(|| AppError::no_project(&id))?;
         project.exclude = cleaned.clone();
         project.languages = langs.clone();
         project.out_dir = out.clone();
@@ -1074,7 +1079,7 @@ fn project_scope_set(
 }
 
 #[tauri::command]
-fn remove_project(app: tauri::AppHandle, id: String) -> Result<Vec<Project>, String> {
+fn remove_project(app: tauri::AppHandle, id: String) -> Result<Vec<Project>, AppError> {
     with_workspace(&app, |ws| {
         if let Some(p) = ws.projects.iter().find(|p| p.id == id) {
             traffic::forget(&p.root);
@@ -1087,13 +1092,13 @@ fn remove_project(app: tauri::AppHandle, id: String) -> Result<Vec<Project>, Str
 /// Where cloned repositories land. A subdirectory of the same app-config
 /// directory `workspace.json` lives in, not the system temp dir: a clone
 /// this app made is something to keep and reopen, not scratch space.
-fn repos_cache_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+fn repos_cache_dir(app: &tauri::AppHandle) -> Result<PathBuf, AppError> {
     let dir = app
         .path()
         .app_config_dir()
-        .map_err(|e| format!("no config directory: {e}"))?
+        .map_err(|e| AppError::new("err.config.noDir").detail(e))?
         .join("repos");
-    fs::create_dir_all(&dir).map_err(|e| format!("cannot create {}: {e}", dir.display()))?;
+    fs::create_dir_all(&dir).map_err(|e| path_err("err.path.create", &dir, e))?;
     Ok(dir)
 }
 
@@ -1112,13 +1117,13 @@ const CLONE_PROTOCOLS: &str = "https:http:ssh:git";
 /// `git://` and the scp form `user@host:path`.
 fn clone_url_problem(url: &str) -> Option<&'static str> {
     if url.is_empty() || url.len() > 2048 {
-        return Some("the URL is empty or too long");
+        return Some("err.url.empty");
     }
     if url.chars().any(|c| c.is_control() || c.is_whitespace()) {
-        return Some("the URL contains a space or a control character");
+        return Some("err.url.space");
     }
     if url.starts_with('-') {
-        return Some("the URL starts with '-', git would read it as an option");
+        return Some("err.url.dash");
     }
     // git reads `<name>::<address>` as a remote helper only when the URL starts
     // with scheme characters and then `::`; an IPv6 literal (`https://[::1]/r`)
@@ -1128,7 +1133,7 @@ fn clone_url_problem(url: &str) -> Option<&'static str> {
         .take_while(|b| b.is_ascii_alphanumeric() || matches!(b, b'+' | b'.' | b'-'))
         .count();
     if url[scheme_len..].starts_with("::") {
-        return Some("the URL names a remote helper ('::'), which is not supported");
+        return Some("err.url.helper");
     }
     let lower = url.to_ascii_lowercase();
     let known_scheme = ["https://", "http://", "ssh://", "git://"]
@@ -1144,7 +1149,7 @@ fn clone_url_problem(url: &str) -> Option<&'static str> {
             return None;
         }
     }
-    Some("the URL must start with https://, http://, ssh://, git:// or look like user@host:path")
+    Some("err.url.scheme")
 }
 
 /// The directory name a clone of `url` should land in: the URL's last path
@@ -1296,9 +1301,8 @@ enum CloneTarget {
 /// the workspace already lists them by their path, and a move would leave that
 /// entry pointing at nothing. Every slot is looked at, not only those up to
 /// the first free one, so a slot emptied by hand does not hide a later clone.
-fn clone_target(cache: &Path, url: &str) -> Result<CloneTarget, String> {
-    let base = clone_dir_name(url)
-        .ok_or_else(|| "could not derive a plain folder name from the URL".to_owned())?;
+fn clone_target(cache: &Path, url: &str) -> Result<CloneTarget, AppError> {
+    let base = clone_dir_name(url).ok_or_else(|| AppError::new("err.url.noName"))?;
     let key = clone_url_key(url);
     let holds_this = |dir: &Path| origin_url(dir).is_some_and(|o| clone_url_key(&o) == key);
     let mut free = None;
@@ -1323,7 +1327,7 @@ fn clone_target(cache: &Path, url: &str) -> Result<CloneTarget, String> {
         }
     }
     free.map(CloneTarget::Clone)
-        .ok_or_else(|| format!("every folder for this clone ({base} and its overflow) is taken"))
+        .ok_or_else(|| AppError::new("err.url.slotsTaken").with("base", &base))
 }
 
 /// How many folders [`clone_target`] tries for one hash: the name itself and
@@ -1395,7 +1399,7 @@ fn is_windows_device_name(name: &str) -> bool {
 /// Add the clone of `url` at `dir` as a project named after the repository
 /// ([`imported_name`]), not after its clone folder. One lock, so the name is
 /// chosen against the list it goes into.
-fn add_imported(app: &tauri::AppHandle, dir: &Path, url: &str) -> Result<Vec<Project>, String> {
+fn add_imported(app: &tauri::AppHandle, dir: &Path, url: &str) -> Result<Vec<Project>, AppError> {
     with_workspace(app, |ws| {
         let name = imported_name(url, &ws.projects);
         add_one_named(ws, &portable(dir), name)?;
@@ -1425,10 +1429,10 @@ fn add_imported(app: &tauri::AppHandle, dir: &Path, url: &str) -> Result<Vec<Pro
 /// [`clone_target`]'s decision; another repository of the same name gets a
 /// folder of its own.
 #[tauri::command]
-async fn import_from_url(app: tauri::AppHandle, url: String) -> Result<Vec<Project>, String> {
+async fn import_from_url(app: tauri::AppHandle, url: String) -> Result<Vec<Project>, AppError> {
     let url = url.trim().to_owned();
     if let Some(problem) = clone_url_problem(&url) {
-        return Err(format!("cannot import this URL: {problem}"));
+        return Err(AppError::new(problem));
     }
     let cache = repos_cache_dir(&app)?;
     let (cache_for_lookup, url_for_lookup) = (cache.clone(), url.clone());
@@ -1436,14 +1440,14 @@ async fn import_from_url(app: tauri::AppHandle, url: String) -> Result<Vec<Proje
         clone_target(&cache_for_lookup, &url_for_lookup)
     })
     .await
-    .map_err(|e| format!("clone task failed: {e}"))??;
+    .map_err(AppError::task)??;
     let dest = match &target {
         CloneTarget::Existing(dir) | CloneTarget::Clone(dir) => dir.clone(),
     };
     // The name is plain, so this holds; checked anyway because the next lines
     // add a directory as a project and, on failure, delete one.
     if dest.parent() != Some(cache.as_path()) {
-        return Err("the folder for this clone would lie outside the cache".to_owned());
+        return Err(AppError::new("err.url.outsideCache"));
     }
 
     if let CloneTarget::Existing(dir) = target {
@@ -1468,21 +1472,19 @@ async fn import_from_url(app: tauri::AppHandle, url: String) -> Result<Vec<Proje
             const CREATE_NO_WINDOW: u32 = 0x0800_0000;
             cmd.creation_flags(CREATE_NO_WINDOW);
         }
-        proc::run_with_timeout(&mut cmd, CLONE_TIMEOUT)
-            .map_err(|e| format!("could not run git: {e}"))
+        proc::run_with_timeout(&mut cmd, CLONE_TIMEOUT).map_err(|e| e.into_app("git"))
     })
     .await
-    .map_err(|e| format!("clone task failed: {e}"))??;
+    .map_err(AppError::task)??;
 
     if !out.status.success() {
         // A partial clone would otherwise permanently occupy `dest`, so
         // every retry after a failure would hit "directory already exists"
         // instead of trying again.
         let _ = fs::remove_dir_all(&dest_for_cleanup);
-        return Err(format!(
-            "git clone failed: {}",
-            String::from_utf8_lossy(&out.stderr).trim()
-        ));
+        return Err(
+            AppError::new("err.git.cloneFailed").detail(String::from_utf8_lossy(&out.stderr))
+        );
     }
 
     add_imported(&app, &dest, &url)
@@ -1581,10 +1583,12 @@ async fn list_github_repos() -> github::RepoList {
     // does looks broken.
     tauri::async_runtime::spawn_blocking(|| github::list(200))
         .await
-        .unwrap_or_else(|_| github::RepoList {
+        // The runtime's own words about the task, like `gh`'s on any other
+        // failure: the catalog's sentence for `failed` says what went wrong.
+        .unwrap_or_else(|e| github::RepoList {
             repos: vec![],
             problem: Some(github::ListProblem::Failed),
-            message: Some("the listing task did not finish".into()),
+            message: Some(e.to_string()),
         })
 }
 
@@ -1603,7 +1607,7 @@ async fn list_github_repos() -> github::RepoList {
 fn scan_languages(
     root: String,
     map_dir: Option<String>,
-) -> Result<languages::LanguageScan, String> {
+) -> Result<languages::LanguageScan, AppError> {
     languages::scan(Path::new(&root), map_dir.as_deref().map(Path::new))
 }
 
@@ -1726,7 +1730,7 @@ struct GrammarDir {
 const GRAMMAR_FILES_SHOWN: usize = 12;
 
 #[tauri::command]
-fn grammar_dir(app: tauri::AppHandle) -> Result<GrammarDir, String> {
+fn grammar_dir(app: tauri::AppHandle) -> Result<GrammarDir, AppError> {
     let ws = read_workspace(&app)?;
     let from_setting = ws
         .grammars
@@ -1765,7 +1769,7 @@ fn grammar_dir(app: tauri::AppHandle) -> Result<GrammarDir, String> {
         // Unreadable is not empty, and saying "holds nothing" about a
         // directory that refused to be read would send somebody looking for
         // a missing file that is sitting right there.
-        Err(e) => return Err(format!("{}: {}", d, e)),
+        Err(e) => return Err(AppError::new("err.path.read").with("path", &d).detail(e)),
     };
     names.sort();
 
@@ -1798,7 +1802,7 @@ struct EngineInfo {
 }
 
 #[tauri::command]
-fn engine_info(app: tauri::AppHandle) -> Result<EngineInfo, String> {
+fn engine_info(app: tauri::AppHandle) -> Result<EngineInfo, AppError> {
     let ws = read_workspace(&app)?;
     let grammars = resolve_grammars(&app, ws.grammars);
 
@@ -1935,11 +1939,9 @@ struct EngineBuild {
 /// root-argument position, so an older binary rejects it with exit 2 before
 /// doing any work, rather than treating it as a path and generating a map.
 #[tauri::command]
-fn engine_languages(app: tauri::AppHandle) -> Result<EngineLanguages, String> {
+fn engine_languages(app: tauri::AppHandle) -> Result<EngineLanguages, AppError> {
     let info = engine_info(app)?;
-    let engine = info
-        .path
-        .ok_or_else(|| "no docmap engine configured".to_string())?;
+    let engine = info.path.ok_or_else(|| AppError::new("err.engine.none"))?;
 
     let mut cmd = std::process::Command::new(&engine);
     cmd.arg("--capabilities");
@@ -1953,8 +1955,8 @@ fn engine_languages(app: tauri::AppHandle) -> Result<EngineLanguages, String> {
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
 
-    let out = proc::run_with_timeout(&mut cmd, ENGINE_PROBE_TIMEOUT)
-        .map_err(|e| format!("{engine}: {e}"))?;
+    let out =
+        proc::run_with_timeout(&mut cmd, ENGINE_PROBE_TIMEOUT).map_err(|e| e.into_app(&engine))?;
     if !out.status.success() {
         // An older engine exits non-zero here. Not an error to show: it is
         // the "cannot be asked" case, which the frontend renders as unknown.
@@ -1966,7 +1968,9 @@ fn engine_languages(app: tauri::AppHandle) -> Result<EngineLanguages, String> {
     }
 
     let value: serde_json::Value = serde_json::from_slice(&out.stdout).map_err(|e| {
-        format!("{engine} answered --capabilities with something that is not JSON: {e}")
+        AppError::new("err.engine.notJson")
+            .with("program", &engine)
+            .detail(e)
     })?;
 
     // Absent field and unparseable field are both "cannot be asked". A
@@ -1986,10 +1990,10 @@ fn engine_languages(app: tauri::AppHandle) -> Result<EngineLanguages, String> {
 }
 
 #[tauri::command]
-fn set_engine(app: tauri::AppHandle, path: Option<String>) -> Result<EngineInfo, String> {
+fn set_engine(app: tauri::AppHandle, path: Option<String>) -> Result<EngineInfo, AppError> {
     if let Some(ref p) = path {
         if !Path::new(p).is_file() {
-            return Err(format!("{p} is not a file"));
+            return Err(AppError::new("err.path.notFile").with("path", p));
         }
     }
     with_workspace(&app, |ws| {
@@ -2000,10 +2004,10 @@ fn set_engine(app: tauri::AppHandle, path: Option<String>) -> Result<EngineInfo,
 }
 
 #[tauri::command]
-fn set_grammars(app: tauri::AppHandle, path: Option<String>) -> Result<EngineInfo, String> {
+fn set_grammars(app: tauri::AppHandle, path: Option<String>) -> Result<EngineInfo, AppError> {
     if let Some(ref p) = path {
         if !Path::new(p).is_dir() {
-            return Err(format!("{p} is not a directory"));
+            return Err(AppError::not_dir(p));
         }
     }
     with_workspace(&app, |ws| {
@@ -2062,7 +2066,7 @@ struct NvimInfo {
 }
 
 #[tauri::command]
-fn nvim_info(app: tauri::AppHandle) -> Result<NvimInfo, String> {
+fn nvim_info(app: tauri::AppHandle) -> Result<NvimInfo, AppError> {
     let ws = read_workspace(&app)?;
 
     let (path, from_path) = match ws.nvim_path.clone() {
@@ -2086,10 +2090,10 @@ fn nvim_info(app: tauri::AppHandle) -> Result<NvimInfo, String> {
 }
 
 #[tauri::command]
-fn set_nvim_path(app: tauri::AppHandle, path: Option<String>) -> Result<NvimInfo, String> {
+fn set_nvim_path(app: tauri::AppHandle, path: Option<String>) -> Result<NvimInfo, AppError> {
     if let Some(ref p) = path {
         if !Path::new(p).is_file() {
-            return Err(format!("{p} is not a file"));
+            return Err(AppError::new("err.path.notFile").with("path", p));
         }
     }
     with_workspace(&app, |ws| {
@@ -2100,10 +2104,10 @@ fn set_nvim_path(app: tauri::AppHandle, path: Option<String>) -> Result<NvimInfo
 }
 
 #[tauri::command]
-fn set_nvim_config_dir(app: tauri::AppHandle, path: Option<String>) -> Result<NvimInfo, String> {
+fn set_nvim_config_dir(app: tauri::AppHandle, path: Option<String>) -> Result<NvimInfo, AppError> {
     if let Some(ref p) = path {
         if !Path::new(p).is_dir() {
-            return Err(format!("{p} is not a directory"));
+            return Err(AppError::not_dir(p));
         }
     }
     with_workspace(&app, |ws| {
@@ -2130,8 +2134,17 @@ struct ImportResult {
     /// Newly added projects only — not ones that were already present.
     added: Vec<Project>,
     already_present: usize,
-    /// One line per entry that failed to add, name-prefixed.
-    errors: Vec<String>,
+    /// Every entry that failed to add: its name and why.
+    errors: Vec<ImportFailure>,
+}
+
+/// One entry of an import that could not be added. The error is an
+/// [`AppError`] like any command's, so a window that lists these can say why
+/// in its own language.
+#[derive(Debug, Serialize)]
+struct ImportFailure {
+    name: String,
+    error: AppError,
 }
 
 /// Import every enabled, locally-checked-out personal plugin from the
@@ -2151,24 +2164,19 @@ struct ImportResult {
 /// startup takes real time, and a command that blocks freezes the window
 /// it was invoked from.
 #[tauri::command]
-async fn import_from_nvim_config(app: tauri::AppHandle) -> Result<ImportResult, String> {
+async fn import_from_nvim_config(app: tauri::AppHandle) -> Result<ImportResult, AppError> {
     let info = nvim_info(app.clone())?;
-    let nvim_path = info.path.ok_or_else(|| {
-        "No nvim binary configured. Put it on PATH, or point at it in the sidebar.".to_string()
-    })?;
-    let config_dir = info.config_dir.ok_or_else(|| {
-        "No Neovim config directory configured, and none found at the default location.".to_string()
-    })?;
+    let nvim_path = info.path.ok_or_else(|| AppError::new("err.nvim.none"))?;
+    let config_dir = info
+        .config_dir
+        .ok_or_else(|| AppError::new("err.nvim.noConfig"))?;
 
     // Absolute path to the script rather than a relative one plus a
     // matching cwd: one fewer thing that can silently point at the wrong
     // directory.
     let script = format!("{config_dir}/scripts/docmap_projects.lua");
     if !Path::new(&script).is_file() {
-        return Err(format!(
-            "{script} does not exist. It ships with the nvim config's own \
-             plugins.personal.export -- see that repo's docs/HANDOVER.md."
-        ));
+        return Err(AppError::new("err.nvim.noScript").with("script", &script));
     }
 
     let out = tauri::async_runtime::spawn_blocking(move || {
@@ -2180,24 +2188,20 @@ async fn import_from_nvim_config(app: tauri::AppHandle) -> Result<ImportResult, 
             const CREATE_NO_WINDOW: u32 = 0x0800_0000;
             cmd.creation_flags(CREATE_NO_WINDOW);
         }
-        proc::run_with_timeout(&mut cmd, NVIM_TIMEOUT).map_err(|e| {
-            format!("{nvim_path}: {e} - does the Neovim configuration wait for input?")
-        })
+        proc::run_with_timeout(&mut cmd, NVIM_TIMEOUT).map_err(|e| e.into_nvim(&nvim_path))
     })
     .await
-    .map_err(|e| format!("import task failed: {e}"))??;
+    .map_err(AppError::task)??;
 
     if !out.status.success() {
-        return Err(format!(
-            "nvim exited with code {}: {}",
-            out.status.code().unwrap_or(-1),
-            String::from_utf8_lossy(&out.stderr).trim()
-        ));
+        return Err(AppError::new("err.nvim.exit")
+            .with("code", out.status.code().unwrap_or(-1))
+            .detail(String::from_utf8_lossy(&out.stderr)));
     }
 
     let stdout = String::from_utf8_lossy(&out.stdout);
     let found: Vec<NvimProjectEntry> = serde_json::from_str(stdout.trim())
-        .map_err(|e| format!("could not parse nvim's output as JSON: {e}\noutput was: {stdout}"))?;
+        .map_err(|e| AppError::new("err.nvim.notJson").detail(format!("{e}\n{stdout}")))?;
 
     let mut added = Vec::new();
     let mut already_present = 0usize;
@@ -2208,7 +2212,10 @@ async fn import_from_nvim_config(app: tauri::AppHandle) -> Result<ImportResult, 
             match add_one(ws, &entry.dir) {
                 Ok(Some(project)) => added.push(project),
                 Ok(None) => already_present += 1,
-                Err(e) => errors.push(format!("{}: {e}", entry.name)),
+                Err(error) => errors.push(ImportFailure {
+                    name: entry.name.clone(),
+                    error,
+                }),
             }
         }
         ws.projects.sort_by_key(|p| p.name.to_lowercase());
@@ -2288,7 +2295,7 @@ async fn generate(
     app: tauri::AppHandle,
     root: String,
     full: bool,
-) -> Result<GenerateResult, String> {
+) -> Result<GenerateResult, AppError> {
     // Read before `engine_info` consumes the handle, and before the move
     // into the blocking task: both need `app`, and the flags are a workspace
     // read rather than a process launch, so it costs nothing to do first.
@@ -2300,10 +2307,7 @@ async fn generate(
     // again. `||` rather than a branch, because there is no third answer.
     let full = full || flags.full;
     let info = engine_info(app)?;
-    let engine = info.path.ok_or_else(|| {
-        "No docmap engine configured. It is documentation.nvim's standalone binary —          put it on PATH, or point at it in the sidebar."
-            .to_string()
-    })?;
+    let engine = info.path.ok_or_else(|| AppError::new("err.engine.none"))?;
 
     tauri::async_runtime::spawn_blocking(move || {
         let mut cmd = generate_command(&engine, &root, full, &flags);
@@ -2317,9 +2321,11 @@ async fn generate(
             const CREATE_NO_WINDOW: u32 = 0x0800_0000;
             cmd.creation_flags(CREATE_NO_WINDOW);
         }
-        let out = cmd
-            .output()
-            .map_err(|e| format!("could not run {engine}: {e}"))?;
+        let out = cmd.output().map_err(|e| {
+            AppError::new("err.proc.run")
+                .with("program", &engine)
+                .detail(e)
+        })?;
         Ok(GenerateResult {
             ok: out.status.success(),
             code: out.status.code().unwrap_or(-1),
@@ -2328,7 +2334,7 @@ async fn generate(
         })
     })
     .await
-    .map_err(|e| format!("generation task failed: {e}"))?
+    .map_err(AppError::task)?
 }
 
 #[derive(Debug, Serialize)]
@@ -2365,7 +2371,7 @@ struct CheckResult {
 /// whether a function writes to somebody's repository is the kind of argument
 /// that eventually gets passed the wrong way round.
 #[tauri::command]
-async fn check_map(app: tauri::AppHandle, root: String) -> Result<CheckResult, String> {
+async fn check_map(app: tauri::AppHandle, root: String) -> Result<CheckResult, AppError> {
     // **The same settings as `generate`, and it has to be.** This command
     // answers "would regenerating change anything", and regenerating means
     // regenerating *with this project's settings*. Asking without them would
@@ -2379,10 +2385,7 @@ async fn check_map(app: tauri::AppHandle, root: String) -> Result<CheckResult, S
     let flags = project_flags(&app, &root);
     refuse_linked_output(&root, &flags)?;
     let info = engine_info(app)?;
-    let engine = info.path.ok_or_else(|| {
-        "No docmap engine configured. It is documentation.nvim's standalone binary —          put it on PATH, or point at it in the sidebar."
-            .to_string()
-    })?;
+    let engine = info.path.ok_or_else(|| AppError::new("err.engine.none"))?;
 
     tauri::async_runtime::spawn_blocking(move || {
         let mut cmd = std::process::Command::new(&engine);
@@ -2399,9 +2402,11 @@ async fn check_map(app: tauri::AppHandle, root: String) -> Result<CheckResult, S
             const CREATE_NO_WINDOW: u32 = 0x0800_0000;
             cmd.creation_flags(CREATE_NO_WINDOW);
         }
-        let out = cmd
-            .output()
-            .map_err(|e| format!("could not run {engine}: {e}"))?;
+        let out = cmd.output().map_err(|e| {
+            AppError::new("err.proc.run")
+                .with("program", &engine)
+                .detail(e)
+        })?;
         Ok(CheckResult {
             current: out.status.success(),
             code: out.status.code().unwrap_or(-1),
@@ -2410,7 +2415,7 @@ async fn check_map(app: tauri::AppHandle, root: String) -> Result<CheckResult, S
         })
     })
     .await
-    .map_err(|e| format!("check task failed: {e}"))?
+    .map_err(AppError::task)?
 }
 
 /// Serve one project's map over HTTP and return the URL to point the iframe
@@ -2422,13 +2427,13 @@ async fn check_map(app: tauri::AppHandle, root: String) -> Result<CheckResult, S
 /// `:DocMap serve` that would not have helped. See `server.rs`'s own header
 /// for why the asset protocol made that failure look like a working server.
 #[tauri::command]
-fn serve_project(app: tauri::AppHandle, id: String) -> Result<String, String> {
+fn serve_project(app: tauri::AppHandle, id: String) -> Result<String, AppError> {
     let ws = read_workspace(&app)?;
     let project = ws
         .projects
         .iter()
         .find(|p| p.id == id)
-        .ok_or_else(|| format!("no such project: {id}"))?;
+        .ok_or_else(|| AppError::no_project(&id))?;
 
     // Resolved per call rather than captured once at startup: the engine can
     // be located, or grammars pointed at, after the window is already open,
@@ -2491,18 +2496,18 @@ fn traffic_repo(root: &str, repo_url: Option<&str>, hidden: bool) -> Option<Stri
 /// `git remote get-url origin`, and a command that blocks freezes the window
 /// it was invoked from. Every later ask is a cache hit.
 #[tauri::command]
-async fn traffic_info(app: tauri::AppHandle, id: String) -> Result<traffic::Info, String> {
+async fn traffic_info(app: tauri::AppHandle, id: String) -> Result<traffic::Info, AppError> {
     let ws = read_workspace(&app)?;
     let sources = traffic_sources(&ws);
     let (root, repo_url, hidden) =
-        traffic_project(&ws, &id).ok_or_else(|| format!("no such project: {id}"))?;
+        traffic_project(&ws, &id).ok_or_else(|| AppError::no_project(&id))?;
 
     tauri::async_runtime::spawn_blocking(move || {
         let repo = traffic_repo(&root, repo_url.as_deref(), hidden);
         traffic::info_for(repo.as_deref(), hidden, &sources)
     })
     .await
-    .map_err(|e| format!("traffic task failed: {e}"))
+    .map_err(AppError::task)
 }
 
 /// The whole digest of one project, for the detail dialog: the daily series,
@@ -2516,11 +2521,11 @@ async fn traffic_info(app: tauri::AppHandle, id: String) -> Result<traffic::Info
 async fn traffic_detail(
     app: tauri::AppHandle,
     id: String,
-) -> Result<Option<traffic::Digest>, String> {
+) -> Result<Option<traffic::Digest>, AppError> {
     let ws = read_workspace(&app)?;
     let sources = traffic_sources(&ws);
     let (root, repo_url, hidden) =
-        traffic_project(&ws, &id).ok_or_else(|| format!("no such project: {id}"))?;
+        traffic_project(&ws, &id).ok_or_else(|| AppError::no_project(&id))?;
 
     tauri::async_runtime::spawn_blocking(move || {
         let repo = traffic_repo(&root, repo_url.as_deref(), hidden);
@@ -2538,7 +2543,7 @@ async fn traffic_detail(
         digest
     })
     .await
-    .map_err(|e| format!("traffic task failed: {e}"))
+    .map_err(AppError::task)
 }
 
 /// Every listed project's traffic numbers in one call — what the sort order
@@ -2548,7 +2553,7 @@ async fn traffic_detail(
 async fn traffic_list(
     app: tauri::AppHandle,
     ids: Vec<String>,
-) -> Result<Vec<traffic::ListEntry>, String> {
+) -> Result<Vec<traffic::ListEntry>, AppError> {
     let ws = read_workspace(&app)?;
     let sources = traffic_sources(&ws);
     let wanted: Vec<(String, TrafficProject)> = ids
@@ -2569,13 +2574,13 @@ async fn traffic_list(
             .collect()
     })
     .await
-    .map_err(|e| format!("traffic task failed: {e}"))
+    .map_err(AppError::task)
 }
 
 /// What the Settings panel shows: the chosen folder, the answer Neovim gave,
 /// and what the discovery chain found (or why not).
 #[tauri::command]
-fn traffic_settings(app: tauri::AppHandle) -> Result<traffic::Survey, String> {
+fn traffic_settings(app: tauri::AppHandle) -> Result<traffic::Survey, AppError> {
     let ws = read_workspace(&app)?;
     Ok(traffic::survey(&traffic_sources(&ws)))
 }
@@ -2586,11 +2591,14 @@ fn traffic_settings(app: tauri::AppHandle) -> Result<traffic::Survey, String> {
 /// scope (`capabilities/default.json`): the webview asks for numbers through
 /// the commands above and never gets a path it could read on its own.
 #[tauri::command]
-fn traffic_set_dir(app: tauri::AppHandle, path: Option<String>) -> Result<traffic::Survey, String> {
+fn traffic_set_dir(
+    app: tauri::AppHandle,
+    path: Option<String>,
+) -> Result<traffic::Survey, AppError> {
     let path = text(path);
     if let Some(ref p) = path {
         if !Path::new(p).is_dir() {
-            return Err(format!("{p} is not a folder"));
+            return Err(AppError::not_dir(p));
         }
     }
     with_workspace(&app, |ws| {
@@ -2609,11 +2617,9 @@ fn traffic_set_dir(app: tauri::AppHandle, path: Option<String>) -> Result<traffi
 /// the *loaded plugin* rather than reading the path out of the user's
 /// installation spec, which is Lua code (`opts` may be a function).
 #[tauri::command]
-async fn traffic_ask_neovim(app: tauri::AppHandle) -> Result<traffic::Survey, String> {
+async fn traffic_ask_neovim(app: tauri::AppHandle) -> Result<traffic::Survey, AppError> {
     let info = nvim_info(app.clone())?;
-    let nvim = info.path.ok_or_else(|| {
-        "No nvim binary configured. Put it on PATH, or point at it in Settings.".to_string()
-    })?;
+    let nvim = info.path.ok_or_else(|| AppError::new("err.nvim.none"))?;
 
     let out = tauri::async_runtime::spawn_blocking(move || {
         let mut cmd = std::process::Command::new(&nvim);
@@ -2624,24 +2630,15 @@ async fn traffic_ask_neovim(app: tauri::AppHandle) -> Result<traffic::Survey, St
             const CREATE_NO_WINDOW: u32 = 0x0800_0000;
             cmd.creation_flags(CREATE_NO_WINDOW);
         }
-        proc::run_with_timeout(&mut cmd, traffic::ASK_TIMEOUT)
-            .map_err(|e| format!("{nvim}: {e} - does the Neovim configuration wait for input?"))
+        proc::run_with_timeout(&mut cmd, traffic::ASK_TIMEOUT).map_err(|e| e.into_nvim(&nvim))
     })
     .await
-    .map_err(|e| format!("traffic task failed: {e}"))??;
+    .map_err(AppError::task)??;
 
     // `io.write` reaches stdout; a config's own startup noise may share it,
     // which is why the answer sits between markers.
     let stdout = String::from_utf8_lossy(&out.stdout);
-    let dir = traffic::parse_asked(&stdout).map_err(|e| {
-        let stderr = String::from_utf8_lossy(&out.stderr);
-        let stderr = stderr.trim();
-        if stderr.is_empty() {
-            e
-        } else {
-            format!("{e} ({stderr})")
-        }
-    })?;
+    let dir = traffic::parse_asked(&stdout, &String::from_utf8_lossy(&out.stderr))?;
 
     with_workspace(&app, |ws| {
         ws.traffic_asked_dir = Some(dir.clone());
@@ -2656,13 +2653,13 @@ async fn traffic_ask_neovim(app: tauri::AppHandle) -> Result<traffic::Survey, St
 /// Off means nothing is read, resolved or shown for it — including not the
 /// `git` process that would find its remote.
 #[tauri::command]
-fn traffic_set_hidden(app: tauri::AppHandle, id: String, hidden: bool) -> Result<(), String> {
+fn traffic_set_hidden(app: tauri::AppHandle, id: String, hidden: bool) -> Result<(), AppError> {
     with_workspace(&app, |ws| {
         let project = ws
             .projects
             .iter_mut()
             .find(|p| p.id == id)
-            .ok_or_else(|| format!("no such project: {id}"))?;
+            .ok_or_else(|| AppError::no_project(&id))?;
         project.traffic_hidden = hidden;
         Ok(())
     })
@@ -2683,8 +2680,12 @@ fn traffic_refresh() {
 /// window it would land wherever the webview decided, which is the reason
 /// this route exists at all.
 #[tauri::command]
-fn save_text(path: String, contents: String) -> Result<(), String> {
-    fs::write(&path, contents).map_err(|e| format!("could not write {path}: {e}"))
+fn save_text(path: String, contents: String) -> Result<(), AppError> {
+    fs::write(&path, contents).map_err(|e| {
+        AppError::new("err.path.write")
+            .with("path", &path)
+            .detail(e)
+    })
 }
 
 /// Neovim's own cache root, asked of Neovim.
@@ -2732,9 +2733,8 @@ fn nvim_cache_root(app: &tauri::AppHandle) -> Option<String> {
 /// plugin name — see `telemetry.rs` on why that is reported rather than
 /// assumed to line up.
 #[tauri::command]
-fn telemetry_info(app: tauri::AppHandle, namespace: String) -> Result<telemetry::Info, String> {
-    let root = nvim_cache_root(&app)
-        .ok_or_else(|| "No nvim to ask for its cache directory.".to_string())?;
+fn telemetry_info(app: tauri::AppHandle, namespace: String) -> Result<telemetry::Info, AppError> {
+    let root = nvim_cache_root(&app).ok_or_else(|| AppError::new("err.nvim.noCache"))?;
     Ok(telemetry::info(&root, &namespace))
 }
 
@@ -2752,13 +2752,12 @@ async fn set_telemetry(
     app: tauri::AppHandle,
     namespace: String,
     enabled: bool,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let info = nvim_info(app)?;
-    let nvim = info
-        .path
-        .ok_or_else(|| "No nvim binary configured.".to_string())?;
+    let nvim = info.path.ok_or_else(|| AppError::new("err.nvim.none"))?;
     let verb = if enabled { "enable" } else { "disable" };
     let arg = format!("RATelemetry {verb} {namespace}");
+    let failed = AppError::new("err.telemetry.failed").with("namespace", &namespace);
 
     let out = tauri::async_runtime::spawn_blocking(move || {
         let mut cmd = std::process::Command::new(&nvim);
@@ -2769,18 +2768,17 @@ async fn set_telemetry(
             const CREATE_NO_WINDOW: u32 = 0x0800_0000;
             cmd.creation_flags(CREATE_NO_WINDOW);
         }
-        proc::run_with_timeout(&mut cmd, NVIM_TIMEOUT)
-            .map_err(|e| format!("{nvim}: {e} - does the Neovim configuration wait for input?"))
+        proc::run_with_timeout(&mut cmd, NVIM_TIMEOUT).map_err(|e| e.into_nvim(&nvim))
     })
     .await
-    .map_err(|e| format!("telemetry task failed: {e}"))??;
+    .map_err(AppError::task)??;
 
     if out.status.success() {
         Ok(())
     } else {
         // The plugin's own message, verbatim: it knows why better than a
         // sentence written here could guess.
-        Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+        Err(failed.detail(String::from_utf8_lossy(&out.stderr)))
     }
 }
 
@@ -2800,7 +2798,7 @@ async fn set_telemetry(
 ///
 /// An empty `rel` is the root itself, which is what a folder search over the
 /// whole project asks for.
-pub(crate) fn resolve_inside(root: &Path, rel: &str) -> Result<PathBuf, String> {
+pub(crate) fn resolve_inside(root: &Path, rel: &str) -> Result<PathBuf, AppError> {
     let mut steps = WALK_STEPS;
     resolve_inside_budgeted(root, rel, &mut steps)
 }
@@ -2818,23 +2816,23 @@ pub(crate) fn resolve_inside_budgeted(
     root: &Path,
     rel: &str,
     steps: &mut u32,
-) -> Result<PathBuf, String> {
+) -> Result<PathBuf, AppError> {
     #[cfg(not(windows))]
     let _ = &steps;
     if rel.contains('\0') {
-        return Err("a path cannot contain a NUL".to_string());
+        return Err(AppError::new("err.path.nul"));
     }
     // No path the OS accepts is longer, and `rel` can come out of a repository's
     // manifest at up to a megabyte.
     if rel.len() > MAX_REL_LEN {
-        return Err("that path is too long".to_string());
+        return Err(AppError::new("err.path.tooLong"));
     }
     let relative = Path::new(rel);
     if relative
         .components()
         .any(|c| matches!(c, Component::Prefix(_) | Component::RootDir))
     {
-        return Err(format!("{rel} is not a path inside the project"));
+        return Err(path_key("err.path.notInside", rel));
     }
     // Collapsed lexically, once, and *this* is the path that is examined and
     // then opened. `Path::join` on a verbatim (`\\?\`) root drops `.` and `..`
@@ -2854,7 +2852,7 @@ pub(crate) fn resolve_inside_budgeted(
             Component::CurDir => {}
             Component::ParentDir => {
                 if depth == 0 {
-                    return Err(format!("{rel} resolves outside the project"));
+                    return Err(path_key("err.path.outside", rel));
                 }
                 collapsed.pop();
                 depth -= 1;
@@ -2865,14 +2863,14 @@ pub(crate) fn resolve_inside_budgeted(
                 // examined is a drive-relative path against the process's
                 // current directory, not a path under the root.
                 if reparsed_by_push(name) {
-                    return Err(format!("{rel} is not a path inside the project"));
+                    return Err(path_key("err.path.notInside", rel));
                 }
                 // The root is a canonical, verbatim path, so `evil.` is looked
                 // at as itself here; handed on without the prefix (as the
                 // icon path is, to the asset protocol, and the editor's) Win32
                 // reads it as `evil` - through a link, if there is one beside it.
                 if crate::languages::win32_rewrites_name(name) {
-                    return Err(format!("{rel} is not a path inside the project"));
+                    return Err(path_key("err.path.notInside", rel));
                 }
                 collapsed.push(name);
                 depth += 1;
@@ -2880,11 +2878,11 @@ pub(crate) fn resolve_inside_budgeted(
                 // the whole prefix, so a path of thousands of real levels is
                 // quadratic work in the kernel. No project has one.
                 if depth > MAX_REL_COMPONENTS {
-                    return Err("that path is too long".to_string());
+                    return Err(AppError::new("err.path.tooLong"));
                 }
             }
             Component::Prefix(_) | Component::RootDir => {
-                return Err(format!("{rel} is not a path inside the project"));
+                return Err(path_key("err.path.notInside", rel));
             }
         }
     }
@@ -2896,26 +2894,18 @@ pub(crate) fn resolve_inside_budgeted(
     // Whatever else went wrong above, nothing past this point looks at a path
     // that is not under the root.
     if !clean.starts_with(root) {
-        return Err(format!("{rel} resolves outside the project"));
+        return Err(path_key("err.path.outside", rel));
     }
     #[cfg(windows)]
     match links_to_network(&clean, root.components().count(), &mut 16, steps) {
         LinkWalk::Local => {}
-        LinkWalk::Network => return Err(format!("{rel} goes through a link to another machine")),
-        LinkWalk::TooDeep => {
-            return Err(format!(
-                "{rel} goes through too many links (or a link loop, or a very deep path)"
-            ))
-        }
-        LinkWalk::Unusable => {
-            return Err(format!(
-                "{rel} goes through a link that cannot be followed safely"
-            ))
-        }
+        LinkWalk::Network => return Err(path_key("err.path.network", rel)),
+        LinkWalk::TooDeep => return Err(path_key("err.path.tooManyLinks", rel)),
+        LinkWalk::Unusable => return Err(path_key("err.path.unsafeLink", rel)),
     }
-    let target = fs::canonicalize(&clean).map_err(|_| format!("{rel} is not in this project"))?;
+    let target = fs::canonicalize(&clean).map_err(|_| path_key("err.path.missing", rel))?;
     if !target.starts_with(root) {
-        return Err(format!("{rel} resolves outside the project"));
+        return Err(path_key("err.path.outside", rel));
     }
     // What is handed on is the result, and a link can have led it through a
     // name Win32 reads as another (`a/l -> evil./f`): the check on `rel` does not
@@ -2925,7 +2915,7 @@ pub(crate) fn resolve_inside_budgeted(
             .components()
             .any(|c| matches!(c, Component::Normal(n) if crate::languages::win32_rewrites_name(n)))
     }) {
-        return Err(format!("{rel} is not a path inside the project"));
+        return Err(path_key("err.path.notInside", rel));
     }
     Ok(target)
 }
@@ -3332,7 +3322,7 @@ fn is_inert_document(path: &Path) -> bool {
 }
 
 /// Show `native` in the desktop's file manager instead of opening it.
-fn reveal_in_file_manager(native: &str) -> Result<(), String> {
+fn reveal_in_file_manager(native: &str) -> Result<(), AppError> {
     #[cfg(target_os = "windows")]
     let mut cmd = {
         use std::os::windows::process::CommandExt;
@@ -3361,9 +3351,11 @@ fn reveal_in_file_manager(native: &str) -> Result<(), String> {
         c
     };
 
-    cmd.spawn()
-        .map(|_| ())
-        .map_err(|e| format!("could not show {native}: {e}"))
+    cmd.spawn().map(|_| ()).map_err(|e| {
+        AppError::new("err.open.reveal")
+            .with("path", native)
+            .detail(e)
+    })
 }
 
 /// Open a source file in an editor, at a line where one is known.
@@ -3383,18 +3375,21 @@ fn open_in_editor(
     id: String,
     path: String,
     line: Option<u64>,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let ws = read_workspace(&app)?;
     let project = ws
         .projects
         .iter()
         .find(|p| p.id == id)
-        .ok_or_else(|| format!("no such project: {id}"))?;
+        .ok_or_else(|| AppError::no_project(&id))?;
 
-    let root = fs::canonicalize(&project.root)
-        .map_err(|e| format!("cannot resolve {}: {e}", project.root))?;
+    let root = fs::canonicalize(&project.root).map_err(|e| {
+        AppError::new("err.path.resolve")
+            .with("path", &project.root)
+            .detail(e)
+    })?;
     if path.trim().is_empty() {
-        return Err("no file was named".to_string());
+        return Err(AppError::new("err.editor.noFile"));
     }
     let target = resolve_inside(&root, &path)?;
     let file = portable(&target);
@@ -3423,7 +3418,7 @@ fn open_in_editor(
     });
     let program = parts
         .next()
-        .ok_or_else(|| "the editor command is empty".to_string())?;
+        .ok_or_else(|| AppError::new("err.editor.empty"))?;
     let args: Vec<String> = parts.collect();
 
     let mut cmd = std::process::Command::new(&program);
@@ -3434,14 +3429,16 @@ fn open_in_editor(
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
-    cmd.spawn()
-        .map(|_| ())
-        .map_err(|e| format!("could not run {program}: {e}"))
+    cmd.spawn().map(|_| ()).map_err(|e| {
+        AppError::new("err.proc.run")
+            .with("program", &program)
+            .detail(e)
+    })
 }
 
 /// Read or set the editor command template.
 #[tauri::command]
-fn editor_command(app: tauri::AppHandle, set: Option<String>) -> Result<Option<String>, String> {
+fn editor_command(app: tauri::AppHandle, set: Option<String>) -> Result<Option<String>, AppError> {
     if let Some(value) = set {
         let trimmed = value.trim().to_string();
         return with_workspace(&app, |ws| {
@@ -3469,7 +3466,7 @@ struct WorkspaceEntry {
 /// The count is what makes the dashboard worth looking at — a list of
 /// names says nothing about which one you meant.
 #[tauri::command]
-fn list_workspaces(app: tauri::AppHandle) -> Result<Vec<WorkspaceEntry>, String> {
+fn list_workspaces(app: tauri::AppHandle) -> Result<Vec<WorkspaceEntry>, AppError> {
     let active = read_settings(&app)?
         .active
         .unwrap_or_else(|| DEFAULT_WORKSPACE.to_string());
@@ -3501,11 +3498,11 @@ fn list_workspaces(app: tauri::AppHandle) -> Result<Vec<WorkspaceEntry>, String>
 /// the dashboard's point of view, and a "create" that then needs a
 /// "switch" is two clicks for one intention.
 #[tauri::command]
-fn switch_workspace(app: tauri::AppHandle, name: String) -> Result<Vec<Project>, String> {
+fn switch_workspace(app: tauri::AppHandle, name: String) -> Result<Vec<Project>, AppError> {
     let clean = workspace_file_name(&name);
     let _guard = WORKSPACE_LOCK
         .lock()
-        .map_err(|_| "workspace lock poisoned".to_string())?;
+        .map_err(|_| AppError::new("err.lock"))?;
 
     // The current list is already on disk under its own name; only the
     // pointer moves.
@@ -3513,16 +3510,15 @@ fn switch_workspace(app: tauri::AppHandle, name: String) -> Result<Vec<Project>,
     settings.active = Some(clean.clone());
     settings.projects = Vec::new();
     let path = workspace_path(&app)?;
-    let body =
-        serde_json::to_string_pretty(&settings).map_err(|e| format!("cannot serialise: {e}"))?;
-    write_atomic(&path, body).map_err(|e| format!("cannot write {}: {e}", path.display()))?;
+    let body = serde_json::to_string_pretty(&settings)
+        .map_err(|e| AppError::new("err.workspace.serialise").detail(e))?;
+    write_atomic(&path, body).map_err(|e| path_err("err.path.write", &path, e))?;
 
     // A workspace that has never been written yet is an empty one, and an
     // empty file now is what makes it appear in the list.
     let list_path = workspace_projects_path(&app, &clean)?;
     if !list_path.is_file() {
-        fs::write(&list_path, "[]")
-            .map_err(|e| format!("cannot write {}: {e}", list_path.display()))?;
+        fs::write(&list_path, "[]").map_err(|e| path_err("err.path.write", &list_path, e))?;
     }
     drop(_guard);
     Ok(read_workspace(&app)?.projects)
@@ -3530,7 +3526,7 @@ fn switch_workspace(app: tauri::AppHandle, name: String) -> Result<Vec<Project>,
 
 /// Rename a workspace, moving its project list with it.
 #[tauri::command]
-fn rename_workspace(app: tauri::AppHandle, from: String, to: String) -> Result<(), String> {
+fn rename_workspace(app: tauri::AppHandle, from: String, to: String) -> Result<(), AppError> {
     let from_clean = workspace_file_name(&from);
     let to_clean = workspace_file_name(&to);
     if from_clean == to_clean {
@@ -3539,9 +3535,14 @@ fn rename_workspace(app: tauri::AppHandle, from: String, to: String) -> Result<(
     let src = workspace_projects_path(&app, &from_clean)?;
     let dst = workspace_projects_path(&app, &to_clean)?;
     if dst.is_file() {
-        return Err(format!("{to_clean} already exists"));
+        return Err(AppError::new("err.workspace.exists").with("name", &to_clean));
     }
-    fs::rename(&src, &dst).map_err(|e| format!("cannot rename: {e}"))?;
+    fs::rename(&src, &dst).map_err(|e| {
+        AppError::new("err.path.rename")
+            .with("from", src.display())
+            .with("to", dst.display())
+            .detail(e)
+    })?;
 
     let mut settings = read_settings(&app)?;
     if settings.active.as_deref() == Some(from_clean.as_str()) {
@@ -3549,9 +3550,9 @@ fn rename_workspace(app: tauri::AppHandle, from: String, to: String) -> Result<(
     }
     settings.projects = Vec::new();
     let path = workspace_path(&app)?;
-    let body =
-        serde_json::to_string_pretty(&settings).map_err(|e| format!("cannot serialise: {e}"))?;
-    write_atomic(&path, body).map_err(|e| format!("cannot write {}: {e}", path.display()))
+    let body = serde_json::to_string_pretty(&settings)
+        .map_err(|e| AppError::new("err.workspace.serialise").detail(e))?;
+    write_atomic(&path, body).map_err(|e| path_err("err.path.write", &path, e))
 }
 
 /// Delete a workspace.
@@ -3564,13 +3565,13 @@ fn rename_workspace(app: tauri::AppHandle, from: String, to: String) -> Result<(
 /// put the next project, and "delete everything" is not what somebody
 /// pressing delete on one row meant.
 #[tauri::command]
-fn delete_workspace(app: tauri::AppHandle, name: String) -> Result<Vec<WorkspaceEntry>, String> {
+fn delete_workspace(app: tauri::AppHandle, name: String) -> Result<Vec<WorkspaceEntry>, AppError> {
     let clean = workspace_file_name(&name);
     if workspace_names(&app)?.len() <= 1 {
-        return Err("the last workspace cannot be deleted".to_string());
+        return Err(AppError::new("err.workspace.last"));
     }
     let path = workspace_projects_path(&app, &clean)?;
-    fs::remove_file(&path).map_err(|e| format!("cannot delete {}: {e}", path.display()))?;
+    fs::remove_file(&path).map_err(|e| path_err("err.path.delete", &path, e))?;
 
     let mut settings = read_settings(&app)?;
     if settings.active.as_deref() == Some(clean.as_str()) {
@@ -3580,10 +3581,10 @@ fn delete_workspace(app: tauri::AppHandle, name: String) -> Result<Vec<Workspace
     }
     settings.projects = Vec::new();
     let settings_path = workspace_path(&app)?;
-    let body =
-        serde_json::to_string_pretty(&settings).map_err(|e| format!("cannot serialise: {e}"))?;
+    let body = serde_json::to_string_pretty(&settings)
+        .map_err(|e| AppError::new("err.workspace.serialise").detail(e))?;
     write_atomic(&settings_path, body)
-        .map_err(|e| format!("cannot write {}: {e}", settings_path.display()))?;
+        .map_err(|e| path_err("err.path.write", &settings_path, e))?;
 
     list_workspaces(app)
 }
@@ -3594,13 +3595,17 @@ fn delete_workspace(app: tauri::AppHandle, name: String) -> Result<Vec<Workspace
 /// reader opens perhaps a dozen directories. See `filetree.rs` on why this
 /// is read live here rather than collected into the artifact.
 #[tauri::command(async)]
-fn file_tree(app: tauri::AppHandle, id: String, sub: String) -> Result<filetree::Listing, String> {
+fn file_tree(
+    app: tauri::AppHandle,
+    id: String,
+    sub: String,
+) -> Result<filetree::Listing, AppError> {
     let ws = read_workspace(&app)?;
     let project = ws
         .projects
         .iter()
         .find(|p| p.id == id)
-        .ok_or_else(|| format!("no such project: {id}"))?;
+        .ok_or_else(|| AppError::no_project(&id))?;
     filetree::list(Path::new(&project.root), &sub)
 }
 
@@ -3609,13 +3614,13 @@ fn file_tree(app: tauri::AppHandle, id: String, sub: String) -> Result<filetree:
 /// failure — see `icon.rs` on why nothing is shown instead of a
 /// placeholder.
 #[tauri::command(async)]
-fn project_icon(app: tauri::AppHandle, id: String) -> Result<Option<String>, String> {
+fn project_icon(app: tauri::AppHandle, id: String) -> Result<Option<String>, AppError> {
     let ws = read_workspace(&app)?;
     let project = ws
         .projects
         .iter()
         .find(|p| p.id == id)
-        .ok_or_else(|| format!("no such project: {id}"))?;
+        .ok_or_else(|| AppError::no_project(&id))?;
     Ok(icon::find(Path::new(&project.root)).map(|p| portable(&p)))
 }
 
@@ -3625,13 +3630,13 @@ fn project_icon(app: tauri::AppHandle, id: String) -> Result<Option<String>, Str
 /// answer is "something was touched since", never "the map is wrong". See
 /// `freshness.rs` on why the wording of the mark follows from that.
 #[tauri::command(async)]
-fn map_freshness(app: tauri::AppHandle, id: String) -> Result<freshness::Freshness, String> {
+fn map_freshness(app: tauri::AppHandle, id: String) -> Result<freshness::Freshness, AppError> {
     let ws = read_workspace(&app)?;
     let project = ws
         .projects
         .iter()
         .find(|p| p.id == id)
-        .ok_or_else(|| format!("no such project: {id}"))?;
+        .ok_or_else(|| AppError::no_project(&id))?;
     freshness::check(Path::new(&project.root), Path::new(&project.map_dir))
 }
 
@@ -3643,13 +3648,13 @@ fn map_changes(
     app: tauri::AppHandle,
     id: String,
     limit: usize,
-) -> Result<freshness::Changes, String> {
+) -> Result<freshness::Changes, AppError> {
     let ws = read_workspace(&app)?;
     let project = ws
         .projects
         .iter()
         .find(|p| p.id == id)
-        .ok_or_else(|| format!("no such project: {id}"))?;
+        .ok_or_else(|| AppError::no_project(&id))?;
     freshness::changed_since_map(
         Path::new(&project.root),
         Path::new(&project.map_dir),
@@ -3661,13 +3666,13 @@ fn map_changes(
 /// lines split into code, comments, documentation and data. Walks and reads
 /// every file, so it is asked for, never shown by default. See `stats.rs`.
 #[tauri::command]
-async fn project_stats(app: tauri::AppHandle, id: String) -> Result<stats::Stats, String> {
+async fn project_stats(app: tauri::AppHandle, id: String) -> Result<stats::Stats, AppError> {
     let ws = read_workspace(&app)?;
     let project = ws
         .projects
         .iter()
         .find(|p| p.id == id)
-        .ok_or_else(|| format!("no such project: {id}"))?
+        .ok_or_else(|| AppError::no_project(&id))?
         .clone();
     // Off the main thread: opening forty thousand files is not something the
     // window should wait for in place.
@@ -3675,7 +3680,7 @@ async fn project_stats(app: tauri::AppHandle, id: String) -> Result<stats::Stats
         stats::collect(Path::new(&project.root), Path::new(&project.map_dir))
     })
     .await
-    .map_err(|e| e.to_string())?
+    .map_err(AppError::task)?
 }
 
 /// A folder search: text in files (`mode` `"text"`) or file names (`"files"`).
@@ -3693,18 +3698,22 @@ async fn project_search(
     query: String,
     mode: String,
     case_sensitive: bool,
-) -> Result<search::Results, String> {
+) -> Result<search::Results, AppError> {
     let ws = read_workspace(&app)?;
     let project = ws
         .projects
         .iter()
         .find(|p| p.id == id)
-        .ok_or_else(|| format!("no such project: {id}"))?
+        .ok_or_else(|| AppError::no_project(&id))?
         .clone();
-    let mode = search::Mode::parse(&mode).ok_or_else(|| format!("unknown search mode: {mode}"))?;
+    let mode = search::Mode::parse(&mode)
+        .ok_or_else(|| AppError::new("err.search.mode").with("mode", &mode))?;
 
-    let root = fs::canonicalize(&project.root)
-        .map_err(|e| format!("cannot resolve {}: {e}", project.root))?;
+    let root = fs::canonicalize(&project.root).map_err(|e| {
+        AppError::new("err.path.resolve")
+            .with("path", &project.root)
+            .detail(e)
+    })?;
     let scope = resolve_inside(&root, sub.trim_matches('/'))?;
     // The map directory, canonicalised the same way, so the comparison the
     // walk makes is between paths of one shape.
@@ -3719,7 +3728,7 @@ async fn project_search(
         search::run(&root, &scope, &map_dir, &query, mode, case_sensitive, 300)
     })
     .await
-    .map_err(|e| e.to_string())?
+    .map_err(AppError::task)?
 }
 
 /// Search what the map shows — see `search::view`.
@@ -3728,13 +3737,13 @@ fn view_search(
     app: tauri::AppHandle,
     id: String,
     query: String,
-) -> Result<search::ViewResults, String> {
+) -> Result<search::ViewResults, AppError> {
     let ws = read_workspace(&app)?;
     let project = ws
         .projects
         .iter()
         .find(|p| p.id == id)
-        .ok_or_else(|| format!("no such project: {id}"))?;
+        .ok_or_else(|| AppError::no_project(&id))?;
     // The map file itself, not just its directory: see `map_file`.
     let Some(map_json) = map_file(
         Path::new(&project.root),
@@ -3759,7 +3768,7 @@ fn view_search(
 /// the extension point, and this is the first consumer of it that is not the
 /// engine itself.
 #[tauri::command(async)]
-fn workspace_deps(app: tauri::AppHandle) -> Result<deps::Deps, String> {
+fn workspace_deps(app: tauri::AppHandle) -> Result<deps::Deps, AppError> {
     let ws = read_workspace(&app)?;
     let list: Vec<(String, Option<PathBuf>)> = ws
         .projects
@@ -3806,7 +3815,7 @@ fn windows_open_command(target: &str) -> std::process::Command {
     c
 }
 
-fn open_externally(target: &str) -> Result<(), String> {
+fn open_externally(target: &str) -> Result<(), AppError> {
     #[cfg(target_os = "windows")]
     let mut cmd = windows_open_command(target);
     #[cfg(target_os = "macos")]
@@ -3822,9 +3831,11 @@ fn open_externally(target: &str) -> Result<(), String> {
         c
     };
 
-    cmd.spawn()
-        .map(|_| ())
-        .map_err(|e| format!("could not open {target}: {e}"))
+    cmd.spawn().map(|_| ()).map_err(|e| {
+        AppError::new("err.open.failed")
+            .with("target", target)
+            .detail(e)
+    })
 }
 
 /// Open a project's map in the system browser.
@@ -3834,7 +3845,7 @@ fn open_externally(target: &str) -> Result<(), String> {
 /// opening it off disk applies a different origin policy than the one it
 /// was tested under. Same page, same server, second window.
 #[tauri::command]
-fn open_map_in_browser(app: tauri::AppHandle, id: String) -> Result<String, String> {
+fn open_map_in_browser(app: tauri::AppHandle, id: String) -> Result<String, AppError> {
     let url = serve_project(app, id)?;
     open_externally(&url)?;
     Ok(url)
@@ -3847,14 +3858,14 @@ fn open_map_in_browser(app: tauri::AppHandle, id: String) -> Result<String, Stri
 /// turns into a browser opening an arbitrary address, which is what a
 /// generic `open_url` command would be.
 #[tauri::command]
-fn open_docs(page: String) -> Result<(), String> {
+fn open_docs(page: String) -> Result<(), AppError> {
     const BASE: &str = "https://github.com/StefanBartl/docmap-desktop/blob/main/docs/";
     let target = match page.as_str() {
         "usage" => format!("{BASE}USAGE.md"),
         // The single most common confusion this app produces: that the
         // engine is a separate program this is a window onto.
         "engine" => format!("{BASE}USAGE.md#the-engine-indicator"),
-        other => return Err(format!("no such documentation page: {other}")),
+        other => return Err(AppError::new("err.docs.page").with("page", other)),
     };
     open_externally(&target)
 }
@@ -3865,13 +3876,13 @@ fn open_docs(page: String) -> Result<(), String> {
 /// tooltip. The repository root, not the map directory: the map is an
 /// output, and the question is about the project.
 #[tauri::command]
-fn reveal_project(app: tauri::AppHandle, id: String) -> Result<(), String> {
+fn reveal_project(app: tauri::AppHandle, id: String) -> Result<(), AppError> {
     let ws = read_workspace(&app)?;
     let project = ws
         .projects
         .iter()
         .find(|p| p.id == id)
-        .ok_or_else(|| format!("no such project: {id}"))?;
+        .ok_or_else(|| AppError::no_project(&id))?;
     open_externally(&native_str(&project.root))
 }
 
@@ -3882,12 +3893,12 @@ fn reveal_project(app: tauri::AppHandle, id: String) -> Result<(), String> {
 /// rather than printed — a path in a dialog is a path somebody has to
 /// retype.
 #[tauri::command]
-fn reveal_settings(app: tauri::AppHandle) -> Result<(), String> {
+fn reveal_settings(app: tauri::AppHandle) -> Result<(), AppError> {
     let dir = app
         .path()
         .app_config_dir()
-        .map_err(|e| format!("no config directory: {e}"))?;
-    fs::create_dir_all(&dir).map_err(|e| format!("cannot create {}: {e}", dir.display()))?;
+        .map_err(|e| AppError::new("err.config.noDir").detail(e))?;
+    fs::create_dir_all(&dir).map_err(|e| path_err("err.path.create", &dir, e))?;
     open_externally(&dir.to_string_lossy())
 }
 
@@ -3906,11 +3917,11 @@ fn open_feedback(
     topic: String,
     title: String,
     body: String,
-) -> Result<String, String> {
+) -> Result<String, AppError> {
     let repo = match repo.as_str() {
         "desktop" => "docmap-desktop",
         "engine" => "documentation.nvim",
-        other => return Err(format!("no such repository: {other}")),
+        other => return Err(AppError::new("err.feedback.repo").with("repo", other)),
     };
     let url = feedback::url(repo, &topic, &title, &body)?;
     open_externally(&url)?;
@@ -3958,11 +3969,13 @@ struct AboutInfo {
 /// and not `allow-set-title`. Widening the webview's own permissions for
 /// this would be a larger grant than the one thing needed.
 #[tauri::command]
-fn set_window_title(app: tauri::AppHandle, title: String) -> Result<(), String> {
+fn set_window_title(app: tauri::AppHandle, title: String) -> Result<(), AppError> {
     let window = app
         .get_webview_window("main")
-        .ok_or_else(|| "no main window".to_string())?;
-    window.set_title(&title).map_err(|e| e.to_string())
+        .ok_or_else(|| AppError::new("err.window.none"))?;
+    window
+        .set_title(&title)
+        .map_err(|e| AppError::new("err.window.failed").detail(e))
 }
 
 /// Set the window's zoom factor.
@@ -3975,12 +3988,14 @@ fn set_window_title(app: tauri::AppHandle, title: String) -> Result<(), String> 
 /// Clamped here rather than in the frontend because this is the side that
 /// has to survive being asked for zero.
 #[tauri::command]
-fn set_zoom(app: tauri::AppHandle, factor: f64) -> Result<f64, String> {
+fn set_zoom(app: tauri::AppHandle, factor: f64) -> Result<f64, AppError> {
     let factor = factor.clamp(0.5, 3.0);
     let window = app
         .get_webview_window("main")
-        .ok_or_else(|| "no main window".to_string())?;
-    window.set_zoom(factor).map_err(|e| e.to_string())?;
+        .ok_or_else(|| AppError::new("err.window.none"))?;
+    window
+        .set_zoom(factor)
+        .map_err(|e| AppError::new("err.window.failed").detail(e))?;
     Ok(factor)
 }
 
@@ -3996,9 +4011,10 @@ fn set_menu(
     labels: HashMap<String, String>,
     has_project: bool,
     state: menu::ViewState,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let built = menu::build(&app, &labels, has_project, &state)?;
-    app.set_menu(built).map_err(|e| e.to_string())?;
+    app.set_menu(built)
+        .map_err(|e| AppError::new("err.menu.build").detail(e))?;
     Ok(())
 }
 
@@ -4013,6 +4029,16 @@ fn main() {
         })
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
+        // Every command here fails with an `apperr::AppError` and nothing
+        // else: a catalog key, named params and the untranslated detail (the
+        // OS error, git's, gh's or Neovim's own words), plus the English
+        // sentence as a marked fallback. The window renders it with
+        // `errorText` (`src/lib/errors.js`) in its own language; a command
+        // never returns a sentence baked in Rust. The keys are listed once,
+        // in `apperr::ENGLISH`, and `src/lib/errors.test.js` holds that list
+        // against the catalog both ways. The page host's `/api/*` answers
+        // (`server.rs`) use the same shape under `api.*` keys, which belong to
+        // the generated page's catalog, not to this window's.
         .invoke_handler(tauri::generate_handler![
             list_projects,
             add_project,
@@ -4485,7 +4511,7 @@ mod tests {
             "docs/ma\0p",
         ] {
             let err = ok(bad).unwrap_err();
-            assert!(err.starts_with("the map directory must be"), "{bad}: {err}");
+            assert_eq!(err.key(), "err.outDir.unsafe", "{bad}: {err}");
             assert!(err.contains("only letters, digits"), "{bad}: {err}");
         }
         // What it takes stays accepted: dots inside a name, a name that starts
@@ -5115,12 +5141,10 @@ mod tests {
             "  ",
         ] {
             let err = refuse_linked_output(&root_str, &stored(dir)).unwrap_err();
-            assert!(
-                err.starts_with("Project settings: the map directory must be"),
-                "{dir}: {err}"
-            );
+            assert_eq!(err.key(), "err.outDir.stored", "{dir}: {err}");
+            assert_eq!(err.param("value"), Some(dir), "{dir}: {err}");
             assert!(err.contains(&format!("`{dir}`")), "{dir}: {err}");
-            assert!(err.ends_with("Change it there."), "{dir}: {err}");
+            assert!(err.english().ends_with("Change it there"), "{dir}: {err}");
         }
         for dir in ["out", "docs/map", "docs//map", ""] {
             assert!(
@@ -5668,7 +5692,7 @@ mod tests {
         let mut ws = Workspace::default();
 
         let err = add_one(&mut ws, &file.to_string_lossy()).unwrap_err();
-        assert!(err.contains("is not a directory"));
+        assert_eq!(err.key(), "err.path.notDirectory");
         assert!(ws.projects.is_empty(), "a refused root adds nothing");
     }
 

@@ -23,6 +23,7 @@ use std::time::{Duration, SystemTime};
 
 use serde::Serialize;
 
+use crate::apperr::AppError;
 use crate::languages::{is_map_dir, is_nested_checkout, SKIP_DIRS};
 
 /// Same cap as the language scan, for the same reason: a walk that cannot be
@@ -172,9 +173,9 @@ pub struct Changes {
 /// Same approximation as [`check`] and the same wording duty: these are files
 /// *touched* since, not files whose content the map would reflect
 /// differently.
-pub fn changed_since_map(root: &Path, map_dir: &Path, limit: usize) -> Result<Changes, String> {
+pub fn changed_since_map(root: &Path, map_dir: &Path, limit: usize) -> Result<Changes, AppError> {
     if !root.is_dir() {
-        return Err(format!("{} is not a directory", root.display()));
+        return Err(AppError::not_dir(root.display()));
     }
     // A linked map directory or map file is read as no map: see `map_file`.
     let Some(map_json) = crate::map_file(root, map_dir, "module_map.json") else {
@@ -217,9 +218,9 @@ pub fn changed_since_map(root: &Path, map_dir: &Path, limit: usize) -> Result<Ch
 }
 
 /// Compare the newest source under `root` against the map in `map_dir`.
-pub fn check(root: &Path, map_dir: &Path) -> Result<Freshness, String> {
+pub fn check(root: &Path, map_dir: &Path) -> Result<Freshness, AppError> {
     if !root.is_dir() {
-        return Err(format!("{} is not a directory", root.display()));
+        return Err(AppError::not_dir(root.display()));
     }
     // `docs/map` and the files in it are repository content; checked out as a
     // link either would be statted wherever it points (a share, for every

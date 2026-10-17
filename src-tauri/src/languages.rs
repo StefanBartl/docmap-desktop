@@ -35,6 +35,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
+use crate::apperr::AppError;
 use serde::Serialize;
 
 /// One language found in a tree, with how many files carried it.
@@ -316,9 +317,9 @@ pub(crate) fn is_map_dir(path: &Path, map_dir: &Path) -> bool {
 /// Iterative rather than recursive, and symlinks are never followed: a
 /// symlink back up the tree is a cycle, and a cycle in a recursive walk is a
 /// stack overflow rather than a slow answer.
-pub fn scan(root: &Path, map_dir: Option<&Path>) -> Result<LanguageScan, String> {
+pub fn scan(root: &Path, map_dir: Option<&Path>) -> Result<LanguageScan, AppError> {
     if !root.is_dir() {
-        return Err(format!("{} is not a directory", root.display()));
+        return Err(AppError::not_dir(root.display()));
     }
 
     // Compared as an owned path rather than by string: the caller's `map_dir`
