@@ -1,8 +1,8 @@
 // The engine's report, read as data instead of shown as a wall.
 //
 // A run over a large vault prints one line per finding on stderr
-// (`  [warn] dead-readme-link    path message`) - WKDBooks produces a hundred
-// of them - and the window used to put every line under the status, so the
+// (`  [warn] dead-readme-link    path message`) - a large vault produces a
+// hundred of them - and the window used to put every line under the status, so the
 // answer to "did it work" was somewhere above a scroll bar. The findings are
 // facts about the *tree*, not about the run; the reader wants the count per
 // kind and a few examples, with the rest one click away.

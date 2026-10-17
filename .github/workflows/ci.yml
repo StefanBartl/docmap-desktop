@@ -49,8 +49,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-      # Deliberately the floating `stable`, not a pinned version (NREL-13, same
-      # choice as tasks-desktop). The consequence is known and accepted: a new
+      # Deliberately the floating `stable`, not a pinned version (same choice
+      # as the author's other desktop app). The consequence is known and accepted: a new
       # stable release can ship new default clippy lints, and the clippy step
       # below (-D warnings) then turns this CI red WITHOUT any code change
       # (tasks-desktop saw exactly that with Rust 1.99, c43e4ab). The fix in
