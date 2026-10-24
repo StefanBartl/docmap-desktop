@@ -1,6 +1,6 @@
 // Preview-only Tauri bridge stub. NOT part of the app — used to look at the
 // real markup and CSS in a browser. Data below is real: the language list is
-// `lang_registry.report()` from documentation.nvim at 5d2b98d.
+// `lang_registry.report()` from docmap.nvim at 5d2b98d.
 const LANGS = [
   {"grammar":"lua","name":"lua","grammar_loaded":true,"calls":true},
   {"grammar":"javascript","name":"js","grammar_loaded":false,"calls":true},
@@ -38,8 +38,8 @@ const LANGS = [
 // every row ranks the same, and a corpus where they legitimately differ is
 // the thing that was hardest to imagine and easiest to read off a disk.
 const PROJECTS = [
-  { id: "p1", name: "documentation.nvim", root: "E:/repos/documentation.nvim",
-    map_dir: "E:/repos/documentation.nvim/docs/map", exclude: [], languages: null },
+  { id: "p1", name: "docmap.nvim", root: "E:/repos/docmap.nvim",
+    map_dir: "E:/repos/docmap.nvim/docs/map", exclude: [], languages: null },
   { id: "p2", name: "a-monorepo-with-a-very-long-name", root: "E:/repos/mono",
     map_dir: "E:/repos/mono/docs/map", exclude: ["vendor", "third_party/grpc"],
     languages: ["go", "python"] },
@@ -110,7 +110,7 @@ const okInfo = (repo, fetchedDaysAgo, views, clones) => ({
   }
 });
 const TRAFFIC = {
-  p1: okInfo("StefanBartl/documentation.nvim", 1, metric(41, 210, 655, 12.5), metric(19, 88, 300, -3)),
+  p1: okInfo("StefanBartl/docmap.nvim", 1, metric(41, 210, 655, 12.5), metric(19, 88, 300, -3)),
   p3: okInfo("StefanBartl/lib.nvim", 9, metric(2, 17, 60, null), metric(0, 4, 21, null)),
   p4: { status: "not_tracked", repo: "StefanBartl/sandbox.nvim", message: null, summary: null, dir: "x", via: "root" },
   p5: { status: "unreadable", repo: "StefanBartl/runtime-analysis.nvim", message: "not JSON: expected value at line 1 column 1", summary: null, dir: "x", via: "root" },
@@ -143,7 +143,7 @@ const dailySeries = (days, base, amplitude) =>
 const TRAFFIC_DETAIL = {
   p1: {
     schema: 1,
-    repo: "StefanBartl/documentation.nvim",
+    repo: "StefanBartl/docmap.nvim",
     generated: daysAgo(1),
     fetched: daysAgo(1),
     span: { from: "2026-06-29", to: "2026-09-23" },
@@ -156,9 +156,9 @@ const TRAFFIC_DETAIL = {
       { referrer: "<img src=x onerror=alert(1)>", count: 3, uniques: 2 },
     ],
     paths: [
-      { path: "/StefanBartl/documentation.nvim/blob/main/README.md", title: "README.md", count: 300, uniques: 210, project_path: "README.md" },
-      { path: "/StefanBartl/documentation.nvim/blob/main/docs/USAGE.md", title: "docs/USAGE.md", count: 120, uniques: 88, project_path: "docs/USAGE.md" },
-      { path: "/StefanBartl/documentation.nvim/blob/main/docs/deleted.md", title: "docs/deleted.md", count: 12, uniques: 9, project_path: null },
+      { path: "/StefanBartl/docmap.nvim/blob/main/README.md", title: "README.md", count: 300, uniques: 210, project_path: "README.md" },
+      { path: "/StefanBartl/docmap.nvim/blob/main/docs/USAGE.md", title: "docs/USAGE.md", count: 120, uniques: 88, project_path: "docs/USAGE.md" },
+      { path: "/StefanBartl/docmap.nvim/blob/main/docs/deleted.md", title: "docs/deleted.md", count: 12, uniques: 9, project_path: null },
     ],
   },
   p3: {
@@ -243,7 +243,7 @@ const R = {
   map_status: (a) => {
     const st = STATE[idForDir(a && a.mapDir)].st;
     return st
-      ? { exists: true, index_path: "E:/repos/documentation.nvim/docs/map/index.html", ...st }
+      ? { exists: true, index_path: "E:/repos/docmap.nvim/docs/map/index.html", ...st }
       : { exists: false, index_path: "" };
   },
   map_freshness: (a) => {
@@ -350,7 +350,7 @@ const R = {
     if (!clean) {
       for (let i = 0; i < 28; i++, errors++) err.push(row("error", "missing-module-tag", `./vault-a/tests/t${i}.lua has no ---@module annotation`));
       for (let i = 0; i < 44; i++, warnings++) {
-        const target = i % 3 ? `../../../../../documentation.nvim/docs/d${i}.md` : `$REPOS_DIR/documentation.nvim/docs/d${i}.md`;
+        const target = i % 3 ? `../../../../../docmap.nvim/docs/d${i}.md` : `$REPOS_DIR/docmap.nvim/docs/d${i}.md`;
         err.push(row("warn", "dead-readme-link", `vault-b/plugin-x/ROADMAP/R${i}.md links to '${target}' which does not exist`));
       }
       for (let i = 0; i < 22; i++, warnings++) err.push(row("warn", "missing-summary", `./vault-c/f${i}.lua has no summary`));
@@ -384,7 +384,7 @@ const R = {
   // disabled-checkbox state), a plain new one, and one non-`.git` folder.
   inspect_folder: () => {
     const already = new Set(PROJECTS.map((p) => p.name));
-    const names = ["documentation.nvim", "lib.nvim", "sandbox.nvim", "new-plugin.nvim", "notes"];
+    const names = ["docmap.nvim", "lib.nvim", "sandbox.nvim", "new-plugin.nvim", "notes"];
     return {
       isGit: false,
       subrepos: names.map((name) => ({

@@ -27,7 +27,7 @@ it is whole and the one of this release, not who made the release.
 | Linux (x86-64) | `docmap-desktop_<version>_amd64.AppImage`, `.deb` and `docmap-desktop-<version>-1.x86_64.rpm` |
 | macOS | `docmap-desktop_<version>_aarch64.dmg` (Apple silicon) and `docmap-desktop_<version>_x64.dmg` (Intel), plus an `.app.tar.gz` each; **no bundled engine** |
 
-The Windows and Linux installers bundle the engine of `documentation.nvim`. The macOS ones do not: they find an
+The Windows and Linux installers bundle the engine of `docmap.nvim`. The macOS ones do not: they find an
 engine on `PATH` or say they found none.
 
 `SHA256SUMS` lists the checksum of every file (installers and scripts):

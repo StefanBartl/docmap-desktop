@@ -17,7 +17,7 @@
 //! # What is Rust's half and what is not
 //!
 //! Transport only. Every answer comes from the engine
-//! (`documentation.nvim`'s standalone binary) via `--api=<route>`, which is
+//! (`docmap.nvim`'s standalone binary) via `--api=<route>`, which is
 //! the same `core/api.lua` the in-editor server answers from. The join logic
 //! stays in Lua, owned once. Two hosts computing the same join separately is
 //! how they would come to disagree about one project while both looked
@@ -25,7 +25,7 @@
 //!
 //! # Security posture
 //!
-//! Deliberately the same three rules `documentation.nvim`'s own
+//! Deliberately the same three rules `docmap.nvim`'s own
 //! `editor/serve.lua` enforces, because this is the same surface — a socket
 //! and a subprocess — pointed at the same data:
 //!
@@ -36,7 +36,7 @@
 //!    path is otherwise argument injection into the engine. Fixed-name
 //!    routes go through a literal list; `commit/<sha>` goes through
 //!    `safe_sha`, the same `^[0-9a-f]{7,40}$` shape check
-//!    `documentation.core.api.safe_sha` enforces on the Lua side. Both are
+//!    `docmap.core.api.safe_sha` enforces on the Lua side. Both are
 //!    whitelists, not escapes.
 //! 3. **No path parameter can leave the map directory.** Static serving takes
 //!    a bare filename; anything with a separator or a `..` is refused before
@@ -89,7 +89,7 @@ fn lock_servers<T>(slot: &Mutex<T>) -> Result<std::sync::MutexGuard<'_, T>, AppE
 /// is not in here — see `handle`'s own dispatch — because its name carries
 /// the sha, which cannot be a fixed list entry.
 ///
-/// Mirrors `documentation.core.api`'s own `routes` table. Duplicated here on
+/// Mirrors `docmap.core.api`'s own `routes` table. Duplicated here on
 /// purpose and kept short: this is the whitelist that stands between a
 /// request path and a subprocess argument, and a whitelist that asks another
 /// process what it should contain is not one.
@@ -104,7 +104,7 @@ const ROUTES: &[&str] = &[
 
 /// A commit-ish the caller supplied, or `None` if it is not one.
 ///
-/// Mirrors `documentation.core.api.safe_sha` exactly (`^[0-9a-f]{7,40}$`) —
+/// Mirrors `docmap.core.api.safe_sha` exactly (`^[0-9a-f]{7,40}$`) —
 /// this is the second lock on the same door, checked here so an invalid sha
 /// never even reaches the subprocess call, and again by the engine itself
 /// once it does.
@@ -488,7 +488,7 @@ mod tests {
 
     // The one function here worth a real test even in a crate with no
     // CI: it is the whole security property standing between a request
-    // path and a subprocess argument, and `documentation.core.api`'s own
+    // path and a subprocess argument, and `docmap.core.api`'s own
     // `safe_sha`'s doc comment says exactly why that kind of function does
     // not get tested unless something actually exercises it — this is
     // that something, for the Rust half.

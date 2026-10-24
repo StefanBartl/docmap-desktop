@@ -12,7 +12,7 @@
 # Deciding (only the tip of main is built) and publishing (SHA256SUMS first, the words of the page last) are
 # the actions prepare and publish of appkit's release-kit, pinned by the commit of tools/release-kit.pin
 # (tools/check-release-kit-pin.py checks that they agree). The build is ours: its files go to publish as
-# artifacts. There is no macOS here: documentation.nvim publishes no macOS engine.
+# artifacts. There is no macOS here: docmap.nvim publishes no macOS engine.
 #
 # Actions are pinned by commit; a job gets only the rights it needs.
 

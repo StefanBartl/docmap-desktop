@@ -19,8 +19,8 @@
 # `frontendDist` in tauri.conf.json points straight at `../src`: no bundler, no package.json, nothing to
 # `npm install`, so a build only needs the Rust toolchain plus each OS's native webview dependencies.
 #
-# The engine sidecar (HANDOVER.md, #7) is staged by .github/actions/engine-sidecar from documentation.nvim's
-# rolling release `standalone-latest`. Skipped on macOS on purpose, not by oversight: documentation.nvim
+# The engine sidecar (HANDOVER.md, #7) is staged by .github/actions/engine-sidecar from docmap.nvim's
+# rolling release `standalone-latest`. Skipped on macOS on purpose, not by oversight: docmap.nvim
 # publishes no macOS build of the engine. A macOS build of this app still succeeds without it.
 #
 # Actions are pinned by commit; a job gets only the rights it needs.

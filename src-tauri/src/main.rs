@@ -2,7 +2,7 @@
 // something else generated.
 //
 // The whole backend is deliberately small. This program does not analyse
-// anything and does not render anything: `documentation.nvim`'s standalone
+// anything and does not render anything: `docmap.nvim`'s standalone
 // binary produces the map, and the map is a self-contained HTML page that
 // renders itself. What is left for Rust is the part neither can do — remember
 // which projects exist, and answer where a project's map lives on disk.
@@ -262,7 +262,7 @@ fn refuse_linked_output(root: &str, flags: &ProjectFlags) -> Result<(), AppError
 /// The files the engine writes into the output directory: the map
 /// (`index.html`, `module_map.json`, `overview.md`) and the badge a
 /// `.docmap.json` can ask for (`coverage.svg`). Keep in step with what the
-/// engine writes (documentation.nvim, `lua/documentation/init.lua`).
+/// engine writes (docmap.nvim, `lua/docmap/init.lua`).
 const OUTPUT_FILES: [&str; 4] = [
     "index.html",
     "module_map.json",
@@ -339,7 +339,7 @@ fn apply_flags(cmd: &mut std::process::Command, flags: &ProjectFlags) {
 /// Settings live beside the project list rather than in a second file: there
 /// is one workspace, and splitting it would mean two things to keep in step.
 ///
-/// `engine` is a path to `documentation.nvim`'s standalone binary. Not
+/// `engine` is a path to `docmap.nvim`'s standalone binary. Not
 /// bundled yet, and that is the open question this slice deliberately does
 /// not answer — shipping it per platform is the better experience and the
 /// larger release problem. Until then: found on `PATH`, or pointed at.
@@ -924,7 +924,7 @@ fn rel_path(raw: Option<String>) -> Option<String> {
 
 /// Would the engine take `dir` as its map directory?
 ///
-/// The rule of documentation.nvim's `core/safe_out_dir.lua` (the engine refuses
+/// The rule of docmap.nvim's `core/safe_out_dir.lua` (the engine refuses
 /// any other `--out-dir`, "not a safe relative path"), and of the one name
 /// check its `core/safe_fs.lua` adds on Windows. Keep them in step: this is
 /// what keeps the dialog from taking a value that could only fail on the next
@@ -1702,7 +1702,7 @@ fn resolve_grammars<R: tauri::Runtime>(
 ///
 /// **File names, not a rule.** This deliberately reports the directory's
 /// own contents rather than computing which paths the engine would probe:
-/// the resolution order lives in `documentation.nvim`'s
+/// the resolution order lives in `docmap.nvim`'s
 /// `standalone/treesitter.lua` (`$DOCMAP_TS_<LANG>` first, then
 /// `$DOCMAP_TS_DIR/<lang>.{so,dll,dylib}`), and a second implementation of
 /// it here would be a rule that can disagree with the engine's while
@@ -3935,7 +3935,7 @@ fn open_feedback(
 ) -> Result<String, AppError> {
     let repo = match repo.as_str() {
         "desktop" => "docmap-desktop",
-        "engine" => "documentation.nvim",
+        "engine" => "docmap.nvim",
         other => return Err(AppError::new("err.feedback.repo").with("repo", other)),
     };
     let url = feedback::url(repo, &topic, &title, &body)?;
@@ -5477,7 +5477,7 @@ mod tests {
     // `cargo check` once `src-tauri/binaries/docmap-<target-triple>.exe`
     // and `src-tauri/resources/grammars/` exist, which `HANDOVER.md`
     // #7 explains how to populate. Not run in CI for that reason -- same
-    // posture `documentation.nvim`'s own `check_treesitter.lua` states for
+    // posture `docmap.nvim`'s own `check_treesitter.lua` states for
     // needing a real grammar on hand.
     // **Not on macOS, and not because the behaviour differs there.**
     // `generate_context!()` expands `embed_plist`, which defines the

@@ -1,6 +1,6 @@
 //! The engine contract this build of the app was checked against.
 //!
-//! `engine.lock` at the repository root names one commit of documentation.nvim,
+//! `engine.lock` at the repository root names one commit of docmap.nvim,
 //! the artifact schema that commit writes and the `/api/*` routes it answers.
 //! CI holds the engine source at that commit and the rolling engine binary to
 //! those lines (`tools/check-engine-lock.py`); this module carries the same
@@ -20,7 +20,7 @@ const LOCK: &str = include_str!("../../engine.lock");
 /// The parts of `engine.lock` the window needs.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Contract {
-    /// The documentation.nvim commit the contract was taken from.
+    /// The docmap.nvim commit the contract was taken from.
     pub commit: String,
     /// The artifact schema that commit writes.
     pub schema: u64,

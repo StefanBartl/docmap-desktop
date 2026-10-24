@@ -34,7 +34,7 @@
 //!
 //! `err.*` keys are the window's: they live in this app's catalog. `api.*` keys
 //! are the answers of the page host (`server.rs`) to the generated page's
-//! `/api/*` requests. That page has its own catalog (documentation.nvim's) and
+//! `/api/*` requests. That page has its own catalog (docmap.nvim's) and
 //! reads the English sentence from the `error` field of the body; the key,
 //! params and detail ride along in the same shape so its catalog can take them
 //! up, but they are never put into this app's catalog, and the window never
@@ -99,7 +99,7 @@ pub const ENGLISH: &[(&str, &str)] = &[
     ("err.open.failed", "Could not open {target}"),
     ("err.open.reveal", "Could not show {path}"),
     // The engine.
-    ("err.engine.none", "No docmap engine configured. It is documentation.nvim's standalone binary — put it on PATH, or point at it in the sidebar"),
+    ("err.engine.none", "No docmap engine configured. It is docmap.nvim's standalone binary — put it on PATH, or point at it in the sidebar"),
     ("err.engine.notJson", "{program} answered --capabilities with something that is not JSON"),
     // Neovim.
     ("err.nvim.none", "No nvim binary configured. Put it on PATH, or point at it in Settings"),
@@ -146,7 +146,7 @@ pub const ENGLISH: &[(&str, &str)] = &[
     ("api.path", "bad path"),
     ("api.notFound", "not found"),
     ("api.engine.none", "no docmap engine configured"),
-    ("api.engine.old", "{engine} is an older docmap engine without --api support. Rebuild it from documentation.nvim, or point at a newer one."),
+    ("api.engine.old", "{engine} is an older docmap engine without --api support. Rebuild it from docmap.nvim, or point at a newer one."),
     ("api.engine.run", "could not run {engine}"),
     ("api.engine.exit", "engine exited {code}"),
     ("api.engine.notJson", "engine did not answer {route} with JSON"),

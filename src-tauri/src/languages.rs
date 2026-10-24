@@ -4,7 +4,7 @@
 //! ## Why this exists at all
 //!
 //! The engine reads Lua and JavaScript/TypeScript today, with Python, Rust,
-//! Go and C planned (see `documentation.nvim`'s
+//! Go and C planned (see `docmap.nvim`'s
 //! `docs/ROADMAP/IDEAS/MULTILANG.md`). Until every language a user points at
 //! is supported, the interesting failure is not an error — it is a map that
 //! comes back thin, with nothing on screen saying why. A repository that is
@@ -120,7 +120,7 @@ const MAX_FILES: usize = 20_000;
 ///   on its face.
 /// * **A checkout inside the checkout** has no fixed name at all — see
 ///   [`scan`]'s nested-repository rule, which was written after measuring
-///   this walk against `documentation.nvim` and finding 306 of its 448 Lua
+///   this walk against `docmap.nvim` and finding 306 of its 448 Lua
 ///   files were copies of itself under `.claude/worktrees/`.
 pub(crate) const SKIP_DIRS: &[&str] = &[
     ".git",
@@ -227,7 +227,7 @@ fn language_for(ext: &str) -> Option<(&'static str, Option<&'static str>, Option
 /// Is this directory its own repository, rather than part of the one being
 /// counted?
 ///
-/// Found by measurement, not by reasoning: scanning `documentation.nvim`
+/// Found by measurement, not by reasoning: scanning `docmap.nvim`
 /// reported 448 Lua files where `lua/` holds 98, and 306 of the difference
 /// were full copies of the repository living under `.claude/worktrees/`.
 /// A name list cannot catch that in general -- the next such directory will

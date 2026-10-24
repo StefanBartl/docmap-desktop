@@ -20,7 +20,7 @@ function bigVault() {
   for (let i = 0; i < 44; i++) {
     // A relative path with many `../` and a `$REPOS_DIR` placeholder: the two
     // spellings the real findings have.
-    const target = i % 3 === 0 ? `$REPOS_DIR/documentation.nvim/docs/d${i}.md` : `../../../../../documentation.nvim/docs/d${i}.md`;
+    const target = i % 3 === 0 ? `$REPOS_DIR/docmap.nvim/docs/d${i}.md` : `../../../../../docmap.nvim/docs/d${i}.md`;
     err.push(line("warn", "dead-readme-link", `vault-b/plugin-x/ROADMAP/R${i}.md links to '${target}' which does not exist`));
   }
   for (let i = 0; i < 22; i++) err.push(line("warn", "missing-summary", `./vault-c/f${i}.lua has no summary`));

@@ -2,7 +2,7 @@
 name = "docmap-desktop"
 version = "0.6.0"
 edition = "2021"
-description = "Desktop workspace for documentation.nvim's module maps"
+description = "Desktop workspace for docmap.nvim's module maps"
 authors = ["Stefan Bartl"]
 license = "MIT"
 # The binary is named after the product rather than the crate default so the
@@ -28,7 +28,7 @@ tauri-plugin-dialog = "2"
 # The engine as a bundled sidecar (see #7 in HANDOVER.md): a fallback
 # for when nothing is configured and nothing is on PATH, so the app works
 # out of the box instead of sending a first-run user to build
-# documentation.nvim's standalone binary themselves before anything works.
+# docmap.nvim's standalone binary themselves before anything works.
 tauri-plugin-shell = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -43,7 +43,7 @@ tauri = { version = "2", features = ["test"] }
 [profile.release]
 # A viewer that ships as a download: size is worth more here than the last
 # few percent of speed, and the expensive work happens in a separate process
-# anyway (see ROADMAP.md — the analysis is documentation.nvim's binary).
+# anyway (see ROADMAP.md — the analysis is docmap.nvim's binary).
 opt-level = "s"
 lto = true
 codegen-units = 1

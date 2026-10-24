@@ -2097,7 +2097,7 @@ async function generateStale() {
 
 // -------------------------------------------------------- context note
 
-/// What the loaded page reports (documentation.nvim, `core/render/html.lua`'s
+/// What the loaded page reports (docmap.nvim, `core/render/html.lua`'s
 /// embedded `postContext()`) when the reader switches panels: `{ source: "docmap",
 /// tab, atool, view }`. Two of those combinations ask for something this
 /// app's engine cannot do at all, regardless of configuration -- not
@@ -2109,7 +2109,7 @@ async function generateStale() {
 ///   * Hierarchy -> Types needs `lua-language-server` via `vim.system`,
 ///     which the standalone engine has no equivalent of (measured:
 ///     `standalone/vim_shim.lua` has no `vim.fn.executable`, which
-///     `documentation.nvim`'s own `core/luals.lua` calls first).
+///     `docmap.nvim`'s own `core/luals.lua` calls first).
 ///
 /// So this is a note explaining why, not a button that would fail --
 /// the same "say why, don't silently fail" rule `no grammars` and

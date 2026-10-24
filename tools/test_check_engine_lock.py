@@ -24,7 +24,7 @@ SHA = "5fdb34c659ed9f93eb96dbe4f7341b5f8aebe683"
 ROUTES = ["checklist", "commits", "loaded", "loaded/snapshots", "telemetry", "telemetry/snapshots"]
 LOCK_TEXT = (
     "# a comment\n"
-    "repo = https://github.com/StefanBartl/documentation.nvim\n"
+    "repo = https://github.com/StefanBartl/docmap.nvim\n"
     f"commit = {SHA}\n"
     "schema = 6\n"
     f"routes = {' '.join(ROUTES)}\n"

@@ -55,7 +55,7 @@ gh run view <run-id> --log-failed | tail -25
 ```
 
 **Refresh the engine first, and check that it actually built.** The Windows
-and Linux installers bundle whatever `documentation.nvim`'s rolling
+and Linux installers bundle whatever `docmap.nvim`'s rolling
 `standalone-latest` release holds *at build time*, so an app release with a
 stale engine ships features that talk to flags the bundled engine does not
 have. That is not hypothetical either: cutting `v0.2.0` found
@@ -64,8 +64,8 @@ the `--exclude=`/`--languages=` flags that this app's own **Project
 settings…** dialog passes.
 
 ```bash
-gh -R StefanBartl/documentation.nvim release view standalone-latest --json publishedAt
-gh -R StefanBartl/documentation.nvim workflow run release-engine.yml
+gh -R StefanBartl/docmap.nvim release view standalone-latest --json publishedAt
+gh -R StefanBartl/docmap.nvim workflow run release-engine.yml
 ```
 
 Then watch it, because *both* platform jobs have to pass — the publish step
@@ -73,7 +73,7 @@ is skipped if either fails, and the rolling tag then still holds the old
 engine while nothing says so:
 
 ```bash
-gh -R StefanBartl/documentation.nvim run list --workflow=release-engine.yml --limit 1
+gh -R StefanBartl/docmap.nvim run list --workflow=release-engine.yml --limit 1
 ```
 
 Rebuilding the engine is also the only thing that runs its `standalone` gate
@@ -143,11 +143,11 @@ because the workflow says `cargo tauri build` and Tauri decides the rest. `publi
 (`expect: 9`): a platform that failed leaves the number short and nothing is published. On top come
 `install.ps1`, `install.sh` and `SHA256SUMS`.
 
-The engine sidecar is downloaded from `documentation.nvim`'s own
+The engine sidecar is downloaded from `docmap.nvim`'s own
 `standalone-latest` rolling release and staged where
 `tauri.windows.conf.json` / `tauri.linux.conf.json` expect it (the local action
 `.github/actions/engine-sidecar`, which `release.yml` and `rolling.yml` share). macOS is
-skipped on purpose rather than by oversight: `documentation.nvim` does not
+skipped on purpose rather than by oversight: `docmap.nvim` does not
 publish a macOS build of the engine. A macOS build of this app still works —
 it simply starts with no bundled fallback and finds an engine on `PATH`, or
 says it found none.
@@ -227,7 +227,7 @@ installer without installing or starting anything. It is an NSIS archive, so
 cd "$TMP/x" && DOCMAP_TS_DIR="$PWD/grammars" ./docmap.exe --capabilities
 ```
 
-That prints the engine's `build.commit` (compare it with `documentation.nvim`'s
+That prints the engine's `build.commit` (compare it with `docmap.nvim`'s
 `main`) and how many grammars loaded. **Do not run `docmap-desktop.exe` for a
 version check** - it has no `--version`, it opens the window. This proves which
 engine shipped; it proves nothing about the window, which is why it does not
@@ -338,7 +338,7 @@ gh release delete-asset v0.2.0 <name>.dmg --yes
 ```
 
 **The engine has its own release, and it rolls.** `standalone-latest` is a
-moving tag in `documentation.nvim`. Two installers of this app built a month
+moving tag in `docmap.nvim`. Two installers of this app built a month
 apart therefore bundle different engines, and that is by design — which is
 exactly why About reports the engine's own commit rather than assuming the
 app's version implies it.

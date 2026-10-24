@@ -10,7 +10,7 @@
 
 [![Latest release](https://img.shields.io/github/v/release/StefanBartl/docmap-desktop)](https://github.com/StefanBartl/docmap-desktop/releases/latest)
 
-A desktop workspace for the module maps [documentation.nvim](https://github.com/StefanBartl/documentation.nvim)
+A desktop workspace for the module maps [docmap.nvim](https://github.com/StefanBartl/docmap.nvim)
 generates: add several projects, look at any of them, switch between them
 quickly. The kind of shell Tosca Commander or Blender put in front of a
 project — a list you load from, not one window per thing.
@@ -18,11 +18,11 @@ project — a list you load from, not one window per thing.
 **This is not a Neovim plugin and does not need Neovim.** It is a separate
 program, in a separate repository, with a separate toolchain — deliberately.
 
-Three repositories, one triangle. `documentation.nvim` is the Neovim plugin
+Three repositories, one triangle. `docmap.nvim` is the Neovim plugin
 this app's engine is extracted from — the map is identical, browsed with or
 without a window. [`runtime-analysis.nvim`](https://github.com/StefanBartl/runtime-analysis.nvim)
-is `documentation.nvim`'s own sibling plugin, extending it with a live half
-neither `documentation.nvim` nor this app can produce alone: call-count
+is `docmap.nvim`'s own sibling plugin, extending it with a live half
+neither `docmap.nvim` nor this app can produce alone: call-count
 telemetry, collected only while real code runs inside a Neovim session. This
 app is the third leg — the same static map always, and the same live
 Telemetry/Loaded panels too, whenever a Neovim session collected the data
@@ -67,12 +67,12 @@ macOS take the `.dmg`. The scripts are the ones of appkit's
 [release-kit](https://github.com/StefanBartl/appkit/tree/main/release-kit), stamped
 for this app and the channel when they are attached.
 
-You will also need `documentation.nvim`'s standalone engine binary — this
+You will also need `docmap.nvim`'s standalone engine binary — this
 app runs it, it does not replace it. See [The engine](#the-engine).
 
 ## Why this exists as its own program
 
-`documentation.nvim` answers "which project am I looking at" the best way
+`docmap.nvim` answers "which project am I looking at" the best way
 available to it: it resolves the repository from the current buffer, per
 invocation. Inside an editor that is not a question a UI should ask, and a
 project switcher there would be a second, worse answer to a settled one.
@@ -88,7 +88,7 @@ whole, not reimplemented:
 
 | Piece | Where it comes from |
 |---|---|
-| The analysis | `documentation.nvim`'s standalone build — a single binary that maps an annotated tree with no Neovim and no Lua install, in nine language backends: Lua, JavaScript, TypeScript, TSX, Zig, Java, C, C++ and assembly |
+| The analysis | `docmap.nvim`'s standalone build — a single binary that maps an annotated tree with no Neovim and no Lua install, in nine language backends: Lua, JavaScript, TypeScript, TSX, Zig, Java, C, C++ and assembly |
 | The view | The generated page itself: self-contained HTML, every tab, no CDN, no build step |
 | Cross-project links | `opts.tag_files`, already resolving one project's map against another's |
 | Live telemetry (optional) | [`runtime-analysis.nvim`](https://github.com/StefanBartl/runtime-analysis.nvim) — the sibling Neovim plugin whose call-count data feeds the Telemetry and Loaded panels, when a Neovim session collected any for that project |
@@ -113,7 +113,7 @@ projects declare — exactly, not by guesswork — that becomes *this project is
 used by five others, in 197 places, and here is what they reach for*. It asks
 the engine nothing: the artifacts on disk are the whole input, which is
 [`HOSTING.md`'s "the artifact is the extension
-point"](https://github.com/StefanBartl/documentation.nvim/blob/main/docs/HOSTING.md)
+point"](https://github.com/StefanBartl/docmap.nvim/blob/main/docs/HOSTING.md)
 with its first consumer attached. **View as matrix…** renders the same edges
 as a grid instead of a list — rows require columns, a cell is call-site
 count — in a dialog of its own, off the default overview, for the workspace
@@ -157,12 +157,12 @@ a user or a contributor needs.
 |---|---|
 | [docs/FEATURES/](docs/FEATURES/README.md) | The catalogue, by theme: the workspace model, running the engine, the window, settings, and the desktop parts. What it does, with the module behind each — the same shape the Neovim siblings use, so one reader can move between all three repositories. |
 | [docs/USAGE.md](docs/USAGE.md) | Using it, button by button: adding projects, workspaces, the project picker and its five sort orders, GitHub traffic, the files pane, opening a file in your editor, the four Generate commands, settings and per-project settings, the notes that appear over some panels, the menu bar, and where everything is stored. |
-| [documentation.nvim/docs/ecosystem.md](https://github.com/StefanBartl/documentation.nvim/blob/main/docs/ecosystem.md) | **The architecture, and it is not in this repository.** Where docs, static analysis and runtime each belong, and why `runtime-analysis.nvim` is a separate plugin rather than a module. Written before this app existed, so it describes four pieces and not five — a header there records why that needed a note and not a revision: this app is a second host for the artifact-and-serve tier its Seam B already covers. |
+| [docmap.nvim/docs/ecosystem.md](https://github.com/StefanBartl/docmap.nvim/blob/main/docs/ecosystem.md) | **The architecture, and it is not in this repository.** Where docs, static analysis and runtime each belong, and why `runtime-analysis.nvim` is a separate plugin rather than a module. Written before this app existed, so it describes four pieces and not five — a header there records why that needed a note and not a revision: this app is a second host for the artifact-and-serve tier its Seam B already covers. |
 | [docs/RELEASING.md](docs/RELEASING.md) | Cutting a release: what to check before tagging, what the workflow builds, and why the last step is a person opening the app. |
 
 ### The engine
 
-Generation runs `documentation.nvim`'s standalone binary — no Neovim and no
+Generation runs `docmap.nvim`'s standalone binary — no Neovim and no
 Lua install needed on your machine. The app looks for `docmap` on `PATH`
 and otherwise lets you point at it; the sidebar says which of the two it
 found. Build one with that repository's `scripts/package.lua`.
@@ -228,7 +228,7 @@ python tools/check-engine-lock.py
 python -m unittest discover -s tools -p "test_*.py"
 ```
 
-`check-engine-lock.py` holds documentation.nvim to the contract of
+`check-engine-lock.py` holds docmap.nvim to the contract of
 `engine.lock` (the commit, the artifact schema, the routes, and the copy in
 `contract/`); `--engine <clone>` reads a local clone instead of fetching, and
 `--binary <docmap>` holds an engine binary to it too.

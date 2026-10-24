@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Fail when the engine contract of engine.lock is not what documentation.nvim publishes.
+"""Fail when the engine contract of engine.lock is not what docmap.nvim publishes.
 
-engine.lock names one commit of documentation.nvim and what that commit offers a host: the artifact
+engine.lock names one commit of docmap.nvim and what that commit offers a host: the artifact
 schema and the /api/* routes. contract/docmap.schema.json is the `.docmap.json` schema of that commit.
 This checks that
 
@@ -11,8 +11,9 @@ This checks that
   * with --binary, an engine binary answers --capabilities with the lock's schema and at least the
     lock's routes (the rolling release has no number to pin, so this is how it is held to the lock).
 
-The engine's Lua namespace is read as `lua/docmap/` and, failing that, `lua/documentation/`, so the
-check survives the rename of the plugin to docmap.nvim.
+The engine's Lua namespace is read as `lua/docmap/` and, failing that, `lua/documentation/`: the plugin was
+renamed from documentation.nvim to docmap.nvim on 2026-10-24, and a lock that still names a commit before the
+rename must stay checkable. Drop the second namespace once engine.lock names a commit after it.
 
     python tools/check-engine-lock.py                       fetch the pinned commit from GitHub
     python tools/check-engine-lock.py --engine <clone>      read the pinned commit from a local clone
@@ -36,7 +37,7 @@ import tempfile
 LOCK = "engine.lock"
 SCHEMA_COPY = "contract/docmap.schema.json"
 ENGINE_SCHEMA_FILE = "docs/docmap.schema.json"
-# Newest namespace first: after the rename the old one may survive as a shim and must not win.
+# Newest namespace first, so a tree that has both reads as the renamed one.
 NAMESPACES = ("docmap", "documentation")
 COMMIT = re.compile(r"^[0-9a-f]{40}$")
 ROUTE = re.compile(r"^[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)*$")
@@ -228,7 +229,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--lock", default=LOCK)
     parser.add_argument("--copy", default=SCHEMA_COPY)
-    parser.add_argument("--engine", help="a local clone of documentation.nvim to read the commit from")
+    parser.add_argument("--engine", help="a local clone of docmap.nvim to read the commit from")
     parser.add_argument("--binary", help="an engine binary to hold to the lock as well")
     parser.add_argument("--write", action="store_true", help="move the lock to --commit")
     parser.add_argument("--commit", help="with --write: the commit to move to")

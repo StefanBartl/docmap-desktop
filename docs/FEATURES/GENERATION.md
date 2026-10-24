@@ -1,7 +1,7 @@
 # Generation
 
 Running the engine. This app does not analyse anything — it finds
-`documentation.nvim`'s standalone binary, runs it as a subprocess, and shows
+`docmap.nvim`'s standalone binary, runs it as a subprocess, and shows
 what came back: its own lines as they are, its findings grouped per check.
 
 ## Four generate commands, four guarantees
@@ -98,7 +98,7 @@ falls back through the list rather than failing later with a raw OS error.
 ## The engine contract — `engine.lock`
 
 The engine is a rolling release with no version number, so what this app
-pins is the contract, not the binary: one commit of documentation.nvim, the
+pins is the contract, not the binary: one commit of docmap.nvim, the
 artifact schema it writes and the `/api/*` routes it answers, the same shape
 `engine.lock` has in tasks-desktop and rules-desktop. `contract/docmap.schema.json`
 is that commit's `.docmap.json` schema, byte for byte.

@@ -1,6 +1,6 @@
 // The app's own interface language.
 //
-// This is `documentation.nvim/docs/ROADMAP/IDEAS/I18N.md`'s phase I18N-4,
+// This is `docmap.nvim/docs/ROADMAP/IDEAS/I18N.md`'s phase I18N-4,
 // and only that phase: **the app's chrome, not the generated page.** The
 // page is a different artifact with a different lifetime — roughly 85 % of
 // that plan's total work — and translating it here would mean two catalogs
@@ -40,7 +40,7 @@ const CATALOGS = {
     "facts.tag.path": "on PATH",
     "facts.tag.chosen": "chosen",
     "facts.tag.default": "default location",
-    "facts.engine.missing": "Not found. This is documentation.nvim's standalone binary — put it on PATH, or Locate… it.",
+    "facts.engine.missing": "Not found. This is docmap.nvim's standalone binary — put it on PATH, or Locate… it.",
     "facts.grammars.none": "none — module tree only, no per-function data",
     "facts.chip.nogrammar": "No grammar loaded — module tree only",
     "facts.nvim.missing": "nvim not found. Put it on PATH, or Locate… it.",
@@ -100,9 +100,9 @@ const CATALOGS = {
     "help.generate":
       "Rebuild the selected project's map, overwriting what is there. Writes into that repository's docs/map.",
     "menu.help.engine":
-      "documentation.nvim's standalone binary — this app runs it, it does not replace it. The word beside the label tells you whether it was found, and how much detail it can read.",
+      "docmap.nvim's standalone binary — this app runs it, it does not replace it. The word beside the label tells you whether it was found, and how much detail it can read.",
     "help.engineLocate":
-      "Point at documentation.nvim's standalone binary. You only need this if you want a different one than the app already uses — the line above says which that is.",
+      "Point at docmap.nvim's standalone binary. You only need this if you want a different one than the app already uses — the line above says which that is.",
     "help.grammars":
       "Point at a folder of compiled tree-sitter grammars. This decides how much detail you get, not whether it works: without them you still get the full module tree, just no per-function data.",
     "help.nvim":
@@ -252,7 +252,7 @@ const CATALOGS = {
     "files.ignored": "ignored by git — but still mapped",
     "menu.help.feedback": "Send feedback…",
     "menu.help.about": "About docmap",
-    "about.lead": "A window in front of the maps <strong>documentation.nvim</strong> generates.",
+    "about.lead": "A window in front of the maps <strong>docmap.nvim</strong> generates.",
     "about.copy": "Copy for a bug report",
     "about.copied": "Copied.",
     "about.engineNone": "no engine configured",
@@ -269,7 +269,7 @@ const CATALOGS = {
     "fb.topic.other": "Something else",
     "fb.repo": "About",
     "fb.repo.desktop": "This window (docmap-desktop)",
-    "fb.repo.engine": "The engine and the generated map (documentation.nvim)",
+    "fb.repo.engine": "The engine and the generated map (docmap.nvim)",
     "fb.subject": "Summary",
     "fb.subject.placeholder": "One line: what happened, or what is missing",
     "fb.body": "Details",
@@ -305,7 +305,7 @@ const CATALOGS = {
     "help.startDashboard":
       "Whether opening the app shows the list of all your projects first, or goes straight back to the one you had open. You can switch this from the overview itself too.",
     "prefs.engine": "Engine",
-    "prefs.engine.note": "The engine is <strong>documentation.nvim's standalone binary</strong> — this app runs it, it does not replace it. You normally do not need to set anything: the app brings its own along and uses that. Point at another one only if you want yours instead.",
+    "prefs.engine.note": "The engine is <strong>docmap.nvim's standalone binary</strong> — this app runs it, it does not replace it. You normally do not need to set anything: the app brings its own along and uses that. Point at another one only if you want yours instead.",
     "prefs.telemetry": "Telemetry",
     "prefs.telemetry.note": "Collected by <strong>runtime-analysis.nvim</strong> inside Neovim, per plugin. Switching it here takes effect from your next Neovim session — your plugin does not run in this window.",
     // The notes shown over a panel the engine here cannot fill. Catalogued
@@ -391,7 +391,7 @@ const CATALOGS = {
     "ph.nomap.title": "No map in this project yet",
     "ph.nomap.generate": "Press <strong>Generate map</strong> to build one.",
     "ph.nomap.noengine":
-      "Find the engine in the sidebar first — that is <code>documentation.nvim</code>'s standalone binary.",
+      "Find the engine in the sidebar first — that is <code>docmap.nvim</code>'s standalone binary.",
     "ph.generating.title": "Generating…",
     "ph.generating.body": "Running the engine over <code>{root}</code>.",
     "deps.summary.none": "Nothing here depends on anything else here",
@@ -581,7 +581,7 @@ const CATALOGS = {
     "err.proc.timeout": "{program} gave no answer within {secs} s",
     "err.open.failed": "Could not open {target}",
     "err.open.reveal": "Could not show {path}",
-    "err.engine.none": "No docmap engine configured. It is documentation.nvim's standalone binary — put it on PATH, or point at it in the sidebar",
+    "err.engine.none": "No docmap engine configured. It is docmap.nvim's standalone binary — put it on PATH, or point at it in the sidebar",
     "err.engine.notJson": "{program} answered --capabilities with something that is not JSON",
     "err.nvim.none": "No nvim binary configured. Put it on PATH, or point at it in Settings",
     "err.nvim.noConfig": "No Neovim config folder configured, and none found at the default location",
@@ -636,7 +636,7 @@ const CATALOGS = {
     "facts.tag.path": "im PATH",
     "facts.tag.chosen": "gewählt",
     "facts.tag.default": "Standardort",
-    "facts.engine.missing": "Nicht gefunden. Das ist das Standalone-Binary von documentation.nvim — leg es in den PATH oder wähle es mit Suchen… aus.",
+    "facts.engine.missing": "Nicht gefunden. Das ist das Standalone-Binary von docmap.nvim — leg es in den PATH oder wähle es mit Suchen… aus.",
     "facts.grammars.none": "keine — nur Modulbaum, keine Daten pro Funktion",
     "facts.chip.nogrammar": "Keine Grammatik geladen — nur Modulbaum",
     "facts.nvim.missing": "nvim nicht gefunden. Leg es in den PATH oder wähle es mit Suchen… aus.",
@@ -697,9 +697,9 @@ const CATALOGS = {
     "help.generate":
       "Die Karte des gewählten Projekts neu bauen und die vorhandene überschreiben. Schreibt in dessen docs/map.",
     "menu.help.engine":
-      "Das Standalone-Binary von documentation.nvim — diese App führt es aus, sie ersetzt es nicht. Das Wort daneben sagt dir, ob sie gefunden wurde und wie viel Detail sie lesen kann.",
+      "Das Standalone-Binary von docmap.nvim — diese App führt es aus, sie ersetzt es nicht. Das Wort daneben sagt dir, ob sie gefunden wurde und wie viel Detail sie lesen kann.",
     "help.engineLocate":
-      "Auf das Standalone-Binary von documentation.nvim zeigen. Brauchst du nur, wenn du eine andere als die bereits benutzte willst — welche das ist, sagt die Zeile darüber.",
+      "Auf das Standalone-Binary von docmap.nvim zeigen. Brauchst du nur, wenn du eine andere als die bereits benutzte willst — welche das ist, sagt die Zeile darüber.",
     "help.grammars":
       "Auf einen Ordner mit kompilierten tree-sitter-Grammatiken zeigen. Das entscheidet, wie viel Detail du bekommst — nicht, ob es funktioniert: ohne sie bekommst du weiterhin die vollständige Modulübersicht, nur eben nichts auf Funktionsebene.",
     "help.nvim":
@@ -835,7 +835,7 @@ const CATALOGS = {
     "files.ignored": "von git ignoriert — trotzdem in der Karte",
     "menu.help.feedback": "Feedback senden…",
     "menu.help.about": "Über docmap",
-    "about.lead": "Ein Fenster vor den Karten, die <strong>documentation.nvim</strong> erzeugt.",
+    "about.lead": "Ein Fenster vor den Karten, die <strong>docmap.nvim</strong> erzeugt.",
     "about.copy": "Für einen Fehlerbericht kopieren",
     "about.copied": "Kopiert.",
     "about.engineNone": "keine Engine konfiguriert",
@@ -852,7 +852,7 @@ const CATALOGS = {
     "fb.topic.other": "Sonstiges",
     "fb.repo": "Betrifft",
     "fb.repo.desktop": "Dieses Fenster (docmap-desktop)",
-    "fb.repo.engine": "Engine und erzeugte Karte (documentation.nvim)",
+    "fb.repo.engine": "Engine und erzeugte Karte (docmap.nvim)",
     "fb.subject": "Kurzfassung",
     "fb.subject.placeholder": "Eine Zeile: was passiert ist, oder was fehlt",
     "fb.body": "Details",
@@ -888,7 +888,7 @@ const CATALOGS = {
     "help.startDashboard":
       "Ob beim Öffnen der App zuerst die Liste aller Projekte erscheint oder direkt wieder das zuletzt geöffnete. Du kannst das auch in der Übersicht selbst umstellen.",
     "prefs.engine": "Engine",
-    "prefs.engine.note": "Die Engine ist <strong>das Standalone-Binary von documentation.nvim</strong> — diese App führt es aus, sie ersetzt es nicht. Normalerweise musst du hier nichts einstellen: die App bringt ihre eigene mit und benutzt sie. Zeig nur dann auf eine andere, wenn du deine eigene benutzen willst.",
+    "prefs.engine.note": "Die Engine ist <strong>das Standalone-Binary von docmap.nvim</strong> — diese App führt es aus, sie ersetzt es nicht. Normalerweise musst du hier nichts einstellen: die App bringt ihre eigene mit und benutzt sie. Zeig nur dann auf eine andere, wenn du deine eigene benutzen willst.",
     "prefs.telemetry": "Telemetry",
     "prefs.telemetry.note": "Erhoben von <strong>runtime-analysis.nvim</strong> in Neovim, pro Plugin. Wenn du es hier umschaltest, gilt das ab deiner nächsten Neovim-Sitzung — in diesem Fenster läuft dein Plugin nicht.",
     "note.telemetry":
@@ -958,7 +958,7 @@ const CATALOGS = {
     "ph.nomap.title": "Noch keine Karte in diesem Projekt",
     "ph.nomap.generate": "Mit <strong>Karte erzeugen</strong> eine anlegen.",
     "ph.nomap.noengine":
-      "Suche zuerst die Engine in der Seitenleiste — das ist das eigenständige Binary von <code>documentation.nvim</code>.",
+      "Suche zuerst die Engine in der Seitenleiste — das ist das eigenständige Binary von <code>docmap.nvim</code>.",
     "ph.generating.title": "Wird erzeugt…",
     "ph.generating.body": "Die Engine läuft über <code>{root}</code>.",
     "deps.summary.none": "Hier hängt nichts an etwas anderem von hier",
@@ -1129,7 +1129,7 @@ const CATALOGS = {
     "err.proc.timeout": "{program} hat innerhalb von {secs} s nicht geantwortet",
     "err.open.failed": "{target} ließ sich nicht öffnen",
     "err.open.reveal": "{path} ließ sich nicht anzeigen",
-    "err.engine.none": "Keine docmap-Engine eingerichtet. Sie ist das eigenständige Programm von documentation.nvim — leg sie in den PATH oder zeig in der Seitenleiste auf sie",
+    "err.engine.none": "Keine docmap-Engine eingerichtet. Sie ist das eigenständige Programm von docmap.nvim — leg sie in den PATH oder zeig in der Seitenleiste auf sie",
     "err.engine.notJson": "{program} hat auf --capabilities mit etwas geantwortet, das kein JSON ist",
     "err.nvim.none": "Kein nvim-Programm eingerichtet. Leg es in den PATH oder zeig in den Einstellungen auf es",
     "err.nvim.noConfig": "Kein Neovim-Konfigurationsordner eingerichtet, und am üblichen Ort ist keiner",

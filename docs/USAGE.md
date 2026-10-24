@@ -35,7 +35,7 @@ the code, not recalled.
 ## The one thing to know first
 
 **A generated map is a snapshot of the engine that wrote it.** The map is a
-self-contained HTML document produced by `documentation.nvim`'s engine at
+self-contained HTML document produced by `docmap.nvim`'s engine at
 the moment you pressed Generate — it is not rendered live by this window.
 
 The consequence catches everyone once: **updating the app does not change
@@ -85,7 +85,7 @@ exactly this case afterwards.
 **Neovim** — the plugin specs your personal Neovim config declares, added in
 one step instead of one folder picker per plugin. The tab is named for what
 it reads: it runs your config headless and asks it which
-`documentation.nvim`-mappable plugins are enabled and checked out locally,
+`docmap.nvim`-mappable plugins are enabled and checked out locally,
 then adds each one exactly as the Folder tab would. It reads the same
 `plugins.personal.export.projects()` list `:MyPlugins` and the statusline
 already use — the real, currently-active list, not a guess at a policy
@@ -202,7 +202,7 @@ feature.
 |---|---|
 | **Sidebar** | The project picker, the per-project detail block, and the Engine and Neovim panels. Hidden with **View → Sidebar** (`Ctrl+B`). The pin in its corner (or **View → Auto-hide sidebar**) lets it fold to a thin edge and open as an overlay while the pointer is on it. |
 | **Project bar** | Above the main pane for a selected project: the **Map / Files / Statistics** switch and the search box — see below. |
-| **Main pane** | The generated map, embedded. Everything inside it is `documentation.nvim`'s surface, not this app's. With nothing selected it shows the whole workspace instead — see below. |
+| **Main pane** | The generated map, embedded. Everything inside it is `docmap.nvim`'s surface, not this app's. With nothing selected it shows the whole workspace instead — see below. |
 | **Files pane** | The live file tree — see below. **View → Files on disk** (`Ctrl+Shift+F`). |
 | **Statistics pane** | What the project is made of, counted now. **View → Statistics**. |
 | **Status bar** | Spans the bottom, carrying the project path and the progress of anything long-running. |
@@ -444,7 +444,7 @@ path that does not start with the project root is refused. The check is on
 the path's *shape* first — a drive, a UNC path (`\\host\share\…`) or a leading
 separator is refused before the disk is touched, so a hostile map cannot make
 Windows contact a server of its choosing — and on the resolved location second.
-The same rule covers the search box's folder and the file tree. So do the project icon (every file it considers, including a web manifest's `icons`) and the local server behind the embedded map: a `docs/map` that is a symlink or junction, or a file in it that links out of it, is not served, because the page it holds is the repository's own and runs next to this server. A linked `docs/map` — or a `module_map.json` / `index.html` in it that is a link out of the project or to another machine — is read as **no map** by everything else too (the staleness check, the changed-files list, search over the map, the dependency graph, the project's map status): reading it would follow the link to wherever it points. A link that stays inside the project still works. *Generate* and *Check* refuse a project whose map directory is a link, or whose `index.html`, `module_map.json`, `overview.md` or `coverage.svg` is a link that leaves the project, goes to another machine or has a target that is not there (it cannot be checked, and an engine would create the target wherever the link says), with a message instead of writing through it (an engine from `documentation.nvim` commit `e472c5c` on does the same on its side: it checks every component of its output path and does not follow links out of the project when it reads the source tree, `.docmap.json` or the map for *Check*; an older engine does follow them). The map directory (Project settings → Map directory) must be one the engine accepts, and is refused when you save it otherwise: it lies inside the project (no `..`, no absolute path) and its names consist of letters, digits, `-`, `_` and `.` only, with no `.` name and, on Windows, no name that ends in a dot. A value saved before that was checked (`../maps`, `docs/my map`) is not handed to the engine: *Generate* and *Check* name it and send you to Project settings. Path components that name a drive (`C:x`) or a stream are refused on Windows, and a link target counts as local only if it is a drive or a volume — not a share, not an NT-namespace spelling of one, and not a target with a root and no drive (`\Device\…`). On Windows a file or folder whose name ends in a dot or a space (which Win32 reads as a different name) is skipped by every walk and by the folder picker, and a path with such a component is refused (so the project icon, which is handed on without its `\\?\` prefix, can never be one). The work the link walk may do for one path, and for one project icon lookup in all, is bounded: a link to a very deep tree, a long chain of links or a manifest with thousands of icons costs a fixed amount and then gives up. A name Win32 would rewrite is refused wherever it comes from - the path asked for, or the target of a link on the way - and a file of more than 8 MiB is never taken for the project icon (the window reads the whole file into memory to show it). The same holds when you pick a folder in *Add project*: the links in it that lead to another machine are not followed (a junction to another drive is, and still lists), and a `.git` that is a link counts as a `.git` without being followed.
+The same rule covers the search box's folder and the file tree. So do the project icon (every file it considers, including a web manifest's `icons`) and the local server behind the embedded map: a `docs/map` that is a symlink or junction, or a file in it that links out of it, is not served, because the page it holds is the repository's own and runs next to this server. A linked `docs/map` — or a `module_map.json` / `index.html` in it that is a link out of the project or to another machine — is read as **no map** by everything else too (the staleness check, the changed-files list, search over the map, the dependency graph, the project's map status): reading it would follow the link to wherever it points. A link that stays inside the project still works. *Generate* and *Check* refuse a project whose map directory is a link, or whose `index.html`, `module_map.json`, `overview.md` or `coverage.svg` is a link that leaves the project, goes to another machine or has a target that is not there (it cannot be checked, and an engine would create the target wherever the link says), with a message instead of writing through it (an engine from `docmap.nvim` commit `e472c5c` on does the same on its side: it checks every component of its output path and does not follow links out of the project when it reads the source tree, `.docmap.json` or the map for *Check*; an older engine does follow them). The map directory (Project settings → Map directory) must be one the engine accepts, and is refused when you save it otherwise: it lies inside the project (no `..`, no absolute path) and its names consist of letters, digits, `-`, `_` and `.` only, with no `.` name and, on Windows, no name that ends in a dot. A value saved before that was checked (`../maps`, `docs/my map`) is not handed to the engine: *Generate* and *Check* name it and send you to Project settings. Path components that name a drive (`C:x`) or a stream are refused on Windows, and a link target counts as local only if it is a drive or a volume — not a share, not an NT-namespace spelling of one, and not a target with a root and no drive (`\Device\…`). On Windows a file or folder whose name ends in a dot or a space (which Win32 reads as a different name) is skipped by every walk and by the folder picker, and a path with such a component is refused (so the project icon, which is handed on without its `\\?\` prefix, can never be one). The work the link walk may do for one path, and for one project icon lookup in all, is bounded: a link to a very deep tree, a long chain of links or a manifest with thousands of icons costs a fixed amount and then gives up. A name Win32 would rewrite is refused wherever it comes from - the path asked for, or the target of a link on the way - and a file of more than 8 MiB is never taken for the project icon (the window reads the whole file into memory to show it). The same holds when you pick a folder in *Add project*: the links in it that lead to another machine are not followed (a junction to another drive is, and still lists), and a `.git` that is a link counts as a `.git` without being followed.
 
 Configure it in **Settings → Editor**: a command template with `{file}` and
 `{line}` substituted. The template is split into arguments *before*
@@ -761,7 +761,7 @@ one question — can this app actually generate anything right now — and says
 so in one word beside the header even while collapsed: `ready`,
 `no grammars`, or `not found`.
 
-The engine is `documentation.nvim`'s own standalone binary, a separate
+The engine is `docmap.nvim`'s own standalone binary, a separate
 program this app runs as a subprocess. The verdict stays visible because it
 decides whether the next action works, and a fact behind a click is a fact
 nobody reads.
@@ -789,7 +789,7 @@ falls back to the list above rather than failing later with a raw OS error.
 
 **Contract** is the row that says whether the engine found is the one this
 app was checked against. Every build of the app carries `engine.lock`: the
-documentation.nvim commit it was checked against, the artifact schema that
+docmap.nvim commit it was checked against, the artifact schema that
 commit writes and the routes the window asks it for. The row compares the
 engine's own answer with those lines:
 
@@ -850,7 +850,7 @@ data, no matter how it is configured:
 | Panel | Why this app can't | What it needs instead |
 |---|---|---|
 | Analysis → Telemetry | Telemetry exists only if real code ran inside a live Neovim session with `runtime-analysis.nvim` collecting it. This window can switch collection **on** (Settings → Telemetry) but cannot run your plugin code, so it cannot make the data exist. | Switch collection on here if it is off, then open the project in Neovim and use it — the panel reads whatever was collected there. |
-| Hierarchy → Types | Type data comes from `lua-language-server`. The engine this app runs is `documentation.nvim`'s Neovim-free build, which has no equivalent — not "not installed", structurally absent. | Run `:DocMap full` inside Neovim, then reopen the project here — the map it writes already carries the type data. |
+| Hierarchy → Types | Type data comes from `lua-language-server`. The engine this app runs is `docmap.nvim`'s Neovim-free build, which has no equivalent — not "not installed", structurally absent. | Run `:DocMap full` inside Neovim, then reopen the project here — the map it writes already carries the type data. |
 
 **The third is temporary, and says so.** Hierarchy → **Calls** and **Module
 Calls** draw nothing for a project whose languages have no call extraction
@@ -986,14 +986,14 @@ before anything opens — it is the one part of the report you did not type.
 Everything the generated page itself shows — the module tree, the Analysis
 tabs, the Findings tab, the Checklist panel and its `@ref`/`@verified`
 syntax, what Telemetry and Loaded need to show real data — is
-`documentation.nvim`'s own surface, not this app's. This app is one more
+`docmap.nvim`'s own surface, not this app's. This app is one more
 place that page can run (the project's roadmap calls it *the fourth host*); it does
 not change what the page means.
 
 | Question | Where |
 |---|---|
-| What each tab and Analysis panel shows | [`documentation.nvim` — WORKFLOW.md](https://github.com/StefanBartl/documentation.nvim/blob/main/docs/WORKFLOW.md) |
-| Which languages the engine reads, and how fully | [`documentation.nvim` — languages.md](https://github.com/StefanBartl/documentation.nvim/blob/main/docs/languages.md) |
-| The checklist ledger's syntax and states | [`documentation.nvim` — checklist_format.md](https://github.com/StefanBartl/documentation.nvim/blob/main/docs/checklist_format.md) |
-| How the map is built, stage by stage | [`documentation.nvim` — pipeline.md](https://github.com/StefanBartl/documentation.nvim/blob/main/docs/pipeline.md) |
-| Talking to a project's map from an agent | [`documentation.nvim` — mcp.md](https://github.com/StefanBartl/documentation.nvim/blob/main/docs/mcp.md) |
+| What each tab and Analysis panel shows | [`docmap.nvim` — WORKFLOW.md](https://github.com/StefanBartl/docmap.nvim/blob/main/docs/WORKFLOW.md) |
+| Which languages the engine reads, and how fully | [`docmap.nvim` — languages.md](https://github.com/StefanBartl/docmap.nvim/blob/main/docs/languages.md) |
+| The checklist ledger's syntax and states | [`docmap.nvim` — checklist_format.md](https://github.com/StefanBartl/docmap.nvim/blob/main/docs/checklist_format.md) |
+| How the map is built, stage by stage | [`docmap.nvim` — pipeline.md](https://github.com/StefanBartl/docmap.nvim/blob/main/docs/pipeline.md) |
+| Talking to a project's map from an agent | [`docmap.nvim` — mcp.md](https://github.com/StefanBartl/docmap.nvim/blob/main/docs/mcp.md) |

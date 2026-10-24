@@ -1,7 +1,7 @@
 # Runs the checks on every push and pull request: cargo fmt --check, cargo
 # clippy -D warnings and cargo test (Rust), and node --test (the shared frontend helpers under src/lib/);
 # a second job, `tokens`, checks the design tokens copied from appkit-ui, and a third, `engine`, holds
-# documentation.nvim to the contract of engine.lock. Deliberately
+# docmap.nvim to the contract of engine.lock. Deliberately
 # separate from release.yml, which builds real installers from a real
 # downloaded engine sidecar and only runs on a pushed vX.Y.Z tag -- this one
 # only needs the Rust/JS code itself to be correct, on every push, without
@@ -15,7 +15,7 @@
 # existence checks and for the one test that exercises sidecar
 # *resolution* (does the configured path resolve to a real file at all) --
 # a different question from "does the engine actually work", which belongs
-# to documentation.nvim's own CI, not this one. macOS needs neither
+# to docmap.nvim's own CI, not this one. macOS needs neither
 # placeholder: tauri.conf.json's base config has no externalBin/resources
 # at all, only the Windows/Linux platform overrides do (see release.yml's
 # own engine_triple: "" for macOS, same reasoning).
@@ -151,7 +151,7 @@ jobs:
       - name: unit tests of the tools
         run: python3 -m unittest discover -s tools -p "test_*.py"
 
-  # The engine contract of engine.lock: documentation.nvim's source at the pinned commit writes that
+  # The engine contract of engine.lock: docmap.nvim's source at the pinned commit writes that
   # schema and answers those routes, contract/docmap.schema.json is its `.docmap.json` schema byte for
   # byte, and the binary of the rolling release `standalone-latest` -- the one release.yml and
   # rolling.yml bundle -- still answers that schema and those routes. A rolling release has no number
@@ -169,7 +169,7 @@ jobs:
         run: |
           set -euo pipefail
           gh release download standalone-latest \
-            --repo StefanBartl/documentation.nvim \
+            --repo StefanBartl/docmap.nvim \
             --pattern "docmap-x86_64-unknown-linux-gnu" \
             --dir /tmp/engine
           chmod +x /tmp/engine/docmap-x86_64-unknown-linux-gnu

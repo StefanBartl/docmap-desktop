@@ -16,7 +16,7 @@ export const PER_CHECK = 5;
 
 const RANK = { error: 0, warn: 1, info: 2 };
 
-// `  [%s] %-22s %s` - the engine's own format (documentation.nvim
+// `  [%s] %-22s %s` - the engine's own format (docmap.nvim
 // `core/cli.lua`, `report`). A check name has no spaces, the message may.
 const FINDING = /^\s*\[(error|warn|info)\]\s+(\S+)\s+(.*)$/;
 
