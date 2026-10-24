@@ -336,6 +336,7 @@ mod tests {
     /// check in `every_module_is_scanned` asks for.
     const SOURCES: &[(&str, &str)] = &[
         ("apperr.rs", include_str!("apperr.rs")),
+        ("contract.rs", include_str!("contract.rs")),
         ("deps.rs", include_str!("deps.rs")),
         ("feedback.rs", include_str!("feedback.rs")),
         ("filetree.rs", include_str!("filetree.rs")),

@@ -128,6 +128,7 @@ test("no English catalog key is dead", () => {
     read("./stats.js"),
     read("./engine-log.js"),
     read("./errors.js"),
+    read("./contract.js"),
     // A command's error names its key in Rust: `apperr::ENGLISH` lists every
     // one, and `errors.test.js` holds that list against the catalog.
     read("../../src-tauri/src/apperr.rs"),

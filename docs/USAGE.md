@@ -787,6 +787,24 @@ intention, and this program cannot tell the two apart.
 A path you set that stops existing is not remembered as broken: the app
 falls back to the list above rather than failing later with a raw OS error.
 
+**Contract** is the row that says whether the engine found is the one this
+app was checked against. Every build of the app carries `engine.lock`: the
+documentation.nvim commit it was checked against, the artifact schema that
+commit writes and the routes the window asks it for. The row compares the
+engine's own answer with those lines:
+
+- `schema 6, as checked` — in step.
+- **This engine writes schema 7; this app was checked against 6** — the
+  engine is newer. Its maps may lack a field this window reads (a schema bump
+  is allowed to remove one), so update the app.
+- **This engine writes schema 5…** — the engine is older. Update the engine,
+  then generate the maps again.
+- **This engine does not answer …** — a route the Telemetry, Loaded,
+  Checklist or Commits panel needs is missing; that panel stays empty.
+
+An engine too old to report its schema has no Contract row; the **Reads**
+row already says it cannot be asked.
+
 **Grammars…** points at a directory of compiled tree-sitter grammars and is
 optional. Without one, generation still succeeds — a complete module tree,
 correctly. With one, the same run also gets function-level detail

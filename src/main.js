@@ -41,7 +41,8 @@ import { t, plural, setLocale, initialLocale, LOCALES, keys } from "./lib/i18n.j
 import { summarizeEngineLog, generatedMessage, PER_CHECK } from "./lib/engine-log.js";
 import { createRunReport, createTaskLog } from "./lib/run-report.js";
 import { createLiveStatus } from "./lib/live-status.js";
-import { errorText } from "./lib/errors.js";
+import { errorText, fillParams } from "./lib/errors.js";
+import { contractVerdict } from "./lib/contract.js";
 import {
   trend as trendOf,
   windows as trafficWindows,
@@ -1586,6 +1587,18 @@ function engineFacts() {
   } else if (engineLangs) {
     // Probed and answered, but with no list: an engine older than the field.
     rows.push({ label: t("facts.reads"), text: engineLanguageText(engineLangs), missing: true });
+  }
+  // The engine held to `engine.lock`: the one row that can say "this binary
+  // is not the one this app was checked against" before a map comes back
+  // short. Marked like a missing grammar when it is not in step.
+  const verdict = contractVerdict(engineLangs);
+  if (verdict) {
+    rows.push({
+      label: t("facts.contract"),
+      text: fillParams(t(verdict.key), verdict.params),
+      missing: !verdict.ok,
+      title: verdict.params.commit,
+    });
   }
   return rows;
 }

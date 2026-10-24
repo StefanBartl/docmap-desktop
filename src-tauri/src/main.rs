@@ -10,6 +10,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod apperr;
+mod contract;
 mod deps;
 mod feedback;
 mod filetree;
@@ -1908,6 +1909,14 @@ struct EngineLanguages {
     /// built from was clean. `None` for an engine run from a source
     /// checkout, which stamps nothing rather than claiming a provenance.
     build: Option<EngineBuild>,
+    /// The `/api/*` routes the engine answers. `None` from a build that
+    /// predates the field -- not an empty list, which would claim an engine
+    /// that answers nothing.
+    routes: Option<Vec<String>>,
+    /// The contract this build of the app was checked against
+    /// (`engine.lock`). Sent with every answer, including "cannot be asked",
+    /// so the window compares the two in one place (`src/lib/contract.js`).
+    contract: Option<contract::Contract>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1964,6 +1973,8 @@ fn engine_languages(app: tauri::AppHandle) -> Result<EngineLanguages, AppError> 
             languages: None,
             schema: None,
             build: None,
+            routes: None,
+            contract: contract::pinned(),
         });
     }
 
@@ -1986,6 +1997,10 @@ fn engine_languages(app: tauri::AppHandle) -> Result<EngineLanguages, AppError> 
         build: value
             .get("build")
             .and_then(|b| serde_json::from_value::<EngineBuild>(b.clone()).ok()),
+        routes: value
+            .get("routes")
+            .and_then(|r| serde_json::from_value::<Vec<String>>(r.clone()).ok()),
+        contract: contract::pinned(),
     })
 }
 

@@ -199,8 +199,13 @@ const R = {
   },
   engine_info: () => ({ path: "C:/tools/docmap.exe", from_path: false, bundled: false,
                         grammars: "C:/tools/docmap-grammars" }),
+  // Schema 3 against a contract of 6, on purpose: the Contract row then shows
+  // its "older" sentence, the longest it has, at the minimum window size.
   engine_languages: () => ({ languages: LANGS, schema: 3,
-                             build: { commit: "5d2b98d", committed_at: "2026-08-20", clean: true } }),
+                             build: { commit: "5d2b98d", committed_at: "2026-08-20", clean: true },
+                             routes: ["checklist", "commits", "loaded", "loaded/snapshots", "telemetry", "telemetry/snapshots"],
+                             contract: { commit: "5fdb34c659ed9f93eb96dbe4f7341b5f8aebe683", schema: 6,
+                                         routes: ["checklist", "commits", "loaded", "loaded/snapshots", "telemetry", "telemetry/snapshots"] } }),
   nvim_info: () => ({ path: "C:/Program Files/Neovim/bin/nvim.exe", from_path: true,
                       config_dir: "C:/Users/bartl/AppData/Local/nvim", config_dir_from_default: true }),
   // Measured, like everything else here: these are the real edges between

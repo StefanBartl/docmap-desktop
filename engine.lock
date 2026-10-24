@@ -1,0 +1,23 @@
+# The engine contract this app is built and checked against: one commit of documentation.nvim (on its
+# origin/main, never a local one) and what that commit publishes to a host.
+#
+#   schema    the artifact schema the engine writes (`M.SCHEMA` in core/scan.lua, `schema` of --capabilities)
+#   routes    the /api/* routes the window asks for (`M.routes` in core/api.lua, `routes` of --capabilities),
+#             space-separated, sorted
+#
+# contract/docmap.schema.json is docs/docmap.schema.json of this commit, byte for byte (the `.docmap.json`
+# this app reads `out_dir` from). The window reads `schema` and `routes` of this file at build time
+# (src-tauri/src/contract.rs) and says so when the engine it finds answers differently.
+#
+# The engine itself is a rolling release (`standalone-latest`) with no number to pin, so what is pinned is
+# the contract, not the binary: CI checks the source at this commit and the binary of the rolling release
+# against these lines (tools/check-engine-lock.py). A schema bump in the engine turns CI red here until
+# this file moves. To move it: take a commit from documentation.nvim's origin/main, then
+#
+#     python tools/check-engine-lock.py --write --commit <sha>
+#
+# which copies the schema file, rewrites schema and routes from that commit, and stops for review.
+repo = https://github.com/StefanBartl/documentation.nvim
+commit = 5fdb34c659ed9f93eb96dbe4f7341b5f8aebe683
+schema = 6
+routes = checklist commits loaded loaded/snapshots telemetry telemetry/snapshots

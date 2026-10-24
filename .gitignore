@@ -42,3 +42,6 @@ tags
 /*.AppImage
 /*.dmg
 /*.app.tar.gz
+
+# Python bytecode of tools/ and its tests
+__pycache__/

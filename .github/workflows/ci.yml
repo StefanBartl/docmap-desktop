@@ -1,6 +1,7 @@
 # Runs the checks on every push and pull request: cargo fmt --check, cargo
 # clippy -D warnings and cargo test (Rust), and node --test (the shared frontend helpers under src/lib/);
-# a second job, `tokens`, checks the design tokens copied from appkit-ui. Deliberately
+# a second job, `tokens`, checks the design tokens copied from appkit-ui, and a third, `engine`, holds
+# documentation.nvim to the contract of engine.lock. Deliberately
 # separate from release.yml, which builds real installers from a real
 # downloaded engine sidecar and only runs on a pushed vX.Y.Z tag -- this one
 # only needs the Rust/JS code itself to be correct, on every push, without
@@ -149,3 +150,29 @@ jobs:
 
       - name: unit tests of the tools
         run: python3 -m unittest discover -s tools -p "test_*.py"
+
+  # The engine contract of engine.lock: documentation.nvim's source at the pinned commit writes that
+  # schema and answers those routes, contract/docmap.schema.json is its `.docmap.json` schema byte for
+  # byte, and the binary of the rolling release `standalone-latest` -- the one release.yml and
+  # rolling.yml bundle -- still answers that schema and those routes. A rolling release has no number
+  # to pin, so this job is what holds it: red here without a change in this repository means the
+  # engine moved, and the answer is to move engine.lock (its header says how), not to retry.
+  # ubuntu-latest, not 22.04: the published Linux engine needs glibc 2.38, which 22.04 does not have.
+  engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: download the rolling engine
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release download standalone-latest \
+            --repo StefanBartl/documentation.nvim \
+            --pattern "docmap-x86_64-unknown-linux-gnu" \
+            --dir /tmp/engine
+          chmod +x /tmp/engine/docmap-x86_64-unknown-linux-gnu
+
+      - name: the engine is in step with engine.lock
+        run: python3 tools/check-engine-lock.py --binary /tmp/engine/docmap-x86_64-unknown-linux-gnu

@@ -224,8 +224,14 @@ takes the file of a new tag):
 ```bash
 python tools/check-appkit-tokens.py
 python tools/check-colors.py
+python tools/check-engine-lock.py
 python -m unittest discover -s tools -p "test_*.py"
 ```
+
+`check-engine-lock.py` holds documentation.nvim to the contract of
+`engine.lock` (the commit, the artifact schema, the routes, and the copy in
+`contract/`); `--engine <clone>` reads a local clone instead of fetching, and
+`--binary <docmap>` holds an engine binary to it too.
 
 Layout is not something those can see. `python tools/preview/preview.py` serves
 the window in a browser with a stubbed backend (`tools/preview/stub.js`), for

@@ -95,6 +95,29 @@ falls back through the list rather than failing later with a raw OS error.
 - **Config:** Settings → Engine
 - **Docs:** [USAGE.md](../USAGE.md#the-engine-indicator)
 
+## The engine contract — `engine.lock`
+
+The engine is a rolling release with no version number, so what this app
+pins is the contract, not the binary: one commit of documentation.nvim, the
+artifact schema it writes and the `/api/*` routes it answers, the same shape
+`engine.lock` has in tasks-desktop and rules-desktop. `contract/docmap.schema.json`
+is that commit's `.docmap.json` schema, byte for byte.
+
+**Held in three places.** CI checks the engine source at the pinned commit
+and the binary of the rolling release against the lock, so a schema bump in
+the engine turns this repository red until the lock moves. The lock is
+compiled into the app, and the engine panel's **Contract** row compares it
+with what the engine on this machine answers: a binary on `PATH`, one chosen
+by hand, or a bundled one older than the lock.
+
+**Newer is not "fine".** The schema is compared for equality, the routes as a
+lower bound: an engine with one more route serves this window exactly as
+well, while a schema bump may remove a field the window reads.
+
+- **Module:** `src-tauri/src/contract.rs`, `src/lib/contract.js`, `tools/check-engine-lock.py`
+- **Config:** `engine.lock` — moved with `python tools/check-engine-lock.py --write --commit <sha>`
+- **Docs:** [USAGE.md](../USAGE.md#the-engine-indicator)
+
 ## Tree-sitter grammars, and why there is no download button
 
 Pointing at a directory of compiled grammars is optional. Without one,
