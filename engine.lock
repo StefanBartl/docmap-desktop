@@ -18,6 +18,6 @@
 #
 # which copies the schema file, rewrites schema and routes from that commit, and stops for review.
 repo = https://github.com/StefanBartl/docmap.nvim
-commit = 5fdb34c659ed9f93eb96dbe4f7341b5f8aebe683
+commit = 80e72691559696fe77bd8a161b652b6630024ab9
 schema = 6
 routes = checklist commits loaded loaded/snapshots telemetry telemetry/snapshots
