@@ -1,0 +1,12 @@
+# The one place that names the version of appkit's release-kit (https://github.com/StefanBartl/appkit, folder
+# release-kit) the workflows take their actions from: `prepare` and `publish`, which put the installers, the
+# install scripts of both channels and SHA256SUMS on the rolling build and on a release draft.
+#
+# It is a pin of its own: the design tokens (tools/appkit-ui.pin) stay on the tag they were copied at, and
+# moving them means looking at the window in both themes. tools/check-release-kit-pin.py checks that the tag
+# still names this commit and that every `uses: StefanBartl/appkit/...@<sha>` of a workflow is this commit.
+# To move to another tag: change both lines and the `uses:` lines of rolling.yml and release.yml, then
+#
+#     python tools/check-release-kit-pin.py
+tag = v0.18.1
+commit = 7f84b859421e8fa1b927c8c27b5aa85886db957f

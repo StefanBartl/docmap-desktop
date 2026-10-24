@@ -40,11 +40,32 @@ for that project.
 ## Get the app
 
 [**Download the latest release**](https://github.com/StefanBartl/docmap-desktop/releases/latest)
-— an installer per platform (Windows `.msi`, macOS `.dmg`, Linux `.deb`/
+— an installer per platform (Windows `.msi`/`-setup.exe`, macOS `.dmg`, Linux `.deb`/
 `.AppImage`), no Rust toolchain required. Built by
 [`.github/workflows/release.yml`](.github/workflows/release.yml) from a
 pushed `vX.Y.Z` tag; see [Build](#build) below to build one yourself
 instead.
+
+**Or install it with a script** — for the current user, no administrator rights, and
+nothing for SmartScreen to stop (a file the script downloads carries no
+"from the internet" mark; the script checks it against `SHA256SUMS` instead and
+runs nothing that does not match). Run it in your own terminal, not elevated:
+
+```
+# the newest state of main (the pre-release "latest", Windows and Linux x86-64)
+powershell -ExecutionPolicy Bypass -c "irm https://github.com/StefanBartl/docmap-desktop/releases/download/latest/install.ps1 | iex"
+curl -fsSL https://github.com/StefanBartl/docmap-desktop/releases/download/latest/install.sh | sh
+
+# a release: the same with the tag in place of latest, e.g. .../releases/download/v0.6.0/install.ps1
+```
+
+The script of a release installs exactly that release, the script of `latest`
+the rolling build ([`rolling.yml`](.github/workflows/rolling.yml), rebuilt after
+every green CI run on `main`, for trying what is new). Windows gets the NSIS
+setup, run silently; Linux gets the AppImage in `~/.local/bin/docmap-desktop`. On
+macOS take the `.dmg`. The scripts are the ones of appkit's
+[release-kit](https://github.com/StefanBartl/appkit/tree/main/release-kit), stamped
+for this app and the channel when they are attached.
 
 You will also need `documentation.nvim`'s standalone engine binary — this
 app runs it, it does not replace it. See [The engine](#the-engine).

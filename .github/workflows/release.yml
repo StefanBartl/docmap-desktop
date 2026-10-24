@@ -1,30 +1,29 @@
-# Builds an installer per platform and attaches them to a GitHub Release,
-# so "get the app" means "open Releases and download one file" instead of
-# "clone this and run cargo tauri build yourself".
+# A release is a deliberate act: it starts with a pushed tag `vX.Y.Z` and ends as a DRAFT that a person opens,
+# installs from and clicks through before publishing it (docs/RELEASING.md). Nothing here publishes.
 #
-# Triggered by pushing a version tag (`vX.Y.Z`), not by every push to main —
-# a release is a deliberate act, not something that should fire on every
-# commit. `tauri-apps/tauri-action` is the project's own official action: it
-# runs `cargo tauri build`, uploads the platform-specific installer/bundle it
-# produces, and creates (or updates) the GitHub Release for the pushed tag.
+# What it makes:
+#   an installer per platform         the Windows `-setup.exe` and `.msi` (the engine is bundled), the Linux
+#                                     `.deb`, `.rpm` and `.AppImage` (the engine is bundled), the macOS `.dmg`
+#                                     and `.app.tar.gz` for both architectures (no bundled engine)
+#   install.ps1, install.sh           install exactly this release for the current user, without a browser
+#                                     download in the way of SmartScreen (release-kit of appkit, stamped for
+#                                     this tag)
+#   SHA256SUMS                        the checksums of all of them
 #
-# `frontendDist` in tauri.conf.json points straight at `../src` — no bundler,
-# no package.json, nothing to `npm install` — so this workflow only ever
-# needs the Rust toolchain plus each OS's native webview dependencies.
+# Before anything is built (`check`): the tag, the version of the two manifests and the main branch agree, the
+# CI of main was green for this very commit, and no published release of the tag exists. The draft, its files
+# and the checksums are made by the action `publish` of appkit's release-kit, pinned by the commit of
+# tools/release-kit.pin (tools/check-release-kit-pin.py checks that they agree). A published release is never
+# touched again.
 #
-# The engine sidecar (HANDOVER.md, #7): downloaded from
-# documentation.nvim's own `standalone-latest` rolling release before
-# `tauri-action` runs, staged under src-tauri/binaries|resources exactly
-# where tauri.windows.conf.json/tauri.linux.conf.json's `externalBin`/
-# `resources` expect them. Skipped on macOS on purpose, not by oversight —
-# documentation.nvim does not publish a macOS build of the engine (see
-# that repository's docs/ROADMAP/V1_EXTENSION/PORTABILITY.md: the
-# standalone path is proven on Linux and Windows, macOS untested and out
-# of scope). A macOS build of this app still succeeds without it —
-# engine_sidecar() in main.rs already resolves to None when the file
-# is not there, the same "resolve, then verify" rule the rest of engine
-# discovery already follows — it just starts with no bundled fallback,
-# identical to every build of this app before this feature existed.
+# `frontendDist` in tauri.conf.json points straight at `../src`: no bundler, no package.json, nothing to
+# `npm install`, so a build only needs the Rust toolchain plus each OS's native webview dependencies.
+#
+# The engine sidecar (HANDOVER.md, #7) is staged by .github/actions/engine-sidecar from documentation.nvim's
+# rolling release `standalone-latest`. Skipped on macOS on purpose, not by oversight: documentation.nvim
+# publishes no macOS build of the engine. A macOS build of this app still succeeds without it.
+#
+# Actions are pinned by commit; a job gets only the rights it needs.
 
 name: Release
 
@@ -33,84 +32,166 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: read
+
 jobs:
-  release:
+  check:
+    runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0 (node24)
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: The tag, the versions and the CI of this commit agree
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          tag="$GITHUB_REF_NAME"
+          case "$tag" in
+            v[0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "::error::the tag $tag is not vX.Y.Z"; exit 1 ;;
+          esac
+          version="${tag#v}"
+          conf="$(jq -r .version src-tauri/tauri.conf.json)"
+          crate="$(sed -n 's/^version *= *"\(.*\)"/\1/p' src-tauri/Cargo.toml | head -n 1)"
+          if [ "$version" != "$conf" ] || [ "$version" != "$crate" ]; then
+            echo "::error::the tag says $version, src-tauri/tauri.conf.json says $conf and src-tauri/Cargo.toml says $crate (bump both in a commit of their own first)"
+            exit 1
+          fi
+          # A release comes from main, never from a side branch.
+          git fetch --quiet origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::the commit of the tag is not on main"
+            exit 1
+          fi
+          green="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$GITHUB_SHA" --status success --json databaseId --jq 'length')"
+          if [ "$green" -lt 1 ]; then
+            echo "::error::no green CI run for $GITHUB_SHA: wait for it, or fix main, then tag again"
+            exit 1
+          fi
+          # A published release is never cut again: stop before anything is built.
+          if draft="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft 2>/dev/null)" && [ "$draft" != "true" ]; then
+            echo "::error::the release $tag is published: it is never cut again, make a patch release"
+            exit 1
+          fi
+
+  build:
+    needs: check
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: "macos-latest"
-            args: "--target aarch64-apple-darwin"
-            engine_triple: ""
-          - platform: "macos-latest"
-            args: "--target x86_64-apple-darwin"
-            engine_triple: ""
-          - platform: "ubuntu-22.04"
+          - platform: macos-latest
+            name: macos-arm
+            args: --target aarch64-apple-darwin
+            triple: ""
+          - platform: macos-latest
+            name: macos-x64
+            args: --target x86_64-apple-darwin
+            triple: ""
+          - platform: ubuntu-22.04
+            name: linux
             args: ""
-            engine_triple: "x86_64-unknown-linux-gnu"
-          - platform: "windows-latest"
+            triple: x86_64-unknown-linux-gnu
+          - platform: windows-latest
+            name: windows
             args: ""
-            engine_triple: "x86_64-pc-windows-msvc"
-
+            triple: x86_64-pc-windows-msvc
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0 (node24)
+        with:
+          persist-credentials: false
 
-      # WebKitGTK is Linux's WebView2/WKWebView equivalent — README.md's own
-      # "one runtime dependency worth knowing about" — and the *build*
-      # headers are a separate package from the runtime library Tauri links
-      # against here.
+      # WebKitGTK is Linux's WebView2/WKWebView equivalent; the build headers are a separate package from
+      # the runtime library Tauri links against.
       - name: install Linux webview dependencies
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
         with:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
-
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: "./src-tauri -> target"
 
-      # `gh` rather than a raw curl+API call: preinstalled on every
-      # GitHub-hosted runner, and `release download` already handles
-      # asset-name matching and auth via $GITHUB_TOKEN without this
-      # workflow reimplementing either. The engine binary keeps its
-      # published name, `docmap-<triple>[.exe]` — exactly the filename
-      # tauri.{windows,linux}.conf.json's `externalBin: ["binaries/docmap"]`
-      # resolves at build time (Tauri appends the target triple itself),
-      # so no rename step is needed between download and where it must sit.
-      - name: download the engine sidecar
-        if: matrix.engine_triple != ''
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: ./.github/actions/engine-sidecar
+        if: matrix.triple != ''
+        with:
+          triple: ${{ matrix.triple }}
+          token: ${{ github.token }}
+
+      # Build only: no tagName, so the action uploads nothing and hands the paths of what it made on.
+      - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # action-v0.6.2
+        id: tauri
+        with:
+          args: ${{ matrix.args }}
+
+      # What Tauri made is for Tauri to decide (`bundle.targets` is "all"); what is published is the
+      # installers, not the signatures and updater archives next to them.
+      - name: Collect the installers
         shell: bash
+        env:
+          PATHS: ${{ steps.tauri.outputs.artifactPaths }}
         run: |
           set -euo pipefail
-          mkdir -p src-tauri/binaries src-tauri/resources/grammars
-          gh release download standalone-latest \
-            --repo StefanBartl/documentation.nvim \
-            --pattern "docmap-${{ matrix.engine_triple }}*" \
-            --pattern "grammars-${{ matrix.engine_triple }}.tar.gz" \
-            --dir /tmp/engine-dl --clobber
-          mv /tmp/engine-dl/docmap-${{ matrix.engine_triple }}* src-tauri/binaries/
-          chmod +x src-tauri/binaries/docmap-${{ matrix.engine_triple }}* || true
-          tar xzf /tmp/engine-dl/grammars-${{ matrix.engine_triple }}.tar.gz -C src-tauri/resources/grammars
+          mkdir -p dist
+          printf '%s' "$PATHS" | jq -r '.[]' |
+            grep -E -- '(-setup\.exe|\.msi|\.deb|\.rpm|\.AppImage|\.dmg|\.app\.tar\.gz)$' |
+            while IFS= read -r file; do
+              # artifactPaths holds Windows paths on a Windows runner: bash wants the POSIX spelling.
+              file="$(cygpath -u "$file" 2>/dev/null || printf '%s' "$file")"
+              cp "$file" dist/
+            done
+          ls -l dist
+          test -n "$(ls -A dist)"
 
-      - uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "docmap-desktop ${{ github.ref_name }}"
-          # Draft, not published outright: a build succeeding on every
-          # platform is not the same guarantee as someone having opened the
-          # result, and a draft lets that happen before the release goes
-          # public.
-          releaseDraft: true
-          prerelease: false
-          args: ${{ matrix.args }}
+          name: release-${{ matrix.name }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 3
+
+  # The draft (made here when there is none), the installers, the install scripts stamped for this tag and
+  # the checksums of all of them. Nine files, which is the number to expect: two for Windows, three for Linux
+  # and four for macOS (a `.dmg` and an `.app.tar.gz` for each architecture); a platform that failed leaves
+  # the number short and nothing is published.
+  publish:
+    needs: [check, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0 (node24)
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+      - uses: StefanBartl/appkit/release-kit/publish@7f84b859421e8fa1b927c8c27b5aa85886db957f # v0.18.1
+        with:
+          token: ${{ github.token }}
+          tag: ${{ github.ref_name }}
+          files: dist
+          expect: 9
+          app: docmap-desktop
+          windows-kind: nsis
+          windows-release-asset: docmap-desktop_{version}_x64-setup.exe
+          windows-rolling-asset: docmap-desktop-windows-x86_64-setup.exe
+          unix-kind: appimage
+          unix-program: docmap-desktop
+          unix-release-asset: docmap-desktop_{version}_amd64.AppImage
+          unix-rolling-asset: docmap-desktop-linux-x86_64.AppImage
+          notes-file: .github/release-notes.md

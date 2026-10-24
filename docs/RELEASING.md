@@ -84,7 +84,8 @@ much since the last release.
 **The version in the manifests is the version you tag.** `src-tauri/tauri.conf.json`
 and `src-tauri/Cargo.toml` both carry it, and they must agree with each other
 and with the tag. Bump them in a commit of their own before tagging, so the
-tag points at a tree that already claims that number.
+tag points at a tree that already claims that number. The workflow checks it
+(`check`, below) and stops before building anything when they differ.
 
 ---
 
@@ -111,7 +112,17 @@ public.
 
 ## What the workflow does
 
-One job per platform, in parallel:
+Four jobs, in order: `check`, then `build` (one job per platform, in parallel), then
+`publish`.
+
+`check` stops the run, before anything is built, when the tag is not `vX.Y.Z`, when the tag, `tauri.conf.json`
+and `Cargo.toml` do not name one version, when the commit is not on `main` or has no green `ci` run, or when a
+*published* release of the tag exists already (a published release is never cut again). A draft of the tag
+that is there is reused: its files and notes are replaced by this cut.
+
+`build` is `tauri-action` without a tag: it builds and uploads nothing, and the installers go on as
+artifacts. `publish` is the action of the same name in appkit's release-kit: it makes the draft, puts the
+installers on it, and adds the two install scripts, stamped for this tag, and `SHA256SUMS` over all of them.
 
 | Platform | Produces | Engine bundled |
 |---|---|---|
@@ -121,11 +132,14 @@ One job per platform, in parallel:
 
 Nine files for `v0.1.0`, which is the number to expect — two Windows, three
 Linux, four macOS. Listed from the real run rather than from the workflow,
-because the workflow says `cargo tauri build` and Tauri decides the rest.
+because the workflow says `cargo tauri build` and Tauri decides the rest. `publish` expects exactly nine
+(`expect: 9`): a platform that failed leaves the number short and nothing is published. On top come
+`install.ps1`, `install.sh` and `SHA256SUMS`.
 
 The engine sidecar is downloaded from `documentation.nvim`'s own
 `standalone-latest` rolling release and staged where
-`tauri.windows.conf.json` / `tauri.linux.conf.json` expect it. macOS is
+`tauri.windows.conf.json` / `tauri.linux.conf.json` expect it (the local action
+`.github/actions/engine-sidecar`, which `release.yml` and `rolling.yml` share). macOS is
 skipped on purpose rather than by oversight: `documentation.nvim` does not
 publish a macOS build of the engine. A macOS build of this app still works —
 it simply starts with no bundled fallback and finds an engine on `PATH`, or
@@ -146,9 +160,34 @@ gh run list --workflow=release.yml --limit 1
 gh run view <run-id> --json jobs --jq '.jobs[] | "\(.conclusion // .status)  \(.name)"'
 ```
 
-The draft Release appears as soon as the *first* job finishes, and the others
-attach their assets to it as they land. A draft with only some platforms in
-it means the rest are still building, not that they failed.
+The draft Release appears when `publish` runs, after *all* platforms have built, and with every file at
+once. There is no draft with only some platforms in it any more: a draft that is not there yet means a
+platform is still building, or that one failed (read the `build` job, then tag again after deleting the
+draft, if there is one).
+
+---
+
+## The scripts, and the rolling build
+
+Both channels carry `install.ps1` and `install.sh`, stamped for the channel (the release-kit of appkit,
+[its README](https://github.com/StefanBartl/appkit/tree/main/release-kit)). Why a script and not only the
+installer: a file the browser downloads is marked as coming from the internet and SmartScreen stops an unsigned
+setup with that mark (on a managed workstation it may not be run at all); a file the script downloads has no
+mark, and the script checks it against `SHA256SUMS` of the same release and runs nothing that does not match.
+That proves the installer is whole and the one of the release, not who made the release. The Windows script runs
+the NSIS setup silently (`/S`, for the current user); the Linux script copies the AppImage to
+`~/.local/bin/docmap-desktop`; on macOS it stops (take the `.dmg`).
+
+The rolling build ([`rolling.yml`](../.github/workflows/rolling.yml)) is the pre-release `latest`: after every
+green `CI` run on `main` it builds the NSIS setup and the AppImage of exactly that commit (with the engine
+bundled; no macOS), under the fixed names `docmap-desktop-windows-x86_64-setup.exe` and
+`docmap-desktop-linux-x86_64.AppImage`, and replaces the files of `latest` with its two scripts and
+`SHA256SUMS`. It is for trying the newest state, not a release. Only the tip of `main` is built.
+
+**The kit is pinned in one place.** `tools/release-kit.pin` names the tag and the commit; the `uses:` lines of
+both workflows are that commit, and `tools/check-release-kit-pin.py` (CI job `tokens`) fails when they differ or
+when the tag was moved. To move to another kit tag: change the pin file and the `uses:` lines together. The
+design tokens have their own pin (`tools/appkit-ui.pin`).
 
 ---
 
@@ -166,6 +205,11 @@ Download the installer for the platform you are on:
 ```bash
 gh release download v0.2.0 --pattern "*.msi" --dir .
 ```
+
+The install scripts cannot fetch a draft by themselves (the files of a draft download only for people who may
+write to the repository, logged in). Download the installer, `SHA256SUMS` and the script into one folder and run
+`.\install.ps1 -File .\docmap-desktop_0.2.0_x64-setup.exe` (`sh install.sh --file …`): the sums are found beside
+it. The download path (no `-File`) is tried once after publishing, with the line of the notes.
 
 If you cannot install it right away, you can still look inside the Windows
 installer without installing or starting anything. It is an NSIS archive, so

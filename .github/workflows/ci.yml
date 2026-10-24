@@ -130,6 +130,8 @@ jobs:
   # manager in this frontend). The copy and its generated fallback must be
   # the kit's file at the tag in tools/appkit-ui.pin, and that tag must still
   # name the pinned commit; no colour may be written outside the tokens.
+  # The release-kit actions of rolling.yml and release.yml are the commit of
+  # tools/release-kit.pin, and that tag still names it.
   # One platform is enough: these read files, nothing here is built.
   tokens:
     runs-on: ubuntu-22.04
@@ -138,6 +140,9 @@ jobs:
 
       - name: the token copy matches the pinned appkit tag
         run: python3 tools/check-appkit-tokens.py
+
+      - name: the release-kit actions are the pinned commit
+        run: python3 tools/check-release-kit-pin.py
 
       - name: no colour outside the tokens
         run: python3 tools/check-colors.py

@@ -1,0 +1,49 @@
+# Stage the engine the installers bundle: the sidecar binary and the grammars of documentation.nvim's own
+# rolling release `standalone-latest`, where tauri.windows.conf.json / tauri.linux.conf.json expect them
+# (`externalBin` and `resources`). Used by release.yml and rolling.yml, so the two cannot drift apart.
+#
+# Skipped by the caller on macOS on purpose, not by oversight: documentation.nvim does not publish a macOS
+# build of the engine (see that repository's docs/ROADMAP/V1_EXTENSION/PORTABILITY.md). A macOS build of this
+# app still succeeds without it: engine_sidecar() in main.rs resolves to None when the file is not there.
+#
+# `gh` rather than a raw curl: it is on every GitHub-hosted runner, and `release download` handles the asset
+# matching and the auth through GH_TOKEN. The engine binary keeps its published name,
+# `docmap-<triple>[.exe]`, which is exactly what `externalBin: ["binaries/docmap"]` resolves at build time
+# (Tauri appends the target triple itself), so no rename is needed between the download and where it must sit.
+
+name: engine sidecar
+description: Download the engine of documentation.nvim and stage it for the Tauri bundle.
+
+inputs:
+  triple:
+    description: The Rust target triple of the platform (x86_64-unknown-linux-gnu or x86_64-pc-windows-msvc).
+    required: true
+  token:
+    description: A token that may read releases (github.token).
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: download the engine sidecar
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        TRIPLE: ${{ inputs.triple }}
+      run: |
+        set -euo pipefail
+        case "$TRIPLE" in
+          x86_64-unknown-linux-gnu | x86_64-pc-windows-msvc) ;;
+          *) echo "::error::there is no engine for $TRIPLE"; exit 1 ;;
+        esac
+        # /tmp, not $RUNNER_TEMP: GNU tar of Git Bash takes "D:\..." for a remote host.
+        dl=/tmp/engine-dl
+        mkdir -p src-tauri/binaries src-tauri/resources/grammars "$dl"
+        gh release download standalone-latest \
+          --repo StefanBartl/documentation.nvim \
+          --pattern "docmap-${TRIPLE}*" \
+          --pattern "grammars-${TRIPLE}.tar.gz" \
+          --dir "$dl" --clobber
+        mv "$dl"/docmap-"${TRIPLE}"* src-tauri/binaries/
+        chmod +x src-tauri/binaries/docmap-"${TRIPLE}"* || true
+        tar xzf "$dl/grammars-${TRIPLE}.tar.gz" -C src-tauri/resources/grammars
