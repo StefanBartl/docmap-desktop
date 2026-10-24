@@ -112,8 +112,9 @@ public.
 
 ## What the workflow does
 
-Four jobs, in order: `check`, then `build` (one job per platform, in parallel), then
-`publish`.
+Three steps, in order: the job `check`, then the job `build` (one run per platform, four in parallel), then
+the job `publish`. One run per tag at a time (`concurrency`): a tag deleted and set again waits for the
+run it replaces.
 
 `check` stops the run, before anything is built, when the tag is not `vX.Y.Z`, when the tag, `tauri.conf.json`
 and `Cargo.toml` do not name one version, when the commit is not on `main` or has no green `ci` run, or when a
@@ -121,8 +122,14 @@ and `Cargo.toml` do not name one version, when the commit is not on `main` or ha
 that is there is reused: its files and notes are replaced by this cut.
 
 `build` is `tauri-action` without a tag: it builds and uploads nothing, and the installers go on as
-artifacts. `publish` is the action of the same name in appkit's release-kit: it makes the draft, puts the
+artifacts. `publish` is the action of the same name in appkit's release-kit: it makes the draft (titled
+`docmap-desktop vX.Y.Z`, with `.github/release-notes.md`, where `{tag}` becomes the tag), puts the
 installers on it, and adds the two install scripts, stamped for this tag, and `SHA256SUMS` over all of them.
+
+One name is made here and not by Tauri: the CLI calls the macOS archive `docmap-desktop.app.tar.gz` for
+both architectures, and `tauri-action` only renamed it (`docmap-desktop_aarch64.app.tar.gz`,
+`docmap-desktop_x64.app.tar.gz`) when it uploaded. The collect step does it, and two files of one name stop
+the run instead of one replacing the other.
 
 | Platform | Produces | Engine bundled |
 |---|---|---|

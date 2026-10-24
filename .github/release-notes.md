@@ -12,11 +12,15 @@ it against `SHA256SUMS` and runs it silently. Run it in your own terminal (Power
 
 ```
 # Windows
-powershell -ExecutionPolicy Bypass -c "irm https://github.com/StefanBartl/docmap-desktop/releases/download/<tag>/install.ps1 | iex"
+powershell -ExecutionPolicy Bypass -c "irm https://github.com/StefanBartl/docmap-desktop/releases/download/{tag}/install.ps1 | iex"
 
 # Linux x86-64
-curl -fsSL https://github.com/StefanBartl/docmap-desktop/releases/download/<tag>/install.sh | sh
+curl -fsSL https://github.com/StefanBartl/docmap-desktop/releases/download/{tag}/install.sh | sh
 ```
+
+(While this is a draft, the files cannot be fetched by these lines: a draft's files download only for people who
+may write to the repository, logged in. They work once the release is published; `docs/RELEASING.md` says how
+to try the script on a draft.)
 
 The Linux script puts the AppImage in `~/.local/bin/docmap-desktop` (it needs FUSE 2, or run it with
 `--appimage-extract-and-run`). On macOS take the `.dmg`; the scripts stop there rather than fetch a file that

@@ -32,6 +32,11 @@ on:
     tags:
       - "v*"
 
+# One run per tag at a time: a tag that was deleted and set again waits for the run it replaces.
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
@@ -91,18 +96,22 @@ jobs:
             name: macos-arm
             args: --target aarch64-apple-darwin
             triple: ""
+            arch: aarch64
           - platform: macos-latest
             name: macos-x64
             args: --target x86_64-apple-darwin
             triple: ""
+            arch: x64
           - platform: ubuntu-22.04
             name: linux
             args: ""
             triple: x86_64-unknown-linux-gnu
+            arch: ""
           - platform: windows-latest
             name: windows
             args: ""
             triple: x86_64-pc-windows-msvc
+            arch: ""
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0 (node24)
@@ -137,11 +146,15 @@ jobs:
           args: ${{ matrix.args }}
 
       # What Tauri made is for Tauri to decide (`bundle.targets` is "all"); what is published is the
-      # installers, not the signatures and updater archives next to them.
+      # installers, not the signatures and updater archives next to them. The `.app.tar.gz` of both macOS
+      # architectures is called docmap-desktop.app.tar.gz by the CLI; tauri-action only gave it
+      # docmap-desktop_<arch>.app.tar.gz when it uploaded (which it no longer does here), so that name
+      # is made here, and two files of one name stop the run instead of one silently replacing the other.
       - name: Collect the installers
         shell: bash
         env:
           PATHS: ${{ steps.tauri.outputs.artifactPaths }}
+          ARCH: ${{ matrix.arch }}
         run: |
           set -euo pipefail
           mkdir -p dist
@@ -150,7 +163,18 @@ jobs:
             while IFS= read -r file; do
               # artifactPaths holds Windows paths on a Windows runner: bash wants the POSIX spelling.
               file="$(cygpath -u "$file" 2>/dev/null || printf '%s' "$file")"
-              cp "$file" dist/
+              name="$(basename "$file")"
+              case "$name" in
+                *.app.tar.gz)
+                  [ -n "$ARCH" ] || { echo "::error::$name has no architecture to be named by"; exit 1; }
+                  name="docmap-desktop_${ARCH}.app.tar.gz"
+                  ;;
+              esac
+              if [ -e "dist/$name" ]; then
+                echo "::error::two files are called $name"
+                exit 1
+              fi
+              cp "$file" "dist/$name"
             done
           ls -l dist
           test -n "$(ls -A dist)"
@@ -180,10 +204,11 @@ jobs:
           pattern: release-*
           path: dist
           merge-multiple: true
-      - uses: StefanBartl/appkit/release-kit/publish@7f84b859421e8fa1b927c8c27b5aa85886db957f # v0.18.1
+      - uses: StefanBartl/appkit/release-kit/publish@d52a257f11160be4476e55fd6291a691e11051f8 # v0.19.0
         with:
           token: ${{ github.token }}
           tag: ${{ github.ref_name }}
+          title: docmap-desktop ${{ github.ref_name }}
           files: dist
           expect: 9
           app: docmap-desktop
