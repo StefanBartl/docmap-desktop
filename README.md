@@ -67,6 +67,15 @@ macOS take the `.dmg`. The scripts are the ones of appkit's
 [release-kit](https://github.com/StefanBartl/appkit/tree/main/release-kit), stamped
 for this app and the channel when they are attached.
 
+**Or build this checkout and install it** (Windows; Rust and the Tauri CLI, see [Build](#build)):
+the engine is staged the way the rolling build does it (`standalone-latest` of docmap.nvim, once,
+`-RefreshEngine` fetches it again), `cargo tauri build --bundles nsis` makes the setup, and that setup
+runs silently for the current user. A file built on the machine carries no mark for SmartScreen to stop.
+
+```
+.\scripts\build-install.ps1 [-BuildOnly] [-RefreshEngine]
+```
+
 You will also need `docmap.nvim`'s standalone engine binary — this
 app runs it, it does not replace it. See [The engine](#the-engine).
 
