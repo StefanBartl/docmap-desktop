@@ -20,6 +20,7 @@ reached (no answer is no pass), or the kit's file has a light-dark() this script
 
 import argparse
 import difflib
+import os
 import pathlib
 import re
 import subprocess
@@ -110,8 +111,13 @@ def kit_tokens(commit, appkit=None):
     if appkit:
         return git("-C", appkit, "show", f"{commit}:{KIT_PATH}")
     url = RAW_URL.format(commit=commit, path=KIT_PATH)
+    request = urllib.request.Request(url)
+    # appkit is private: CI passes a read-only token (the secret PRIVATE_READ_TOKEN), a local run its own.
+    token = os.environ.get("PRIVATE_READ_TOKEN") or os.environ.get("GITHUB_TOKEN")
+    if token:
+        request.add_header("Authorization", f"Bearer {token}")
     try:
-        with urllib.request.urlopen(url, timeout=30) as response:
+        with urllib.request.urlopen(request, timeout=30) as response:
             return response.read().decode("utf-8")
     except OSError as error:
         raise Unreachable(f"{url}: {error}")

@@ -138,8 +138,13 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/private-read
+        with:
+          token: ${{ secrets.PRIVATE_READ_TOKEN }}
 
       - name: the token copy matches the pinned appkit tag
+        env:
+          PRIVATE_READ_TOKEN: ${{ secrets.PRIVATE_READ_TOKEN }}
         run: python3 tools/check-appkit-tokens.py
 
       - name: the release-kit actions are the pinned commit
