@@ -110,11 +110,11 @@ const okInfo = (repo, fetchedDaysAgo, views, clones) => ({
   }
 });
 const TRAFFIC = {
-  p1: okInfo("StefanBartl/docmap.nvim", 1, metric(41, 210, 655, 12.5), metric(19, 88, 300, -3)),
-  p3: okInfo("StefanBartl/lib.nvim", 9, metric(2, 17, 60, null), metric(0, 4, 21, null)),
-  p4: { status: "not_tracked", repo: "StefanBartl/sandbox.nvim", message: null, summary: null, dir: "x", via: "root" },
-  p5: { status: "unreadable", repo: "StefanBartl/runtime-analysis.nvim", message: "not JSON: expected value at line 1 column 1", summary: null, dir: "x", via: "root" },
-  p6: { status: "newer_schema", repo: "StefanBartl/debugging.nvim", message: "schema 2, this app understands up to 1", summary: null, dir: "x", via: "root" }
+  p1: okInfo("WKDSteve/docmap.nvim", 1, metric(41, 210, 655, 12.5), metric(19, 88, 300, -3)),
+  p3: okInfo("WKDSteve/lib.nvim", 9, metric(2, 17, 60, null), metric(0, 4, 21, null)),
+  p4: { status: "not_tracked", repo: "WKDSteve/sandbox.nvim", message: null, summary: null, dir: "x", via: "root" },
+  p5: { status: "unreadable", repo: "WKDSteve/runtime-analysis.nvim", message: "not JSON: expected value at line 1 column 1", summary: null, dir: "x", via: "root" },
+  p6: { status: "newer_schema", repo: "WKDSteve/debugging.nvim", message: "schema 2, this app understands up to 1", summary: null, dir: "x", via: "root" }
 };
 const trafficEntry = (id) => {
   const info = TRAFFIC[id] || { status: "no_remote" };
@@ -143,7 +143,7 @@ const dailySeries = (days, base, amplitude) =>
 const TRAFFIC_DETAIL = {
   p1: {
     schema: 1,
-    repo: "StefanBartl/docmap.nvim",
+    repo: "WKDSteve/docmap.nvim",
     generated: daysAgo(1),
     fetched: daysAgo(1),
     span: { from: "2026-06-29", to: "2026-09-23" },
@@ -156,14 +156,14 @@ const TRAFFIC_DETAIL = {
       { referrer: "<img src=x onerror=alert(1)>", count: 3, uniques: 2 },
     ],
     paths: [
-      { path: "/StefanBartl/docmap.nvim/blob/main/README.md", title: "README.md", count: 300, uniques: 210, project_path: "README.md" },
-      { path: "/StefanBartl/docmap.nvim/blob/main/docs/USAGE.md", title: "docs/USAGE.md", count: 120, uniques: 88, project_path: "docs/USAGE.md" },
-      { path: "/StefanBartl/docmap.nvim/blob/main/docs/deleted.md", title: "docs/deleted.md", count: 12, uniques: 9, project_path: null },
+      { path: "/WKDSteve/docmap.nvim/blob/main/README.md", title: "README.md", count: 300, uniques: 210, project_path: "README.md" },
+      { path: "/WKDSteve/docmap.nvim/blob/main/docs/USAGE.md", title: "docs/USAGE.md", count: 120, uniques: 88, project_path: "docs/USAGE.md" },
+      { path: "/WKDSteve/docmap.nvim/blob/main/docs/deleted.md", title: "docs/deleted.md", count: 12, uniques: 9, project_path: null },
     ],
   },
   p3: {
     schema: 1,
-    repo: "StefanBartl/lib.nvim",
+    repo: "WKDSteve/lib.nvim",
     generated: daysAgo(9),
     fetched: daysAgo(9),
     span: { from: "2026-07-10", to: "2026-09-15" },

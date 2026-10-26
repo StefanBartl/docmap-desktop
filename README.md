@@ -8,9 +8,9 @@
 
 > **know your project**
 
-[![Latest release](https://img.shields.io/github/v/release/StefanBartl/docmap-desktop)](https://github.com/StefanBartl/docmap-desktop/releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/WKDSteve/docmap-desktop)](https://github.com/WKDSteve/docmap-desktop/releases/latest)
 
-A desktop workspace for the module maps [docmap.nvim](https://github.com/StefanBartl/docmap.nvim)
+A desktop workspace for the module maps [docmap.nvim](https://github.com/WKDSteve/docmap.nvim)
 generates: add several projects, look at any of them, switch between them
 quickly. The kind of shell Tosca Commander or Blender put in front of a
 project — a list you load from, not one window per thing.
@@ -20,7 +20,7 @@ program, in a separate repository, with a separate toolchain — deliberately.
 
 Three repositories, one triangle. `docmap.nvim` is the Neovim plugin
 this app's engine is extracted from — the map is identical, browsed with or
-without a window. [`runtime-analysis.nvim`](https://github.com/StefanBartl/runtime-analysis.nvim)
+without a window. [`runtime-analysis.nvim`](https://github.com/WKDSteve/runtime-analysis.nvim)
 is `docmap.nvim`'s own sibling plugin, extending it with a live half
 neither `docmap.nvim` nor this app can produce alone: call-count
 telemetry, collected only while real code runs inside a Neovim session. This
@@ -39,7 +39,7 @@ for that project.
 
 ## Get the app
 
-[**Download the latest release**](https://github.com/StefanBartl/docmap-desktop/releases/latest)
+[**Download the latest release**](https://github.com/WKDSteve/docmap-desktop/releases/latest)
 — an installer per platform (Windows `.msi`/`-setup.exe`, macOS `.dmg`, Linux `.deb`/
 `.AppImage`), no Rust toolchain required. Built by
 [`.github/workflows/release.yml`](.github/workflows/release.yml) from a
@@ -53,8 +53,8 @@ runs nothing that does not match). Run it in your own terminal, not elevated:
 
 ```
 # the newest state of main (the pre-release "latest", Windows and Linux x86-64)
-powershell -ExecutionPolicy Bypass -c "irm https://github.com/StefanBartl/docmap-desktop/releases/download/latest/install.ps1 | iex"
-curl -fsSL https://github.com/StefanBartl/docmap-desktop/releases/download/latest/install.sh | sh
+powershell -ExecutionPolicy Bypass -c "irm https://github.com/WKDSteve/docmap-desktop/releases/download/latest/install.ps1 | iex"
+curl -fsSL https://github.com/WKDSteve/docmap-desktop/releases/download/latest/install.sh | sh
 
 # a release: the same with the tag in place of latest, e.g. .../releases/download/v0.6.0/install.ps1
 ```
@@ -64,7 +64,7 @@ the rolling build ([`rolling.yml`](.github/workflows/rolling.yml), rebuilt after
 every green CI run on `main`, for trying what is new). Windows gets the NSIS
 setup, run silently; Linux gets the AppImage in `~/.local/bin/docmap-desktop`. On
 macOS take the `.dmg`. The scripts are the ones of appkit's
-[release-kit](https://github.com/StefanBartl/appkit/tree/main/release-kit), stamped
+[release-kit](https://github.com/WKDSteve/appkit/tree/main/release-kit), stamped
 for this app and the channel when they are attached.
 
 **Or build this checkout and install it** (Windows; Rust and the Tauri CLI, see [Build](#build)):
@@ -104,7 +104,7 @@ whole, not reimplemented:
 | The analysis | `docmap.nvim`'s standalone build — a single binary that maps an annotated tree with no Neovim and no Lua install, in nine language backends: Lua, JavaScript, TypeScript, TSX, Zig, Java, C, C++ and assembly |
 | The view | The generated page itself: self-contained HTML, every tab, no CDN, no build step |
 | Cross-project links | `opts.tag_files`, already resolving one project's map against another's |
-| Live telemetry (optional) | [`runtime-analysis.nvim`](https://github.com/StefanBartl/runtime-analysis.nvim) — the sibling Neovim plugin whose call-count data feeds the Telemetry and Loaded panels, when a Neovim session collected any for that project |
+| Live telemetry (optional) | [`runtime-analysis.nvim`](https://github.com/WKDSteve/runtime-analysis.nvim) — the sibling Neovim plugin whose call-count data feeds the Telemetry and Loaded panels, when a Neovim session collected any for that project |
 
 What this repository adds is the part neither of them can have: a window, a
 project picker, and the ability to move between projects without opening a
@@ -126,7 +126,7 @@ projects declare — exactly, not by guesswork — that becomes *this project is
 used by five others, in 197 places, and here is what they reach for*. It asks
 the engine nothing: the artifacts on disk are the whole input, which is
 [`HOSTING.md`'s "the artifact is the extension
-point"](https://github.com/StefanBartl/docmap.nvim/blob/main/docs/HOSTING.md)
+point"](https://github.com/WKDSteve/docmap.nvim/blob/main/docs/HOSTING.md)
 with its first consumer attached. **View as matrix…** renders the same edges
 as a grid instead of a list — rows require columns, a cell is call-site
 count — in a dialog of its own, off the default overview, for the workspace
@@ -170,7 +170,7 @@ a user or a contributor needs.
 |---|---|
 | [docs/FEATURES/](docs/FEATURES/README.md) | The catalogue, by theme: the workspace model, running the engine, the window, settings, and the desktop parts. What it does, with the module behind each — the same shape the Neovim siblings use, so one reader can move between all three repositories. |
 | [docs/USAGE.md](docs/USAGE.md) | Using it, button by button: adding projects, workspaces, the project picker and its five sort orders, GitHub traffic, the files pane, opening a file in your editor, the four Generate commands, settings and per-project settings, the notes that appear over some panels, the menu bar, and where everything is stored. |
-| [docmap.nvim/docs/ecosystem.md](https://github.com/StefanBartl/docmap.nvim/blob/main/docs/ecosystem.md) | **The architecture, and it is not in this repository.** Where docs, static analysis and runtime each belong, and why `runtime-analysis.nvim` is a separate plugin rather than a module. Written before this app existed, so it describes four pieces and not five — a header there records why that needed a note and not a revision: this app is a second host for the artifact-and-serve tier its Seam B already covers. |
+| [docmap.nvim/docs/ecosystem.md](https://github.com/WKDSteve/docmap.nvim/blob/main/docs/ecosystem.md) | **The architecture, and it is not in this repository.** Where docs, static analysis and runtime each belong, and why `runtime-analysis.nvim` is a separate plugin rather than a module. Written before this app existed, so it describes four pieces and not five — a header there records why that needed a note and not a revision: this app is a second host for the artifact-and-serve tier its Seam B already covers. |
 | [docs/RELEASING.md](docs/RELEASING.md) | Cutting a release: what to check before tagging, what the workflow builds, and why the last step is a person opening the app. |
 
 ### The engine

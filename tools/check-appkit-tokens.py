@@ -2,7 +2,7 @@
 """Fail when the copied design tokens of appkit-ui drift from the tag they are pinned to.
 
 The window has no package manager, so the tokens of appkit-ui (ui-kit/src/tokens.css of
-https://github.com/StefanBartl/appkit) are a checked-in copy, src/appkit-tokens.css. The tag is named once, in
+https://github.com/WKDSteve/appkit) are a checked-in copy, src/appkit-tokens.css. The tag is named once, in
 tools/appkit-ui.pin, together with the commit it named when the copy was taken. This checks that
 
   * the tag still names that commit (a moved tag would change the file under the same name);
@@ -27,8 +27,8 @@ import subprocess
 import sys
 import urllib.request
 
-REPO_URL = "https://github.com/StefanBartl/appkit"
-RAW_URL = "https://raw.githubusercontent.com/StefanBartl/appkit/{commit}/{path}"
+REPO_URL = "https://github.com/WKDSteve/appkit"
+RAW_URL = "https://raw.githubusercontent.com/WKDSteve/appkit/{commit}/{path}"
 KIT_PATH = "ui-kit/src/tokens.css"
 PIN = "tools/appkit-ui.pin"
 COPY = "src/appkit-tokens.css"

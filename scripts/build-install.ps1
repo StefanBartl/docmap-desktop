@@ -39,7 +39,7 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
 $triple = 'x86_64-pc-windows-msvc'
-$engineBase = 'https://github.com/StefanBartl/docmap.nvim/releases/download/standalone-latest'
+$engineBase = 'https://github.com/WKDSteve/docmap.nvim/releases/download/standalone-latest'
 
 function Exit-Build([string] $Message) {
     throw "build-install.ps1: $Message"

@@ -1,4 +1,4 @@
-# The one place that names the version of appkit-ui (https://github.com/StefanBartl/appkit, folder ui-kit) this
+# The one place that names the version of appkit-ui (https://github.com/WKDSteve/appkit, folder ui-kit) this
 # window takes its design tokens from: the same tag as tasks-desktop and rules-desktop, so the three look alike.
 #
 # src/appkit-tokens.css is ui-kit/src/tokens.css at this tag, byte for byte, and src/appkit-tokens-fallback.css is

@@ -1145,21 +1145,21 @@ mod tests {
     #[test]
     fn the_three_github_url_forms_resolve() {
         for url in [
-            "https://github.com/StefanBartl/docmap-desktop",
-            "https://github.com/StefanBartl/docmap-desktop.git",
-            "https://github.com/StefanBartl/docmap-desktop/",
-            "https://github.com/StefanBartl/docmap-desktop/blob/main/README.md",
-            "http://github.com/StefanBartl/docmap-desktop",
-            "git@github.com:StefanBartl/docmap-desktop.git",
-            "git@github.com:StefanBartl/docmap-desktop",
-            "ssh://git@github.com/StefanBartl/docmap-desktop.git",
-            "ssh://git@github.com:22/StefanBartl/docmap-desktop.git",
-            "https://token@github.com/StefanBartl/docmap-desktop.git",
-            "HTTPS://GitHub.com/StefanBartl/docmap-desktop",
+            "https://github.com/WKDSteve/docmap-desktop",
+            "https://github.com/WKDSteve/docmap-desktop.git",
+            "https://github.com/WKDSteve/docmap-desktop/",
+            "https://github.com/WKDSteve/docmap-desktop/blob/main/README.md",
+            "http://github.com/WKDSteve/docmap-desktop",
+            "git@github.com:WKDSteve/docmap-desktop.git",
+            "git@github.com:WKDSteve/docmap-desktop",
+            "ssh://git@github.com/WKDSteve/docmap-desktop.git",
+            "ssh://git@github.com:22/WKDSteve/docmap-desktop.git",
+            "https://token@github.com/WKDSteve/docmap-desktop.git",
+            "HTTPS://GitHub.com/WKDSteve/docmap-desktop",
         ] {
             assert_eq!(
                 parse_github_repo(url).as_deref(),
-                Some("StefanBartl/docmap-desktop"),
+                Some("WKDSteve/docmap-desktop"),
                 "{url}"
             );
         }

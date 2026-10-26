@@ -174,7 +174,7 @@ jobs:
         run: |
           set -euo pipefail
           gh release download standalone-latest \
-            --repo StefanBartl/docmap.nvim \
+            --repo WKDSteve/docmap.nvim \
             --pattern "docmap-x86_64-unknown-linux-gnu" \
             --dir /tmp/engine
           chmod +x /tmp/engine/docmap-x86_64-unknown-linux-gnu

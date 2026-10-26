@@ -3874,7 +3874,7 @@ fn open_map_in_browser(app: tauri::AppHandle, id: String) -> Result<String, AppE
 /// generic `open_url` command would be.
 #[tauri::command]
 fn open_docs(page: String) -> Result<(), AppError> {
-    const BASE: &str = "https://github.com/StefanBartl/docmap-desktop/blob/main/docs/";
+    const BASE: &str = "https://github.com/WKDSteve/docmap-desktop/blob/main/docs/";
     let target = match page.as_str() {
         "usage" => format!("{BASE}USAGE.md"),
         // The single most common confusion this app produces: that the
@@ -4145,13 +4145,13 @@ mod tests {
     #[test]
     fn the_urls_a_user_pastes_from_a_hosting_page_are_accepted() {
         for good in [
-            "https://github.com/StefanBartl/docmap-desktop",
-            "https://github.com/StefanBartl/docmap-desktop.git",
+            "https://github.com/WKDSteve/docmap-desktop",
+            "https://github.com/WKDSteve/docmap-desktop.git",
             "HTTPS://example.org/a/b.git",
             "http://intranet/a/b",
             "ssh://git@host:2222/a/b.git",
             "git://host/a/b.git",
-            "git@github.com:StefanBartl/docmap-desktop.git",
+            "git@github.com:WKDSteve/docmap-desktop.git",
             "https://[::1]/a/b.git",
             "ssh://git@[2001:db8::1]/a/b.git",
         ] {

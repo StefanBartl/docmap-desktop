@@ -106,7 +106,7 @@ pub fn url(repo: &str, topic: &str, title: &str, body: &str) -> Result<String, A
 
     let separator = if entry.path.contains('?') { '&' } else { '?' };
     Ok(format!(
-        "https://github.com/StefanBartl/{repo}/{}{separator}title={}&body={}",
+        "https://github.com/WKDSteve/{repo}/{}{separator}title={}&body={}",
         entry.path,
         encode(title),
         encode(&body)
@@ -120,7 +120,7 @@ mod tests {
     #[test]
     fn a_feature_request_goes_to_issues_labelled_enhancement() {
         let u = url("docmap-desktop", "feature", "Dark mode", "Please").unwrap();
-        assert!(u.starts_with("https://github.com/StefanBartl/docmap-desktop/issues/new?"));
+        assert!(u.starts_with("https://github.com/WKDSteve/docmap-desktop/issues/new?"));
         assert!(u.contains("labels=enhancement"));
         assert!(u.contains("title=Dark%20mode"));
         assert!(u.contains("body=Please"));

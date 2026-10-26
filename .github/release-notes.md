@@ -8,10 +8,10 @@ it against `SHA256SUMS` and runs it silently. Run it in your own terminal (Power
 
 ```
 # Windows
-powershell -ExecutionPolicy Bypass -c "irm https://github.com/StefanBartl/docmap-desktop/releases/download/{tag}/install.ps1 | iex"
+powershell -ExecutionPolicy Bypass -c "irm https://github.com/WKDSteve/docmap-desktop/releases/download/{tag}/install.ps1 | iex"
 
 # Linux x86-64
-curl -fsSL https://github.com/StefanBartl/docmap-desktop/releases/download/{tag}/install.sh | sh
+curl -fsSL https://github.com/WKDSteve/docmap-desktop/releases/download/{tag}/install.sh | sh
 ```
 
 The Linux script puts the AppImage in `~/.local/bin/docmap-desktop` (it needs FUSE 2, or run it with

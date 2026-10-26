@@ -3,7 +3,7 @@
 What GitHub reports about a repository — views, clones, where visitors come
 from — shown next to the project it belongs to. **Read-only, and nothing in
 this app talks to GitHub or ever sees a token.** The numbers are collected by
-[github_stats.nvim](https://github.com/StefanBartl/github_stats.nvim), which
+[github_stats.nvim](https://github.com/WKDSteve/github_stats.nvim), which
 also keeps them past the 14 days GitHub itself reports; this app reads the
 small file that plugin publishes and shows what is in it. With the plugin
 absent, nothing in the window changes.
@@ -107,4 +107,4 @@ takes the window down. Everything shown is written with `textContent`, never
 markup.
 
 - **Module:** `src-tauri/src/traffic.rs`
-- **Docs:** [github_stats.nvim's `DIGEST.md`](https://github.com/StefanBartl/github_stats.nvim/blob/main/docs/FEATURES/DIGEST.md) is the file contract
+- **Docs:** [github_stats.nvim's `DIGEST.md`](https://github.com/WKDSteve/github_stats.nvim/blob/main/docs/FEATURES/DIGEST.md) is the file contract

@@ -585,7 +585,7 @@ hold two at once.
 ## GitHub traffic
 
 **Optional, read-only, and this app never talks to GitHub or sees a token.**
-[github_stats.nvim](https://github.com/StefanBartl/github_stats.nvim) collects
+[github_stats.nvim](https://github.com/WKDSteve/github_stats.nvim) collects
 the traffic GitHub reports for a repository — views, clones, referrers, popular
 paths — and keeps it past the 14 days GitHub itself reports. After each fetch it
 writes a small file (the *digest*) to a local folder; this window reads that
@@ -992,8 +992,8 @@ not change what the page means.
 
 | Question | Where |
 |---|---|
-| What each tab and Analysis panel shows | [`docmap.nvim` — WORKFLOW.md](https://github.com/StefanBartl/docmap.nvim/blob/main/docs/WORKFLOW.md) |
-| Which languages the engine reads, and how fully | [`docmap.nvim` — languages.md](https://github.com/StefanBartl/docmap.nvim/blob/main/docs/languages.md) |
-| The checklist ledger's syntax and states | [`docmap.nvim` — checklist_format.md](https://github.com/StefanBartl/docmap.nvim/blob/main/docs/checklist_format.md) |
-| How the map is built, stage by stage | [`docmap.nvim` — pipeline.md](https://github.com/StefanBartl/docmap.nvim/blob/main/docs/pipeline.md) |
-| Talking to a project's map from an agent | [`docmap.nvim` — mcp.md](https://github.com/StefanBartl/docmap.nvim/blob/main/docs/mcp.md) |
+| What each tab and Analysis panel shows | [`docmap.nvim` — WORKFLOW.md](https://github.com/WKDSteve/docmap.nvim/blob/main/docs/WORKFLOW.md) |
+| Which languages the engine reads, and how fully | [`docmap.nvim` — languages.md](https://github.com/WKDSteve/docmap.nvim/blob/main/docs/languages.md) |
+| The checklist ledger's syntax and states | [`docmap.nvim` — checklist_format.md](https://github.com/WKDSteve/docmap.nvim/blob/main/docs/checklist_format.md) |
+| How the map is built, stage by stage | [`docmap.nvim` — pipeline.md](https://github.com/WKDSteve/docmap.nvim/blob/main/docs/pipeline.md) |
+| Talking to a project's map from an agent | [`docmap.nvim` — mcp.md](https://github.com/WKDSteve/docmap.nvim/blob/main/docs/mcp.md) |

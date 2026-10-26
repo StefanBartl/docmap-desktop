@@ -40,7 +40,7 @@ runs:
         dl=/tmp/engine-dl
         mkdir -p src-tauri/binaries src-tauri/resources/grammars "$dl"
         gh release download standalone-latest \
-          --repo StefanBartl/docmap.nvim \
+          --repo WKDSteve/docmap.nvim \
           --pattern "docmap-${TRIPLE}*" \
           --pattern "grammars-${TRIPLE}.tar.gz" \
           --dir "$dl" --clobber

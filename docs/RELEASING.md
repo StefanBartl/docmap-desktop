@@ -64,8 +64,8 @@ the `--exclude=`/`--languages=` flags that this app's own **Project
 settings…** dialog passes.
 
 ```bash
-gh -R StefanBartl/docmap.nvim release view standalone-latest --json publishedAt
-gh -R StefanBartl/docmap.nvim workflow run release-engine.yml
+gh -R WKDSteve/docmap.nvim release view standalone-latest --json publishedAt
+gh -R WKDSteve/docmap.nvim workflow run release-engine.yml
 ```
 
 Then watch it, because *both* platform jobs have to pass — the publish step
@@ -73,7 +73,7 @@ is skipped if either fails, and the rolling tag then still holds the old
 engine while nothing says so:
 
 ```bash
-gh -R StefanBartl/docmap.nvim run list --workflow=release-engine.yml --limit 1
+gh -R WKDSteve/docmap.nvim run list --workflow=release-engine.yml --limit 1
 ```
 
 Rebuilding the engine is also the only thing that runs its `standalone` gate
@@ -177,7 +177,7 @@ draft, if there is one).
 ## The scripts, and the rolling build
 
 Both channels carry `install.ps1` and `install.sh`, stamped for the channel (the release-kit of appkit,
-[its README](https://github.com/StefanBartl/appkit/tree/main/release-kit)). Why a script and not only the
+[its README](https://github.com/WKDSteve/appkit/tree/main/release-kit)). Why a script and not only the
 installer: a file the browser downloads is marked as coming from the internet and SmartScreen stops an unsigned
 setup with that mark (on a managed workstation it may not be run at all); a file the script downloads has no
 mark, and the script checks it against `SHA256SUMS` of the same release and runs nothing that does not match.

@@ -1,14 +1,14 @@
 # Features
 
 docmap-desktop is a workspace over the module maps
-[docmap.nvim](https://github.com/StefanBartl/docmap.nvim)
+[docmap.nvim](https://github.com/WKDSteve/docmap.nvim)
 generates: add several projects, look at any of them, switch between them
 quickly. It analyses nothing itself — the engine does that, and anything here
 that started rebuilding it would be the wrong turn this program is defined
 against.
 
 This folder is the catalogue, grouped by theme. It is the same
-[`FEATURES_FORMAT`](https://github.com/StefanBartl/docmap.nvim/blob/main/docs/FEATURES_FORMAT.md)
+[`FEATURES_FORMAT`](https://github.com/WKDSteve/docmap.nvim/blob/main/docs/FEATURES_FORMAT.md)
 shape the Neovim siblings use — one `##` per feature, a run of
 `- **Key:** value` bullets after the summary — even though nothing here is
 Lua. The format reads Markdown, not a language.

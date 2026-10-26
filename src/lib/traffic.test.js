@@ -179,7 +179,7 @@ test("a missing clones count ties as zero rather than breaking the sort", () => 
 // --------------------------------------------------------------------- links
 
 test("a link is built only from a plain owner/name, always to github.com", () => {
-  assert.equal(githubUrl("StefanBartl/docmap-desktop"), "https://github.com/StefanBartl/docmap-desktop");
+  assert.equal(githubUrl("WKDSteve/docmap-desktop"), "https://github.com/WKDSteve/docmap-desktop");
   assert.equal(githubUrl("o/n.nvim"), "https://github.com/o/n.nvim");
   for (const bad of [
     null,
