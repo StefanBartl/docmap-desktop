@@ -39,10 +39,13 @@ test("ci.yml runs cargo fmt --check on every platform, before clippy", () => {
   assert.doesNotMatch(all[fmt].body, /^\s*if:/m, "an `if:` would exempt a platform from the gate");
 });
 
-test("the toolchain step installs the rustfmt component", () => {
+test("the toolchain comes from the runner and the workflow says it needs clippy and rustfmt", () => {
+  // The self-hosted runner has no toolchain step (the action runs the WSL bash there); the machine's
+  // stable toolchain with both components is what the gates use.
   const yml = read(".github/workflows/ci.yml");
-  const m = /components: (.*)/.exec(yml);
-  assert.ok(m, "no components line on the toolchain step");
+  assert.doesNotMatch(code(yml), /rust-toolchain/, "a toolchain action would run `shell: bash` (WSL) on the runner");
+  const m = /\(The toolchain is the stable one of the runner machine, with ([^)]*)\)/.exec(yml.replace(/\n\s*#\s*/g, " "));
+  assert.ok(m, "the comment naming the runner toolchain's components is gone");
   assert.match(m[1], /\brustfmt\b/);
   assert.match(m[1], /\bclippy\b/);
 });
@@ -79,12 +82,12 @@ test("no gate can fail without failing the run: no continue-on-error, no matrix 
   }
 });
 
-test("the matrix still covers all three platforms", () => {
+test("every job runs on the self-hosted Windows runner (the private repository has no hosted runners)", () => {
   const yml = code(read(".github/workflows/ci.yml"));
-  const matrix = yml.slice(yml.indexOf("matrix:"), yml.indexOf("runs-on:"));
-  for (const p of ["ubuntu-22.04", "windows-latest", "macos-latest"]) {
-    assert.ok(matrix.includes(`platform: ${p}`), `${p} left the matrix`);
-  }
+  const runsOn = [...yml.matchAll(/^\s*runs-on: (.*)$/gm)].map((m) => m[1].trim());
+  assert.ok(runsOn.length >= 3, "the jobs of ci.yml are gone");
+  for (const r of runsOn) assert.equal(r, "[self-hosted, windows]", `a job runs on ${r}`);
+  assert.doesNotMatch(yml, /^\s*matrix:/m, "a hosted-platform matrix would stay queued forever");
 });
 
 test("the LF checkout the fmt step relies on is there", () => {
@@ -97,7 +100,7 @@ test("the comment on the floating toolchain names both rustfmt and clippy", () =
   const yml = read(".github/workflows/ci.yml");
   const at = yml.indexOf("floating `stable`");
   assert.ok(at >= 0, "the comment on the toolchain choice is gone");
-  const comment = yml.slice(at, yml.indexOf("- uses: dtolnay/rust-toolchain", at));
+  const comment = yml.slice(at, yml.indexOf("- uses: Swatinem/rust-cache", at));
   assert.match(comment, /rustfmt/);
   assert.match(comment, /clippy/);
 });

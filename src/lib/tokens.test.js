@@ -66,7 +66,8 @@ test("--mono is the bundled face in front of the kit's own stack", () => {
 });
 
 test("CI checks the copy against the pinned tag and the colours against the tokens", () => {
-  assert.match(CI, /run: python3 tools\/check-appkit-tokens\.py\s*$/m);
-  assert.match(CI, /run: python3 tools\/check-colors\.py\s*$/m);
-  assert.match(CI, /run: python3 -m unittest discover -s tools -p "test_\*\.py"\s*$/m);
+  // `python`, not `python3`: the runner is a Windows machine, where python3 is the Store stub.
+  assert.match(CI, /python tools\/check-appkit-tokens\.py\s*$/m);
+  assert.match(CI, /run: python tools\/check-colors\.py\s*$/m);
+  assert.match(CI, /run: python -m unittest discover -s tools -p "test_\*\.py"\s*$/m);
 });
