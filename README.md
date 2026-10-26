@@ -74,7 +74,11 @@ runs silently for the current user. A file built on the machine carries no mark 
 
 ```
 .\scripts\build-install.ps1 [-BuildOnly] [-RefreshEngine]
+.\scripts\uninstall.ps1
 ```
+
+`uninstall.ps1` runs the uninstaller of the installation silently, whichever way it came (this script, the
+setup or the install line: all three are the same per-user setup); your settings and projects stay.
 
 You will also need `docmap.nvim`'s standalone engine binary — this
 app runs it, it does not replace it. See [The engine](#the-engine).
