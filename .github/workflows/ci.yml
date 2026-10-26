@@ -53,9 +53,8 @@ jobs:
       # that case is to adjust the code (`cargo fmt`, or allow the lint with a
       # stated reason), never to pin the toolchain to silence it. A local
       # toolchain at the same stable version reproduces it before pushing.
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy, rustfmt
+      # (The toolchain is the stable one of the runner machine, with clippy and rustfmt: the action
+      # dtolnay/rust-toolchain runs `shell: bash`, which is the WSL launcher there.)
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -128,7 +127,7 @@ jobs:
       # appkit is private: the runner reads it with the login of `gh`, no token secret.
       - name: the token copy matches the pinned appkit tag
         run: |
-          GITHUB_TOKEN="$(gh auth token)" python tools/check-appkit-tokens.py
+          PRIVATE_READ_TOKEN="$(gh auth token)" python tools/check-appkit-tokens.py
 
       - name: the release-kit actions are the pinned commit
         run: python tools/check-release-kit-pin.py
@@ -163,4 +162,4 @@ jobs:
             --dir engine-dl
 
       - name: the engine is in step with engine.lock
-        run: python tools/check-engine-lock.py --binary engine-dl/docmap-x86_64-pc-windows-msvc.exe
+        run: python tools/check-engine-lock.py --binary "$(cygpath -m "$PWD")/engine-dl/docmap-x86_64-pc-windows-msvc.exe"
