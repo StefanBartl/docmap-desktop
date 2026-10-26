@@ -9,7 +9,7 @@
 #   SHA256SUMS                                the checksums of both
 #
 # Runs on the self-hosted Windows runner of the author (the repository is private and has no paid plan, so
-# hosted runners do not start; see $REPOS_DIR/tasks-vault/TOOLS/self-hosted-runner.md), so only Windows is
+# hosted runners do not start), so only Windows is
 # built: the AppImage and install.sh of the earlier hosted workflow are gone. The release-kit actions run
 # there by Git Bash (appkit v0.23.1 and later).
 #

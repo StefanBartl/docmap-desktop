@@ -21,7 +21,7 @@
 # own engine_triple: "" for macOS, same reasoning).
 
 # The repository is private and has no paid plan, so hosted runners do not start: every job runs on the
-# self-hosted Windows runner of the author (see $REPOS_DIR/tasks-vault/TOOLS/self-hosted-runner.md). Windows is
+# self-hosted Windows runner of the author. Windows is
 # the only platform built and tested here; Linux and macOS are gone from the matrix. The Windows-only
 # placeholders below are what build.rs needs.
 
