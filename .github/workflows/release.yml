@@ -40,9 +40,16 @@ concurrency:
 permissions:
   contents: read
 
+# `shell: bash` resolves to the WSL launcher on this machine; Git Bash is named explicitly, in 8.3 form because the
+# shell string is split at spaces.
+defaults:
+  run:
+    shell: C:\PROGRA~1\Git\bin\bash.exe --noprofile --norc -e -o pipefail {0}
+
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, windows]
+    timeout-minutes: 10
     permissions:
       contents: read
       actions: read
@@ -52,7 +59,6 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: The tag, the versions and the CI of this commit agree
-        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -88,62 +94,26 @@ jobs:
 
   build:
     needs: check
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: macos-latest
-            name: macos-arm
-            args: --target aarch64-apple-darwin
-            triple: ""
-            arch: aarch64
-          - platform: macos-latest
-            name: macos-x64
-            args: --target x86_64-apple-darwin
-            triple: ""
-            arch: x64
-          - platform: ubuntu-22.04
-            name: linux
-            args: ""
-            triple: x86_64-unknown-linux-gnu
-            arch: ""
-          - platform: windows-latest
-            name: windows
-            args: ""
-            triple: x86_64-pc-windows-msvc
-            arch: ""
-    runs-on: ${{ matrix.platform }}
+    runs-on: [self-hosted, windows]
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0 (node24)
         with:
           persist-credentials: false
 
-      # WebKitGTK is Linux's WebView2/WKWebView equivalent; the build headers are a separate package from
-      # the runtime library Tauri links against.
-      - name: install Linux webview dependencies
-        if: matrix.platform == 'ubuntu-22.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-
       - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
-        with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: "./src-tauri -> target"
 
       - uses: ./.github/actions/engine-sidecar
-        if: matrix.triple != ''
         with:
-          triple: ${{ matrix.triple }}
+          triple: x86_64-pc-windows-msvc
           token: ${{ github.token }}
 
       # Build only: no tagName, so the action uploads nothing and hands the paths of what it made on.
       - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # action-v0.6.2
         id: tauri
-        with:
-          args: ${{ matrix.args }}
 
       # What Tauri made is for Tauri to decide (`bundle.targets` is "all"); what is published is the
       # installers, not the signatures and updater archives next to them. The `.app.tar.gz` of both macOS
@@ -151,12 +121,10 @@ jobs:
       # docmap-desktop_<arch>.app.tar.gz when it uploaded (which it no longer does here), so that name
       # is made here, and two files of one name stop the run instead of one silently replacing the other.
       - name: Collect the installers
-        shell: bash
         env:
           PATHS: ${{ steps.tauri.outputs.artifactPaths }}
-          ARCH: ${{ matrix.arch }}
+          ARCH: ""
         run: |
-          set -euo pipefail
           mkdir -p dist
           printf '%s' "$PATHS" | jq -r '.[]' |
             grep -E -- '(-setup\.exe|\.msi|\.deb|\.rpm|\.AppImage|\.dmg|\.app\.tar\.gz)$' |
@@ -181,18 +149,18 @@ jobs:
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: release-${{ matrix.name }}
+          name: release-windows
           path: dist/*
           if-no-files-found: error
           retention-days: 3
 
   # The draft (made here when there is none), the installers, the install scripts stamped for this tag and
-  # the checksums of all of them. Nine files, which is the number to expect: two for Windows, three for Linux
-  # and four for macOS (a `.dmg` and an `.app.tar.gz` for each architecture); a platform that failed leaves
-  # the number short and nothing is published.
+  # the checksums of all of them. Two files, which is the number to expect (the NSIS setup and the `.msi`
+  # of Windows); a build that made fewer leaves the number short and nothing is published.
   publish:
     needs: [check, build]
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, windows]
+    timeout-minutes: 15
     permissions:
       contents: write
     steps:
@@ -204,19 +172,15 @@ jobs:
           pattern: release-*
           path: dist
           merge-multiple: true
-      - uses: WKDSteve/appkit/release-kit/publish@e76ee82e2484d53c18350a33e6530e8b8c33ca08 # v0.19.1
+      - uses: WKDSteve/appkit/release-kit/publish@2d0f4a6921d11848bbb579e2760614e88723e42d # v0.23.1
         with:
           token: ${{ github.token }}
           tag: ${{ github.ref_name }}
           title: docmap-desktop ${{ github.ref_name }}
           files: dist
-          expect: 9
+          expect: 2
           app: docmap-desktop
           windows-kind: nsis
           windows-release-asset: docmap-desktop_{version}_x64-setup.exe
           windows-rolling-asset: docmap-desktop-windows-x86_64-setup.exe
-          unix-kind: appimage
-          unix-program: docmap-desktop
-          unix-release-asset: docmap-desktop_{version}_amd64.AppImage
-          unix-rolling-asset: docmap-desktop-linux-x86_64.AppImage
           notes-file: .github/release-notes.md

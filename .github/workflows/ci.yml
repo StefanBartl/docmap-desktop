@@ -20,36 +20,29 @@
 # at all, only the Windows/Linux platform overrides do (see release.yml's
 # own engine_triple: "" for macOS, same reasoning).
 
+# The repository is private and has no paid plan, so hosted runners do not start: every job runs on the
+# self-hosted Windows runner of the author (see $REPOS_DIR/tasks-vault/TOOLS/self-hosted-runner.md). Windows is
+# the only platform built and tested here; Linux and macOS are gone from the matrix. The Windows-only
+# placeholders below are what build.rs needs.
+
 name: CI
 
 on:
   push:
   pull_request:
 
+# `shell: bash` resolves to the WSL launcher on this machine; Git Bash is named explicitly, in 8.3 form because the
+# shell string is split at spaces.
+defaults:
+  run:
+    shell: C:\PROGRA~1\Git\bin\bash.exe --noprofile --norc -e -o pipefail {0}
+
 jobs:
   test:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: ubuntu-22.04
-            engine_triple: x86_64-unknown-linux-gnu
-          - platform: windows-latest
-            engine_triple: x86_64-pc-windows-msvc
-          - platform: macos-latest
-            engine_triple: ""
-
-    runs-on: ${{ matrix.platform }}
+    runs-on: [self-hosted, windows]
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
-
-      # WebKitGTK build headers, same package release.yml already installs
-      # for the same reason (Linux's WebView2/WKWebView equivalent).
-      - name: install Linux webview dependencies
-        if: matrix.platform == 'ubuntu-22.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       # Deliberately the floating `stable`, not a pinned version (same choice
       # as the author's other desktop app). The consequence is known and accepted: a new
@@ -69,14 +62,9 @@ jobs:
           workspaces: "./src-tauri -> target"
 
       - name: stage a placeholder engine sidecar
-        if: matrix.engine_triple != ''
-        shell: bash
         run: |
-          set -euo pipefail
           mkdir -p src-tauri/binaries src-tauri/resources/grammars
-          suffix=""
-          [ "${{ matrix.platform }}" = "windows-latest" ] && suffix=".exe"
-          touch "src-tauri/binaries/docmap-${{ matrix.engine_triple }}${suffix}"
+          touch "src-tauri/binaries/docmap-x86_64-pc-windows-msvc.exe"
           touch src-tauri/resources/grammars/placeholder.dll
 
       # Formatting is a gate like clippy, on every platform and ahead of it (the
@@ -116,15 +104,12 @@ jobs:
       # failed to parse, so every control in the sidebar did nothing, and the
       # Rust and lib tests stayed green through all of it.
       - name: node --check (the frontend actually parses)
-        shell: bash
         run: |
-          set -euo pipefail
           for f in src/*.js src/lib/*.js; do
             node --check "$f"
           done
 
       - name: node --test
-        shell: bash
         run: node --test src/lib/*.test.js
 
   # The design tokens come from appkit-ui as a checked-in copy (no package
@@ -135,26 +120,24 @@ jobs:
   # tools/release-kit.pin, and that tag still names it.
   # One platform is enough: these read files, nothing here is built.
   tokens:
-    runs-on: ubuntu-22.04
+    runs-on: [self-hosted, windows]
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/private-read
-        with:
-          token: ${{ secrets.PRIVATE_READ_TOKEN }}
 
+      # appkit is private: the runner reads it with the login of `gh`, no token secret.
       - name: the token copy matches the pinned appkit tag
-        env:
-          PRIVATE_READ_TOKEN: ${{ secrets.PRIVATE_READ_TOKEN }}
-        run: python3 tools/check-appkit-tokens.py
+        run: |
+          GITHUB_TOKEN="$(gh auth token)" python tools/check-appkit-tokens.py
 
       - name: the release-kit actions are the pinned commit
-        run: python3 tools/check-release-kit-pin.py
+        run: python tools/check-release-kit-pin.py
 
       - name: no colour outside the tokens
-        run: python3 tools/check-colors.py
+        run: python tools/check-colors.py
 
       - name: unit tests of the tools
-        run: python3 -m unittest discover -s tools -p "test_*.py"
+        run: python -m unittest discover -s tools -p "test_*.py"
 
   # The engine contract of engine.lock: docmap.nvim's source at the pinned commit writes that
   # schema and answers those routes, contract/docmap.schema.json is its `.docmap.json` schema byte for
@@ -162,9 +145,10 @@ jobs:
   # rolling.yml bundle -- still answers that schema and those routes. A rolling release has no number
   # to pin, so this job is what holds it: red here without a change in this repository means the
   # engine moved, and the answer is to move engine.lock (its header says how), not to retry.
-  # ubuntu-latest, not 22.04: the published Linux engine needs glibc 2.38, which 22.04 does not have.
+  # The Windows engine, now: the only platform this repository builds on.
   engine:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, windows]
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -172,12 +156,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
+          rm -rf engine-dl
           gh release download standalone-latest \
             --repo WKDSteve/docmap.nvim \
-            --pattern "docmap-x86_64-unknown-linux-gnu" \
-            --dir /tmp/engine
-          chmod +x /tmp/engine/docmap-x86_64-unknown-linux-gnu
+            --pattern "docmap-x86_64-pc-windows-msvc.exe" \
+            --dir engine-dl
 
       - name: the engine is in step with engine.lock
-        run: python3 tools/check-engine-lock.py --binary /tmp/engine/docmap-x86_64-unknown-linux-gnu
+        run: python tools/check-engine-lock.py --binary engine-dl/docmap-x86_64-pc-windows-msvc.exe

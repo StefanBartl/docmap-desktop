@@ -26,7 +26,8 @@ runs:
   using: composite
   steps:
     - name: download the engine sidecar
-      shell: bash
+      # Git Bash by its full path (8.3 form): `bash` of the self-hosted runner is the WSL launcher.
+      shell: C:\PROGRA~1\Git\bin\bash.exe --noprofile --norc -e -o pipefail {0}
       env:
         GH_TOKEN: ${{ inputs.token }}
         TRIPLE: ${{ inputs.triple }}
