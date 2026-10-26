@@ -38,5 +38,12 @@ foreach ($entry in $entries) {
     Write-Output "running the uninstaller silently ($uninstaller /S)"
     $proc = Start-Process -FilePath $uninstaller -ArgumentList '/S' -Wait -PassThru
     if ($proc.ExitCode -ne 0) { throw "uninstall.ps1: the uninstaller failed with exit code $($proc.ExitCode)" }
+    # An NSIS uninstaller copies itself to the temporary folder and runs from there, so its first process may end
+    # before the work is done and its exit code says little: the entry going away is the answer.
+    $deadline = (Get-Date).AddSeconds(60)
+    while ((Test-Path -LiteralPath $entry.PSPath) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 500 }
+    if (Test-Path -LiteralPath $entry.PSPath) {
+        throw 'uninstall.ps1: the uninstaller ran, but docmap-desktop is still registered; remove it in Settings > Apps'
+    }
 }
 Write-Output 'removed docmap-desktop'
