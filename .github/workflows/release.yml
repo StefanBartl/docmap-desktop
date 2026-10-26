@@ -110,39 +110,26 @@ jobs:
           triple: x86_64-pc-windows-msvc
           token: ${{ github.token }}
 
-      # Build only: no tagName, so the action uploads nothing and hands the paths of what it made on.
-      - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # action-v0.6.2
-        id: tauri
+      # The Tauri CLI directly, not tauri-apps/tauri-action: on the self-hosted runner the action's CLI does
+      # not find `cargo` ("cargo metadata ... os error 2"), while the same CLI started from the job's own
+      # shell does. The action only built here anyway (no tagName, nothing uploaded).
+      - name: Build the installers
+        run: npx --yes @tauri-apps/cli@2 build
 
       # What Tauri made is for Tauri to decide (`bundle.targets` is "all"); what is published is the
-      # installers, not the signatures and updater archives next to them. The `.app.tar.gz` of both macOS
-      # architectures is called docmap-desktop.app.tar.gz by the CLI; tauri-action only gave it
-      # docmap-desktop_<arch>.app.tar.gz when it uploaded (which it no longer does here), so that name
-      # is made here, and two files of one name stop the run instead of one silently replacing the other.
+      # installers, not the signatures and updater archives next to them: the NSIS setup and the MSI.
       - name: Collect the installers
-        env:
-          PATHS: ${{ steps.tauri.outputs.artifactPaths }}
-          ARCH: ""
         run: |
           mkdir -p dist
-          printf '%s' "$PATHS" | jq -r '.[]' |
-            grep -E -- '(-setup\.exe|\.msi|\.deb|\.rpm|\.AppImage|\.dmg|\.app\.tar\.gz)$' |
-            while IFS= read -r file; do
-              # artifactPaths holds Windows paths on a Windows runner: bash wants the POSIX spelling.
-              file="$(cygpath -u "$file" 2>/dev/null || printf '%s' "$file")"
-              name="$(basename "$file")"
-              case "$name" in
-                *.app.tar.gz)
-                  [ -n "$ARCH" ] || { echo "::error::$name has no architecture to be named by"; exit 1; }
-                  name="docmap-desktop_${ARCH}.app.tar.gz"
-                  ;;
-              esac
-              if [ -e "dist/$name" ]; then
-                echo "::error::two files are called $name"
-                exit 1
-              fi
-              cp "$file" "dist/$name"
-            done
+          for file in src-tauri/target/release/bundle/nsis/*-setup.exe src-tauri/target/release/bundle/msi/*.msi; do
+            [ -e "$file" ] || continue
+            name="$(basename "$file")"
+            if [ -e "dist/$name" ]; then
+              echo "::error::two files are called $name"
+              exit 1
+            fi
+            cp "$file" "dist/$name"
+          done
           ls -l dist
           test -n "$(ls -A dist)"
 

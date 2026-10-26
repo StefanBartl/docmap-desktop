@@ -87,26 +87,21 @@ jobs:
           triple: x86_64-pc-windows-msvc
           token: ${{ github.token }}
 
-      # Build only: no tagName, so the action uploads nothing and hands the paths of what it made on.
-      - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # action-v0.6.2
-        id: tauri
-        with:
-          args: --bundles nsis
+      # The Tauri CLI directly, not tauri-apps/tauri-action: on the self-hosted runner the action's CLI does
+      # not find `cargo` ("cargo metadata ... os error 2"), while the same CLI started from the job's own
+      # shell does. The action only built here anyway (no tagName, nothing uploaded).
+      - name: Build the installer
+        run: npx --yes @tauri-apps/cli@2 build --bundles nsis
 
       # The one installer of this platform, under the fixed name of the rolling build.
       - name: Name the installer
-        env:
-          PATHS: ${{ steps.tauri.outputs.artifactPaths }}
         run: |
-          set -euo pipefail
           mkdir -p dist
-          found="$(printf '%s' "$PATHS" | jq -r --arg s "$SUFFIX" '.[] | select(endswith($s))')"
+          found="$(find src-tauri/target/release/bundle/nsis -maxdepth 1 -name "*$SUFFIX")"
           if [ "$(printf '%s\n' "$found" | grep -c .)" -ne 1 ]; then
-            echo "::error::expected one file ending in $SUFFIX, the build made: $PATHS"
+            echo "::error::expected one file ending in $SUFFIX, the build made: $(ls src-tauri/target/release/bundle/nsis)"
             exit 1
           fi
-          # artifactPaths holds Windows paths on a Windows runner: bash wants the POSIX spelling.
-          found="$(cygpath -u "$found" 2>/dev/null || printf '%s' "$found")"
           cp "$found" "dist/$ASSET"
           ls -l dist
 
