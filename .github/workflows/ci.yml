@@ -58,15 +58,6 @@ jobs:
       # (The toolchain is the stable one of the runner machine, with clippy and rustfmt: the action
       # dtolnay/rust-toolchain runs `shell: bash`, which is the WSL launcher there.)
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          # Not the programs of ~/.cargo/bin: on a runner that lives on (this machine) the action deletes every
-          # file there that existed when it started (cleanBin), rustup.exe and the cargo install programs included.
-          cache-bin: "false"
-          # v2: a new key starts a new cache once (the first run after this change ran with cache-bin on).
-          key: v2
-          workspaces: "./src-tauri -> target"
-
       - name: stage a placeholder engine sidecar
         run: |
           mkdir -p src-tauri/binaries src-tauri/resources/grammars

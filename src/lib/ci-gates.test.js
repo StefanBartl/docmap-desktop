@@ -100,7 +100,19 @@ test("the comment on the floating toolchain names both rustfmt and clippy", () =
   const yml = read(".github/workflows/ci.yml");
   const at = yml.indexOf("floating `stable`");
   assert.ok(at >= 0, "the comment on the toolchain choice is gone");
-  const comment = yml.slice(at, yml.indexOf("- uses: Swatinem/rust-cache", at));
+  const end = yml.indexOf("- name: stage a placeholder engine sidecar", at);
+  assert.ok(end > at, "the step after the comment is gone: the slice would be the rest of the file");
+  const comment = yml.slice(at, end);
   assert.match(comment, /rustfmt/);
   assert.match(comment, /clippy/);
+});
+
+test("no workflow uses Swatinem/rust-cache: on the self-hosted runner it deletes files of the shared ~/.cargo", () => {
+  // Its save step removes ~/.cargo/credentials.toml, prunes registry/src, registry/cache and git/checkouts to the
+  // crates of this one project (the other Rust repos of the runner start from nothing) and, by default,
+  // deletes every program that was in ~/.cargo/bin when it started (rustup.exe and the `cargo install` tools:
+  // 2026-10-27). It is built for throw-away runners.
+  for (const name of ["ci.yml", "rolling.yml", "release.yml"]) {
+    assert.doesNotMatch(code(read(`.github/workflows/${name}`)), /rust-cache/, `${name} uses rust-cache`);
+  }
 });
