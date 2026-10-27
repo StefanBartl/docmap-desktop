@@ -103,6 +103,11 @@ jobs:
 
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
+          # Not the programs of ~/.cargo/bin: on a runner that lives on (this machine) the action deletes every
+          # file there that existed when it started (cleanBin), rustup.exe and the cargo install programs included.
+          cache-bin: "false"
+          # v2: a new key starts a new cache once (the first run after this change ran with cache-bin on).
+          key: v2
           workspaces: "./src-tauri -> target"
 
       - uses: ./.github/actions/engine-sidecar
