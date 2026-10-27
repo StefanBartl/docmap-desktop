@@ -8,8 +8,6 @@
 
 > **know your project**
 
-[![Latest release](https://img.shields.io/github/v/release/WKDSteve/docmap-desktop)](https://github.com/WKDSteve/docmap-desktop/releases/latest)
-
 A desktop workspace for the module maps [docmap.nvim](https://github.com/WKDSteve/docmap.nvim)
 generates: add several projects, look at any of them, switch between them
 quickly. The kind of shell Tosca Commander or Blender put in front of a
@@ -39,33 +37,35 @@ for that project.
 
 ## Get the app
 
-[**Download the latest release**](https://github.com/WKDSteve/docmap-desktop/releases/latest)
-— an installer per platform (Windows `.msi`/`-setup.exe`, macOS `.dmg`, Linux `.deb`/
-`.AppImage`), no Rust toolchain required. Built by
-[`.github/workflows/release.yml`](.github/workflows/release.yml) from a
-pushed `vX.Y.Z` tag; see [Build](#build) below to build one yourself
-instead.
+The repository is **private**, so the links below need a login with read access. Releases carry **Windows
+installers only** (`.msi` and `-setup.exe`, no Rust toolchain required); there is no macOS or Linux package.
+Built by [`.github/workflows/release.yml`](.github/workflows/release.yml) from a
+pushed `vX.Y.Z` tag on the self-hosted Windows runner of the author (a private repository without a paid plan
+has no hosted runners); see [Build](#build) below to build one yourself
+instead. [Download the latest release](https://github.com/WKDSteve/docmap-desktop/releases/latest) while logged in
+to GitHub, or `gh release download`.
 
 **Or install it with a script** — for the current user, no administrator rights, and
 nothing for SmartScreen to stop (a file the script downloads carries no
 "from the internet" mark; the script checks it against `SHA256SUMS` instead and
-runs nothing that does not match). Run it in your own terminal, not elevated:
+runs nothing that does not match). Run it in your own terminal, not elevated, with a token that may read this
+repository in `GH_TOKEN` (an anonymous download of a private repository is answered with a login page):
 
 ```
-# the newest state of main (the pre-release "latest", Windows and Linux x86-64)
-powershell -ExecutionPolicy Bypass -c "irm https://github.com/WKDSteve/docmap-desktop/releases/download/latest/install.ps1 | iex"
-curl -fsSL https://github.com/WKDSteve/docmap-desktop/releases/download/latest/install.sh | sh
+# the newest state of main (the pre-release "latest", Windows x86-64)
+gh release download latest -R WKDSteve/docmap-desktop -p install.ps1 -D $env:TEMP
+$env:GH_TOKEN = (gh auth token); & "$env:TEMP\install.ps1"
 
-# a release: the same with the tag in place of latest, e.g. .../releases/download/v0.6.0/install.ps1
+# a release: the same with the tag in place of latest, e.g. gh release download v0.6.0 ...
 ```
 
 The script of a release installs exactly that release, the script of `latest`
 the rolling build ([`rolling.yml`](.github/workflows/rolling.yml), rebuilt after
-every green CI run on `main`, for trying what is new). Windows gets the NSIS
-setup, run silently; Linux gets the AppImage in `~/.local/bin/docmap-desktop`. On
-macOS take the `.dmg`. The scripts are the ones of appkit's
+every green CI run on `main`, for trying what is new). It runs the NSIS
+setup silently. The script is the one of appkit's
 [release-kit](https://github.com/WKDSteve/appkit/tree/main/release-kit), stamped
-for this app and the channel when they are attached.
+for this app and the channel when it is attached. This route is written from the script's documented
+behaviour and the workflow's own check; it has not been tried by hand since the repository became private.
 
 **Or build this checkout and install it** (Windows; Rust and the Tauri CLI, see [Build](#build)):
 the engine is staged the way the rolling build does it (`standalone-latest` of docmap.nvim, once,

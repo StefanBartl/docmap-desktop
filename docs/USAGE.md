@@ -770,12 +770,12 @@ nobody reads.
 
 1. **A path you set** under **Settings → Engine**. Setting one is an act of
    intent, so it wins over everything.
-2. **The engine installed beside this app.** On Windows and Linux the
-   installer puts it next to the program, together with its grammars —
-   nothing to set up, and it is the exact build this version was tested
-   against.
-3. **An engine on your `PATH`**, if there is no bundled one (macOS, or a
-   build without it).
+2. **The engine installed beside this app.** The Windows installer puts it next
+   to the program, together with its grammars — nothing to set up, and it is
+   the exact build this version was tested against. (Linux packages are no
+   longer built; a Linux build from source can stage the engine the same way.)
+3. **An engine on your `PATH`**, if there is no bundled one (a macOS build, or
+   a build without it).
 
 **The bundled one beats `PATH`, and that order changed on 2026-08-20 after
 it bit.** `PATH` used to win. Measured right after v0.2.0 shipped: the app
