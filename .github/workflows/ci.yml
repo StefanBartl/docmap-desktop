@@ -20,10 +20,19 @@
 # at all, only the Windows/Linux platform overrides do (see release.yml's
 # own engine_triple: "" for macOS, same reasoning).
 
-# The repository is private and has no paid plan, so hosted runners do not start: every job runs on the
-# self-hosted Windows runner of the author. Windows is
-# the only platform built and tested here; Linux and macOS are gone from the matrix. The Windows-only
+# One pipeline, two kinds of runner. Windows is the only platform built and tested here; the Windows-only
 # placeholders below are what build.rs needs.
+#
+# - push: the self-hosted Windows runner of the author (its stable toolchain, node and python on PATH).
+# - every other event, pull_request from forks included: windows-latest, a throwaway VM with a read-only token and
+#   no secrets. A pull request never runs on the self-hosted runner: it would run its own code on the author's
+#   machine. Every job picks its runner with the same matrix expression; keep the three in step.
+#
+# A fork can edit this file in its pull request (e.g. `runs-on: self-hosted`). The repository therefore requires
+# approval before a workflow of an outside contributor runs; never approve a pull request that touches `.github/`.
+#
+# The shell comes from the matrix: `bash` is the WSL launcher on the self-hosted machine, so Git Bash is named
+# there explicitly, in 8.3 form because the shell string is split at spaces; on windows-latest `bash` is Git Bash.
 
 name: CI
 
@@ -31,15 +40,22 @@ on:
   push:
   pull_request:
 
-# `shell: bash` resolves to the WSL launcher on this machine; Git Bash is named explicitly, in 8.3 form because the
-# shell string is split at spaces.
-defaults:
-  run:
-    shell: C:\PROGRA~1\Git\bin\bash.exe --noprofile --norc -e -o pipefail {0}
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
-    runs-on: [self-hosted, windows]
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      matrix:
+        include: ${{ fromJSON(github.event_name == 'push' && '[{"runs-on":["self-hosted","windows"],"shell":"C:\\PROGRA~1\\Git\\bin\\bash.exe --noprofile --norc -e -o pipefail {0}"}]' || '[{"runs-on":"windows-latest","shell":"bash --noprofile --norc -e -o pipefail {0}"}]') }}
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
@@ -117,17 +133,22 @@ jobs:
   # tools/release-kit.pin, and that tag still names it.
   # One platform is enough: these read files, nothing here is built.
   tokens:
-    runs-on: [self-hosted, windows]
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      matrix:
+        include: ${{ fromJSON(github.event_name == 'push' && '[{"runs-on":["self-hosted","windows"],"shell":"C:\\PROGRA~1\\Git\\bin\\bash.exe --noprofile --norc -e -o pipefail {0}"}]' || '[{"runs-on":"windows-latest","shell":"bash --noprofile --norc -e -o pipefail {0}"}]') }}
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
 
-      # appkit is private: the runner reads it with the login of `gh`, no token secret.
+      # appkit is public: read anonymously, no token.
       - name: the token copy matches the pinned appkit tag
-        run: |
-          PRIVATE_READ_TOKEN="$(gh auth token)" python tools/check-appkit-tokens.py
+        run: python tools/check-appkit-tokens.py
 
       - name: the release-kit actions are the pinned commit
         run: python tools/check-release-kit-pin.py
@@ -146,7 +167,13 @@ jobs:
   # engine moved, and the answer is to move engine.lock (its header says how), not to retry.
   # The Windows engine, now: the only platform this repository builds on.
   engine:
-    runs-on: [self-hosted, windows]
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      matrix:
+        include: ${{ fromJSON(github.event_name == 'push' && '[{"runs-on":["self-hosted","windows"],"shell":"C:\\PROGRA~1\\Git\\bin\\bash.exe --noprofile --norc -e -o pipefail {0}"}]' || '[{"runs-on":"windows-latest","shell":"bash --noprofile --norc -e -o pipefail {0}"}]') }}
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4

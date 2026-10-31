@@ -101,7 +101,7 @@ const metric = (d7, d30, d90, trend) => ({
   trend
 });
 const okInfo = (repo, fetchedDaysAgo, views, clones) => ({
-  status: "ok", repo, message: null, dir: "C:/Users/bartl/AppData/Local/nvim-data/github_stats.nvim/digest",
+  status: "ok", repo, message: null, dir: "C:/Users/me/AppData/Local/nvim-data/github_stats.nvim/digest",
   via: "root",
   summary: {
     generated: daysAgo(fetchedDaysAgo), fetched: daysAgo(fetchedDaysAgo),
@@ -176,9 +176,9 @@ const TRAFFIC_DETAIL = {
 };
 
 const SURVEY = {
-  explicit: null, asked: null, defaultDir: "C:/Users/bartl/AppData/Local/nvim-data/github_stats.nvim",
-  attempts: [{ via: "root", dir: "C:/Users/bartl/AppData/Local/nvim-data/github_stats.nvim", ok: true, reason: null }],
-  found: { via: "root", dir: "C:/Users/bartl/AppData/Local/nvim-data/github_stats.nvim/digest", repos: 6, newest: Math.floor(Date.now() / 1000) - 86400 }
+  explicit: null, asked: null, defaultDir: "C:/Users/me/AppData/Local/nvim-data/github_stats.nvim",
+  attempts: [{ via: "root", dir: "C:/Users/me/AppData/Local/nvim-data/github_stats.nvim", ok: true, reason: null }],
+  found: { via: "root", dir: "C:/Users/me/AppData/Local/nvim-data/github_stats.nvim/digest", repos: 6, newest: Math.floor(Date.now() / 1000) - 86400 }
 };
 
 const R = {
@@ -207,7 +207,7 @@ const R = {
                              contract: { commit: "5fdb34c659ed9f93eb96dbe4f7341b5f8aebe683", schema: 6,
                                          routes: ["checklist", "commits", "loaded", "loaded/snapshots", "telemetry", "telemetry/snapshots"] } }),
   nvim_info: () => ({ path: "C:/Program Files/Neovim/bin/nvim.exe", from_path: true,
-                      config_dir: "C:/Users/bartl/AppData/Local/nvim", config_dir_from_default: true }),
+                      config_dir: "C:/Users/me/AppData/Local/nvim", config_dir_from_default: true }),
   // Measured, like everything else here: these are the real edges between
   // the projects listed above, on 2026-08-21. The single reverse edge
   // (lib.nvim requiring runtime-analysis.telemetry once) is in deliberately

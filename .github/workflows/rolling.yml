@@ -8,9 +8,8 @@
 #                                             of appkit, stamped for the channel `latest`)
 #   SHA256SUMS                                the checksums of both
 #
-# Runs on the self-hosted Windows runner of the author (the repository is private and has no paid plan, so
-# hosted runners do not start), so only Windows is
-# built: the AppImage and install.sh of the earlier hosted workflow are gone. The release-kit actions run
+# Runs on the self-hosted Windows runner of the author (only after a CI run of a push, never for a pull
+# request), so only Windows is built: the AppImage and install.sh of the earlier hosted workflow are gone. The release-kit actions run
 # there by Git Bash (appkit v0.23.1 and later).
 #
 # Deciding (only the tip of main is built) and publishing (SHA256SUMS first, the words of the page last) are

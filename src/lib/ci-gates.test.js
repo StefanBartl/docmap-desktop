@@ -82,12 +82,34 @@ test("no gate can fail without failing the run: no continue-on-error, no matrix 
   }
 });
 
-test("every job runs on the self-hosted Windows runner (the private repository has no hosted runners)", () => {
+test("only a push reaches the self-hosted runner; every other event gets windows-latest", () => {
+  // A pull request from a fork must never run its own code on the author's machine. Every job picks its runner
+  // with one matrix expression: self-hosted only when the event is `push`, otherwise the hosted VM.
   const yml = code(read(".github/workflows/ci.yml"));
   const runsOn = [...yml.matchAll(/^\s*runs-on: (.*)$/gm)].map((m) => m[1].trim());
   assert.ok(runsOn.length >= 3, "the jobs of ci.yml are gone");
-  for (const r of runsOn) assert.equal(r, "[self-hosted, windows]", `a job runs on ${r}`);
-  assert.doesNotMatch(yml, /^\s*matrix:/m, "a hosted-platform matrix would stay queued forever");
+  for (const r of runsOn) assert.equal(r, "${{ matrix.runs-on }}", `a job runs on ${r}, not on the event's runner`);
+  const includes = [...yml.matchAll(/^\s*include: (.*)$/gm)].map((m) => m[1].trim());
+  assert.equal(includes.length, runsOn.length, "every job needs the runner matrix");
+  for (const inc of includes) {
+    assert.equal(inc, includes[0], "the jobs pick their runner with different expressions");
+    const m = /^\$\{\{ fromJSON\(github\.event_name == 'push' && '(.*)' \|\| '(.*)'\) \}\}$/.exec(inc);
+    assert.ok(m, `the runner matrix is not keyed on a push: ${inc}`);
+    const [onPush, otherwise] = [JSON.parse(m[1]), JSON.parse(m[2])];
+    assert.deepEqual(onPush.map((e) => e["runs-on"]), [["self-hosted", "windows"]]);
+    assert.deepEqual(otherwise.map((e) => e["runs-on"]), ["windows-latest"]);
+    for (const e of [...onPush, ...otherwise]) assert.match(e.shell, /bash/, "a leg without a bash shell");
+  }
+  const shells = [...yml.matchAll(/^\s*shell: (.*)$/gm)].map((m) => m[1].trim());
+  for (const s of shells) assert.equal(s, "${{ matrix.shell }}", `a job pins the shell ${s} for both runners`);
+});
+
+test("ci.yml hands no credential of the runner to the code it checks", () => {
+  // `gh auth token` on the self-hosted runner is the owner's full login; nothing in a step may read it.
+  const yml = code(read(".github/workflows/ci.yml"));
+  assert.doesNotMatch(yml, /gh auth token/);
+  assert.doesNotMatch(yml, /pull_request_target/);
+  assert.match(yml, /^permissions:\n {2}contents: read$/m, "the token of the run must be read-only");
 });
 
 test("the LF checkout the fmt step relies on is there", () => {

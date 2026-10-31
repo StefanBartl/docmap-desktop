@@ -112,8 +112,8 @@ def kit_tokens(commit, appkit=None):
         return git("-C", appkit, "show", f"{commit}:{KIT_PATH}")
     url = RAW_URL.format(commit=commit, path=KIT_PATH)
     request = urllib.request.Request(url)
-    # appkit is private: CI passes a read-only token (the secret PRIVATE_READ_TOKEN), a local run its own.
-    token = os.environ.get("PRIVATE_READ_TOKEN") or os.environ.get("GITHUB_TOKEN")
+    # appkit is public: anonymous by default; a token in GITHUB_TOKEN is only used against rate limits.
+    token = os.environ.get("GITHUB_TOKEN")
     if token:
         request.add_header("Authorization", f"Bearer {token}")
     try:

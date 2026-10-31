@@ -24,11 +24,10 @@ A pushed tag matching `v*`, and nothing else. `.github/workflows/release.yml`
 does the rest: it builds the Windows installers and attaches them to a
 GitHub Release **as a draft**.
 
-The repository is private and has no paid GitHub plan, so hosted runners do not start. Every job of
-`ci.yml`, `rolling.yml` and `release.yml` runs on the self-hosted Windows runner of the author (the notes on
-setting it up are kept with the author's other notes). Without a running runner a push or a tag stays "queued" and
-nothing turns red; start it first (`runners.ps1 ensure docmap-desktop` of the nvim config). That is also why
-only Windows is built: there is no Linux or macOS installer in a release any more.
+Pushes, tags and the rolling build run on the self-hosted Windows runner of the author, by choice; a pull
+request runs `ci.yml` on `windows-latest` and never on the self-hosted runner. Without a running runner a push
+or a tag stays "queued" and nothing turns red; start the runner first. Only Windows is built: there is no Linux
+or macOS installer in a release.
 
 The draft is the point, and it is deliberate — the workflow says so where it
 sets it:
@@ -184,10 +183,9 @@ mark, and the script checks it against `SHA256SUMS` of the same release and runs
 That proves the installer is whole and the one of the release, not who made the release. The Windows script runs
 the NSIS setup silently (`/S`, for the current user).
 
-**The repository is private, so a download needs a token.** An anonymous request for a release file is answered
-with a login page or a 404. A person with access sets `GH_TOKEN` (or `GITHUB_TOKEN`) to a token that may read the
-repository, and `install.ps1` uses it for its own downloads. The `published` checks of the workflows get the
-token of the run. Open the Releases page logged in, or use `gh release download`.
+**Downloads are anonymous.** `install.ps1` fetches the release files without a token; `GH_TOKEN` (or
+`GITHUB_TOKEN`) is only used when set, e.g. against rate limits. The `published` checks of the workflows get the
+token of the run.
 
 The rolling build ([`rolling.yml`](../.github/workflows/rolling.yml)) is the pre-release `latest`: after every
 green `CI` run on `main` it builds the NSIS setup of exactly that commit (with the engine bundled), under the
@@ -219,8 +217,7 @@ gh release download v0.2.0 --pattern "*.msi" --dir .
 The install scripts cannot fetch a draft by themselves (the files of a draft download only for people who may
 write to the repository, logged in). Download the installer, `SHA256SUMS` and the script into one folder and run
 `.\install.ps1 -File .\docmap-desktop_0.2.0_x64-setup.exe`: the sums are found beside it. The download path
-(no `-File`, with `GH_TOKEN` set, see above) is tried once after publishing, with the line of the notes. That
-path has not been run yet for this repository since it became private.
+(no `-File`, see above) is tried once after publishing, with the line of the notes.
 
 If you cannot install it right away, you can still look inside the Windows
 installer without installing or starting anything. It is an NSIS archive, so
@@ -258,8 +255,7 @@ gh release edit v0.2.0 --draft=false
 
 Or on the release page: **Edit**, then **Publish release** at the bottom.
 
-It is then at `/releases/latest` (for people logged in with read access; the repository is private and the
-README no longer has a release badge, shields.io cannot read it).
+It is then at `/releases/latest`.
 
 **Until something is published, the public parts were broken, and they said so
 out loud** (written while the repository was still public). Checked on 2026-08-21, with `v0.1.0` and `v0.2.0` sitting in the
@@ -326,7 +322,7 @@ could have it, a fix is a patch release.
 ## Two things worth knowing before you publish
 
 **There is no macOS or Linux installer now, and the macOS menu bar was never checked.**
-Releases carry Windows files only (the private repository has no hosted runners, see the top). If a macOS
+Releases carry Windows files only (see the top). If a macOS
 build comes back, mind what the menu bar's design record (kept with the author's notes) says: the tree needs a
 documented macOS variant before shipping there — on that platform the first submenu is the
 *application* menu and carries About, Preferences and Quit by convention, and
@@ -336,9 +332,8 @@ Rust's test harness runs every test on a worker, so those three are gated off
 that platform. A test that cannot run is not evidence. (The earlier drafts carried `.dmg` files;
 `gh release delete-asset v0.2.0 <name>.dmg --yes` was how to drop them before publishing.)
 
-**A private repository has no public release page.** `/releases/latest` asks for a login, and the README's
-release badge was removed because shields.io cannot read it. Publishing still matters (a draft is not visible to
-anyone with only read access).
+**A draft is visible only to people who may write to the repository.** Publishing is what makes a release
+reach `/releases/latest` and the install scripts.
 
 **The engine has its own release, and it rolls.** `standalone-latest` is a
 moving tag in `docmap.nvim`. Two installers of this app built a month
