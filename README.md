@@ -10,7 +10,7 @@
 
 A desktop workspace for the module maps [docmap.nvim](https://github.com/WKDSteve/docmap.nvim)
 generates: add several projects, look at any of them, switch between them
-quickly. The kind of shell Tosca Commander or Blender put in front of a
+quickly. The kind of shell an IDE or Blender put in front of a
 project — a list you load from, not one window per thing.
 
 **This is not a Neovim plugin and does not need Neovim.** It is a separate
