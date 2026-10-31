@@ -49,10 +49,11 @@ concurrency:
 
 jobs:
   test:
+    name: test (${{ matrix.leg }})
     runs-on: ${{ matrix.runs-on }}
     strategy:
       matrix:
-        include: ${{ fromJSON(github.event_name == 'push' && '[{"runs-on":["self-hosted","windows"],"shell":"C:\\PROGRA~1\\Git\\bin\\bash.exe --noprofile --norc -e -o pipefail {0}"}]' || '[{"runs-on":"windows-latest","shell":"bash --noprofile --norc -e -o pipefail {0}"}]') }}
+        include: ${{ fromJSON(github.event_name == 'push' && '[{"leg":"self-hosted","runs-on":["self-hosted","windows"],"shell":"C:\\PROGRA~1\\Git\\bin\\bash.exe --noprofile --norc -e -o pipefail {0}"}]' || '[{"leg":"windows-latest","runs-on":"windows-latest","shell":"bash --noprofile --norc -e -o pipefail {0}"}]') }}
     defaults:
       run:
         shell: ${{ matrix.shell }}
@@ -133,10 +134,11 @@ jobs:
   # tools/release-kit.pin, and that tag still names it.
   # One platform is enough: these read files, nothing here is built.
   tokens:
+    name: tokens (${{ matrix.leg }})
     runs-on: ${{ matrix.runs-on }}
     strategy:
       matrix:
-        include: ${{ fromJSON(github.event_name == 'push' && '[{"runs-on":["self-hosted","windows"],"shell":"C:\\PROGRA~1\\Git\\bin\\bash.exe --noprofile --norc -e -o pipefail {0}"}]' || '[{"runs-on":"windows-latest","shell":"bash --noprofile --norc -e -o pipefail {0}"}]') }}
+        include: ${{ fromJSON(github.event_name == 'push' && '[{"leg":"self-hosted","runs-on":["self-hosted","windows"],"shell":"C:\\PROGRA~1\\Git\\bin\\bash.exe --noprofile --norc -e -o pipefail {0}"}]' || '[{"leg":"windows-latest","runs-on":"windows-latest","shell":"bash --noprofile --norc -e -o pipefail {0}"}]') }}
     defaults:
       run:
         shell: ${{ matrix.shell }}
@@ -167,10 +169,11 @@ jobs:
   # engine moved, and the answer is to move engine.lock (its header says how), not to retry.
   # The Windows engine, now: the only platform this repository builds on.
   engine:
+    name: engine (${{ matrix.leg }})
     runs-on: ${{ matrix.runs-on }}
     strategy:
       matrix:
-        include: ${{ fromJSON(github.event_name == 'push' && '[{"runs-on":["self-hosted","windows"],"shell":"C:\\PROGRA~1\\Git\\bin\\bash.exe --noprofile --norc -e -o pipefail {0}"}]' || '[{"runs-on":"windows-latest","shell":"bash --noprofile --norc -e -o pipefail {0}"}]') }}
+        include: ${{ fromJSON(github.event_name == 'push' && '[{"leg":"self-hosted","runs-on":["self-hosted","windows"],"shell":"C:\\PROGRA~1\\Git\\bin\\bash.exe --noprofile --norc -e -o pipefail {0}"}]' || '[{"leg":"windows-latest","runs-on":"windows-latest","shell":"bash --noprofile --norc -e -o pipefail {0}"}]') }}
     defaults:
       run:
         shell: ${{ matrix.shell }}

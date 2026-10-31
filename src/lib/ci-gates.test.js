@@ -98,8 +98,14 @@ test("only a push reaches the self-hosted runner; every other event gets windows
     const [onPush, otherwise] = [JSON.parse(m[1]), JSON.parse(m[2])];
     assert.deepEqual(onPush.map((e) => e["runs-on"]), [["self-hosted", "windows"]]);
     assert.deepEqual(otherwise.map((e) => e["runs-on"]), ["windows-latest"]);
-    for (const e of [...onPush, ...otherwise]) assert.match(e.shell, /bash/, "a leg without a bash shell");
+    for (const e of [...onPush, ...otherwise]) {
+      assert.match(e.shell, /bash/, "a leg without a bash shell");
+      assert.match(e.leg ?? "", /^[a-z-]+$/, "a leg without a short name: the job name would be the shell string");
+    }
   }
+  const names = [...yml.matchAll(/^ {4}name: (.*)$/gm)].map((m) => m[1].trim());
+  assert.equal(names.length, runsOn.length, "every job needs a name");
+  for (const n of names) assert.match(n, /^[a-z]+ \(\$\{\{ matrix\.leg \}\}\)$/, `job name ${n} does not show the leg`);
   const shells = [...yml.matchAll(/^\s*shell: (.*)$/gm)].map((m) => m[1].trim());
   for (const s of shells) assert.equal(s, "${{ matrix.shell }}", `a job pins the shell ${s} for both runners`);
 });
